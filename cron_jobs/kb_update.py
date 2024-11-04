@@ -25,7 +25,7 @@ logger = LoggingDatabase(config)
 
 STORE_RANGE_NAME = "KB_Update_Processed"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-SPREADSHEET_ID = config["SPREADSHEET_ID"].strip()
+SPREADSHEET_ID = os.environ["KB_UPDATE_SHEET_ID"].strip()
 LAST_UPDATE_RANGE_NAME = 'KB_Update_' + (datetime.datetime.now() - datetime.timedelta(days=4)).strftime("%d-%m-%Y")
 KB_UPDATE_FOLDER_NAME = "kb_update_raw"
 RAW_DOCUMENTS_FOLDER_NAME = "raw_documents"
@@ -47,10 +47,10 @@ def add_update_timestamps(df, update_request_date, updated_date):
     return df
 
 def send_email(process_message):
-    email_id = os.environ["EMAIL_ID"].strip()
-    email_pass = os.environ["EMAIL_PASS"].strip()
+    email_id = os.environ["LOGGING_EMAIL_ID"].strip()
+    email_pass = os.environ["LOGGING_EMAIL_PASS"].strip()
     li = config["EMAIL_LIST"]
-    link_to_sheet = config["SHEET_LINK"].strip()
+    link_to_sheet = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/view"
     date_today = datetime.datetime.now()
     for dest in li:
         # Create the email message
