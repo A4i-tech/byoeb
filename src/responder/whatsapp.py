@@ -12,6 +12,8 @@ from knowledge_base import KnowledgeBase
 from conversation_database import (
     LoggingDatabase,
 )
+from cron_jobs.did_you_know import DID_YOU_KNOW, get_suggested_questions_based_on_fact
+from cron_jobs.question_of_the_week import QUESTION_OF_THE_WEEK, get_answer, get_suggested_questions
 from database import UserDB, UserConvDB, BotConvDB, ExpertConvDB, UserRelationDB, AppLogger
 from messenger import WhatsappMessenger
 import utils
@@ -180,13 +182,61 @@ class WhatsappResponder(BaseResponder):
                 if context_row['message_type'] == 'response_request':
                     self.get_request_response_expert(msg_object, row_lt)
                     return
+                
+                if context_row['message_type'] == QUESTION_OF_THE_WEEK:
+                    self.send_question_of_the_week_answer(msg_object, row_lt)
+                    return
+                
+                if context_row['message_type'] == DID_YOU_KNOW:
+                    self.send_did_you_know_response(msg_object, row_lt)
+                    return
 
         if user_type in self.config["USERS"]:
             self.handle_response_user(msg_object, row_lt)
         elif user_type in self.config["EXPERTS"]:
             self.handle_response_expert(msg_object, row_lt)
         return
+    
+    def send_did_you_know_response(
+        self,
+        msg_object,
+        row_lt
+    ):
+        reply_id = msg_object["context"]["id"]
+        last_query = self.bot_conv_db.get_from_message_id(reply_id)
+        fact_id = last_query['did_you_know_id']
+        title, list_title, questions_source = get_suggested_questions_based_on_fact(
+            fact_id,
+            row_lt,
+            self.knowledge_base,
+            self.onboarding_questions,
+        )
+        suggested_ques_msg_id = self.messenger.send_suggestions(
+            row_lt['whatsapp_id'], title, list_title, questions_source
+        )
 
+    def send_question_of_the_week_answer(
+        self,
+        msg_object,
+        row_lt
+    ):
+        reply_id = msg_object["context"]["id"]
+        last_query = self.bot_conv_db.get_from_message_id(reply_id)
+        guid = last_query['question_id']
+        answer = get_answer(guid)
+        print (answer)
+        self.messenger.send_message(row_lt['whatsapp_id'], answer, reply_id)
+        title, list_title, questions_source = get_suggested_questions(
+            guid,
+            row_lt,
+            self.knowledge_base,
+            self.onboarding_questions,
+            self.azure_translate
+        )
+        
+        suggested_ques_msg_id = self.messenger.send_suggestions(
+            row_lt['whatsapp_id'], title, list_title, questions_source
+        )
     def handle_unsupported_msg_types(self, msg_object, row_lt):
         # data is a dictionary that contains from_number, msg_id, msg_object
         print("Handling unsupported message types")
