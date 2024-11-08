@@ -28,7 +28,7 @@ GUID = 'GUID'
 FACT = 'Did you know - Hindi'
 FACT_GUID_KEY = 'dyk_guids'
 EVENT_NAME = "did_you_know"
-template_name = "did_you_know"
+template_name = "did_you_know_test"
 
 user_db = UserDB(config)
 user_conv_db = UserConvDB(config)

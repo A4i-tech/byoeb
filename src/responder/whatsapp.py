@@ -226,6 +226,13 @@ class WhatsappResponder(BaseResponder):
         answer = get_answer(guid)
         print (answer)
         self.messenger.send_message(row_lt['whatsapp_id'], answer, reply_id)
+        self.app_logger.add_log(
+            event_name="question_of_the_week",
+            sender_id=row_lt['whatsapp_id'],
+            receiver_id="bot",
+            message_id=msg_object["id"],
+            details={"text": answer, "reply_to": reply_id},
+        )
         title, list_title, questions_source = get_suggested_questions(
             guid,
             row_lt,
