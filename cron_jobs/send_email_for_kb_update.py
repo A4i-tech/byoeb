@@ -23,6 +23,8 @@ import utils
 import re
 import hashlib
 
+app_logger = AppLogger()
+
 # DB key names
 MESSAGE_SOURCE_LANG = 'message_source_lang'
 MESSAGE_ENGLISH = 'message_english'
@@ -66,15 +68,27 @@ def try_get_older_sheet_name(local_path):
     latest_entry = utils.get_latest_entry(sheet_names)
     if latest_entry is None:
         return None
+    app_logger.add_log(
+        event_name="kb_update",
+        details={"message": f"Found older range name: {latest_entry}"}
+    )
     print(f"Found older range name: {latest_entry}")
     return latest_entry
 
 def get_unanswered_questions_from_last_update(old_range_name, local_path):
     if not utils.is_sheet_present(SCOPES, SPREADSHEET_ID, old_range_name, local_path):
         print("Looking for older sheet")
+        app_logger.add_log(
+            event_name="kb_update",
+            details={"message": "Looking for older sheet"}
+        )
         old_range_name = try_get_older_sheet_name(local_path)
         if old_range_name is None:
             print("No older sheet found")
+            app_logger.add_log(
+                event_name="kb_update",
+                details={"message": "No older sheet found"}
+            )
             return None, None
         
     data = utils.pull_sheet_data(SCOPES, SPREADSHEET_ID, old_range_name, local_path)
@@ -113,6 +127,10 @@ def get_idk_questions():
     
     if previous_unanswered_df is not None:
         print("unanswered questions from last update: ", len(previous_unanswered_df)) 
+        app_logger.add_log(
+            event_name="kb_update",
+            details={"message": f"unanswered questions from last update: {len(previous_unanswered_df)}"}
+        )
         for _, row in previous_unanswered_df.iterrows():
             question_set.add(md5_hash(row[QUERY_ENG]))
     questions_with_idks = pd.concat(
@@ -128,6 +146,10 @@ def get_idk_questions():
         user_id = row[USER_ID]
         if user_id in test_users_ids:
             print("Skipping test user")
+            app_logger.add_log(
+                event_name="kb_update",
+                details={"message": f"Skipping test user: {user_id}"}
+            )
             continue
         query_source_lang = row[MESSAGE_SOURCE_LANG]
         query_eng = row[MESSAGE_ENGLISH]
@@ -194,14 +216,22 @@ def send_email():
             s.sendmail(email_id, dest, msg.as_string())
 
         print(f"Email sent to: {dest}")
+        app_logger.add_log(
+            event_name="kb_update",
+            details={"message": f"Email sent to: {dest}"}
+        )
 
-questions_with_idks, old_range_name = get_idk_questions()
-if utils.is_sheet_present(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, local_path):
-    utils.delete_sheet(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, local_path)
-utils.create_sheet(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, local_path)
-utils.add_headers(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, [QUERY_SOURCE_LANG, QUERY_ENG, RESPONSE, ADD_TO_KB, RELEVANT_DOC], local_path)
-utils.append_rows(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, questions_with_idks, local_path)
-utils.set_row_bold(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, 1, local_path)
-send_email()
-if old_range_name is not None and utils.is_sheet_present(SCOPES, SPREADSHEET_ID, old_range_name, local_path):
-    utils.delete_sheet(SCOPES, SPREADSHEET_ID, old_range_name, local_path)
+def process_responses_to_send_for_kb_update():
+    questions_with_idks, old_range_name = get_idk_questions()
+    if utils.is_sheet_present(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, local_path):
+        utils.delete_sheet(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, local_path)
+    utils.create_sheet(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, local_path)
+    utils.add_headers(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, [QUERY_SOURCE_LANG, QUERY_ENG, RESPONSE, ADD_TO_KB, RELEVANT_DOC], local_path)
+    utils.append_rows(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, questions_with_idks, local_path)
+    utils.set_row_bold(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, 1, local_path)
+    send_email()
+    if old_range_name is not None and old_range_name != NEW_RANGE_NAME and utils.is_sheet_present(SCOPES, SPREADSHEET_ID, old_range_name, local_path):
+        utils.delete_sheet(SCOPES, SPREADSHEET_ID, old_range_name, local_path)
+
+if __name__ == "__main__":
+    process_responses_to_send_for_kb_update()

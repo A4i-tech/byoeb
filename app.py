@@ -17,6 +17,10 @@ import traceback
 __import__("pysqlite3")
 sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 sys.path.append("src")
+local_path = os.environ["APP_PATH"]
+sys.path.append(local_path + "/cron_jobs")
+from send_email_for_kb_update import process_responses_to_send_for_kb_update
+import kb_update
 from onboard import onboard_template
 from database import AppLogger
 from responder import WhatsappResponder
@@ -55,6 +59,38 @@ def index():
     print("Request for index page received")
     return "Flask is running!"
 
+
+@app.route("/process_response_to_send_for_kb_update")
+def process_response_to_send_for_kb_update():
+    print("Request for process_response_to_send_for_kb_update page received")
+    try:
+        process_responses_to_send_for_kb_update()
+        return "OK", 200
+    except Exception as e:
+        error_message = "Error in processing response to send for kb update: " + str(e)
+        error_message = error_message + "\n" + traceback.format_exc()
+        traceback.print_exc()
+        app_logger.add_log(
+            event_name="kb_update_error",
+            details={"error": error_message},
+        )
+        return error_message, 500
+
+@app.route("/process_expert_responses_to_update_kb")
+def process_expert_responses_to_update_kb():
+    print("Request for process_expert_responses_to_update_kb page received")
+    try:
+        msg = kb_update.process_expert_responses_to_update_kb()
+        return msg, 200
+    except Exception as e:
+        error_message = "Error in processing exper responses to update kb: " + str(e)
+        error_message = error_message + "\n" + traceback.format_exc()
+        traceback.print_exc()
+        app_logger.add_log(
+            event_name="kb_update_error",
+            details={"error": error_message},
+        )
+        return error_message, 500
 
 @app.route("/webhooks", methods=["POST"])
 def webhook():
