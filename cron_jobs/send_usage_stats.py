@@ -29,7 +29,7 @@ def get_message_wise_stats(messages_df, user_ids):
     first_message = messages_df[messages_df["user_id"].isin(user_ids)].groupby("user_id")["message_timestamp"].min().to_dict()
     return message_count, first_message
 
-NUM_DAYS = 3
+NUM_DAYS = 1
 NUM_HOURS = NUM_DAYS*24
 
 
