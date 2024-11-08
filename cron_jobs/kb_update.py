@@ -11,6 +11,7 @@ import sys
 
 sys.path.append(local_path + "/src")
 from knowledge_base import KnowledgeBase
+from database import AppLogger
 from conversation_database import LoggingDatabase
 import pandas as pd
 import utils
@@ -21,6 +22,7 @@ from email.mime.text import MIMEText
 with open(os.path.join(local_path, "config.yaml")) as file:
     config = yaml.load(file, Loader=yaml.FullLoader)
 
+app_logger = AppLogger()
 logger = LoggingDatabase(config)
 
 STORE_RANGE_NAME = "KB_Update_Processed"
@@ -88,14 +90,27 @@ def try_get_older_sheet_name(local_path):
     if latest_entry is None:
         return None
     print(f"Found: {latest_entry}")
+    app_logger.add_log(
+        event_name="kb_update",
+        details={"message": f"Found older sheet to fetch for kb update: {latest_entry}"}
+    )
     return latest_entry
 
 def get_answered_questions_from_last_update(last_update_range_name, local_path):
     if not utils.is_sheet_present(SCOPES, SPREADSHEET_ID, last_update_range_name, local_path):
         print("Looking for older sheet")
+        app_logger.add_log(
+            event_name="kb_update",
+            details={"message": f"Looking for older sheet to fetch for KB update"}
+        )
+
         last_update_range_name = try_get_older_sheet_name(local_path)
         if last_update_range_name is None:
             print("No older sheet found")
+            app_logger.add_log(
+                event_name="kb_update",
+                details={"message": f"No older sheet found to fetch for KB update"}
+            )
             return None, None, None
         
     data = utils.pull_sheet_data(SCOPES, SPREADSHEET_ID, last_update_range_name, local_path)
@@ -151,6 +166,12 @@ def create_or_add_to_raw_kb_update_file(df, local_path):
                 },
                 timestamp=datetime.datetime.now(),
             )
+            app_logger.add_log(
+                event_name="kb_update",
+                details={
+                    "message": f"Updating KnowledgeBase for query: {query}"
+                }
+            )
             file.write(f"##\n{query.strip()}\n{response.strip()}\n\n")
     
     df_no_to_update.reset_index(drop=True, inplace=True)
@@ -171,6 +192,12 @@ def create_or_add_to_raw_kb_update_file(df, local_path):
             },
             timestamp=datetime.datetime.now(),
         )
+        app_logger.add_log(
+            event_name="kb_update",
+            details={
+                "message": f"Not updating KnowledgeBase for query: {query}"
+            }
+        )
 
 def update_kb(is_created, updated_date, last_update_request_date):
     msg = ""
@@ -179,44 +206,53 @@ def update_kb(is_created, updated_date, last_update_request_date):
         try:
             knowledge_base.update_kb_wa()
             msg = f"KB updated successfully on {updated_date} for update requested on {last_update_request_date}"
-            print("KB updated successfully")
             return msg, None
         except Exception as e:
             msg = f"Error updating KB for update request date {last_update_request_date}: {e}"
-            print(f"Error updating KB for update request date {last_update_request_date}: {e}")
             return msg, e
     msg = f"No new updates to KB on {updated_date} for update requests on {last_update_request_date}"
-    print("No new updates to KB")
     return msg, None
 
-last_update_range_name = LAST_UPDATE_RANGE_NAME
-df_yes_to_update, df_no_to_update, last_update_range_name = get_answered_questions_from_last_update(last_update_range_name, local_path)
+def process_expert_responses_to_update_kb():
+    last_update_range_name = LAST_UPDATE_RANGE_NAME
+    df_yes_to_update, df_no_to_update, last_update_range_name = get_answered_questions_from_last_update(last_update_range_name, local_path)
 
-if last_update_range_name is None:
-    msg = "No update sheet found"
+    if last_update_range_name is None:
+        msg = "No update sheet found"
+        send_email(msg)
+        return msg
+
+    print(f"Last update sheet found: {last_update_range_name}")
+    app_logger.add_log(
+        event_name="kb_update",
+        details={"message": f"Last update sheet found: {last_update_range_name}"}
+    )
+    last_update_request_date = utils.extract_date(last_update_range_name).strftime("%d-%m-%Y")
+    updated_date = datetime.datetime.now().strftime("%d-%m-%Y")
+
+    is_created = create_kb_update_file(df_yes_to_update, local_path)
+    msg, err = update_kb(is_created, updated_date, last_update_request_date)
+    app_logger.add_log(
+        event_name="kb_update",
+        details={"message": msg}
+    )
+    df_no_to_update = add_update_timestamps(df_no_to_update, last_update_request_date, None)
+    if err is not None:
+        df_yes_to_update = add_update_timestamps(df_yes_to_update, last_update_request_date, None)
+    else:
+        df_yes_to_update = add_update_timestamps(df_yes_to_update, last_update_request_date, updated_date)
+
+    df_answered = pd.concat([df_yes_to_update, df_no_to_update])
+    df_answered.reset_index(drop=True, inplace=True)
+    if not utils.is_sheet_present(SCOPES, SPREADSHEET_ID, STORE_RANGE_NAME, local_path):
+        utils.create_sheet(SCOPES, SPREADSHEET_ID, STORE_RANGE_NAME, local_path)
+        utils.add_headers(SCOPES, SPREADSHEET_ID, STORE_RANGE_NAME, [UPDATE_REQUEST_DATE, UPDATED_DATE, ADD_TO_KB, QUERY_SOURCE_LANG, QUERY_ENG, RESPONSE, RELEVANT_DOC], local_path)
+    utils.append_rows(SCOPES, SPREADSHEET_ID, STORE_RANGE_NAME, df_answered, local_path)
+
+    create_or_add_to_raw_kb_update_file(df_answered, local_path)
+
     send_email(msg)
-    sys.exit()
+    return msg
 
-print(f"Last update sheet found: {last_update_range_name}")
-last_update_request_date = utils.extract_date(last_update_range_name).strftime("%d-%m-%Y")
-updated_date = datetime.datetime.now().strftime("%d-%m-%Y")
-
-is_created = create_kb_update_file(df_yes_to_update, local_path)
-msg, err = update_kb(is_created, updated_date, last_update_request_date)
-
-df_no_to_update = add_update_timestamps(df_no_to_update, last_update_request_date, None)
-if err is not None:
-    df_yes_to_update = add_update_timestamps(df_yes_to_update, last_update_request_date, None)
-else:
-    df_yes_to_update = add_update_timestamps(df_yes_to_update, last_update_request_date, updated_date)
-
-df_answered = pd.concat([df_yes_to_update, df_no_to_update])
-df_answered.reset_index(drop=True, inplace=True)
-if not utils.is_sheet_present(SCOPES, SPREADSHEET_ID, STORE_RANGE_NAME, local_path):
-    utils.create_sheet(SCOPES, SPREADSHEET_ID, STORE_RANGE_NAME, local_path)
-    utils.add_headers(SCOPES, SPREADSHEET_ID, STORE_RANGE_NAME, [UPDATE_REQUEST_DATE, UPDATED_DATE, ADD_TO_KB, QUERY_SOURCE_LANG, QUERY_ENG, RESPONSE, RELEVANT_DOC], local_path)
-utils.append_rows(SCOPES, SPREADSHEET_ID, STORE_RANGE_NAME, df_answered, local_path)
-
-create_or_add_to_raw_kb_update_file(df_answered, local_path)
-
-send_email(msg)
+if __name__ == "__main__":
+    process_expert_responses_to_update_kb()
