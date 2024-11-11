@@ -136,7 +136,7 @@ def send_question(user_df):
                     "event_type": SEND,
                     "question_id": next_qow_guid,
                     "question": qow,
-                    "message": f"Error: {str(e)}"
+                    "message": f"Error sending to {user_row["user_id"]}: {str(e)}"
                 }
             )
 
