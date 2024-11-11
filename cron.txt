@@ -9,3 +9,5 @@
 00 17 * * * python3 $APP_PATH/cron_jobs/send_usage_stats.py
 00 17 * * 4 python3 $APP_PATH/cron_jobs/send_email_for_kb_update.py
 00 10 * * 1 python3 $APP_PATH/cron_jobs/kb_update.py
+00 12 * * 1 python3 $APP_PATH/cron_jobs/question_of_the_week.py
+00 12 * * 5 python3 $APP_PATH/cron_jobs/did_you_know.py
