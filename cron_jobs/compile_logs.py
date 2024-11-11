@@ -227,5 +227,8 @@ final_anm_df = final_anm_df.fillna('')
 utils.delete_all_rows(SCOPES, SPREADSHEET_ID, ASHA_LOGS_RANGE_NAME, local_path)
 utils.delete_all_rows(SCOPES, SPREADSHEET_ID, ANM_LOGS_RANGE_NAME, local_path)
 
-utils.add_rows(SCOPES, SPREADSHEET_ID, ASHA_LOGS_RANGE_NAME, final_asha_df, local_path)
-utils.add_rows(SCOPES, SPREADSHEET_ID, ANM_LOGS_RANGE_NAME, final_anm_df, local_path)
+utils.add_headers(SCOPES, SPREADSHEET_ID, ASHA_LOGS_RANGE_NAME, final_asha_df.columns.tolist(), local_path)
+utils.add_headers(SCOPES, SPREADSHEET_ID, ANM_LOGS_RANGE_NAME, final_anm_df.columns.tolist(), local_path)
+
+utils.append_rows(SCOPES, SPREADSHEET_ID, ASHA_LOGS_RANGE_NAME, final_asha_df, local_path)
+utils.append_rows(SCOPES, SPREADSHEET_ID, ANM_LOGS_RANGE_NAME, final_anm_df, local_path)
