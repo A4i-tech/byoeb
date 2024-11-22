@@ -52,16 +52,16 @@ TEMP_CSV_FILE = "kb_update/temp.csv"
 
 def add_temp_csv_file(df):
     df.to_csv(TEMP_CSV_FILE, index=False)
-connect_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING").strip()
-            blob_service_client = BlobServiceClient.from_connection_string(connect_str)
-            container_name = self.config["AZURE_BLOB_CONTAINER_NAME"].strip()
+    # connect_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING").strip()
+    # blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+    # container_name = config["AZURE_BLOB_CONTAINER_NAME"].strip()
 
-            blob_name = "queries/" + str(datetime.now()) + "_" + str(row_lt['user_id']) + ".ogg"
-            blob_client = blob_service_client.get_blob_client(
-                container=container_name, blob=blob_name
-            )
-            with open(file=audio_input_file, mode="rb") as data:
-                blob_client.upload_blob(data)
+    # blob_name = "queries/" + str(datetime.now()) + "_" + str(row_lt['user_id']) + ".ogg"
+    # blob_client = blob_service_client.get_blob_client(
+    #     container=container_name, blob=blob_name
+    # )
+    # with open(file=audio_input_file, mode="rb") as data:
+    #     blob_client.upload_blob(data)
 
 def md5_hash(input_string: str) -> str:
     # Create an MD5 hash object

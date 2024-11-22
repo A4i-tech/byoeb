@@ -1563,15 +1563,31 @@ class WhatsappResponder(BaseResponder):
     def escalate_query_multiple(self, row_query, is_test_user=False):
 
         previous_polls = self.bot_conv_db.find_all_with_transaction_id(row_query["message_id"], "consensus_poll")
-
-        if len(previous_polls) >= self.config['MAX_ESCALATION_EXPERTS']:
+        #if max escalations reached and question is more than 4 hours old, send a message to the user
+        if len(previous_polls) >= self.config['MAX_ESCALATION_EXPERTS'] and row_query["message_timestamp"] < (datetime.now() - timedelta(hours=4)):
             print("Max escalation experts reached")
             user_row_lt = self.user_db.get_from_user_id(row_query["user_id"])
+            text_en = self.template_messages['max_escalation_experts']['en']
             text_translated = self.template_messages['no_consensus_response'][user_row_lt['user_language']]
 
             self.messenger.send_message(
                 user_row_lt['whatsapp_id'], text_translated, row_query["message_id"]
             )
+            self.bot_conv_db.insert_row(
+                receiver_id=user_row_lt['user_id'],
+                message_type="empty_consensus_response",
+                message_id=row_query["message_id"],
+                audio_message_id=None,
+                message_english=text_en,
+                message_source_lang=text_en,
+                message_language=user_row_lt['user_language'],
+                reply_id=None,
+                citations=None,
+                message_timestamp=datetime.now(),
+                transaction_message_id=row_query["message_id"],
+            )
+
+
             self.user_conv_db.mark_resolved(row_query["message_id"])
             return
         
