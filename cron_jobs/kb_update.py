@@ -59,7 +59,7 @@ def send_email(process_message):
         msg = MIMEMultipart()
         msg['From'] = config["EMAIL_ID"]
         msg['To'] = dest
-        msg['Subject'] = f"ASHABot Knowledge Base Status  on {date_today.strftime('%d-%m-%Y')}"
+        msg['Subject'] = f"ASHABot Knowledge Base Status on {date_today.strftime('%d-%m-%Y')}"
 
         # Create the HTML message body
         message = f"""
@@ -213,7 +213,7 @@ def update_kb(is_created, updated_date, last_update_request_date):
     msg = f"No new updates to KB on {updated_date} for update requests on {last_update_request_date}"
     return msg, None
 
-def process_expert_responses_to_update_kb(last_update_range_name):
+def process_expert_responses_to_update_kb(last_update_range_name, local_path):
     df_yes_to_update, df_no_to_update, last_update_range_name = get_answered_questions_from_last_update(last_update_range_name, local_path)
 
     if last_update_range_name is None:
@@ -255,4 +255,4 @@ def process_expert_responses_to_update_kb(last_update_range_name):
 
 if __name__ == "__main__":
     last_update_range_name = LAST_UPDATE_RANGE_NAME
-    process_expert_responses_to_update_kb(last_update_range_name)
+    process_expert_responses_to_update_kb(last_update_range_name, local_path)

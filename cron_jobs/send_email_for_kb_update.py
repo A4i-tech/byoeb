@@ -48,20 +48,6 @@ SPREADSHEET_ID = os.environ["KB_UPDATE_SHEET_ID"].strip()
 
 HOURS_TO_SKIP = 2
 DAYS_TO_LOOKBACK = 7
-TEMP_CSV_FILE = "kb_update/temp.csv"
-
-def add_temp_csv_file(df):
-    df.to_csv(TEMP_CSV_FILE, index=False)
-    # connect_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING").strip()
-    # blob_service_client = BlobServiceClient.from_connection_string(connect_str)
-    # container_name = config["AZURE_BLOB_CONTAINER_NAME"].strip()
-
-    # blob_name = "queries/" + str(datetime.now()) + "_" + str(row_lt['user_id']) + ".ogg"
-    # blob_client = blob_service_client.get_blob_client(
-    #     container=container_name, blob=blob_name
-    # )
-    # with open(file=audio_input_file, mode="rb") as data:
-    #     blob_client.upload_blob(data)
 
 def md5_hash(input_string: str) -> str:
     # Create an MD5 hash object
@@ -255,6 +241,7 @@ def send_email():
 
 def process_responses_to_send_for_kb_update():
     questions_with_idks, old_range_name = get_idk_questions()
+    print("Questions with IDKs: ", len(questions_with_idks))
     if utils.is_sheet_present(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, local_path):
         utils.delete_sheet(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, local_path)
     utils.create_sheet(SCOPES, SPREADSHEET_ID, NEW_RANGE_NAME, local_path)
