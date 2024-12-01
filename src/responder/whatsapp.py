@@ -830,6 +830,7 @@ class WhatsappResponder(BaseResponder):
         msg_type = msg_object["type"]
         user_id = row_lt['user_id'] 
         msg_id = msg_object["id"]
+        self.messenger.send_read_receipt(row_lt['whatsapp_id'], msg_id)
         if (
             msg_object["type"] == "interactive"
             and msg_object["interactive"]["type"] == "list_reply"
