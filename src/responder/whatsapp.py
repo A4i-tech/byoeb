@@ -926,8 +926,8 @@ class WhatsappResponder(BaseResponder):
 
     def handle_response_expert(self, msg_object, row_lt):
         msg_type = msg_object["type"]
-
-        
+        msg_id = msg_object["id"]
+        self.messenger.send_read_receipt(row_lt['whatsapp_id'], msg_id)
         if (
             msg_type == "interactive"
             and msg_object["interactive"]["type"] == "button_reply"
