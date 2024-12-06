@@ -63,7 +63,7 @@ def get_llm_response(prompt, schema=None):
 def translate_gpt_en2hi(eng_text):
     
     llm_prompts = json.load(open(os.path.join(os.environ["APP_PATH"], os.environ["DATA_PATH"], "llm_prompt.json")))
-    system_prompt = llm_prompts["translate"]
+    system_prompt = llm_prompts["translate_output"]
     query_prompt = f'''
         English Sentence: {eng_text}
         Hindi Translation:
@@ -74,6 +74,21 @@ def translate_gpt_en2hi(eng_text):
 
     response = get_llm_response(prompt)
     return response
+
+def translate_gpt_hi2en(hindi_text):
+    llm_prompts = json.load(open(os.path.join(os.environ["APP_PATH"], os.environ["DATA_PATH"], "llm_prompt.json")))
+    system_prompt = llm_prompts["translate_input"]
+    query_prompt = f'''
+        Hindi Sentence: {hindi_text}
+        English Translation:
+    '''
+
+    prompt = [{"role": "system", "content": system_prompt}]
+    prompt.append({"role": "user", "content": query_prompt})
+
+    response = get_llm_response(prompt)
+    return response
+
 
 def convert_to_dataframe(data):
     # Get the header and data rows
