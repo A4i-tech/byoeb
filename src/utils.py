@@ -113,13 +113,14 @@ def convert_to_dataframe(data):
 
 def is_older_than_n_minutes(unix_timestamp, n):
     # Get the current time in Unix timestamp format
+    diff_seconds = n*60
     current_time = int(time.time())
     
     # Calculate the difference
     time_difference = current_time - unix_timestamp
     
     # Check if the difference is greater than 120 seconds (2 minutes)
-    return time_difference > n
+    return time_difference > diff_seconds
 
 def gsheet_api_check(SCOPES, local_path):
     creds = None
