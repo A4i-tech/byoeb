@@ -565,10 +565,8 @@ class WhatsappResponder(BaseResponder):
             utils.remove_extra_voice_files("", audio_file)
 
 
-
-
         else:
-            gpt_output, citations, query_type = self.knowledge_base.answer_query(
+            gpt_output, citations, query_type, chunk_list = self.knowledge_base.answer_query(
                 self.user_conv_db, self.bot_conv_db, msg_id, self.app_logger
             )
             citations = "".join(citations)
@@ -687,7 +685,7 @@ class WhatsappResponder(BaseResponder):
         
         if self.config["SUGGEST_NEXT_QUESTIONS"]:
             print("Sending suggestions")
-            self.send_suggestions(row_lt, row_query, gpt_output)
+            self.send_suggestions(row_lt, row_query, gpt_output, chunk_list)
 
         if self.config['ESCALATE_MULTIPLE'] and query_type != "small-talk" and gpt_output.strip().startswith("I do not know the answer to your question"):
             print("Escalating query")
@@ -698,7 +696,7 @@ class WhatsappResponder(BaseResponder):
 
         return
 
-    def send_suggestions(self, row_lt, row_query, gpt_output):
+    def send_suggestions(self, row_lt, row_query, gpt_output, chunk_list):
 
         if gpt_output.strip().startswith("I do not know the answer to your question"):
             return
@@ -711,9 +709,14 @@ class WhatsappResponder(BaseResponder):
             (not gpt_output.strip().startswith("I do not know the answer to your question"))
             and query_type != "small-talk"
         ):
-            next_questions = self.knowledge_base.follow_up_questions(
-                query, gpt_output, row_lt['user_type'], self.app_logger
-            )
+            if chunk_list is not None:
+                next_questions = self.knowledge_base.follow_up_questions_v2(
+                    chunk_list, self.app_logger
+                )
+            else:
+                next_questions = self.knowledge_base.follow_up_questions(
+                    query, gpt_output, row_lt['user_type'], self.app_logger
+                )
             questions_source = []
             for question in next_questions:
                 question_source = self.azure_translate.translate_text(

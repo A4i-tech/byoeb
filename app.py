@@ -24,6 +24,7 @@ import kb_update
 from onboard import onboard_template
 from database import AppLogger
 from responder import WhatsappResponder
+from utils import is_older_than_n_minutes
 
 
 with open("config.yaml") as file:
@@ -95,6 +96,23 @@ def process_expert_responses_to_update_kb():
 @app.route("/webhooks", methods=["POST"])
 def webhook():
     body = request.json
+    if (
+        body.get("object")
+        and body.get("entry")
+        and body["entry"][0].get("changes")
+        and body["entry"][0]["changes"][0].get("value")
+        and body["entry"][0]["changes"][0]["value"].get("messages")
+        and body["entry"][0]["changes"][0]["value"]["messages"][0]
+    ):
+        timestamp = body["entry"][0]["changes"][0]["value"]["messages"][0]["timestamp"]
+        n = 2
+        if is_older_than_n_minutes(int(timestamp), n=n):
+            app_logger.add_log(
+                event_name="Old message",
+                details={"message": f"Message older than {n} minutes"},
+                timestamp=datetime.now(),
+            )
+            return "OK", 200
     # adding request to queue
     # print("Adding message to queue, ", body)
     app_logger.add_log(

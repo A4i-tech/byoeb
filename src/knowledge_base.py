@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import sys
 __import__("pysqlite3")
@@ -45,15 +46,15 @@ class KnowledgeBase:
     ):
         for i in range(max_retries):
             try:
-                gpt_output, citations, query_type = self.answer_query_helper(user_conv_db, bot_conv_db, msg_id, app_logger, 3)
+                gpt_output, citations, query_type, chunk_list = self.answer_query_helper(user_conv_db, bot_conv_db, msg_id, app_logger, 3)
                 if gpt_output.strip().startswith("I do not know the answer to your question"):
                     print("Retrying with top 7")
-                    gpt_output, citations, query_type = self.answer_query_helper(user_conv_db, bot_conv_db, msg_id, app_logger, 7)
-                return gpt_output, citations, query_type
+                    gpt_output, citations, query_type, chunk_list = self.answer_query_helper(user_conv_db, bot_conv_db, msg_id, app_logger, 7)
+                return gpt_output, citations, query_type, chunk_list
             except Exception as e:
                 print(f"Error in answer_query: {e}")
                 continue
-        return "I do not know the answer to your question", "llm-failure-fallback", "Clinical"
+        return "I do not know the answer to your question", "llm-failure-fallback", "Clinical", None
 
     def answer_query_helper(
         self,
@@ -194,10 +195,12 @@ class KnowledgeBase:
         bot_response = json_output["response"]
         query_type = json_output["query_type"]
 
+        chunk_list = [chunk[0] for chunk in chunks]
+
         # print('bot response: ', bot_response, 'query type: ', query_type)
 
         if len(bot_response) < 700:
-            return (bot_response, citations, query_type)
+            return (bot_response, citations, query_type, chunk_list)
         else:
             system_prompt = f"""Please summarise the given answer in 700 characters or less. Only return the summarized answer and nothing else.\n"""
             
@@ -224,7 +227,7 @@ class KnowledgeBase:
                     "transaction_id": db_row["message_id"],
                 },
             )
-            return (gpt_output, citations, query_type)
+            return (gpt_output, citations, query_type, chunk_list)
         
     def answer_query_text(
         self,
@@ -417,6 +420,7 @@ class KnowledgeBase:
         user_type: str,
         app_logger: AppLogger,
         max_retries: int = 5,
+        chunk_list = None
     ):
         for i in range(max_retries):
             try:
@@ -425,6 +429,49 @@ class KnowledgeBase:
                 print(f"Error in follow_up_questions: {e}")
                 continue
         return None
+    
+    def follow_up_questions_v2(
+        self,
+        chunk_list,
+        app_logger: AppLogger,
+        max_retries: int = 5,
+    ):
+        def get_follow_up_v2():
+            system_prompt = self.llm_prompts["follow_up_questions_v2"]
+            query_prompt = f"""
+                    You are given the following knowledge base: 
+                    <knowledge_base>{chunk_list}</knowledge_base>
+                """
+
+            prompt = [{"role": "system", "content": system_prompt}]
+            prompt.append({"role": "user", "content": query_prompt})
+
+            llm_out = get_llm_response(prompt)
+            return system_prompt, prompt, llm_out
+
+        for i in range(max_retries):
+            try:
+                system_prompt, user_prompt, llm_out = get_follow_up_v2()
+                next_questions = re.findall(r"<q_\d+>(.*?)</q_\d+>", llm_out)
+                app_logger.add_log(
+                    event_name="gpt4_follow_up_v2",
+                    details={
+                        "system_prompt": system_prompt,
+                        "query_prompt": user_prompt,
+                        "gpt_output": llm_out,
+                    },
+                )
+                return next_questions
+            except Exception as e:
+                app_logger.add_log(
+                    event_name="gpt4_follow_up_v2",
+                    details={
+                        "error": f"Error generating follow up using v2 {str(e)}",
+                    },
+                )
+                continue
+        return None
+        
 
     def follow_up_questions_helper(
         self,
