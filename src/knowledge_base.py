@@ -210,10 +210,11 @@ class KnowledgeBase:
 
         chunk_list = [chunk[0] for chunk in chunks]
 
-        # print('bot response: ', bot_response, 'query type: ', query_type)
+        print('bot response: ', bot_response, 'query type: ', query_type)
+        print("gpt_output: ", gpt_output)
 
-        if len(gpt_output) < 700:
-            return (gpt_output, citations, query_type, chunk_list)
+        if len(bot_response) < 700:
+            return (bot_response, citations, query_type, chunk_list)
         else:
             system_prompt = f"""Please summarise the given answer in 700 characters or less. Only return the summarized answer and nothing else.\n"""
             
