@@ -109,7 +109,7 @@ def webhook():
         if is_older_than_n_minutes(int(timestamp), n=n):
             app_logger.add_log(
                 event_name="Old message",
-                details={"message": f"Message older than {n} minutes"},
+                details={"message": f"Message older than {n} minutes", "body": body},
                 timestamp=datetime.now(),
             )
             return "OK", 200
