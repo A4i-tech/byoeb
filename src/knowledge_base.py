@@ -36,6 +36,22 @@ class KnowledgeBase:
             path=self.persist_directory, settings=Settings(anonymized_telemetry=False)
         )
 
+    def parse_output(
+        self,
+        input_text
+    ):
+        # Define regex patterns for QUERY_TYPE and ANSWER
+        query_type_pattern = r"<QUERY_TYPE>(.*?)</QUERY_TYPE>"
+        answer_pattern = r"<ANSWER>(.*?)</ANSWER>"
+
+        # Extract QUERY_TYPE and ANSWER using regex
+        query_type_match = re.search(query_type_pattern, input_text)
+        answer_match = re.search(answer_pattern, input_text)
+
+        # Extract values if matches are found
+        query_type = query_type_match.group(1) if query_type_match else None
+        bot_response = answer_match.group(1) if answer_match else None
+        return bot_response, query_type
     def answer_query(
         self,
         user_conv_db: UserConvDB,
@@ -180,7 +196,7 @@ class KnowledgeBase:
                 "transaction_id": db_row["message_id"],
             },
         )
-        gpt_output = get_llm_response(prompt, schema=schema)
+        gpt_output = get_llm_response(prompt)
         app_logger.add_log(
             event_name="answer_query_response_gpt4",
             details={
@@ -190,17 +206,14 @@ class KnowledgeBase:
                 "transaction_id": db_row["message_id"],
             },
         )
-
-        json_output = json.loads(gpt_output.strip())
-        bot_response = json_output["response"]
-        query_type = json_output["query_type"]
+        bot_response, query_type = self.parse_output(gpt_output)
 
         chunk_list = [chunk[0] for chunk in chunks]
 
         # print('bot response: ', bot_response, 'query type: ', query_type)
 
-        if len(bot_response) < 700:
-            return (bot_response, citations, query_type, chunk_list)
+        if len(gpt_output) < 700:
+            return (gpt_output, citations, query_type, chunk_list)
         else:
             system_prompt = f"""Please summarise the given answer in 700 characters or less. Only return the summarized answer and nothing else.\n"""
             
