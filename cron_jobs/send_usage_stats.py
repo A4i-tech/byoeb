@@ -133,6 +133,18 @@ s.starttls()
 s.login(os.environ['LOGGING_EMAIL_ID'].strip(), os.environ['LOGGING_EMAIL_PASS'].strip())
 spreadsheet_id = os.environ['SPREADSHEET_ID'].strip()
 
+if len(overall_stat_table) == 0:
+    overall_stat_table.append(["No data available", ""])
+
+if len(asha_table_data) == 1:
+    asha_table_data.append(["No data available", "", ""])
+
+if len(anm_table_data) == 1:
+    anm_table_data.append(["No data available", "", ""])
+
+print(asha_table_data)
+print(anm_table_data)
+
 html_message = f"""
 <html>
 <head>
@@ -180,7 +192,6 @@ with open('email.html', 'w') as file:
     file.write(msg.as_string())
 
 print("Sending email to: ", email_list)
-
 for receiver in email_list:
     s.sendmail("sankarabotmsr@gmail.com", receiver, msg.as_string())
 s.quit()
