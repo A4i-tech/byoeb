@@ -987,4 +987,30 @@ class WhatsappMessenger(BaseMessenger):
 
         return msg_id
 
+    def send_read_receipt(
+        self,
+        number,
+        message_id
+    ):
+        payload = {
+            "messaging_product": "whatsapp",
+            "status": "read",
+            "message_id":message_id
+        }
+        headers = {
+            "Authorization": "Bearer " + os.environ["WHATSAPP_TOKEN"].strip(),
+            "Content-Type": "application/json",
+        }
+        url = (
+            "https://graph.facebook.com/v17.0/"
+            + os.environ["PHONE_NUMBER_ID"]
+            + "/messages"
+        )
+        msg_output = requests.post(url, json=payload, headers=headers)
+        self.app_logger.add_log(
+            event_name="read_receipt",
+            sender_id="bot",
+            receiver_id=number,
+            message_id=message_id
+        )
     

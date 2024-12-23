@@ -20,7 +20,7 @@
         "hi" : "क्षमा करें, मुझे इस प्रश्न का उत्तर नहीं पता। मैं एएनएम की हमारी टीम से जांच करूंगी और जल्द ही आपसे संपर्क करूंगी। इस बीच, आप मुझसे प्रश्न पूछना जारी रख सकते हैं।"
     },
     "idk_response_audio": {
-        "en": "You asked me the following: *<query>*\n\nDid I misunderstand your question?If yes, please ask again clearly. Otherwise, I will ask ANMs for the answer and share it with you.",
+        "en": "You asked me the following: *<query>*\n\nDid I misunderstand your question? If yes, please ask again clearly. Otherwise, I will ask ANMs for the answer and share it with you.",
         "en_options": ["I will ask again.", "Send to ANMs"],
         "hi": "आपने मुझे यह सवाल पुछा: *<query>*\n\nक्या मैंने आपके सवाल को गलत समझा? यदि हां, तो कृपया फिर से स्पष्ट रूप से पूछें। अन्यथा, मैं ANMs से इसका जवान पूछूँगी और इसे आपके साथ साझा करुँगी।",
         "hi_options": ["मैं फिर से पूछूँगी।", "ANMs को भेजें"]

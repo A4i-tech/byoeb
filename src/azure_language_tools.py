@@ -1,12 +1,30 @@
 import requests, uuid
 import os
+import openai
 import azure.cognitiveservices.speech as speechsdk
 from datetime import datetime
-from utils import translate_gpt_en2hi
+from utils import translate_gpt_en2hi, translate_gpt_hi2en
+from openai import OpenAI, AzureOpenAI
 
 
 class translator:
     def __init__(self):
+        openai.api_key = os.environ["OPENAI_API_KEY"].strip()
+        openai.api_version = os.environ["OPENAI_API_VERSION"].strip()
+
+        model_engine = "gpt-4o-2024-08-06"
+
+        # client = AzureOpenAI(
+        #     api_key=os.environ["OPENAI_API_KEY"].strip(),
+        #     api_version=os.environ["OPENAI_API_VERSION"].strip(),
+        #     azure_endpoint=os.environ["OPENAI_API_ENDPOINT"].strip(),
+        # )
+
+        self.client = OpenAI(
+            api_key=os.environ['OPENAI_API_KEY'].strip(),
+            organization=os.environ['OPENAI_ORG_ID'].strip()
+        )
+
         self.translation_key = os.environ["AZURE_TRANSLATION_KEY"].strip()
         self.translation_endpoint = "https://api.cognitive.microsofttranslator.com"
         self.location = os.environ["AZURE_REGION"].strip()
@@ -40,6 +58,11 @@ class translator:
         #     return input_text
         if source_language == "en" and target_language == "hi":
             translated_text = translate_gpt_en2hi(input_text)
+            #strip any "" from the translated text
+            translated_text = translated_text.strip('"')
+        elif source_language == "hi" and target_language == "en":
+            print("GPT translation")
+            translated_text = translate_gpt_hi2en(input_text)
             #strip any "" from the translated text
             translated_text = translated_text.strip('"')
         else:

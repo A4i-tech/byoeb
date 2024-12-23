@@ -89,6 +89,7 @@ class WhatsappResponder(BaseResponder):
         self.knowledge_base = KnowledgeBase(self.config)
 
     def response(self, body):
+        print(body)
         if (
             body.get("object")
             and body.get("entry")
@@ -98,6 +99,27 @@ class WhatsappResponder(BaseResponder):
             and body["entry"][0]["changes"][0]["value"]["messages"][0]
         ):
             pass
+        elif (
+            body["entry"][0]["changes"][0]["value"].get("statuses")
+            and body["entry"][0]["changes"][0]["value"]["statuses"][0]
+             
+        ):
+            print("status update")
+            message_id = body["entry"][0]["changes"][0]["value"]["statuses"][0]["id"]
+            status = body["entry"][0]["changes"][0]["value"]["statuses"][0]["status"]
+            phone_number_id = body["entry"][0]["changes"][0]["value"]["statuses"][0]["recipient_id"]
+            user = self.user_db.get_from_whatsapp_id(phone_number_id)
+            self.app_logger.add_log(
+                event_name="Status update",
+                details={
+                    "message_id": message_id,
+                    "status": status,
+                    "phone_number_id": phone_number_id,
+                    "user_type": user["user_type"],
+                    "test_user": user["test_user"],
+                }
+            )
+            return
         else:
             return
 
@@ -543,10 +565,8 @@ class WhatsappResponder(BaseResponder):
             utils.remove_extra_voice_files("", audio_file)
 
 
-
-
         else:
-            gpt_output, citations, query_type = self.knowledge_base.answer_query(
+            gpt_output, citations, query_type, chunk_list = self.knowledge_base.answer_query(
                 self.user_conv_db, self.bot_conv_db, msg_id, self.app_logger
             )
             citations = "".join(citations)
@@ -665,7 +685,7 @@ class WhatsappResponder(BaseResponder):
         
         if self.config["SUGGEST_NEXT_QUESTIONS"]:
             print("Sending suggestions")
-            self.send_suggestions(row_lt, row_query, gpt_output)
+            self.send_suggestions(row_lt, row_query, gpt_output, chunk_list)
 
         if self.config['ESCALATE_MULTIPLE'] and query_type != "small-talk" and gpt_output.strip().startswith("I do not know the answer to your question"):
             print("Escalating query")
@@ -676,7 +696,7 @@ class WhatsappResponder(BaseResponder):
 
         return
 
-    def send_suggestions(self, row_lt, row_query, gpt_output):
+    def send_suggestions(self, row_lt, row_query, gpt_output, chunk_list):
 
         if gpt_output.strip().startswith("I do not know the answer to your question"):
             return
@@ -689,9 +709,14 @@ class WhatsappResponder(BaseResponder):
             (not gpt_output.strip().startswith("I do not know the answer to your question"))
             and query_type != "small-talk"
         ):
-            next_questions = self.knowledge_base.follow_up_questions(
-                query, gpt_output, row_lt['user_type'], self.app_logger
-            )
+            if chunk_list is not None:
+                next_questions = self.knowledge_base.follow_up_questions_v2(
+                    chunk_list, self.app_logger
+                )
+            else:
+                next_questions = self.knowledge_base.follow_up_questions(
+                    query, gpt_output, row_lt['user_type'], self.app_logger
+                )
             questions_source = []
             for question in next_questions:
                 question_source = self.azure_translate.translate_text(
@@ -830,6 +855,7 @@ class WhatsappResponder(BaseResponder):
         msg_type = msg_object["type"]
         user_id = row_lt['user_id'] 
         msg_id = msg_object["id"]
+        self.messenger.send_read_receipt(row_lt['whatsapp_id'], msg_id)
         if (
             msg_object["type"] == "interactive"
             and msg_object["interactive"]["type"] == "list_reply"
@@ -925,8 +951,8 @@ class WhatsappResponder(BaseResponder):
 
     def handle_response_expert(self, msg_object, row_lt):
         msg_type = msg_object["type"]
-
-        
+        msg_id = msg_object["id"]
+        self.messenger.send_read_receipt(row_lt['whatsapp_id'], msg_id)
         if (
             msg_type == "interactive"
             and msg_object["interactive"]["type"] == "button_reply"
