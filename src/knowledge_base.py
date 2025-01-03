@@ -615,6 +615,53 @@ class KnowledgeBase:
         collection_count = collection.count()
         print("collection ids count: ", collection_count)
         return
+    
+    def add_batches_to_vector_store(
+        self,
+        texts,
+        sources,
+        collection,
+        batch_size=1500
+    ):
+        """
+        Splits texts and sources into batches and adds them to the vector store.
+
+        Args:
+            texts (list[str]): List of document texts to add.
+            sources (list[str]): List of corresponding sources for the texts.
+            collection (object): The vector store collection to add the data to.
+            batch_size (int, optional): The size of each batch. Defaults to 1500.
+        """
+        def batch_iterable(iterable, size):
+            """
+            Utility function to yield chunks of a specified size from an iterable.
+            """
+            for i in range(0, len(iterable), size):
+                yield iterable[i:i + size]
+
+        for batch_idx, (texts_batch, sources_batch) in enumerate(
+            zip(batch_iterable(texts, batch_size), batch_iterable(sources, batch_size))
+        ):
+            try:
+                # Calculate start index for IDs
+                start_idx = batch_idx * batch_size
+                # Prepare data for the current batch
+                ids = [str(start_idx + i) for i in range(len(texts_batch))]
+                metadatas = [{"source": source} for source in sources_batch]
+
+                # Add batch to the vector store
+                collection.add(
+                    ids=ids,
+                    metadatas=metadatas,
+                    documents=texts_batch,
+                )
+                print(f"Batch {batch_idx + 1} added successfully: {len(texts_batch)} documents.")
+            except Exception as e:
+                print(f"Error with batch {batch_idx + 1}:")
+                print(f"Texts: {texts_batch}")
+                print(f"Sources: {sources_batch}")
+                print(f"Exception: {e}")
+                continue  # Continue with the next batch if one batch fails
 
     def create_embeddings(self):
 
@@ -646,10 +693,13 @@ class KnowledgeBase:
         self.texts = []
         self.sources = []
         for document in self.documents:
+            # if "sanklan_clean.txt" not in document.metadata['source'].strip().lower():
+            #     continue
             if 'kb update' in document.metadata['source'].strip().lower():
                 print('Splitting text for kb update')
                 next_text = document.page_content.split('##')[1:]
             else:
+                print(document.metadata['source'].strip().lower())
                 print('Splitting text for normal document')
                 next_text = RecursiveCharacterTextSplitter(chunk_size=1000).split_text(document.page_content)
             
@@ -661,12 +711,8 @@ class KnowledgeBase:
                 ]
             )
 
-        self.texts = [text.replace("\n\n", "\n") for text in self.texts]
-        self.collection.add(
-            ids=[str(index) for index in range(len(self.texts))],
-            metadatas=[{"source": source} for source in self.sources],
-            documents=self.texts,
-        )
+        self.texts = [str(text).replace("\n\n", "\n") for text in self.texts]
+        self.add_batches_to_vector_store(self.texts, self.sources, self.collection)
 
         collection_count = self.collection.count()
         print("collection ids count: ", collection_count)
