@@ -135,12 +135,19 @@ class WhatsappResponder(BaseResponder):
         if self.user_conv_db.get_from_message_id(msg_id) or self.bot_conv_db.get_from_message_id(msg_id) or self.expert_conv_db.get_from_message_id(msg_id):
             print("Message already processed", datetime.now())
             return
-
+        
         user_type, row_lt = self.check_user_type(from_number)
         print("User type: ", user_type, "Row: ", row_lt)
         if user_type is None:
-            if (msg_object.get("text", False) and msg_object["text"].get("body", False) and msg_object["text"]["body"] in self.template_messages['asha_onboard_request']) \
-            or msg_object.get("type", None) == "request_welcome":
+            if ((msg_object.get("text", False) 
+                and msg_object["text"].get("body", False) 
+                and msg_object["text"]["body"] in self.template_messages['asha_onboard_request'])
+                or (msg_object.get("interactive", False)
+                    and msg_object["interactive"].get("button_reply", False)
+                    and msg_object["interactive"]["button_reply"]["title"] in self.welcome_messages["unknown"]["hi_options"][0]
+                )
+                or msg_object.get("type", None) == "request_welcome"
+            ):
                 user_id = str(uuid4())
                 self.user_db.insert_row(
                     user_id=user_id,
@@ -158,7 +165,13 @@ class WhatsappResponder(BaseResponder):
                 }
                 onboard_wa_helper(self.config, self.app_logger, row_lt, self.messenger)
                 return
-            elif (msg_object.get("text", False) and msg_object["text"].get("body", False) and msg_object["text"]["body"] in self.template_messages['anm_onboard_request']):
+            elif ((msg_object.get("text", False) and msg_object["text"].get("body", False) 
+                and msg_object["text"]["body"] in self.template_messages['anm_onboard_request'])
+                or (msg_object.get("interactive", False)
+                    and msg_object["interactive"].get("button_reply", False)
+                    and msg_object["interactive"]["button_reply"]["title"] in self.welcome_messages["unknown"]["hi_options"][1]
+                )
+            ):
                 user_id = str(uuid4())
                 self.user_db.insert_row(
                     user_id=user_id,
@@ -177,11 +190,10 @@ class WhatsappResponder(BaseResponder):
                 onboard_wa_helper(self.config, self.app_logger, row_lt, self.messenger)
                 return
             else:
-                # self.messenger.send_message(
-                #     from_number,
-                #     "Unknown User, Kindly fill the onboarding form",
-                #     reply_to_msg_id=msg_id,
-                # )
+                row_lt = {
+                    "whatsapp_id": from_number,
+                }
+                onboard_wa_helper(self.config, self.app_logger, row_lt, self.messenger)
                 return
         if self.check_expiration(row_lt):
             return
@@ -642,7 +654,8 @@ class WhatsappResponder(BaseResponder):
                     query_type,
                     ans,
                     gpt_output,
-                    chunk_list
+                    chunk_list,
+                    msg_id
                 )
                 # sent_msg_id = self.messenger.send_message(
                 #     row_lt['whatsapp_id'], ans, msg_id
@@ -702,7 +715,16 @@ class WhatsappResponder(BaseResponder):
             self.escalate_query_multiple(row_query, is_test_user)
         return
     
-    def send_message_with_related_questions_v2(self, row_lt, row_query, query_type, ans_source, gpt_output, chunk_list):
+    def send_message_with_related_questions_v2(
+        self,
+        row_lt,
+        row_query,
+        query_type,
+        ans_source,
+        gpt_output,
+        chunk_list,
+        reply_msg_id = None
+    ):
         
         source_lang = row_lt["user_language"]
 
@@ -724,7 +746,11 @@ class WhatsappResponder(BaseResponder):
                 self.onboarding_questions[source_lang]["list_title"],
             )
             sent_msg_id = self.messenger.send_suggestions(
-                row_lt['whatsapp_id'], ans, related_questions_titles, questions_source
+                row_lt['whatsapp_id'],
+                ans,
+                related_questions_titles,
+                questions_source,
+                reply_msg_id
             )
         else:
             prev_rows = self.bot_conv_db.find_with_receiver_id(row_query["user_id"], "suggested_questions")
@@ -745,7 +771,11 @@ class WhatsappResponder(BaseResponder):
                 self.onboarding_questions[source_lang]["list_title"],
             )
             sent_msg_id = self.messenger.send_suggestions(
-                row_lt['whatsapp_id'], ans, list_title, questions_source
+                row_lt['whatsapp_id'],
+                ans,
+                list_title,
+                questions_source,
+                reply_msg_id
             )
 
         return sent_msg_id

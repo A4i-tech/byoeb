@@ -71,6 +71,12 @@ def onboard_wa_helper(
             os.path.join(os.environ['APP_PATH'], os.environ['DATA_PATH'],"videos/video_ids.json"),
         )
     )
+    user_id = user_row.get('user_id', None)
+    if user_id is None:
+        message = welcome_messages["unknown"]["hi"]
+        options = welcome_messages["unknown"]["hi_options"]
+        messenger.send_message_with_options(user_row['whatsapp_id'], message, ["a", "b"], options)
+        return
     lang = user_row['user_language']
     if user_row['user_type'] in config["USERS"]:
         for message in welcome_messages["users"][lang]:

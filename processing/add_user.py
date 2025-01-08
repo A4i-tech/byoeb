@@ -33,18 +33,21 @@ from uuid import uuid4
 
 user_id = str(uuid4())
 
-phone_numbers2role = {
-    "919876543210": "asha",
-}
+user_db.detele_user_by_wa_id("918812843684")
+user_row = user_db.get_from_whatsapp_id("918812843684")
+print(user_row)
+# phone_numbers2role = {
+#     "919876543210": "asha",
+# }
 
-for i, phone_num in enumerate(phone_numbers2role):
-    role = phone_numbers2role[phone_num]
-    user = {
-        'user_id': str(uuid4()),
-        'user_language': 'hi',
-        'whatsapp_id': phone_num,
-        'user_type': role
-    }
-    print(user)
-    user_db.insert_row(user['user_id'], user['whatsapp_id'], user['user_type'], user['user_language'])
-    onboard_template(config, logger, user, messenger)
+# for i, phone_num in enumerate(phone_numbers2role):
+#     role = phone_numbers2role[phone_num]
+#     user = {
+#         'user_id': str(uuid4()),
+#         'user_language': 'hi',
+#         'whatsapp_id': phone_num,
+#         'user_type': role
+#     }
+#     print(user)
+#     user_db.insert_row(user['user_id'], user['whatsapp_id'], user['user_type'], user['user_language'])
+#     onboard_template(config, logger, user, messenger)
