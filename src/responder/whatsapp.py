@@ -631,13 +631,22 @@ class WhatsappResponder(BaseResponder):
                     stderr=subprocess.DEVNULL,
                 )
                 ans = gpt_output_source
+                row_query = self.user_conv_db.get_from_db_id(db_id)
                 if msg_type == "audio":
                     ans = self.template_messages["response_audio"][row_lt['user_language']]
                     ans = ans.replace("<query>", message)
                     ans = ans.replace("<answer>", gpt_output_source)
-                sent_msg_id = self.messenger.send_message(
-                    row_lt['whatsapp_id'], ans, msg_id
+                sent_msg_id = self.send_message_with_related_questions_v2(
+                    row_lt,
+                    row_query,
+                    query_type,
+                    ans,
+                    gpt_output,
+                    chunk_list
                 )
+                # sent_msg_id = self.messenger.send_message(
+                #     row_lt['whatsapp_id'], ans, msg_id
+                # )
                 audio_msg_id = self.messenger.send_audio(
                     audio_output_file, row_lt['whatsapp_id'], msg_id
                 )
@@ -671,7 +680,7 @@ class WhatsappResponder(BaseResponder):
         if not gpt_output.strip().startswith("I do not know the answer to your question"):
             self.user_conv_db.mark_resolved(msg_id)
 
-        row_query = self.user_conv_db.get_from_db_id(db_id)
+        # row_query = self.user_conv_db.get_from_db_id(db_id)
             
         if (
             self.config["SEND_POLL"]
@@ -683,18 +692,65 @@ class WhatsappResponder(BaseResponder):
             self.send_correction_poll_expert(row_lt, row_query)
         
         
-        if self.config["SUGGEST_NEXT_QUESTIONS"]:
-            print("Sending suggestions")
-            self.send_suggestions(row_lt, row_query, gpt_output, chunk_list)
+        # if self.config["SUGGEST_NEXT_QUESTIONS"]:
+        #     print("Sending suggestions")
+        #     self.send_suggestions(row_lt, row_query, gpt_output, chunk_list)
 
         if self.config['ESCALATE_MULTIPLE'] and query_type != "small-talk" and gpt_output.strip().startswith("I do not know the answer to your question"):
             print("Escalating query")
             is_test_user = row_lt.get("test_user", False)
             self.escalate_query_multiple(row_query, is_test_user)
-
-        
-
         return
+    
+    def send_message_with_related_questions_v2(self, row_lt, row_query, query_type, ans_source, gpt_output, chunk_list):
+        
+        source_lang = row_lt["user_language"]
+
+        if (
+            (not gpt_output.strip().startswith("I do not know the answer to your question"))
+            and query_type != "small-talk"
+        ):
+            next_questions = self.knowledge_base.follow_up_questions_v2(
+                chunk_list, self.app_logger
+            )
+            questions_source = []
+            for question in next_questions:
+                question_source = self.azure_translate.translate_text(
+                    question, "en", source_lang, self.app_logger
+                )
+                questions_source.append(question_source)
+            ans, related_questions_titles = (
+                ans_source,
+                self.onboarding_questions[source_lang]["list_title"],
+            )
+            sent_msg_id = self.messenger.send_suggestions(
+                row_lt['whatsapp_id'], ans, related_questions_titles, questions_source
+            )
+        else:
+            prev_rows = self.bot_conv_db.find_with_receiver_id(row_query["user_id"], "suggested_questions")
+            if len(prev_rows) == 0:
+                return
+            prev_row = prev_rows[-1]
+            next_questions = list(prev_row["message_english"])
+            print("Next questions: ", next_questions)
+            questions_source = []
+            for question in next_questions:
+                question_source = self.azure_translate.translate_text(
+                    question, "en", source_lang, self.app_logger
+                )
+                questions_source.append(question_source)
+
+            ans, list_title = (
+                ans_source,
+                self.onboarding_questions[source_lang]["list_title"],
+            )
+            sent_msg_id = self.messenger.send_suggestions(
+                row_lt['whatsapp_id'], ans, list_title, questions_source
+            )
+
+        return sent_msg_id
+
+
 
     def send_suggestions(self, row_lt, row_query, gpt_output, chunk_list):
 
@@ -702,7 +758,7 @@ class WhatsappResponder(BaseResponder):
             return
         
         source_lang = row_lt["user_language"]
-        query = row_query["message_source_lang"]
+        query = row_query["message_english"]
         query_type = row_query["query_type"]
 
         if (
