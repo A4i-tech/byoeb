@@ -366,6 +366,7 @@ class WhatsappMessenger(BaseMessenger):
         text_poll: str = None,
         list_title: str = None,
         questions: list = None,
+        reply_to_msg_id: str = None,
     ):
         if questions is None or questions == []:
             return
@@ -393,7 +394,8 @@ class WhatsappMessenger(BaseMessenger):
                 },
             },
         }
-
+        if reply_to_msg_id is not None:
+            payload["context"] = {"message_id": reply_to_msg_id}
         headers = {
             "Authorization": "Bearer " + os.environ["WHATSAPP_TOKEN"].strip(),
             "Content-Type": "application/json",

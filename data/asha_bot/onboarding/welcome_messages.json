@@ -1,4 +1,8 @@
 {
+    "unknown": {
+        "hi": "🙏🏽नमस्ते! आप कौन हैं?",
+        "hi_options": ["आशा", "नर्सदीदी / ए.एन.एम"]
+    },
     "experts": {
         "en": [
             "🙏🏽 Namaste from Khushi Baby. We are working on a new program to help ASHA workers with their questions. For more information about this program, please call our helpdesk number +91 77270 79678. Thank you for your support."

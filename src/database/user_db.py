@@ -30,8 +30,23 @@ class UserDB(BaseDB):
             'test_user': test_user
         }
         db_id = self.collection.insert_one(user)
+        self.invalidate_cache(whatsapp_id)
         return db_id
     
+    def invalidate_cache(
+        self,
+        id
+    ):
+        key_to_delete = None
+        for key in cache.keys():
+            if key[1] == id:
+                key_to_delete = key
+                break
+        if key_to_delete:
+            cache.pop(key_to_delete,None)
+        print(key_to_delete)
+        print(cache)
+
     @cached(cache)
     def get_from_user_id(self, user_id):
         user = self.collection.find_one({'user_id': user_id})
@@ -124,3 +139,7 @@ class UserDB(BaseDB):
         users = self.collection.find({"test_user" : True})
         users = list(users)
         return users
+    
+    def detele_user_by_wa_id(self, wa_id):
+        self.collection.delete_many({'whatsapp_id': wa_id})
+        return
