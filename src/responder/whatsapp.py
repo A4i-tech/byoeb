@@ -257,7 +257,6 @@ class WhatsappResponder(BaseResponder):
         reply_id = msg_object["context"]["id"]
         last_query = self.bot_conv_db.get_from_message_id(reply_id)
         guid = last_query['question_id']
-        try_send_answer(row_lt, guid, reply_id)
         title, list_title, questions_source = get_suggested_questions(
             guid,
             row_lt,
@@ -265,10 +264,10 @@ class WhatsappResponder(BaseResponder):
             self.onboarding_questions,
             self.azure_translate
         )
-        
-        suggested_ques_msg_id = self.messenger.send_suggestions(
-            row_lt['whatsapp_id'], title, list_title, questions_source
-        )
+        try_send_answer(row_lt, guid, reply_id, list_title, questions_source)
+        # suggested_ques_msg_id = self.messenger.send_suggestions(
+        #     row_lt['whatsapp_id'], title, list_title, questions_source
+        # )
     def handle_unsupported_msg_types(self, msg_object, row_lt):
         # data is a dictionary that contains from_number, msg_id, msg_object
         print("Handling unsupported message types")
@@ -571,7 +570,7 @@ class WhatsappResponder(BaseResponder):
                 row_lt['whatsapp_id'], gpt_output_source, msg_id
             )
             audio_msg_id = self.messenger.send_audio(
-                audio_file, row_lt['whatsapp_id'], msg_id
+                audio_file, row_lt['whatsapp_id']
             )
 
             utils.remove_extra_voice_files("", audio_file)
@@ -686,7 +685,7 @@ class WhatsappResponder(BaseResponder):
 
         if self.config["SEND_FEEDBACK_POLL"]:
             if query_type != 'small-talk' and not gpt_output.strip().startswith("I do not know the answer to your question"):
-                num = random.randint(0, 1)
+                num = random.random(0, 1)
                 if num <= self.config['FEEDBACK_POLL_PROBABILITY']:
                     self.send_feedback_poll(row_lt, msg_id, sent_msg_id)
         
