@@ -140,11 +140,17 @@ def send_question(user_df):
                 }
             )
 
-def try_send_answer(user_row, guid, reply_id):
+def try_send_answer(
+    user_row,
+    guid,
+    reply_id,
+    list_title,
+    questions_source
+):
     answer =answer_df.loc[guid][ANSWER]
     try:
         start_time = datetime.datetime.now()
-        messenger.send_message(user_row["whatsapp_id"], answer, reply_id)
+        messenger.send_suggestions(user_row["whatsapp_id"], answer, list_title, questions_source, reply_id)
         end_time = datetime.datetime.now()
         app_logger.add_log(
             event_name=EVENT_NAME,
