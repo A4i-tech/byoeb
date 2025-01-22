@@ -675,7 +675,7 @@ class WhatsappResponder(BaseResponder):
                 #     row_lt['whatsapp_id'], ans, msg_id
                 # )
                 audio_msg_id = self.messenger.send_audio(
-                    audio_output_file, row_lt['whatsapp_id'], msg_id
+                    audio_output_file, row_lt['whatsapp_id']
                 )
                 utils.remove_extra_voice_files(audio_input_file, audio_output_file)
 
