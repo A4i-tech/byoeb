@@ -700,7 +700,7 @@ class WhatsappResponder(BaseResponder):
 
         if self.config["SEND_FEEDBACK_POLL"]:
             if query_type != 'small-talk' and not gpt_output.strip().startswith("I do not know the answer to your question"):
-                num = random.random(0, 1)
+                num = random.uniform(0, 1)
                 if num <= self.config['FEEDBACK_POLL_PROBABILITY']:
                     self.send_feedback_poll(row_lt, msg_id, sent_msg_id)
         
