@@ -222,8 +222,8 @@ class WhatsappResponder(BaseResponder):
                     return
                 
                 if context_row['message_type'] == DID_YOU_KNOW:
-                    self.handle_response_user(msg_object, row_lt)
-                    # self.send_did_you_know_response(msg_object, row_lt)
+                    # self.handle_response_user(msg_object, row_lt)
+                    self.send_did_you_know_response(msg_object, row_lt)
                     return
 
         if user_type in self.config["USERS"]:
@@ -237,18 +237,32 @@ class WhatsappResponder(BaseResponder):
         msg_object,
         row_lt
     ):
+        msg_type = msg_object["type"]
+        user_id = row_lt['user_id']
+        msg_id = msg_object["id"]
+        self.messenger.send_read_receipt(row_lt['whatsapp_id'], msg_id)
         reply_id = msg_object["context"]["id"]
+        msg_body = msg_object["button"]["text"]
+        print("Text---------------: ", msg_body)
         last_query = self.bot_conv_db.get_from_message_id(reply_id)
         fact_id = last_query['did_you_know_id']
-        title, list_title, questions_source = get_suggested_questions_based_on_fact(
-            fact_id,
-            row_lt,
-            self.knowledge_base,
-            self.onboarding_questions,
+        # title, list_title, questions_source = get_suggested_questions_based_on_fact(
+        #     fact_id,
+        #     row_lt,
+        #     self.knowledge_base,
+        #     self.onboarding_questions,
+        # )
+        # suggested_ques_msg_id = self.messenger.send_suggestions(
+        #     row_lt['whatsapp_id'], title, list_title, questions_source
+        # )
+        translated_message = self.azure_translate.translate_text(
+            msg_body,
+            source_language=row_lt['user_language'],
+            target_language="en",
+            app_logger=self.app_logger,
+            lang_fix=self.language_fix,
         )
-        suggested_ques_msg_id = self.messenger.send_suggestions(
-            row_lt['whatsapp_id'], title, list_title, questions_source
-        )
+        response = self.answer_query_text(msg_id, msg_body, translated_message, msg_type, row_lt)
 
     def send_question_of_the_week_answer(
         self,
