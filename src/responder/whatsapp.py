@@ -262,7 +262,7 @@ class WhatsappResponder(BaseResponder):
             app_logger=self.app_logger,
             lang_fix=self.language_fix,
         )
-        response = self.answer_query_text(msg_id, msg_body, translated_message, msg_type, row_lt)
+        response = self.answer_query_text(msg_id, msg_body, translated_message, "text", row_lt)
 
     def send_question_of_the_week_answer(
         self,
