@@ -222,7 +222,8 @@ class WhatsappResponder(BaseResponder):
                     return
                 
                 if context_row['message_type'] == DID_YOU_KNOW:
-                    self.send_did_you_know_response(msg_object, row_lt)
+                    self.handle_response_user(msg_object, row_lt)
+                    # self.send_did_you_know_response(msg_object, row_lt)
                     return
 
         if user_type in self.config["USERS"]:
