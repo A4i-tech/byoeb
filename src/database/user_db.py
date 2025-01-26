@@ -64,6 +64,18 @@ class UserDB(BaseDB):
                 'user_language': user_language
             }}
         )
+    
+    def update_location(
+        self,
+        phone_number_id,
+        location_info
+    ):
+        self.collection.update_one(
+            {'whatsapp_id': phone_number_id},
+            {'$set': {
+                'Location': location_info
+            }}
+        )
 
     def update_user(self, user_id, update_obj):
         self.collection.update_one(

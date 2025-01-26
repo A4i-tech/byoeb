@@ -8,7 +8,9 @@ with open(os.path.join(local_path, "config.yaml")) as file:
 import sys
 
 sys.path.append(local_path + "/src")
+sys.path.append(local_path + "/cron_jobs")
 
+from leaderboard import create_leaderboard_hi_messages
 from knowledge_base import KnowledgeBase
 from database import UserDB, UserConvDB, BotConvDB, AppLogger
 from conversation_database import LoggingDatabase
@@ -28,7 +30,7 @@ GUID = 'GUID'
 FACT = 'Did you know - Hindi'
 FACT_GUID_KEY = 'dyk_guids'
 EVENT_NAME = "did_you_know"
-template_name = "did_you_know_test"
+template_name = "did_you_know"
 
 user_db = UserDB(config)
 user_conv_db = UserConvDB(config)
@@ -39,10 +41,17 @@ azure_translate = translator()
 
 print("Date: ", datetime.datetime.now())
 
+leaderboard_hi = create_leaderboard_hi_messages()
+    
 # users = [user_db.get_from_whatsapp_id('918837701828')]
 # print("Total users: ", len(users))
 facts_df = pd.read_csv(local_path + "/data/asha_bot/did_you_know/dyk_v1.csv", encoding='utf-8')
 facts_df.set_index(GUID, inplace=True)
+
+def get_user_district_leaderboard_message(district):
+    if district is None or pd.isna(district):
+        return None
+    return leaderboard_hi.get(district, None)
 
 def get_next_fact(user_row):
     fact_guids = facts_df.index.tolist()
@@ -64,11 +73,15 @@ def send_fact(users_df):
             continue
         try:
             fact, user_fact_guids = get_next_fact(user_row)
+            user_leaderboard = get_user_district_leaderboard_message(user_row["District"])
+            param_list = [fact]
+            param_list.extend(user_leaderboard.split("\n"))  # Extends the list in place
+            print(param_list)
             sent_msg_id = messenger.send_template(
                 user_row["whatsapp_id"],
                 template_name,
                 user_row["user_language"],
-                [fact],
+                [param_list],
                 None
             )
             user_db.update_user(user_row["user_id"], {FACT_GUID_KEY: user_fact_guids})
@@ -119,8 +132,12 @@ def get_suggested_questions_based_on_fact(
     return title, list_title, questions_source
 
 def send_fact_to_Asha():
-    users = user_db.get_all_users(user_type="Asha")
+    # users = user_db.get_all_users(user_type="Asha")
+    users = [user_db.get_from_whatsapp_id('918837701828')]
     user_df = pd.DataFrame(users)
+    if "Location" in user_df.columns:
+        location_df = pd.json_normalize(user_df["Location"])  # Flatten Location into columns
+        user_df = pd.concat([user_df.drop(columns=["Location"]), location_df], axis=1)  # Combine
 
     app_logger.add_log(event_name=EVENT_NAME, details={"message": f"Total users: {len(users)}"})
     try:
