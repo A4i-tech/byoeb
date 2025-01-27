@@ -50,7 +50,7 @@ facts_df.set_index(GUID, inplace=True)
 
 def get_user_district_leaderboard_message(district):
     if district is None or pd.isna(district):
-        return None
+        return leaderboard_hi.get("Udaipur", None)
     return leaderboard_hi.get(district, None)
 
 def get_next_fact(user_row):
