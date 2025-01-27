@@ -36,22 +36,21 @@ class KnowledgeBase:
             path=self.persist_directory, settings=Settings(anonymized_telemetry=False)
         )
 
-    def parse_output(
-        self,
-        input_text
-    ):
+    def parse_output(self, input_text):
         # Define regex patterns for QUERY_TYPE and ANSWER
         query_type_pattern = r"<QUERY_TYPE>(.*?)</QUERY_TYPE>"
         answer_pattern = r"<ANSWER>(.*?)</ANSWER>"
 
-        # Extract QUERY_TYPE and ANSWER using regex
-        query_type_match = re.search(query_type_pattern, input_text)
-        answer_match = re.search(answer_pattern, input_text)
+        # Extract QUERY_TYPE and ANSWER using regex with re.DOTALL to handle multi-line text
+        query_type_match = re.search(query_type_pattern, input_text, re.DOTALL)
+        answer_match = re.search(answer_pattern, input_text, re.DOTALL)
 
         # Extract values if matches are found
-        query_type = query_type_match.group(1) if query_type_match else None
-        bot_response = answer_match.group(1) if answer_match else None
+        query_type = query_type_match.group(1).strip() if query_type_match else None
+        bot_response = answer_match.group(1).strip() if answer_match else None
+
         return bot_response, query_type
+
     def answer_query(
         self,
         user_conv_db: UserConvDB,
@@ -89,7 +88,8 @@ class KnowledgeBase:
         Returns:
             tuple[str, str]: the response and the citations
         """
-
+        print("Entered answer_query_helper")
+        start_time = datetime.now().timestamp()
         if self.config["API_ACTIVATED"] is False:
             gpt_output = "API not activated"
             citations = "NA-API"
@@ -173,7 +173,18 @@ class KnowledgeBase:
             Please return the answer in english only.\n\
 
         """
+        end_time = datetime.now().timestamp()
+        app_logger.add_log(
+            event_name="retrieval",
+            details={
+                "message_id": msg_id,
+                "start_time": start_time,
+                "end_time": end_time,
+                "latency": end_time - start_time
+            }
+        )
 
+        start_time = datetime.now().timestamp()
         schema = {
             "name": "response_schema",
             "schema": {
@@ -196,7 +207,8 @@ class KnowledgeBase:
                 "transaction_id": db_row["message_id"],
             },
         )
-        gpt_output = get_llm_response(prompt)
+        total_tokens = []
+        gpt_output = get_llm_response(prompt, tokens=total_tokens)
         app_logger.add_log(
             event_name="answer_query_response_gpt4",
             details={
@@ -213,25 +225,29 @@ class KnowledgeBase:
         print('bot response: ', bot_response, 'query type: ', query_type)
         print("gpt_output: ", gpt_output)
 
+        end_time = datetime.now().timestamp()
+        app_logger.add_log(
+            event_name="answer_generation",
+            details={
+                "message_id": msg_id,
+                "start_time": start_time,
+                "end_time": end_time,
+                "latency": end_time - start_time,
+                "total_tokens": total_tokens[0]
+            }
+        )
+
         if len(bot_response) < 700:
             return (bot_response, citations, query_type, chunk_list)
         else:
+            start_time = datetime.now().timestamp()
             system_prompt = f"""Please summarise the given answer in 700 characters or less. Only return the summarized answer and nothing else.\n"""
             
             query_prompt = f"""You are given the following response: {bot_response}"""
             prompt = [{"role": "system", "content": system_prompt}]
             prompt.append({"role": "user", "content": query_prompt})
-            app_logger.add_log(
-                event_name="answer_summary_request_gpt4",
-                details={
-                    "system_prompt": system_prompt,
-                    "query_prompt": query_prompt,
-                    "transaction_id": db_row["message_id"],
-                },
-            )
-
             gpt_output = get_llm_response(prompt)
-
+            end_time = datetime.now().timestamp()
             app_logger.add_log(
                 event_name="answer_summary_response",
                 details={
@@ -239,6 +255,10 @@ class KnowledgeBase:
                     "query_prompt": query_prompt,
                     "gpt_output": gpt_output,
                     "transaction_id": db_row["message_id"],
+                    "mesaage_id": msg_id,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "latency": end_time - start_time
                 },
             )
             return (gpt_output, citations, query_type, chunk_list)

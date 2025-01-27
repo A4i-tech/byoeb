@@ -124,19 +124,39 @@ class WhatsappResponder(BaseResponder):
             return
 
         print("Entering response function")
-        
         msg_object = body["entry"][0]["changes"][0]["value"]["messages"][0]
         from_number = msg_object["from"]
         msg_id = msg_object["id"]
         msg_type = msg_object["type"]
-
+        message_timestamp = float(body["entry"][0]["changes"][0]["value"]["messages"][0]["timestamp"])
+        start_time = datetime.now().timestamp()
+        elapsed_time = start_time - message_timestamp
+        self.app_logger.add_log(
+            event_name="Queue_to_response_func",
+            details={
+                "message_id": msg_object["id"],
+                "elapsed_time": elapsed_time,
+                "arriving_time": message_timestamp,
+                "picked_time": start_time
+            },
+        )
         print("Message object: ", msg_object)
-
+        start_time = datetime.now().timestamp()
         if self.user_conv_db.get_from_message_id(msg_id) or self.bot_conv_db.get_from_message_id(msg_id) or self.expert_conv_db.get_from_message_id(msg_id):
             print("Message already processed", datetime.now())
             return
         
         user_type, row_lt = self.check_user_type(from_number)
+        end_time = datetime.now().timestamp()
+        self.app_logger.add_log(
+            event_name="User_checks",
+            details={
+                "message_id": msg_id,
+                "elapsed_time": end_time - start_time,
+                "start_time": start_time,
+                "end_time": end_time
+            },
+        )
         print("User type: ", user_type, "Row: ", row_lt)
         if user_type is None:
             if ((msg_object.get("text", False) 
@@ -227,9 +247,58 @@ class WhatsappResponder(BaseResponder):
                     return
 
         if user_type in self.config["USERS"]:
+            message_timestamp = float(body["entry"][0]["changes"][0]["value"]["messages"][0]["timestamp"])
+            start_time = datetime.now().timestamp()
+            elapsed_time = start_time - message_timestamp
+            self.app_logger.add_log(
+                event_name="Message_picked",
+                user_type="Asha",
+                details={
+                    "message_id": msg_id,
+                    "elapsed_time": elapsed_time,
+                    "arriving_time": message_timestamp,
+                    "picked_time": start_time
+                },
+            )
             self.handle_response_user(msg_object, row_lt)
+            end_time = datetime.now().timestamp()
+            elapsed_time = end_time - start_time
+            self.app_logger.add_log(
+                event_name="Message_processed",
+                user_type="Asha",
+                details={
+                    "message_id": msg_id,
+                    "latency":elapsed_time,
+                    "start_time": start_time,
+                    "end_time": end_time
+                }
+            )
         elif user_type in self.config["EXPERTS"]:
+            message_timestamp = int(body["entry"][0]["changes"][0]["value"]["messages"][0]["timestamp"])
+            start_time = int(datetime.now().timestamp())
+            elapsed_time = start_time - message_timestamp
+            self.app_logger.add_log(
+                event_name="Message_picked",
+                user_type="ANM",
+                details={
+                    "message_id": msg_id,
+                    "elapsed_time": elapsed_time,
+                    "arriving_time": message_timestamp,
+                    "picked_time": start_time
+                },
+            )
             self.handle_response_expert(msg_object, row_lt)
+            elapsed_time = end_time - start_time
+            self.app_logger.add_log(
+                event_name="Message_processed",
+                user_type="Asha",
+                details={
+                    "message_id": msg_id,
+                    "elapsed_time":elapsed_time,
+                    "start_time": start_time,
+                    "end_time": end_time
+                }
+            )
         return
     
     def send_did_you_know_response(
@@ -506,7 +575,7 @@ class WhatsappResponder(BaseResponder):
                     reply_id = prev_response["message_id"]
                     text = "You have already asked this question. Here is the response to your previous query."
                     text_src = self.azure_translate.translate_text(
-                        text, "en", row_lt['user_language'], self.app_logger
+                        text, "en", row_lt['user_language'], self.app_logger, msg_id=msg_id
                     )
                     sent_msg_id = self.messenger.send_message(row_lt['whatsapp_id'], text_src, reply_id)
 
@@ -539,8 +608,6 @@ class WhatsappResponder(BaseResponder):
         except Exception as e:
             print(e)
             traceback.print_exc()
-        
-
         db_id = self.user_conv_db.insert_row(
             user_id = row_lt['user_id'],
             message_id = msg_id,
@@ -635,6 +702,7 @@ class WhatsappResponder(BaseResponder):
                     row_lt['user_language'] + "-IN",
                     audio_output_file[:-3] + "wav",
                     self.app_logger,
+                    msg_id=msg_id
                 )
                 if gpt_output.strip().startswith("I do not know the answer to your question"):
                     if msg_type == "audio":
@@ -739,20 +807,32 @@ class WhatsappResponder(BaseResponder):
         chunk_list,
         reply_msg_id = None
     ):
-        
+        print("Entering send_message_with_related_questions_v2")
         source_lang = row_lt["user_language"]
 
         if (
             (not gpt_output.strip().startswith("I do not know the answer to your question"))
             and query_type != "small-talk"
         ):
+            start_time = datetime.now().timestamp()
             next_questions = self.knowledge_base.follow_up_questions_v2(
                 chunk_list, self.app_logger
             )
             questions_source = []
+            end_time = datetime.now().timestamp()
+            latency = end_time - start_time
+            self.app_logger.add_log(
+                event_name="generate_follow_up_questions",
+                details={
+                    "message_id": reply_msg_id,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "latency": latency
+                }
+            )
             for question in next_questions:
                 question_source = self.azure_translate.translate_text(
-                    question, "en", source_lang, self.app_logger
+                    question, "en", source_lang, self.app_logger, msg_id=reply_msg_id
                 )
                 questions_source.append(question_source)
             ans, related_questions_titles = (
@@ -1011,6 +1091,7 @@ class WhatsappResponder(BaseResponder):
                 target_language="en",
                 app_logger=self.app_logger,
                 lang_fix=self.language_fix,
+                msg_id=msg_id
             )
             response = self.answer_query_text(msg_id, msg_body, translated_message, msg_type, row_lt)
             return

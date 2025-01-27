@@ -13,7 +13,7 @@ import time
 from openai import OpenAI, AzureOpenAI
 
 
-def get_llm_response(prompt, schema=None):
+def get_llm_response(prompt, schema=None, tokens=None):
     openai.api_key = os.environ["OPENAI_API_KEY"].strip()
     openai.api_version = os.environ["OPENAI_API_VERSION"].strip()
 
@@ -58,10 +58,12 @@ def get_llm_response(prompt, schema=None):
                 i = 1
 
     response_text = response.choices[0].message.content.strip()
+    if isinstance(tokens,list):
+        tokens.append(response.usage.total_tokens)
     return response_text
 
-def translate_gpt_en2hi(eng_text):
-    
+def translate_gpt_en2hi(eng_text, logger, msg_id = None):
+    start_time = datetime.datetime.now().timestamp()
     llm_prompts = json.load(open(os.path.join(os.environ["APP_PATH"], os.environ["DATA_PATH"], "llm_prompt.json")))
     system_prompt = llm_prompts["translate_output"]
     query_prompt = f'''
@@ -73,9 +75,20 @@ def translate_gpt_en2hi(eng_text):
     prompt.append({"role": "user", "content": query_prompt})
 
     response = get_llm_response(prompt)
+    end_time = datetime.datetime.now().timestamp()
+    logger.add_log(
+        event_name="translation_en_hi",
+        details={
+            "message_id": msg_id,
+            "start_time": start_time,
+            "end_time": end_time,
+            "latency": end_time - start_time,
+        }
+    )
     return response
 
-def translate_gpt_hi2en(hindi_text):
+def translate_gpt_hi2en(hindi_text, logger, msg_id = None):
+    start_time = datetime.datetime.now().timestamp()
     llm_prompts = json.load(open(os.path.join(os.environ["APP_PATH"], os.environ["DATA_PATH"], "llm_prompt.json")))
     system_prompt = llm_prompts["translate_input"]
     query_prompt = f'''
@@ -87,6 +100,16 @@ def translate_gpt_hi2en(hindi_text):
     prompt.append({"role": "user", "content": query_prompt})
 
     response = get_llm_response(prompt)
+    end_time = datetime.datetime.now().timestamp()
+    logger.add_log(
+        event_name="translation_hi_en", 
+        details={
+            "message_id": msg_id,
+            "start_time": start_time,
+            "end_time": end_time,
+            "latency": end_time - start_time,
+        }
+    )
     return response
 
 
