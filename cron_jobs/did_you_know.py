@@ -30,7 +30,7 @@ GUID = 'GUID'
 FACT = 'Did you know - Hindi'
 FACT_GUID_KEY = 'dyk_guids'
 EVENT_NAME = "did_you_know"
-template_name = "did_you_know"
+template_name = "did_you_know_test"
 
 user_db = UserDB(config)
 user_conv_db = UserConvDB(config)
@@ -81,7 +81,7 @@ def send_fact(users_df):
                 user_row["whatsapp_id"],
                 template_name,
                 user_row["user_language"],
-                [param_list],
+                param_list,
                 None
             )
             user_db.update_user(user_row["user_id"], {FACT_GUID_KEY: user_fact_guids})
@@ -132,8 +132,8 @@ def get_suggested_questions_based_on_fact(
     return title, list_title, questions_source
 
 def send_fact_to_Asha():
-    # users = user_db.get_all_users(user_type="Asha")
-    users = [user_db.get_from_whatsapp_id('918837701828')]
+    users = user_db.get_all_users(user_type="Asha")
+    # users = [user_db.get_from_whatsapp_id('918837701828')]
     user_df = pd.DataFrame(users)
     if "Location" in user_df.columns:
         location_df = pd.json_normalize(user_df["Location"])  # Flatten Location into columns
