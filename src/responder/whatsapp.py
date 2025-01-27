@@ -124,19 +124,39 @@ class WhatsappResponder(BaseResponder):
             return
 
         print("Entering response function")
-        
         msg_object = body["entry"][0]["changes"][0]["value"]["messages"][0]
         from_number = msg_object["from"]
         msg_id = msg_object["id"]
         msg_type = msg_object["type"]
-
+        message_timestamp = float(body["entry"][0]["changes"][0]["value"]["messages"][0]["timestamp"])
+        start_time = datetime.now().timestamp()
+        elapsed_time = start_time - message_timestamp
+        self.app_logger.add_log(
+            event_name="Queue_to_response_func",
+            details={
+                "message_id": msg_object["id"],
+                "elapsed_time": elapsed_time,
+                "arriving_time": message_timestamp,
+                "picked_time": start_time
+            },
+        )
         print("Message object: ", msg_object)
-
+        start_time = datetime.now().timestamp()
         if self.user_conv_db.get_from_message_id(msg_id) or self.bot_conv_db.get_from_message_id(msg_id) or self.expert_conv_db.get_from_message_id(msg_id):
             print("Message already processed", datetime.now())
             return
         
         user_type, row_lt = self.check_user_type(from_number)
+        end_time = datetime.now().timestamp()
+        self.app_logger.add_log(
+            event_name="User_checks",
+            details={
+                "message_id": msg_id,
+                "elapsed_time": end_time - start_time,
+                "start_time": start_time,
+                "end_time": end_time
+            },
+        )
         print("User type: ", user_type, "Row: ", row_lt)
         if user_type is None:
             if ((msg_object.get("text", False) 
