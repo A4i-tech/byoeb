@@ -102,7 +102,7 @@ class translator:
         end_time = int(datetime.now().timestamp())
         return translated_text
 
-    def speech_translate_text(self, audio_file, source_language, app_logger, blob_name, lang_fix=None):
+    def speech_translate_text(self, audio_file, source_language, app_logger, blob_name, lang_fix=None, msg_id=None):
         """
         This function returns the translated english text from the source language audio.
         """
@@ -129,7 +129,7 @@ class translator:
             }
         )
         result = self.fix_language(result, lang_fix)
-        english_text = self.translate_text(result, source_language, "en", app_logger)
+        english_text = self.translate_text(result, source_language, "en", app_logger, msg_id=msg_id)
         english_text = self.fix_language(english_text, lang_fix)
         
         return result, english_text

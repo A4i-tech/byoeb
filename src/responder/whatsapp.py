@@ -1117,7 +1117,7 @@ class WhatsappResponder(BaseResponder):
                 blob_client.upload_blob(data)
 
             source_lang_text, eng_text = self.azure_translate.speech_translate_text(
-                audio_input_file[:-3] + "wav", row_lt['user_language'], self.app_logger, blob_name, self.language_fix
+                audio_input_file[:-3] + "wav", row_lt['user_language'], self.app_logger, blob_name, self.language_fix, msg_id
             )
             self.app_logger.add_log(
                 event_name="send_message_audio",
