@@ -33,8 +33,8 @@ from uuid import uuid4
 
 user_id = str(uuid4())
 
-user_db.detele_user_by_wa_id("918812843684")
-user_row = user_db.get_from_whatsapp_id("918812843684")
+# user_db.detele_user_by_wa_id("918812843684")
+user_row = user_db.get_from_whatsapp_id("917891332401")
 print(user_row)
 # phone_numbers2role = {
 #     "919876543210": "asha",
