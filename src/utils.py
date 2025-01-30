@@ -237,7 +237,39 @@ def create_sheet(SCOPES, spreadsheet_id, range_name, local_path):
         .execute()
     )
     print(f"Sheet {range_name} created.")
+
+def delete_rows(SCOPES, spreadsheet_id, range_name, local_path, start_index, end_index):
+    """
+    Deletes rows from a Google Sheet.
+
+    :param service: Authenticated Google Sheets API service.
+    :param spreadsheet_id: The ID of the spreadsheet.
+    :param sheet_id: The ID of the sheet where rows should be deleted.
+    :param start_index: The starting row index (0-based).
+    :param end_index: The ending row index (exclusive, 0-based).
+    """
+    creds = gsheet_api_check(SCOPES, local_path)
+    service = build("sheets", "v4", credentials=creds)
+    sheet_id = get_sheet_id(SCOPES, spreadsheet_id, range_name, local_path)
+    requests = [{
+        "deleteDimension": {
+            "range": {
+                "sheetId": sheet_id,
+                "dimension": "ROWS",
+                "startIndex": start_index,
+                "endIndex": end_index
+            }
+        }
+    }]
     
+    body = {"requests": requests}
+    service.spreadsheets().batchUpdate(
+        spreadsheetId=spreadsheet_id,
+        body=body
+    ).execute()
+
+    print(f"Deleted rows {start_index} to {end_index} in Sheet ID: {sheet_id}")
+
 def delete_all_rows(SCOPES, spreadsheet_id, range_name, local_path):
     creds = gsheet_api_check(SCOPES, local_path)
     service = build("sheets", "v4", credentials=creds)
