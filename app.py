@@ -107,7 +107,7 @@ def webhook():
         timestamp = body["entry"][0]["changes"][0]["value"]["messages"][0]["timestamp"]
         body["entry"][0]["changes"][0]["value"]["messages"][0]["timestamp"] = datetime.now().timestamp()
         print("difference in time: ", datetime.now().timestamp() - int(timestamp))
-        n = 2
+        n = 5
         if is_older_than_n_minutes(int(timestamp), n=n):
             app_logger.add_log(
                 event_name="Old message",

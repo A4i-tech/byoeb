@@ -137,7 +137,7 @@ def convert_to_dataframe(data):
 def is_older_than_n_minutes(unix_timestamp, n):
     # Get the current time in Unix timestamp format
     diff_seconds = n*60
-    current_time = int(time.time())
+    current_time = int(datetime.datetime.now().timestamp())
     
     # Calculate the difference
     time_difference = current_time - unix_timestamp
