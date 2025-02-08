@@ -2,7 +2,7 @@ import re
 import json
 import byoeb.services.chat.constants as constants
 from typing import List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from byoeb.chat_app.configuration.config import bot_config, app_config
 from byoeb.models.message_category import MessageCategory
 from byoeb_core.models.byoeb.message_context import (
@@ -92,7 +92,7 @@ class ByoebExpertGenerateResponse(Handler):
             constants.UPDATE_ID: cross_conv_message.message_context.message_id,
             constants.EMOJI: emoji,
             constants.VERIFICATION_STATUS: status,
-            constants.MODIFIED_TIMESTAMP: str(int(datetime.now().timestamp()))
+            constants.MODIFIED_TIMESTAMP: str(int(datetime.now(timezone.utc).timestamp()))
         }
         if (status == constants.VERIFIED
             and byoeb_message.reply_context.additional_info[constants.VERIFICATION_STATUS] == constants.WAITING
@@ -102,7 +102,7 @@ class ByoebExpertGenerateResponse(Handler):
             reply_additional_info = {
                 constants.UPDATE_ID: cross_conv_message.message_context.message_id,
                 constants.VERIFICATION_STATUS: status,
-                constants.MODIFIED_TIMESTAMP: str(int(datetime.now().timestamp()))
+                constants.MODIFIED_TIMESTAMP: str(int(datetime.now(timezone.utc).timestamp()))
             }
 
         return ReplyContext(
@@ -245,7 +245,7 @@ class ByoebExpertGenerateResponse(Handler):
                     constants.EMOJI: emoji,
                     constants.VERIFICATION_STATUS: status,
                     **correction_info,
-                    constants.MODIFIED_TIMESTAMP: str(int(datetime.now().timestamp()))
+                    constants.MODIFIED_TIMESTAMP: str(int(datetime.now(timezone.utc).timestamp()))
                 }
             ),
             cross_conversation_context=byoeb_message.cross_conversation_context,

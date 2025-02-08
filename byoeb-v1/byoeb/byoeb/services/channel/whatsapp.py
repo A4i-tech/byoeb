@@ -13,7 +13,7 @@ from byoeb_core.models.byoeb.message_context import (
 )
 from byoeb_core.models.whatsapp.response.message_response import WhatsAppResponse
 from typing import List, Dict, Any, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class WhatsAppService(BaseChannelService):
@@ -126,7 +126,7 @@ class WhatsAppService(BaseChannelService):
                     reply_type=byoeb_user_message.reply_context.reply_type,
                 ),
                 incoming_timestamp=byoeb_user_message.incoming_timestamp,
-                outgoing_timestamp=str(int(datetime.now().timestamp()))
+                outgoing_timestamp=str(int(datetime.now(timezone.utc).timestamp()))
             )
             bot_to_user_messages.append(byoeb_message)
         return bot_to_user_messages
@@ -183,7 +183,7 @@ class WhatsAppService(BaseChannelService):
                 ),
                 cross_conversation_context=cross_conversation_context,
                 incoming_timestamp=byoeb_expert_message.incoming_timestamp,
-                outgoing_timestamp=str(int(datetime.now().timestamp()))
+                outgoing_timestamp=str(int(datetime.now(timezone.utc).timestamp()))
             )
             bot_to_expert_messages.append(byoeb_message)
             

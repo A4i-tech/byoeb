@@ -31,7 +31,7 @@ async def aazure_cosmos_mongo_db_batch():
     c1_client = AsyncAzureCosmosMongoDBCollection(collection1)
     results = await c1_client.ainsert(documents)
     data = await c1_client.afetch_all({"age": {"$gte": 26}})
-    c1_client.aupdate({"age": 25}, {"$set": {"age": 26}})
+    await c1_client.aupdate({"age": 25}, {"$set": {"age": 26}})
     ids = await c1_client.afetch_ids()
     assert len(ids) == len(documents)
     data_id = await c1_client.afetch({"_id": "102"})

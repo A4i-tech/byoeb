@@ -1,5 +1,5 @@
 import byoeb.services.chat.constants as constants
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 from byoeb.factory import MongoDBFactory
 from byoeb.services.databases.mongo_db.base import BaseMongoDBService
@@ -95,7 +95,7 @@ class MessageMongoDBService(BaseMongoDBService):
             {
                 "_id": message.message_context.message_id,
                 "message_data": message.model_dump(),
-                "timestamp": str(int(datetime.now().timestamp())),
+                "timestamp": str(int(datetime.now(timezone.utc).timestamp())),
             }
             for message in byoeb_messages
         ]

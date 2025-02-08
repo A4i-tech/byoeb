@@ -1,7 +1,7 @@
 import asyncio
 import byoeb.services.chat.constants as constants
 import byoeb.utils.utils as b_utils
-from datetime import datetime
+from datetime import datetime, timezone
 from byoeb.chat_app.configuration.config import app_config
 from byoeb.services.chat import utils
 from byoeb.services.chat import mocks
@@ -186,10 +186,10 @@ class ByoebUserSendResponse(Handler):
         if messages is None or len(messages) == 0:
             return {}
         try:
-            start_time = datetime.now().timestamp()
+            start_time = datetime.now(timezone.utc).timestamp()
             convs, byoeb_user_message = await self.__handle_message_send_workflow(messages)
             db_queries = self.__prepare_db_queries(convs, byoeb_user_message)
-            end_time = datetime.now().timestamp()
+            end_time = datetime.now(timezone.utc).timestamp()
             b_utils.log_to_text_file(f"Successfully send the message to the user and expert in {end_time - start_time} seconds")
             return db_queries
         except Exception as e:

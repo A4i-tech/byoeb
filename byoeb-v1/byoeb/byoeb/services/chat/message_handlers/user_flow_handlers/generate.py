@@ -3,7 +3,7 @@ import byoeb.services.chat.constants as constants
 import re
 import byoeb.utils.utils as utils
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 from typing import List, Dict, Any
 from byoeb.chat_app.configuration.config import bot_config, app_config
@@ -33,7 +33,7 @@ class ByoebUserGenerateResponse(Handler):
         k
     ) -> List[Chunk]:
         from byoeb.chat_app.configuration.dependency_setup import vector_store
-        start_time = datetime.now().timestamp()
+        start_time = datetime.now(timezone.utc).timestamp()
         retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
             text,
             k,
@@ -41,7 +41,7 @@ class ByoebUserGenerateResponse(Handler):
             select=["id", "text", "metadata", "related_questions"],
             vector_field="text_vector_3072"
         )
-        end_time = datetime.now().timestamp()
+        end_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Retrieved chunks in {end_time - start_time} seconds")
         return retrieved_chunks
         
@@ -356,9 +356,9 @@ class ByoebUserGenerateResponse(Handler):
             return {}
         new_messages = []
         try:
-            start_time = datetime.now().timestamp()
+            start_time = datetime.now(timezone.utc).timestamp()
             new_messages = await self.__handle_message_generate_workflow(messages)
-            end_time = datetime.now().timestamp()
+            end_time = datetime.now(timezone.utc).timestamp()
             utils.log_to_text_file(f"Generated answer and related questions in {end_time - start_time} seconds")
         except RetryError as e:
             utils.log_to_text_file(f"RetryError in generating response: {e}")

@@ -8,7 +8,7 @@ from byoeb.kb_app.configuration.dependency_setup import (
     llm_client
 )
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone
 from byoeb_core.data_parser.llama_index_text_parser import LLamaIndexTextParser, LLamaIndexTextSplitterType
 from byoeb_core.models.media_storage.file_data import FileMetadata, FileData
 
@@ -29,8 +29,8 @@ async def create_kb_from_blob_store():
     chunk_metadatas = [
         {
             "source": chunk.metadata["file_name"],
-            "creation_timestamp": str(int(datetime.now().timestamp())),
-            "update_timestamp": str(int(datetime.now().timestamp())),
+            "creation_timestamp": str(int(datetime.now(timezone.utc).timestamp())),
+            "update_timestamp": str(int(datetime.now(timezone.utc).timestamp())),
         }
         for chunk in chunks
     ]

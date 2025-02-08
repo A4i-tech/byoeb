@@ -1,7 +1,7 @@
 
 import byoeb.services.user.utils as user_utils
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 from byoeb_core.models.byoeb.user import User
 from byoeb.services.user.base import BaseUserService
@@ -26,7 +26,7 @@ class UserService(BaseUserService):
             json_data_users.append({
                 "_id": user.user_id,
                 "User": user.model_dump(),
-                "timestamp": str(int(datetime.now().timestamp()))
+                "timestamp": str(int(datetime.now(timezone.utc).timestamp()))
             })
         return json_data_users
     
@@ -243,8 +243,8 @@ class UserService(BaseUserService):
                 user_type=user.user_type,
                 experts=user.experts,
                 audience=user.audience,
-                created_timestamp = str(int(datetime.now().timestamp())),
-                activity_timestamp = str(int(datetime.now().timestamp()))
+                created_timestamp = str(int(datetime.now(timezone.utc).timestamp())),
+                activity_timestamp = str(int(datetime.now(timezone.utc).timestamp()))
             )
             byoeb_users.append(new_user)
         json_data_users = self.__prepare_user_insert_data(byoeb_users)

@@ -1,6 +1,6 @@
 import byoeb.services.chat.constants as constants
 from aiocache import Cache
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from byoeb_core.models.byoeb.user import User
 from byoeb.factory import MongoDBFactory
 from typing import List, Dict, Any
@@ -46,7 +46,7 @@ class UserMongoDBService(BaseMongoDBService):
 
     def user_activity_update_query(self, user: User, qa: Dict[str, Any] = None):
         """Generate update query for user activity."""
-        latest_timestamp = str(int(datetime.now().timestamp()))
+        latest_timestamp = str(int(datetime.now(timezone.utc).timestamp()))
         update_data = {"$set": {"User.activity_timestamp": latest_timestamp}}
 
         if qa is None:
