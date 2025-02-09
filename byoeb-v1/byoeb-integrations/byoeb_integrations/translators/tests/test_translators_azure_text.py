@@ -38,6 +38,7 @@ async def aazure_translate_text_en_hi():
     print(translated_text)
     assert translated_text is not None
     assert translated_text != input_text
+    await async_azure_text_translator._close()
 
 async def aazure_translate_text_en_en():
     async_azure_text_translator = AsyncAzureTextTranslator(

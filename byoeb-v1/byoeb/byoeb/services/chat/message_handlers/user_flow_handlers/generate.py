@@ -79,9 +79,9 @@ class ByoebUserGenerateResponse(Handler):
     ):
         expert_type = self._expert_user_types.get(query_type)
         if experts is None:
-            return None
+            return None, None
         if expert_type not in experts:
-            return None
+            return None, None
         return experts[expert_type][0], expert_type
     
     def __create_read_reciept_message(
@@ -106,7 +106,7 @@ class ByoebUserGenerateResponse(Handler):
         status = None,
     ) -> ByoebMessageContext:
         from byoeb.chat_app.configuration.dependency_setup import text_translator
-        from byoeb.chat_app.configuration.dependency_setup import speech_translator
+        from byoeb.chat_app.configuration.dependency_setup import speech_translator_whisper
         user_language = message.user.user_language
         status_info = {
             constants.EMOJI: emoji,
@@ -117,22 +117,21 @@ class ByoebUserGenerateResponse(Handler):
             source_language="en",
             target_language=user_language
         )
+        translated_audio_message = await speech_translator_whisper.atext_to_speech(
+                input_text=message_source_text,
+                source_language=user_language,
+        )
+        media_info = {
+            constants.DATA: translated_audio_message,
+            constants.MIME_TYPE: "audio/wav",
+        }
         interactive_list_additional_info = {}
         user_message = None
         if related_questions is not None:
             description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
-            user_lang_related_questions = [
-                await text_translator.atranslate_text(
-                    input_text=question,
-                    source_language="en",
-                    target_language=user_language
-                )
-                for question in related_questions
-            ]
-
             interactive_list_additional_info = {
                 constants.DESCRIPTION: description,
-                constants.ROW_TEXTS: user_lang_related_questions
+                constants.ROW_TEXTS: related_questions
             }
             user_message = ByoebMessageContext(
                 channel_type=message.channel_type,
@@ -150,6 +149,7 @@ class ByoebUserGenerateResponse(Handler):
                     message_english_text=response_text,
                     additional_info={
                         **status_info,
+                        **media_info,
                         **interactive_list_additional_info
                     }
                 ),
@@ -162,8 +162,9 @@ class ByoebUserGenerateResponse(Handler):
                 ),
                 incoming_timestamp=message.incoming_timestamp,
             )
-        if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
-            translated_audio_message = await speech_translator.atext_to_speech(
+        if (message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value
+            or message.message_context.message_type == MessageTypes.REGULAR_TEXT.value):
+            translated_audio_message = await speech_translator_whisper.atext_to_speech(
                 input_text=message_source_text,
                 source_language=user_language,
             )
@@ -211,6 +212,8 @@ class ByoebUserGenerateResponse(Handler):
     ) -> ByoebMessageContext:
         
         expert_phone_number_id , expert_type= self.__get_expert_number_and_type(message.user.experts, query_type)
+        if expert_phone_number_id is None:
+            return None
         expert_user_id = hashlib.md5(expert_phone_number_id.encode()).hexdigest()
         verification_question_template = bot_config["template_messages"]["expert"]["verification"]["Question"]
         verification_bot_answer_template = bot_config["template_messages"]["expert"]["verification"]["Bot_Answer"]
@@ -320,12 +323,14 @@ class ByoebUserGenerateResponse(Handler):
             related_questions = retrieved_chunk.related_questions.get(user_lang_code)
             if related_questions is not None:
                 random_selection.append(random.choice(related_questions))
+        print("Follow up question: ", random_selection)
         return random_selection
     
     async def __handle_message_generate_workflow(
         self,
         messages: ByoebMessageContext
     ) -> List[ByoebMessageContext]:
+        byoeb_messages = []
         message: ByoebMessageContext = messages[0].model_copy(deep=True)
         read_reciept_message = self.__create_read_reciept_message(message)
         message_english = message.message_context.message_english_text
@@ -339,14 +344,24 @@ class ByoebUserGenerateResponse(Handler):
             status=constants.PENDING,
             related_questions=related_questions
         )
+        print("Created user message")
         byoeb_expert_message = self.__create_expert_verification_message(
             message,
             answer,
-            query_type,
+            query_type.lower(),
             self.EXPERT_PENDING_EMOJI,
             constants.PENDING
         )
-        return [byoeb_user_message, byoeb_expert_message, read_reciept_message]
+        print("Created expert message")
+
+        # Aggregate all messages
+        if byoeb_user_message is not None:
+            byoeb_messages.append(byoeb_user_message)
+        if byoeb_expert_message is not None:
+            byoeb_messages.append(byoeb_expert_message)
+        if read_reciept_message is not None:
+            byoeb_messages.append(read_reciept_message)
+        return byoeb_messages
     
     async def handle(
         self,

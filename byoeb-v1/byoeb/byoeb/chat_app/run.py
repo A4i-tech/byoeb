@@ -33,7 +33,8 @@ async def lifespan(app: FastAPI):
     from byoeb.chat_app.configuration.dependency_setup import (
         channel_client_factory, 
         message_consumer,
-        queue_producer_factory
+        queue_producer_factory,
+        text_translator
     )
     await message_consumer.initialize()
     asyncio.create_task(message_consumer.listen())
@@ -41,6 +42,7 @@ async def lifespan(app: FastAPI):
     await channel_client_factory.close()
     await message_consumer.close()
     await queue_producer_factory.close()
+    await text_translator._close()
     print("Closed all clients.")
 
 app = create_app()

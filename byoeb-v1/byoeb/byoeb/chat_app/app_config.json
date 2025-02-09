@@ -16,6 +16,7 @@
             "reuse_client": true
         },
         "reaction": {
+            "enabled": false,
             "user": {
                 "verified": "✅",
                 "rejected": "❌",
@@ -81,7 +82,7 @@
                 "region": "swedencentral"
             },
             "azure_oai": {
-                "endpoint": "https://khushibabyashastorage.queue.core.windows.net",
+                "endpoint": "https://khushi-baby-asha-oai.openai.azure.com/",
                 "model": "whisper",
                 "api_version": "2024-06-01"
             }

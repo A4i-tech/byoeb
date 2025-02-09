@@ -76,7 +76,6 @@ async def aazure_openai_whisper_translate_hi():
         input_text=text,
         source_language="hi",
     )
- 
     new_text = await async_azure_openai_whisper.aspeech_to_text(
         audio_data=result,
     )
@@ -86,7 +85,7 @@ async def aazure_openai_whisper_translate_hi():
 
 async def aazure_bytes_speech_translate_en():
     
-    text = "Hello how are you?"
+    text = "Hello how are you?" 
     async_azure_speech_translator = AsyncAzureSpeechTranslator(
         region=SPEECH_TRANSLATOR_REGION,
         token_provider=token_provider,
