@@ -745,8 +745,19 @@ class WhatsappResponder(BaseResponder):
                 # sent_msg_id = self.messenger.send_message(
                 #     row_lt['whatsapp_id'], ans, msg_id
                 # )
+                start_time = datetime.now().timestamp()
                 audio_msg_id = self.messenger.send_audio(
                     audio_output_file, row_lt['whatsapp_id']
+                )
+                end_time = datetime.now().timestamp()
+                self.app_logger.add_log(
+                    event_name="send_audio_message",
+                    details={
+                        "message_id": msg_id,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "latency": end_time - start_time
+                    }
                 )
                 utils.remove_extra_voice_files(audio_input_file, audio_output_file)
 
@@ -842,12 +853,23 @@ class WhatsappResponder(BaseResponder):
                 ans_source,
                 self.onboarding_questions[source_lang]["list_title"],
             )
+            start_time = datetime.now().timestamp()
             sent_msg_id = self.messenger.send_suggestions(
                 row_lt['whatsapp_id'],
                 ans,
                 related_questions_titles,
                 questions_source,
                 reply_msg_id
+            )
+            end_time = datetime.now().timestamp()
+            self.app_logger(
+                event_name="send_interactive_list_message",
+                details={
+                    "message_id": reply_msg_id,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "latency": end_time - start_time
+                }
             )
         else:
             prev_rows = self.bot_conv_db.find_with_receiver_id(row_query["user_id"], "suggested_questions")
