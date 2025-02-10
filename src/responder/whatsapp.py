@@ -862,7 +862,7 @@ class WhatsappResponder(BaseResponder):
                 reply_msg_id
             )
             end_time = datetime.now().timestamp()
-            self.app_logger(
+            self.app_logger.add_log(
                 event_name="send_interactive_list_message",
                 details={
                     "message_id": reply_msg_id,
