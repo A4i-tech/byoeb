@@ -133,8 +133,14 @@ class ByoebUserSendResponse(Handler):
             user_requests_no_tag = channel_service.prepare_requests(user_message_copy)
             text_tag_message = user_requests[0]
             audio_no_tag_message = user_requests_no_tag[1]
+            start_time = datetime.now(timezone.utc).timestamp()
             response_text, message_id_text = await channel_service.send_requests([text_tag_message])
+            end_time = datetime.now(timezone.utc).timestamp()
+            b_utils.log_to_text_file(f"Successfully sent interactive message in {end_time - start_time} seconds")
+            start_time = datetime.now(timezone.utc).timestamp()
             response_audio, message_id_audio = await channel_service.send_requests([audio_no_tag_message])
+            end_time = datetime.now(timezone.utc).timestamp()
+            b_utils.log_to_text_file(f"Successfully sent audio message in {end_time - start_time} seconds")
             responses = response_text
             message_ids = message_id_text
         
@@ -163,7 +169,8 @@ class ByoebUserSendResponse(Handler):
         byoeb_user_messages = utils.get_user_byoeb_messages(messages)
         byoeb_user_message = byoeb_user_messages[0]
         channel_service = self.get_channel_service(byoeb_user_message.channel_type)
-        await channel_service.amark_read(read_receipt_messages)
+        mark_read_task = channel_service.amark_read(read_receipt_messages)
+        end_time = datetime.now(timezone.utc).timestamp()
         user_task = self.__handle_user(channel_service, byoeb_user_message)
         byoeb_expert_messages = utils.get_expert_byoeb_messages(messages)
         if byoeb_expert_messages is None or len(byoeb_expert_messages) == 0:
@@ -171,9 +178,7 @@ class ByoebUserSendResponse(Handler):
         else:
             byoeb_expert_message = byoeb_expert_messages[0]
         expert_task = self.__handle_expert(channel_service, byoeb_expert_message)
-        user_responses, expert_responses = await asyncio.gather(user_task, expert_task)
-        end_time = datetime.now(timezone.utc).timestamp()
-        b_utils.log_to_text_file(f"Successfully send the message to the user in {end_time - start_time} seconds")
+        _, user_responses, expert_responses = await asyncio.gather(mark_read_task, user_task, expert_task)
 
         # byoeb_user_verification_status = byoeb_expert_message.message_context.additional_info.get(verification_status)
         related_questions = byoeb_user_message.message_context.additional_info.get(constants.ROW_TEXTS)

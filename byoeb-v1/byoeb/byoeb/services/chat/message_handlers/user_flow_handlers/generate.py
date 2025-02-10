@@ -118,6 +118,9 @@ class ByoebUserGenerateResponse(Handler):
             source_language="en",
             target_language=user_language
         )
+        end_time = datetime.now(timezone.utc).timestamp()
+        utils.log_to_text_file(f"Translated response message in {end_time - start_time} seconds")
+        start_time = datetime.now(timezone.utc).timestamp()
         translated_audio_message = await speech_translator.atext_to_speech(
                 input_text=message_source_text,
                 source_language=user_language,
@@ -287,12 +290,21 @@ class ByoebUserGenerateResponse(Handler):
         user_lang_code: str,
         retrieved_chunks: List[Chunk],
     ):
-        random_selection = []
+        all_questions = []
+
+        # Collect all related questions from all chunks
         for retrieved_chunk in retrieved_chunks:
             related_questions = retrieved_chunk.related_questions.get(user_lang_code)
-            if related_questions is not None:
-                random_selection.append(random.choice(related_questions))
-        return random_selection
+            if related_questions:
+                all_questions.extend(related_questions)
+
+        # Filter questions based on length constraint
+        valid_questions = [q for q in all_questions if len(q) < 70]
+
+        # Shuffle and pick up to 3
+        random.shuffle(valid_questions)
+        
+        return valid_questions[:3]  # Return at most 3 questions
     
     async def __handle_message_generate_workflow(
         self,
@@ -342,7 +354,7 @@ class ByoebUserGenerateResponse(Handler):
             start_time = datetime.now(timezone.utc).timestamp()
             new_messages = await self.__handle_message_generate_workflow(messages)
             end_time = datetime.now(timezone.utc).timestamp()
-            utils.log_to_text_file(f"Generated answer and related questions in {end_time - start_time} seconds")
+            utils.log_to_text_file(f"E2E Generated answer and related questions in {end_time - start_time} seconds")
         except RetryError as e:
             utils.log_to_text_file(f"RetryError in generating response: {e}")
             print("RetryError in generating response: ", e)
