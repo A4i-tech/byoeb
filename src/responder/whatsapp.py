@@ -168,13 +168,16 @@ class WhatsappResponder(BaseResponder):
                 )
                 or msg_object.get("type", None) == "request_welcome"
             ):
+                test_user = False
+                if "test" in msg_object["text"]["body"]:
+                    test_user = True
                 user_id = str(uuid4())
                 self.user_db.insert_row(
                     user_id=user_id,
                     whatsapp_id=from_number,
                     user_type="Asha",
                     user_language="hi",
-                    test_user=False,
+                    test_user=test_user,
                 )
                 row_lt = {
                     "user_id": user_id,
