@@ -150,7 +150,7 @@ class translator:
         This function stores the translated speech into save_filename location.
         It takes as input the english text from gpt and tranlates into the source language audio.
         """
-
+        start_time = datetime.now().timestamp()
         speech_config = speechsdk.SpeechConfig(
             subscription=self.speech_key, region=self.location
         )
@@ -165,7 +165,7 @@ class translator:
         source_text = self.translate_text(
             english_text, "en", source_audio_language[:2], app_logger, msg_id=msg_id
         )
-        start_time = datetime.now().timestamp()
+        
         speech_synthesizer.speak_text_async(source_text).get()
         end_time = datetime.now().timestamp()
         app_logger.add_log(
