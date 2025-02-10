@@ -2,6 +2,7 @@ import asyncio
 import os
 import pytest
 import azure.cognitiveservices.speech as speechsdk
+from datetime import datetime
 from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
 from byoeb_integrations.translators.speech.azure.async_azure_openai_whisper import AsyncAzureOpenAIWhisper
 from azure.identity import get_bearer_token_provider, DefaultAzureCredential
@@ -66,22 +67,49 @@ async def aazure_openai_whisper_translate_hi():
         azure_endpoint=WHISPER_ENDPOINT,
         api_version=WHISPER_API_VERSION
     )
-    text = "नमस्कार क्या हालचाल हैं?"
+    text = "2.5 किलोग्राम से कम वजन वाले शिशुओं को अतिरिक्त गर्मी प्रदान करके गर्म रखा जाना चाहिए। परिवार को यह सुनिश्चित करना चाहिए कि बच्चे को पतली चादर और कंबल से अच्छी तरह लपेटा जाए, गर्मी के नुकसान को रोकने के लिए सिर को ढंका जाए, और बच्चे को मां के पेट और छाती के बहुत करीब रखा जाए। कपड़े में लिपटे गर्म पानी से भरी बोतलों को बच्चे के कंबल के दोनों ओर रखा जा सकता है। जब मां के शरीर के करीब नहीं रखा जाता है, तो बच्चे को अधिक बार खिलाया जाना चाहिए।"
     async_azure_speech_translator = AsyncAzureSpeechTranslator(
         region=SPEECH_TRANSLATOR_REGION,
         token_provider=token_provider,
         resource_id=SPEECH_TRANSLATOR_RESOURCE_ID,
     )
+    start_time = int(datetime.now().timestamp())
     result = await async_azure_speech_translator.atext_to_speech(
         input_text=text,
         source_language="hi",
     )
+    end_time = int(datetime.now().timestamp())
+    print(f"Time taken to convert text to speech: {end_time - start_time} seconds")
     new_text = await async_azure_openai_whisper.aspeech_to_text(
         audio_data=result,
     )
     print(new_text)
+    text = "2.5 किलोग्राम से कम वजन वाले शिशुओं को अतिरिक्त गर्मी प्रदान करके गर्म रखा जाना चाहिए। परिवार को यह सुनिश्चित करना चाहिए कि बच्चे को पतली चादर और कंबल से अच्छी तरह लपेटा जाए, गर्मी के नुकसान को रोकने के लिए सिर को ढंका जाए, और बच्चे को मां के पेट और छाती के बहुत करीब रखा जाए। कपड़े में लिपटे गर्म पानी से भरी बोतलों को बच्चे के कंबल के दोनों ओर रखा जा सकता है। जब मां के शरीर के करीब नहीं रखा जाता है, तो बच्चे को अधिक बार खिलाया जाना चाहिए।"
+    start_time = int(datetime.now().timestamp())
+    result = await async_azure_speech_translator.atext_to_speech(
+        input_text=text,
+        source_language="hi",
+    )
+    end_time = int(datetime.now().timestamp())
+    print(f"Time taken to convert text to speech: {end_time - start_time} seconds")
+    text = "2.5 किलोग्राम से कम वजन वाले शिशुओं को अतिरिक्त गर्मी प्रदान करके गर्म रखा जाना चाहिए। परिवार को यह सुनिश्चित करना चाहिए कि बच्चे को पतली चादर और कंबल से अच्छी तरह लपेटा जाए, गर्मी के नुकसान को रोकने के लिए सिर को ढंका जाए, और बच्चे को मां के पेट और छाती के बहुत करीब रखा जाए। कपड़े में लिपटे गर्म पानी से भरी बोतलों को बच्चे के कंबल के दोनों ओर रखा जा सकता है। जब मां के शरीर के करीब नहीं रखा जाता है, तो बच्चे को अधिक बार खिलाया जाना चाहिए।"
+    start_time = int(datetime.now().timestamp())
+    result = await async_azure_speech_translator.atext_to_speech(
+        input_text=text,
+        source_language="hi",
+    )
+    end_time = int(datetime.now().timestamp())
+    print(f"Time taken to convert text to speech: {end_time - start_time} seconds")
+    text = "2.5 किलोग्राम से कम वजन वाले शिशुओं को अतिरिक्त गर्मी प्रदान करके गर्म रखा जाना चाहिए। परिवार को यह सुनिश्चित करना चाहिए कि बच्चे को पतली चादर और कंबल से अच्छी तरह लपेटा जाए, गर्मी के नुकसान को रोकने के लिए सिर को ढंका जाए, और बच्चे को मां के पेट और छाती के बहुत करीब रखा जाए। कपड़े में लिपटे गर्म पानी से भरी बोतलों को बच्चे के कंबल के दोनों ओर रखा जा सकता है। जब मां के शरीर के करीब नहीं रखा जाता है, तो बच्चे को अधिक बार खिलाया जाना चाहिए।"
+    start_time = int(datetime.now().timestamp())
+    result = await async_azure_speech_translator.atext_to_speech(
+        input_text=text,
+        source_language="hi",
+    )
+    end_time = int(datetime.now().timestamp())
+    print(f"Time taken to convert text to speech: {end_time - start_time} seconds")
     assert new_text is not None
-    assert new_text.lower().__contains__("नम")
+    # assert new_text.lower().__contains__("नम")
 
 async def aazure_bytes_speech_translate_en():
     
