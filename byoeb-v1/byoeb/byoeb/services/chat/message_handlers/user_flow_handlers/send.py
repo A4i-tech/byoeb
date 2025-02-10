@@ -158,15 +158,13 @@ class ByoebUserSendResponse(Handler):
         messages: List[ByoebMessageContext]
     ):
         # verification_status = constants.VERIFICATION_STATUS
+        start_time = datetime.now(timezone.utc).timestamp()
         read_receipt_messages = utils.get_read_receipt_byoeb_messages(messages)
         byoeb_user_messages = utils.get_user_byoeb_messages(messages)
         byoeb_user_message = byoeb_user_messages[0]
         channel_service = self.get_channel_service(byoeb_user_message.channel_type)
-        start_time = datetime.now(timezone.utc).timestamp()
         await channel_service.amark_read(read_receipt_messages)
         user_task = self.__handle_user(channel_service, byoeb_user_message)
-        end_time = datetime.now(timezone.utc).timestamp()
-        b_utils.log_to_text_file(f"Successfully send the message to the user in {end_time - start_time} seconds")
         byoeb_expert_messages = utils.get_expert_byoeb_messages(messages)
         if byoeb_expert_messages is None or len(byoeb_expert_messages) == 0:
             byoeb_expert_message = None
@@ -174,6 +172,8 @@ class ByoebUserSendResponse(Handler):
             byoeb_expert_message = byoeb_expert_messages[0]
         expert_task = self.__handle_expert(channel_service, byoeb_expert_message)
         user_responses, expert_responses = await asyncio.gather(user_task, expert_task)
+        end_time = datetime.now(timezone.utc).timestamp()
+        b_utils.log_to_text_file(f"Successfully send the message to the user in {end_time - start_time} seconds")
 
         # byoeb_user_verification_status = byoeb_expert_message.message_context.additional_info.get(verification_status)
         related_questions = byoeb_user_message.message_context.additional_info.get(constants.ROW_TEXTS)
@@ -205,8 +205,11 @@ class ByoebUserSendResponse(Handler):
         if messages is None or len(messages) == 0:
             return {}
         try:
+            start_time = datetime.now(timezone.utc).timestamp()
             convs, byoeb_user_message = await self.__handle_message_send_workflow(messages)
             db_queries = self.__prepare_db_queries(convs, byoeb_user_message)
+            end_time = datetime.now(timezone.utc).timestamp()
+            b_utils.log_to_text_file(f"E2E for send workflow {end_time - start_time} seconds")
             return db_queries
         except Exception as e:
             b_utils.log_to_text_file(f"Error in sending message to user and expert: {str(e)}")
