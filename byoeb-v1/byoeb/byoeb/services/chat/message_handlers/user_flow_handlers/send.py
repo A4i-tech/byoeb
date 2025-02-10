@@ -117,7 +117,7 @@ class ByoebUserSendResponse(Handler):
         message_ids = []
         responses = []
         user_requests = channel_service.prepare_requests(user_message_context)
-        if user_message_context.reply_context.reply_type == MessageTypes.REGULAR_AUDIO.value:
+        if user_message_context.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
             user_message_copy = user_message_context.__deepcopy__()
             user_message_copy.reply_context = None
             user_requests_no_tag = channel_service.prepare_requests(user_message_copy)
@@ -127,7 +127,7 @@ class ByoebUserSendResponse(Handler):
             response_text, message_id_text = await channel_service.send_requests([text_no_tag_message])
             responses = response_audio + response_text
             message_ids = message_id_audio + message_id_text
-        elif user_message_context.reply_context.reply_type == MessageTypes.REGULAR_TEXT.value:
+        elif user_message_context.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value:
             user_message_copy = user_message_context.__deepcopy__()
             user_message_copy.reply_context = None
             user_requests_no_tag = channel_service.prepare_requests(user_message_copy)
@@ -162,8 +162,11 @@ class ByoebUserSendResponse(Handler):
         byoeb_user_messages = utils.get_user_byoeb_messages(messages)
         byoeb_user_message = byoeb_user_messages[0]
         channel_service = self.get_channel_service(byoeb_user_message.channel_type)
+        start_time = datetime.now(timezone.utc).timestamp()
         await channel_service.amark_read(read_receipt_messages)
         user_task = self.__handle_user(channel_service, byoeb_user_message)
+        end_time = datetime.now(timezone.utc).timestamp()
+        b_utils.log_to_text_file(f"Successfully send the message to the user in {end_time - start_time} seconds")
         byoeb_expert_messages = utils.get_expert_byoeb_messages(messages)
         if byoeb_expert_messages is None or len(byoeb_expert_messages) == 0:
             byoeb_expert_message = None
@@ -202,11 +205,8 @@ class ByoebUserSendResponse(Handler):
         if messages is None or len(messages) == 0:
             return {}
         try:
-            start_time = datetime.now(timezone.utc).timestamp()
             convs, byoeb_user_message = await self.__handle_message_send_workflow(messages)
             db_queries = self.__prepare_db_queries(convs, byoeb_user_message)
-            end_time = datetime.now(timezone.utc).timestamp()
-            b_utils.log_to_text_file(f"Successfully send the message to the user and expert in {end_time - start_time} seconds")
             return db_queries
         except Exception as e:
             b_utils.log_to_text_file(f"Error in sending message to user and expert: {str(e)}")

@@ -64,7 +64,6 @@ users_handler = UsersHandler(
 
 # Text translator
 from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
-from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
 from azure.identity import get_bearer_token_provider, AzureCliCredential
 
 token_provider = get_bearer_token_provider(
@@ -79,11 +78,12 @@ text_translator = AsyncAzureTextTranslator(
 
 # Speech translator
 # TODO: factory implementation
-# speech_translator = AsyncAzureSpeechTranslator(
-#     token_provider=token_provider,
-#     region=app_config["translators"]["speech"]["azure_cognitive"]["region"],
-#     resource_id=app_config["translators"]["speech"]["azure_cognitive"]["resource_id"],
-# )
+from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
+speech_translator = AsyncAzureSpeechTranslator(
+    token_provider=token_provider,
+    region=app_config["translators"]["speech"]["azure_cognitive"]["region"],
+    resource_id=app_config["translators"]["speech"]["azure_cognitive"]["resource_id"],
+)
 
 from byoeb_integrations.translators.speech.azure.async_azure_openai_whisper import AsyncAzureOpenAIWhisper
 speech_translator_whisper = AsyncAzureOpenAIWhisper(

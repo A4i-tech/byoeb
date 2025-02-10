@@ -1,3 +1,5 @@
+import byoeb.utils.utils as b_utils
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageTypes
 from byoeb.services.chat.message_handlers.base import Handler
@@ -20,6 +22,7 @@ class ByoebUserProcess(Handler):
         translated_en_text = None
 
         if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
+            start_time = datetime.now(timezone.utc).timestamp()
             media_id = message.message_context.media_info.media_id
             channel_client = await channel_client_factory.get(channel_type)
             _, audio_message, err = await channel_client.adownload_media(media_id)
@@ -32,14 +35,19 @@ class ByoebUserProcess(Handler):
                 target_language="en"
             )
             message.message_context.media_info.media_type = audio_message.mime_type
+            end_time = datetime.now(timezone.utc).timestamp()
+            b_utils.log_to_text_file(f"Time taken for audio to text translation: {end_time - start_time} seconds")
         
         else:
+            start_time = datetime.now(timezone.utc).timestamp()
             source_text = message.message_context.message_source_text
             translated_en_text = await text_translator.atranslate_text(
                 input_text=source_text,
                 source_language=source_language,
                 target_language="en"
             )
+            end_time = datetime.now(timezone.utc).timestamp()
+            b_utils.log_to_text_file(f"Time taken for text translation: {end_time - start_time} seconds")
             
         message.message_context.message_english_text = translated_en_text
         return message

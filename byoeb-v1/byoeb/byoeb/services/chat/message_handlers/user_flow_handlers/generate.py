@@ -106,18 +106,19 @@ class ByoebUserGenerateResponse(Handler):
         status = None,
     ) -> ByoebMessageContext:
         from byoeb.chat_app.configuration.dependency_setup import text_translator
-        from byoeb.chat_app.configuration.dependency_setup import speech_translator_whisper
+        from byoeb.chat_app.configuration.dependency_setup import speech_translator
         user_language = message.user.user_language
         status_info = {
             constants.EMOJI: emoji,
             constants.VERIFICATION_STATUS: status,
         }
+        start_time = datetime.now(timezone.utc).timestamp()
         message_source_text = await text_translator.atranslate_text(
             input_text=response_text,
             source_language="en",
             target_language=user_language
         )
-        translated_audio_message = await speech_translator_whisper.atext_to_speech(
+        translated_audio_message = await speech_translator.atext_to_speech(
                 input_text=message_source_text,
                 source_language=user_language,
         )
@@ -125,81 +126,47 @@ class ByoebUserGenerateResponse(Handler):
             constants.DATA: translated_audio_message,
             constants.MIME_TYPE: "audio/wav",
         }
-        interactive_list_additional_info = {}
-        user_message = None
-        if related_questions is not None:
-            description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
-            interactive_list_additional_info = {
-                constants.DESCRIPTION: description,
-                constants.ROW_TEXTS: related_questions
-            }
-            user_message = ByoebMessageContext(
-                channel_type=message.channel_type,
-                message_category=MessageCategory.BOT_TO_USER_RESPONSE.value,
-                user=User(
-                    user_id=message.user.user_id,
-                    user_language=user_language,
-                    user_type=self._regular_user_type,
-                    phone_number_id=message.user.phone_number_id,
-                    last_conversations=message.user.last_conversations
-                ),
-                message_context=MessageContext(
-                    message_type=MessageTypes.INTERACTIVE_LIST.value,
-                    message_source_text=message_source_text,
-                    message_english_text=response_text,
-                    additional_info={
-                        **status_info,
-                        **media_info,
-                        **interactive_list_additional_info
-                    }
-                ),
-                reply_context=ReplyContext(
-                    reply_id=message.message_context.message_id,
-                    reply_type=message.message_context.message_type,
-                    reply_english_text=message.message_context.message_english_text,
-                    reply_source_text=message.message_context.message_source_text,
-                    media_info=message.message_context.media_info
-                ),
-                incoming_timestamp=message.incoming_timestamp,
-            )
-        if (message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value
-            or message.message_context.message_type == MessageTypes.REGULAR_TEXT.value):
-            translated_audio_message = await speech_translator_whisper.atext_to_speech(
-                input_text=message_source_text,
-                source_language=user_language,
-            )
-            media_info = {
-                constants.DATA: translated_audio_message,
-                constants.MIME_TYPE: "audio/wav",
-            }
-            user_message = ByoebMessageContext(
-                channel_type=message.channel_type,
-                message_category=MessageCategory.BOT_TO_USER_RESPONSE.value,
-                user=User(
-                    user_id=message.user.user_id,
-                    user_language=user_language,
-                    user_type=self._regular_user_type,
-                    phone_number_id=message.user.phone_number_id,
-                    last_conversations=message.user.last_conversations
-                ),
-                message_context=MessageContext(
-                    message_type=MessageTypes.REGULAR_AUDIO.value,
-                    message_source_text=message_source_text,
-                    message_english_text=response_text,
-                    additional_info={
-                        **status_info,
-                        **media_info,
-                        **interactive_list_additional_info
-                    }
-                ),
-                reply_context=ReplyContext(
-                    reply_id=message.message_context.message_id,
-                    reply_type=message.message_context.message_type,
-                    reply_english_text=message.message_context.message_english_text,
-                    media_info=message.message_context.media_info
-                ),
-                incoming_timestamp=message.incoming_timestamp,
-            )
+        end_time = datetime.now(timezone.utc).timestamp()
+        utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
+        description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
+        interactive_list_additional_info = {
+            constants.DESCRIPTION: description,
+            constants.ROW_TEXTS: related_questions
+        }
+        message_type = None
+        if (message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value):
+            message_type = MessageTypes.REGULAR_AUDIO.value
+        else:
+            message_type = MessageTypes.INTERACTIVE_LIST.value
+        user_message = ByoebMessageContext(
+            channel_type=message.channel_type,
+            message_category=MessageCategory.BOT_TO_USER_RESPONSE.value,
+            user=User(
+                user_id=message.user.user_id,
+                user_language=user_language,
+                user_type=self._regular_user_type,
+                phone_number_id=message.user.phone_number_id,
+                last_conversations=message.user.last_conversations
+            ),
+            message_context=MessageContext(
+                message_type=message_type,
+                message_source_text=message_source_text,
+                message_english_text=response_text,
+                additional_info={
+                    **status_info,
+                    **media_info,
+                    **interactive_list_additional_info
+                }
+            ),
+            reply_context=ReplyContext(
+                reply_id=message.message_context.message_id,
+                reply_type=message.message_context.message_type,
+                reply_english_text=message.message_context.message_english_text,
+                reply_source_text=message.message_context.message_source_text,
+                media_info=message.message_context.media_info
+            ),
+            incoming_timestamp=message.incoming_timestamp,
+        )
         return user_message
     
     def __create_expert_verification_message(
@@ -262,8 +229,8 @@ class ByoebUserGenerateResponse(Handler):
     ):
         def parse_response(response_text):
             # Regular expressions to extract the response and relevance
-            response_pattern = r"<BEGIN RESPONSE>(.*?)<END RESPONSE>"
-            query_type_pattern = r"<BEGIN QUERY TYPE>(.*?)<END QUERY TYPE>"
+            response_pattern = r"<RESPONSE>(.*?)</RESPONSE>"
+            query_type_pattern = r"<QUERY TYPE>(.*?)</QUERY TYPE>"
 
             # Extract the response
             response_match = re.search(response_pattern, response_text, re.DOTALL)
@@ -281,10 +248,12 @@ class ByoebUserGenerateResponse(Handler):
         chunks = ", ".join(chunks_list)
         user_prompt = template_user_prompt.replace("<CHUNKS>", chunks).replace("<QUESTION>", question)
         augmented_prompts = self.__augment(system_prompt, user_prompt)
+        start_time = datetime.now(timezone.utc).timestamp()
         llm_response, response_text = await llm_client.agenerate_response(augmented_prompts)
         tokens = llm_client.get_response_tokens(llm_response)
-        utils.log_to_text_file(f"Generated answer tokens: {str(tokens)}")
         answer, query_type = parse_response(response_text)
+        end_time = datetime.now(timezone.utc).timestamp()
+        utils.log_to_text_file(f"Generated answer tokens and response in {end_time - start_time} seconds: {str(tokens)} {response_text}")
         print("Generated answer: ", answer)
         print("Query type: ", query_type)
         if answer is None or query_type is None:
@@ -323,7 +292,6 @@ class ByoebUserGenerateResponse(Handler):
             related_questions = retrieved_chunk.related_questions.get(user_lang_code)
             if related_questions is not None:
                 random_selection.append(random.choice(related_questions))
-        print("Follow up question: ", random_selection)
         return random_selection
     
     async def __handle_message_generate_workflow(
