@@ -185,7 +185,7 @@ class WhatsappResponder(BaseResponder):
                     "user_id": user_id,
                     "whatsapp_id": from_number,
                     "user_type": "Asha",
-                    "user_language": "hi",
+                    "user_language": lang,
                     "test_user": False,
                 }
                 onboard_wa_helper(self.config, self.app_logger, row_lt, self.messenger)
