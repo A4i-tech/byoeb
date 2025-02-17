@@ -309,7 +309,7 @@ class ByoebUserGenerateResponse(Handler):
         ):
             if query_type == self._clinical:
                 idk_status = {
-                    constants.STATUS: constants.SEND
+                    constants.STATUS: constants.WAITING
                 }
             message_type = MessageTypes.INTERACTIVE_LIST.value
             message_category = MessageCategory.TEXT_IDK.value
