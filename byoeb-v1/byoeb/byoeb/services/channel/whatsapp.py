@@ -101,8 +101,10 @@ class WhatsAppService(BaseChannelService):
                     media_id=response.media_message.id
                 )
                 message_type = MessageTypes.REGULAR_AUDIO.value
-            elif byoeb_user_message.message_context.additional_info.get(constants.RELATED_QUESTIONS) is not None:
+            elif byoeb_user_message.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value:
                 message_type = MessageTypes.INTERACTIVE_LIST.value
+            elif byoeb_user_message.message_context.message_type == MessageTypes.INTERACTIVE_BUTTON.value:
+                message_type = MessageTypes.INTERACTIVE_BUTTON.value
             byoeb_message = ByoebMessageContext( 
                 channel_type=byoeb_user_message.channel_type,
                 message_category=byoeb_user_message.message_category,
@@ -124,6 +126,9 @@ class WhatsAppService(BaseChannelService):
                 reply_context=ReplyContext(
                     reply_id=byoeb_user_message.reply_context.reply_id,
                     reply_type=byoeb_user_message.reply_context.reply_type,
+                    reply_source_text=byoeb_user_message.reply_context.reply_source_text,
+                    reply_english_text=byoeb_user_message.reply_context.reply_english_text,
+                    media_info=byoeb_user_message.reply_context.media_info,
                 ),
                 incoming_timestamp=byoeb_user_message.incoming_timestamp,
                 outgoing_timestamp=str(int(datetime.now(timezone.utc).timestamp()))

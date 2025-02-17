@@ -1,4 +1,5 @@
 import asyncio
+from byoeb.models.message_category import MessageCategory
 import byoeb.services.chat.constants as constants
 import byoeb.utils.utils as b_utils
 from datetime import datetime, timezone
@@ -38,10 +39,25 @@ class ByoebUserSendResponse(Handler):
         convs: List[ByoebMessageContext],
         byoeb_user_message: ByoebMessageContext,
     ):
-        message_db_queries = {
-            constants.CREATE: self._message_db_service.message_create_queries(convs)
-        }
+        if byoeb_user_message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
+            message_db_queries = {
+                constants.UPDATE: self._message_db_service.audio_idk_status_update_query(byoeb_user_message)
+            }
+        else:
+            message_db_queries = {
+                constants.CREATE: self._message_db_service.message_create_queries(convs)
+            }
+        audio_message_id = None
+        text_message_id = None
+        user_convs = utils.get_user_byoeb_messages(convs)
+        for user_conv in user_convs:
+            if user_conv.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
+                audio_message_id = user_conv.message_context.message_id
+            else:
+                text_message_id = user_conv.message_context.message_id
         qa = {
+            constants.AUDIO_MESSAGE_ID: audio_message_id,
+            constants.TEXT_MESSAGE_ID: text_message_id,
             constants.QUESTION: byoeb_user_message.reply_context.reply_english_text,
             constants.ANSWER: byoeb_user_message.message_context.message_english_text
         }
@@ -125,9 +141,11 @@ class ByoebUserSendResponse(Handler):
             text_no_tag_message = user_requests_no_tag[0]
             response_audio, message_id_audio = await channel_service.send_requests([audio_tag_message])
             response_text, message_id_text = await channel_service.send_requests([text_no_tag_message])
-            responses = response_audio + response_text
-            message_ids = message_id_audio + message_id_text
-        elif user_message_context.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value:
+            responses = response_text
+            message_ids = message_id_text
+        elif (user_message_context.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value
+            or user_message_context.message_context.message_type == MessageTypes.INTERACTIVE_BUTTON.value
+        ):
             user_message_copy = user_message_context.__deepcopy__()
             user_message_copy.reply_context = None
             user_requests_no_tag = channel_service.prepare_requests(user_message_copy)
@@ -143,18 +161,22 @@ class ByoebUserSendResponse(Handler):
             b_utils.log_to_text_file(f"Successfully sent audio message in {end_time - start_time} seconds")
             responses = response_text
             message_ids = message_id_text
+        elif user_message_context.message_context.message_type == MessageTypes.REGULAR_TEXT.value:
+            response, message_id = await channel_service.send_requests(user_requests)
+            responses = response
+            message_ids = message_id
         
         print("user responses", responses)
-        pending_emoji = user_message_context.message_context.additional_info.get(constants.EMOJI)
-        message_reactions = [
-            MessageReaction(
-                reaction=pending_emoji,
-                message_id=message_id,
-                phone_number_id=user_message_context.user.phone_number_id
-            )
-            for message_id in message_ids if message_id is not None
-        ]
         if self.__reaction_enabled:
+            pending_emoji = user_message_context.message_context.additional_info.get(constants.EMOJI)
+            message_reactions = [
+                MessageReaction(
+                    reaction=pending_emoji,
+                    message_id=message_id,
+                    phone_number_id=user_message_context.user.phone_number_id
+                )
+                for message_id in message_ids if message_id is not None
+            ]
             reaction_requests = channel_service.prepare_reaction_requests(message_reactions)
             await channel_service.send_requests(reaction_requests)
         return responses
@@ -164,13 +186,11 @@ class ByoebUserSendResponse(Handler):
         messages: List[ByoebMessageContext]
     ):
         # verification_status = constants.VERIFICATION_STATUS
-        start_time = datetime.now(timezone.utc).timestamp()
         read_receipt_messages = utils.get_read_receipt_byoeb_messages(messages)
         byoeb_user_messages = utils.get_user_byoeb_messages(messages)
         byoeb_user_message = byoeb_user_messages[0]
         channel_service = self.get_channel_service(byoeb_user_message.channel_type)
         mark_read_task = channel_service.amark_read(read_receipt_messages)
-        end_time = datetime.now(timezone.utc).timestamp()
         user_task = self.__handle_user(channel_service, byoeb_user_message)
         byoeb_expert_messages = utils.get_expert_byoeb_messages(messages)
         if byoeb_expert_messages is None or len(byoeb_expert_messages) == 0:
@@ -182,9 +202,13 @@ class ByoebUserSendResponse(Handler):
 
         # byoeb_user_verification_status = byoeb_expert_message.message_context.additional_info.get(verification_status)
         related_questions = byoeb_user_message.message_context.additional_info.get(constants.ROW_TEXTS)
+        query_type = byoeb_user_message.message_context.additional_info.get(constants.QUERY_TYPE)
+        status = byoeb_user_message.message_context.additional_info.get(constants.STATUS)
         byoeb_user_message.message_context.additional_info = {
             # verification_status: byoeb_user_verification_status,
-            constants.RELATED_QUESTIONS: related_questions
+            constants.RELATED_QUESTIONS: related_questions,
+            constants.QUERY_TYPE: query_type,
+            constants.STATUS: status
         }
         bot_to_user_convs = channel_service.create_conv(
             byoeb_user_message,

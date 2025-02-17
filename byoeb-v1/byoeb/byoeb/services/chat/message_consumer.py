@@ -2,7 +2,9 @@ import logging
 import asyncio
 import json
 import hashlib
+import traceback
 import byoeb.utils.utils as b_utils
+import byoeb.services.chat.constants as constants
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
@@ -100,6 +102,13 @@ class MessageConsmerService:
             conversation.reply_context.additional_info = bot_message.message_context.additional_info
             conversation.cross_conversation_id = bot_message.cross_conversation_id
             conversation.cross_conversation_context = bot_message.cross_conversation_context
+            if bot_message.message_category == MessageCategory.AUDIO_IDK.value:
+                conversation.reply_context.additional_info[constants.BOT_AUDIO_IDK_MESSAGE_ID] = bot_message.message_context.message_id
+                conversation.reply_context.reply_source_text = bot_message.reply_context.reply_source_text
+                conversation.reply_context.reply_english_text = bot_message.reply_context.reply_english_text
+                conversation.reply_context.reply_id = bot_message.reply_context.reply_id
+                conversation.reply_context.media_info = bot_message.reply_context.media_info
+                conversation.reply_context.reply_type = bot_message.reply_context.reply_type
             conversations.append(conversation)
         return conversations
         
@@ -155,6 +164,7 @@ class MessageConsmerService:
         except Exception as e:
             self._logger.error(f"Error processing user message: {e}")
             print("Error processing user message: ", e)
+            traceback.print_exc()
             return None, byoeb_message_copy, e
 
     async def __process_byoebexpert_conversation(

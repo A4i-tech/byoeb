@@ -22,10 +22,15 @@ from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.chat_app.configuration.dependency_setup import llm_client
 
 class ByoebUserGenerateResponse(Handler):
+    AUDIO_MODALITY = "audio"
+    TEXT_MODALITY = "text"
     EXPERT_PENDING_EMOJI = app_config["channel"]["reaction"]["expert"]["pending"]
     USER_PENDING_EMOJI = app_config["channel"]["reaction"]["user"]["pending"]
     _expert_user_types = bot_config["expert"]
     _regular_user_type = bot_config["regular"]["user_type"]
+    _clinical = "clinical"
+    _small_talk = "small_talk"
+    _incomprehensible = "incomprehensible"
 
     async def __aretrieve_chunks(
         self,
@@ -37,7 +42,7 @@ class ByoebUserGenerateResponse(Handler):
         retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
             text,
             k,
-            search_type=AzureVectorSearchType.DENSE.value,
+            search_type=AzureVectorSearchType.HYBRID.value,
             select=["id", "text", "metadata", "related_questions"],
             vector_field="text_vector_3072"
         )
@@ -97,53 +102,242 @@ class ByoebUserGenerateResponse(Handler):
         )
         return read_reciept_message
     
-    async def __create_user_message(
+    def __get_idk_status(
+        self,
+        message: ByoebMessageContext,
+        query_type: str
+    ):
+        source_text = message.message_context.message_source_text
+        print("IDK Message source text: ", source_text)
+        print("IDK Query type: ", query_type)
+        template_idk = bot_config["template_messages"]["user"]["audio"]["idk"][query_type]
+        if query_type != self._incomprehensible and query_type != self._clinical:
+            return {}
+        if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
+            user_lang = message.user.user_language
+            options = template_idk["interactive"]["options"][user_lang]
+            if source_text == options[0]:
+                return {
+                    constants.STATUS: constants.RESOLVED
+                }
+            if source_text == options[1]:
+                return {
+                    constants.STATUS: constants.WAITING
+                }
+        
+        return {}
+        
+    def __get_idk_response(
         self,
         message: ByoebMessageContext,
         response_text: str,
-        related_questions: List[str] = None,
-        emoji = None,
-        status = None,
-    ) -> ByoebMessageContext:
-        from byoeb.chat_app.configuration.dependency_setup import text_translator
-        from byoeb.chat_app.configuration.dependency_setup import speech_translator
+        query_type: str,
+    ):
+        modality = None
+        message_type = message.message_context.message_type
+        query = message.message_context.message_source_text
         user_language = message.user.user_language
-        status_info = {
-            constants.EMOJI: emoji,
-            constants.VERIFICATION_STATUS: status,
-        }
-        start_time = datetime.now(timezone.utc).timestamp()
-        message_source_text = await text_translator.atranslate_text(
-            input_text=response_text,
-            source_language="en",
-            target_language=user_language
+        if (message_type == MessageTypes.REGULAR_AUDIO.value
+           or message.reply_context.message_category == MessageCategory.AUDIO_IDK.value
+        ):
+            modality = self.AUDIO_MODALITY
+        elif (message_type == MessageTypes.REGULAR_TEXT.value
+            or message_type == MessageTypes.INTERACTIVE_LIST.value
+        ):
+            modality = self.TEXT_MODALITY
+        print("Modality: ", modality)
+        print("Query:", query)
+        template_idk = bot_config["template_messages"]["user"][modality]["idk"][query_type]
+        if response_text == constants.IDK and modality == self.AUDIO_MODALITY:
+            status = message.reply_context.additional_info.get(constants.STATUS)
+            if status == constants.WAITING:
+                return template_idk["waiting"][user_language], None, True
+            if status == constants.RESOLVED:
+                return template_idk["resolved"][user_language], None, True
+            options = template_idk["interactive"]["options"][user_language]
+            if query == options[0]:
+                return template_idk["ask_again"][user_language], None, True
+            if query == options[1]:
+                return template_idk["send"][user_language], None, True
+            return template_idk["pending"][user_language], None, True
+        if query_type == self._incomprehensible or query_type == self._clinical:
+            if modality == self.AUDIO_MODALITY:
+                options = template_idk["interactive"]["options"][user_language]
+                text = template_idk["interactive"]["text"][user_language].replace(
+                    "<query>",
+                    query
+                )
+                return text, options, False
+            if modality == self.TEXT_MODALITY:
+                text = template_idk[user_language]
+                return text, None, True
+        elif query_type == self._small_talk:
+            text = template_idk[user_language].replace(
+                "<query>",
+                query
+            )
+            return text, None, True
+        return None, None, False
+    
+    def __create_reply_context(
+        self,
+        message: ByoebMessageContext
+    ):
+        if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
+            user_language = message.user.user_language
+            query = message.message_context.message_source_text
+            query_type = message.reply_context.additional_info.get(constants.QUERY_TYPE)
+            template_idk = bot_config["template_messages"]["user"]["audio"]["idk"][query_type]
+            options = template_idk["interactive"]["options"][user_language]
+            reply_id = message.reply_context.reply_id
+            status = message.reply_context.additional_info.get(constants.STATUS, None)
+            if status == constants.PENDING and query == options[0]:
+                message.reply_context.additional_info[constants.STATUS] = constants.RESOLVED
+            elif status == constants.PENDING and query == options[1]:
+                message.reply_context.additional_info[constants.STATUS] = constants.WAITING
+            else:
+                reply_id = message.reply_context.additional_info.get(constants.BOT_AUDIO_IDK_MESSAGE_ID)
+                message.reply_context.additional_info[constants.STATUS] = None
+            return ReplyContext(
+                message_category=MessageCategory.AUDIO_IDK.value,
+                reply_id=reply_id,
+                reply_type=message.reply_context.reply_type,
+                reply_english_text=message.reply_context.reply_english_text,
+                reply_source_text=message.reply_context.reply_source_text,
+                additional_info=message.reply_context.additional_info,
+                media_info=message.reply_context.media_info
+            )
+        return ReplyContext(
+            reply_id=message.message_context.message_id,
+            reply_type=message.message_context.message_type,
+            reply_english_text=message.message_context.message_english_text,
+            reply_source_text=message.message_context.message_source_text,
+            media_info=message.message_context.media_info
         )
-        end_time = datetime.now(timezone.utc).timestamp()
-        utils.log_to_text_file(f"Translated response message in {end_time - start_time} seconds")
-        start_time = datetime.now(timezone.utc).timestamp()
+
+    async def __create_source_audio(
+        self,
+        message_source_text: str,
+        user_language: str
+    ):
+        from byoeb.chat_app.configuration.dependency_setup import speech_translator
         translated_audio_message = await speech_translator.atext_to_speech(
                 input_text=message_source_text,
                 source_language=user_language,
         )
-        media_info = {
+        return {
             constants.DATA: translated_audio_message,
             constants.MIME_TYPE: "audio/wav",
         }
+         
+    async def __create_source_text(
+        self,
+        message: ByoebMessageContext,
+        response_text: str,
+        query_type: str,
+    ):
+        from byoeb.chat_app.configuration.dependency_setup import text_translator
+        if utils.is_idk(response_text) or query_type == self._incomprehensible:
+            return self.__get_idk_response(
+                message=message,
+                response_text=response_text,
+                query_type=query_type,
+            )
+        
+        source_text = await text_translator.atranslate_text(
+            input_text=response_text,
+            source_language="en",
+            target_language=message.user.user_language
+        )
+        return source_text, None, True
+    
+    async def __create_user_message(
+        self,
+        message: ByoebMessageContext,
+        response_text: str,
+        query_type: str,
+        related_questions: List[str] = None,
+        emoji = None,
+        status = None,
+    ) -> ByoebMessageContext:
+        start_time = datetime.now(timezone.utc).timestamp()
+        message_source_text, options, send_related_questions = await self.__create_source_text(
+            message=message,
+            response_text=response_text,
+            query_type=query_type,
+        )
+        print("Options: ", options)
+        end_time = datetime.now(timezone.utc).timestamp()
+        utils.log_to_text_file(f"Translated response message in {end_time - start_time} seconds")
+        start_time = datetime.now(timezone.utc).timestamp()
+        user_language = message.user.user_language
+        media_info = await self.__create_source_audio(
+            message_source_text=message_source_text,
+            user_language=user_language
+        )
         end_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
         description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
-        interactive_list_additional_info = {
-            constants.DESCRIPTION: description,
-            constants.ROW_TEXTS: related_questions
-        }
         message_type = None
+        message_category=MessageCategory.BOT_TO_USER_RESPONSE.value
         if (message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value):
             message_type = MessageTypes.REGULAR_AUDIO.value
-        else:
+        elif (message.message_context.message_type == MessageTypes.REGULAR_TEXT.value
+              or message.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value
+              or message.message_context.message_type == MessageTypes.INTERACTIVE_BUTTON.value):
             message_type = MessageTypes.INTERACTIVE_LIST.value
+        button_reply_additional_info = {}
+        interactive_list_additional_info = {}
+        text_additional_info = {}
+        idk_status = self.__get_idk_status(message, query_type)
+        if utils.is_idk(response_text) and message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
+            message_type = MessageTypes.INTERACTIVE_BUTTON.value
+            message_category = MessageCategory.AUDIO_IDK.value
+            button_reply_additional_info = {
+                constants.BUTTON_TITLES: options,
+                constants.ROW_TEXTS: related_questions,
+                constants.QUERY_TYPE: query_type,
+            }
+            idk_status = {
+                constants.STATUS: constants.PENDING
+            }
+        elif (utils.is_idk(response_text)
+              and (
+                    message.message_context.message_type == MessageTypes.REGULAR_TEXT.value
+                    or message.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value
+              )
+        ):
+            if query_type == self._clinical:
+                idk_status = {
+                    constants.STATUS: constants.SEND
+                }
+            message_type = MessageTypes.INTERACTIVE_LIST.value
+            message_category = MessageCategory.TEXT_IDK.value
+            interactive_list_additional_info = {
+                constants.DESCRIPTION: description,
+                constants.ROW_TEXTS: related_questions,
+                constants.QUERY_TYPE: query_type
+            }
+            
+        elif (message.message_context.message_type == MessageTypes.INTERACTIVE_BUTTON.value
+            and not send_related_questions
+        ):
+            message_type = MessageTypes.REGULAR_TEXT.value
+            message_category = MessageCategory.BOT_TO_USER_RESPONSE.value
+            text_additional_info = {
+                constants.ROW_TEXTS: related_questions,
+                constants.QUERY_TYPE: query_type
+            }
+        else:
+            interactive_list_additional_info = {
+                constants.DESCRIPTION: description,
+                constants.ROW_TEXTS: related_questions,
+                constants.QUERY_TYPE: query_type
+            }
+        reply_context= self.__create_reply_context(message)
         user_message = ByoebMessageContext(
             channel_type=message.channel_type,
-            message_category=MessageCategory.BOT_TO_USER_RESPONSE.value,
+            message_category=message_category,
             user=User(
                 user_id=message.user.user_id,
                 user_language=user_language,
@@ -156,20 +350,17 @@ class ByoebUserGenerateResponse(Handler):
                 message_source_text=message_source_text,
                 message_english_text=response_text,
                 additional_info={
-                    **status_info,
                     **media_info,
-                    **interactive_list_additional_info
+                    **button_reply_additional_info,
+                    **interactive_list_additional_info,
+                    **text_additional_info,
+                    **idk_status
                 }
             ),
-            reply_context=ReplyContext(
-                reply_id=message.message_context.message_id,
-                reply_type=message.message_context.message_type,
-                reply_english_text=message.message_context.message_english_text,
-                reply_source_text=message.message_context.message_source_text,
-                media_info=message.message_context.media_info
-            ),
+            reply_context=reply_context,
             incoming_timestamp=message.incoming_timestamp,
         )
+        print("Message category: ", user_message.message_category)
         return user_message
     
     def __create_expert_verification_message(
@@ -313,26 +504,39 @@ class ByoebUserGenerateResponse(Handler):
         byoeb_messages = []
         message: ByoebMessageContext = messages[0].model_copy(deep=True)
         read_reciept_message = self.__create_read_reciept_message(message)
-        message_english = message.message_context.message_english_text
-        retrieved_chunks = await self.__aretrieve_chunks(message_english, k=3)
-        answer, query_type = await self.agenerate_answer(message_english, retrieved_chunks)
-        related_questions = self.get_follow_up_questions(message.user.user_language, retrieved_chunks)
-        byoeb_user_message = await self.__create_user_message(
-            message=message,
-            response_text=answer,
-            emoji=self.USER_PENDING_EMOJI,
-            status=constants.PENDING,
-            related_questions=related_questions
-        )
+        if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
+            related_questions = message.reply_context.additional_info.get(constants.RELATED_QUESTIONS)
+            byoeb_user_message = await self.__create_user_message(
+                message=message,
+                response_text=constants.IDK,
+                query_type=message.reply_context.additional_info.get(constants.QUERY_TYPE),
+                emoji=self.USER_PENDING_EMOJI,
+                status=constants.PENDING,
+                related_questions=related_questions
+            )
+        else:
+            message_english = message.message_context.message_english_text
+            retrieved_chunks = await self.__aretrieve_chunks(message_english, k=3)
+            answer, query_type = await self.agenerate_answer(message_english, retrieved_chunks)
+            related_questions = self.get_follow_up_questions(message.user.user_language, retrieved_chunks)
+            byoeb_user_message = await self.__create_user_message(
+                message=message,
+                response_text=answer,
+                query_type=query_type,
+                emoji=self.USER_PENDING_EMOJI,
+                status=constants.PENDING,
+                related_questions=related_questions
+            )
         print("Created user message")
-        byoeb_expert_message = self.__create_expert_verification_message(
-            message,
-            answer,
-            query_type.lower(),
-            self.EXPERT_PENDING_EMOJI,
-            constants.PENDING
-        )
-        print("Created expert message")
+        byoeb_expert_message = None
+        # byoeb_expert_message = self.__create_expert_verification_message(
+        #     message,
+        #     answer,
+        #     query_type.lower(),
+        #     self.EXPERT_PENDING_EMOJI,
+        #     constants.PENDING
+        # )
+        # print("Created expert message")
 
         # Aggregate all messages
         if byoeb_user_message is not None:

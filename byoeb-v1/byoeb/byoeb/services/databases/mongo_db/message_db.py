@@ -22,7 +22,11 @@ class MessageMongoDBService(BaseMongoDBService):
     async def get_latest_bot_messages_by_timestamp(self, timestamp: str):
         """Fetch bot messages with timestamps greater than the given timestamp."""
         message_collection_client = await self._get_collection_client(self.collection_name)
-        messages_obj = await message_collection_client.afetch_all({"timestamp": {"$gt": timestamp}})
+        messages_obj = sorted(
+            await message_collection_client.afetch_all({"timestamp": {"$gt": timestamp}}),
+            key=lambda msg: msg["timestamp"],
+            reverse=True  # Sorting in descending order
+        )
         return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
 
     def correction_update_query(
@@ -53,6 +57,24 @@ class MessageMongoDBService(BaseMongoDBService):
             user_update_queries.append(({"_id": byoeb_user_message.reply_context.reply_id}, update_data))
         return expert_update_queries + user_update_queries
     
+    def audio_idk_status_update_query(
+        self,
+        byoeb_user_message: ByoebMessageContext,
+    ):
+        message_id = byoeb_user_message.reply_context.additional_info.get(constants.BOT_AUDIO_IDK_MESSAGE_ID)
+        print("message_id", message_id)
+        status = byoeb_user_message.reply_context.additional_info.get(constants.STATUS, None)
+        print("status", status)
+        if status is None:
+            return []
+        update_data = {
+            "$set":{
+                f"message_data.message_context.additional_info.{constants.STATUS}": status,
+                f"message_data.message_context.additional_info.{constants.MODIFIED_TIMESTAMP}": str(int(datetime.now(timezone.utc).timestamp()))
+            }
+        }
+        return [({"_id": message_id}, update_data)]
+        
     def verification_status_update_query(
         self,
         byoeb_user_messages: List[ByoebMessageContext],

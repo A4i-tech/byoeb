@@ -3,10 +3,15 @@ import io
 import os
 import azure.cognitiveservices.speech as speechsdk
 from openai import AsyncAzureOpenAI
+from enum import Enum
 from byoeb_core.translators.speech.base import BaseSpeechTranslator
 from typing import Any
 
+class AzureOpenAIWhisperParamsEnum(Enum):
+    TEMPERATURE = "temperature"
+
 class AsyncAzureOpenAIWhisper(BaseSpeechTranslator):
+    __DEFAULT_TEMPERATURE = 0
     
     def __init__(
         self,
@@ -56,11 +61,17 @@ class AsyncAzureOpenAIWhisper(BaseSpeechTranslator):
         source_language: str = None,
         **kwargs
     ) -> str:
+        temperature = kwargs.get(
+            AzureOpenAIWhisperParamsEnum.TEMPERATURE.value,
+            self.__DEFAULT_TEMPERATURE
+        )
         audio_file_like = io.BytesIO(audio_data)
         audio_file_like.name = "temp.wav"
         result = await self.__client.audio.transcriptions.create(
             file=audio_file_like,
             model=self.__model,
+            language=source_language,
+            temperature=temperature
         )
         return result.text
 

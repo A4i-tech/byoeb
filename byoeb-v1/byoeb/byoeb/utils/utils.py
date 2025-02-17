@@ -16,3 +16,14 @@ def log_to_text_file(text):
     file_path = "log.txt"
     with open(file_path, "a") as file:
         file.write(text + "\n")
+
+def is_idk(
+    text: str
+):
+    idks = [
+        "idk",
+        "i don't know",
+        "i do not know",
+        "i don't know the answer",
+    ]
+    return text.lower() in idks

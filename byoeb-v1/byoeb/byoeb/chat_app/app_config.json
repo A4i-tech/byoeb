@@ -18,6 +18,7 @@
         "reaction": {
             "enabled": false,
             "user": {
+                "resolved": "✅",
                 "verified": "✅",
                 "rejected": "❌",
                 "pending": "⏳"

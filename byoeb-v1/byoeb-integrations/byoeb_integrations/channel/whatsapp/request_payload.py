@@ -62,6 +62,12 @@ def get_whatsapp_interactive_button_request_from_byoeb_message(
                 title=title
             )
         )
+    context = None
+    if byoeb_message.reply_context is not None:
+        reply_id = byoeb_message.reply_context.reply_id
+        context = WhatsappMessageReplyContext(
+            message_id=reply_id
+        )
     button_titles = byoeb_message.message_context.additional_info["button_titles"]
     buttons = [get_button(title) for title in button_titles]
     message_text = byoeb_message.message_context.message_source_text
@@ -77,7 +83,8 @@ def get_whatsapp_interactive_button_request_from_byoeb_message(
             action=wa_requests.InteractiveAction(
                 buttons=buttons
             )
-        )
+        ),
+        context=context
     )
     return interactive_message.model_dump()
 

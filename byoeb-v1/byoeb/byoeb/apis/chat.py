@@ -47,7 +47,7 @@ async def delete_collection(
     """
     Delete a collection from the database.
     """
-    response, e = await dependency_setup.mongo_db_service.delete_message_collection()
+    response, e = await dependency_setup.message_db_service.delete_message_collection()
     if response == True:
         return JSONResponse(
             content="Successfully deleted",

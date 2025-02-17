@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageTypes
 from byoeb.services.chat.message_handlers.base import Handler
+from byoeb.models.message_category import MessageCategory
 
 class ByoebUserProcess(Handler):
 
@@ -28,6 +29,7 @@ class ByoebUserProcess(Handler):
             _, audio_message, err = await channel_client.adownload_media(media_id)
             audio_message_wav = ogg_opus_to_wav_bytes(audio_message.data)
             audio_to_text = await speech_translator_whisper.aspeech_to_text(audio_message_wav, source_language)
+            message.message_context.message_source_text = audio_to_text
             # print("audio_to_text", audio_to_text)
             translated_en_text = await text_translator.atranslate_text(
                 input_text=audio_to_text,
@@ -41,11 +43,14 @@ class ByoebUserProcess(Handler):
         else:
             start_time = datetime.now(timezone.utc).timestamp()
             source_text = message.message_context.message_source_text
-            translated_en_text = await text_translator.atranslate_text(
-                input_text=source_text,
-                source_language=source_language,
-                target_language="en"
-            )
+            if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
+                translated_en_text = None
+            else:
+                translated_en_text = await text_translator.atranslate_text(
+                    input_text=source_text,
+                    source_language=source_language,
+                    target_language="en"
+                )
             end_time = datetime.now(timezone.utc).timestamp()
             b_utils.log_to_text_file(f"Time taken for text translation: {end_time - start_time} seconds")
             

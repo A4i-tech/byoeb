@@ -4,14 +4,15 @@
     },
     "expert": {
         "clinical": "anm",
-        "logistical": "byoebexpert2"
+        "small_talk": "anm",
+        "incomprehensible": "anm"
     },
     "llm_response": {
         "answer_prompts": {
-            "system_prompt": "<task_description> \n\nYou are ASHABot. Your purpose is to classify questions asked by Indian Community Health Workers (called Accredited Social Health Activists or ASHAs) about their work. \n\n</task_description> \n\n<instructions> \n\nFollow these instructions: \n\n1. Keep in mind that the question is written by ASHAs with limited literacy. Typically, ASHAs use Hinglish (a combination of Hindi and English), at times by even combining Latin and Devanagari scripts. Ignore grammatical and spelling errors. Try to make sense of the query as much as possible.  \n\n2. Determine the query_type by classifying the query to be <query_type>Clinical</query_type>, <query_type>Small-talk</query_type>, or <query_type>Incomprehensible</query_type>, using the following heuristics: \n\n2a. The query is <query_type>Clinical</query_type> if it is an <intelligible>**INTELLIGIBLE**</intelligible> question related to ASHAs’ work in maternal health, child health, and rural health in general. \n\n<examples_clinical> \n\n<eg1>गर्भवती महिला को किस तरह का सुझाव दे सकते हैं अगर वह एचआरपी है </eg1> \n\n<eg2>Navjaat Shishu ke sans ki dar kya honi chahiye</eg2> \n\n<eg3>Ayushman card se kya fayda hai bataiye</eg3> \n\n</examples_clinical> \n\n2b. The query is <query_type>Small-talk</query_type> if it is a greeting, acknowledgement, or chitchat. \n\n<examples_small-talk> \n\n<eg1>Hi</eg1> \n\n<eg2>Ok</eg2> \n\n<eg3>थेक्यु मेम </eg3> \n\n<eg4>😡😡</eg4> \n\n<eg5>Yes</eg5> \n\n<eg6>No</eg6> \n\n</examples_small-talk> \n\n2c. The query is <query_type>Incomprehensible</query_type> if it is neither <query_type>Clinical</query_type> nor <query_type>Small-talk</query_type>. \n\n<examples_incomprehensible> \n\n<eg1>10 साल से।</eg1> \n\n<eg2>7568677044 add this number to this group</eg2> \n\n<eg3>adharmadrassahihattogalcho</eg3> \n\n<eg4>Garbhvati geet kaise Dhyan Rakha jaega</eg4> \n\n<eg5>हाई रिस्क की fast जाच 7/3/24 है तो उसकी दूसरी or त्तिशरी kya hogi</eg5> \n\n<eg6>Kya usko mala and Goli de sakte hain kis din ke liye</eg6> \n\n</examples_incomprehensible> \n\n3. Respond with the answer and query_type in following XML format.  \n<STRUCTURE>\n<RESPONSE> Provide response here </RESPONSE>\n<QUERY TYPE> query type here </QUERY TYPE>\n</STRUCTURE>\n\nEnsure that the query_type belongs to only the above mentioned categories. When not sure, choose any except small-talk. \n</instructions>",
+            "system_prompt": "<task_description> \n\nYou are ASHABot. Your purpose is to classify questions asked by Indian Community Health Workers (called Accredited Social Health Activists or ASHAs) about their work. \n\n</task_description> \n\n<instructions> \n\nFollow these instructions: \n\n1. Keep in mind that the question is written by ASHAs with limited literacy. Typically, ASHAs use Hinglish (a combination of Hindi and English), at times by even combining Latin and Devanagari scripts. Ignore grammatical and spelling errors. Try to make sense of the query as much as possible.  \n\n2. Determine the query_type by classifying the query to be <query_type>clinical</query_type>, <query_type>small_talk</query_type>, or <query_type>incomprehensible</query_type>, using the following heuristics: \n\n2a. The query is <query_type>clinical</query_type> if it is an <intelligible>**INTELLIGIBLE**</intelligible> question related to ASHAs’ work in maternal health, child health, and rural health in general. \n\n<examples_clinical> \n\n<eg1>गर्भवती महिला को किस तरह का सुझाव दे सकते हैं अगर वह एचआरपी है </eg1> \n\n<eg2>Navjaat Shishu ke sans ki dar kya honi chahiye</eg2> \n\n<eg3>Ayushman card se kya fayda hai bataiye</eg3> \n\n</examples_clinical> \n\n2b. The query is <query_type>small_talk</query_type> if it is a greeting, acknowledgement, or chitchat. \n\n<examples_small_talk> \n\n<eg1>Hi</eg1> \n\n<eg2>Ok</eg2> \n\n<eg3>थेक्यु मेम </eg3> \n\n<eg4>😡😡</eg4> \n\n<eg5>Yes</eg5> \n\n<eg6>No</eg6> \n\n</examples_small_talk> \n\n2c. The query is <query_type>incomprehensible</query_type> if it is neither <query_type>clinical</query_type> nor <query_type>small_talk</query_type>. \n\n<examples_incomprehensible> \n\n<eg1>10 साल से।</eg1> \n\n<eg2>7568677044 add this number to this group</eg2> \n\n<eg3>adharmadrassahihattogalcho</eg3> \n\n<eg4>Garbhvati geet kaise Dhyan Rakha jaega</eg4> \n\n<eg5>हाई रिस्क की fast जाच 7/3/24 है तो उसकी दूसरी or त्तिशरी kya hogi</eg5> \n\n<eg6>Kya usko mala and Goli de sakte hain kis din ke liye</eg6> \n\n</examples_incomprehensible> \n\n3. Respond with the answer and query_type in following XML format.  \n<STRUCTURE>\n<RESPONSE> Provide response here </RESPONSE>\n<QUERY TYPE> query type here </QUERY TYPE>\n</STRUCTURE>\n\n If the question cannot be answered, return the response in the exact XML format: \n<STRUCTURE>\n<RESPONSE> I don't know the answer </RESPONSE>\n<QUERY TYPE> {Classified query type: clinical, small_talk, or incomprehensible} </QUERY TYPE>\n</STRUCTURE>\nEnsure that the query_type belongs to only the above mentioned categories. When not sure, choose any except small_talk.</instructions>",
             "user_prompt": "The following knowledge base chunks have been provided to you as reference:\n<CHUNKS>\nYou are asked the following question:\n<QUESTION>"
         },
-        "follow_up_prompts": {
+        "related_question_prompts": {
             "system_prompt": "<task_description> \n\nA Suggest three follow-up questions patient might ask the chatbot after receiving the answer. \n\n</task_description> \n\n<instructions> \n\nFollow these instructions: \n\n1. Each question MUST be **ANSWERABLE** using ONLY the provided knowledge base chunks. \n\n2. Each question MUST be **SELF-CONTAINED**, i.e., it should restate any essential context directly in that question.  \n\n3. Each question MUST be **DISTINCT** i.e., intended to elicit different information. \n\n4. Each question's length MUST be **<character_limit>60</character_limit> CHARACTERS OR LESS**. \n\n5. Respond with the three questions in XML format.  \nSample output:  \n<related_questions> \n<q_1>Content of first question</q_1> \n<q_2>Content of second question</q_2> \n<q_3>Content of third question</q_3> \n</related_questions> \n\n</instructions>",
             "user_prompt": "The following knowledge base chunks have been provided to you as reference:\n<CHUNKS>"
         },
@@ -34,6 +35,94 @@
             }
         },
         "user": {
+            "audio":{
+                "idk": {
+                    "clinical":{
+                        "interactive": {
+                            "text": {
+                                "en": "You asked me the following: *<query>*\n\nDid I misunderstand your question? If yes, please ask again clearly. Otherwise, I will ask ANMs for the answer and share it with you.",
+                                "hi": "आपने मुझे यह सवाल पुछा: *<query>*\n\nक्या मैंने आपके सवाल को गलत समझा? यदि हां, तो कृपया फिर से स्पष्ट रूप से पूछें। अन्यथा, मैं ANMs से इसका जवाब पूछूँगी और इसे आपके साथ साझा करुँगी।"
+                            },
+                            "options": {
+                                "en": ["I will ask again.", "Send to ANMs"],
+                                "hi": ["मैं फिर से पूछूँगी।", "ANMs को भेजें"]
+                            }
+                        },
+                        "ask_again": {
+                            "en": "Please ask your question again. If you have already done so, ignore this message.",
+                            "hi": "कृपया अपना सवाल फिर से पूछें। यदि आपने पहले से किया है, तो इस संदेश को नज़रअंदाज़ करें।"
+                        },
+                        "send": {
+                            "en": "This question is outside the scope of my current knowledge. Please wait, I will check with our team of ANMs and get back to you with an answer soon.\nIn the meantime, you can ask me any other questions about pregnancy, childcare, or health in general.",
+                            "hi": "यह सवाल मेरे वर्तमान ज्ञान से बाहर है। कृपया प्रतीक्षा करें, मैं हमारी ANM टीम से पूछकर जल्द ही जवाब दूंगी।\nइस बीच, आप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।"
+                        },
+                        "pending": {
+                            "en": "Please select one of the options.",
+                            "hi": "कृपया विकल्पों में से एक चुनें।"
+                        },
+                        "waiting": {
+                            "en": "Waiting on ANMs to respond. Please wait.",
+                            "hi": "ANMs के जवाब का इंतजार हो रहा है। कृपया प्रतीक्षा करें।"
+                        },
+                        "resolved": {
+                            "en": "This has already been resolved",
+                            "hi": "यह पहले ही हल हो चुका है"
+                        }  
+                    },
+                    "small_talk":{
+                        "en": "You asked: *<query>*\nThis is outside the scope of my current knowledge.\nYou can ask me any questions about pregnancy, childcare, or health in general.",
+                        "hi":  "आपने पूछा: <query>\nयह मेरे वर्तमान ज्ञान के दायरे से बाहर है।\nआप मुझसे गर्भावस्था, शिशु देखभाल या सामान्य स्वास्थ्य से संबंधित कोई भी प्रश्न पूछ सकते हैं।"
+                    },
+                    "incomprehensible":{
+                        "interactive": {
+                            "text": {
+                                "en": "You asked me the following: *<query>*\n\nDid I misunderstand your question? If yes, please ask again clearly. Otherwise, I will ask ANMs for the answer and share it with you.",
+                                "hi": "आपने मुझे यह सवाल पुछा: *<query>*\n\nक्या मैंने आपके सवाल को गलत समझा? यदि हां, तो कृपया फिर से स्पष्ट रूप से पूछें। अन्यथा, मैं ANMs से इसका जवाब पूछूँगी और इसे आपके साथ साझा करुँगी।"
+                            },
+                            "options": {
+                                "en": ["I will ask again.", "Send to ANMs"],
+                                "hi": ["मैं फिर से पूछूँगी।", "ANMs को भेजें"]
+                            }
+                        },
+                        "ask_again": {
+                            "en": "Please ask your question again. If you have already done so, ignore this message.",
+                            "hi": "कृपया अपना सवाल फिर से पूछें। यदि आपने पहले से किया है, तो इस संदेश को नज़रअंदाज़ करें।"
+                        },
+                        "send": {
+                            "en": "This question is outside the scope of my current knowledge. Please wait, I will check with our team of ANMs and get back to you with an answer soon.\nIn the meantime, you can ask me any other questions about pregnancy, childcare, or health in general.",
+                            "hi": "यह सवाल मेरे वर्तमान ज्ञान से बाहर है। कृपया प्रतीक्षा करें, मैं हमारी ANM टीम से पूछकर जल्द ही जवाब दूंगी।\nइस बीच, आप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।"
+                        },
+                        "pending": {
+                            "en": "Please select one of the options.",
+                            "hi": "कृपया विकल्पों में से एक चुनें।"
+                        },
+                        "waiting": {
+                            "en": "Waiting on ANMs to respond. Please wait.",
+                            "hi": "ANMs के जवाब का इंतजार हो रहा है। कृपया प्रतीक्षा करें।"
+                        },
+                        "resolved": {
+                            "en": "This has already been resolved",
+                            "hi": "यह पहले ही हल हो चुका है"
+                        }
+                    }
+                }  
+            },
+            "text":{
+                "idk": {
+                    "clinical":{
+                        "en": "This question is outside the scope of my current knowledge. Please wait, I will check with our team of ANMs and get back to you with an answer soon.\nIn the meantime, you can ask me any other questions about pregnancy, childcare, or health in general.",
+                        "hi": "यह सवाल मेरे वर्तमान ज्ञान से बाहर है। कृपया प्रतीक्षा करें, मैं हमारी ANM टीम से पूछकर जल्द ही जवाब दूंगी।\nइस बीच, आप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।"
+                    },
+                    "small_talk":{
+                        "en": "You asked: *<query>*\nThis is outside the scope of my current knowledge.\nYou can ask me any questions about pregnancy, childcare, or health in general.",
+                        "hi":  "आपने पूछा: <query>\nयह मेरे वर्तमान ज्ञान के दायरे से बाहर है।\nआप मुझसे गर्भावस्था, शिशु देखभाल या सामान्य स्वास्थ्य से संबंधित कोई भी प्रश्न पूछ सकते हैं।"
+                    },
+                    "incomprehensible":{
+                        "en": "I am sorry, I did not understand this question. Please rephrase or ask  again.",
+                        "hi": "मुझे क्षमा करें, मैं इस सवाल को समझ नहीं पाई। कृपया इसे दोबारा पूछें या दूसरे शब्दों मे कहें।"
+                    }
+                }
+            },
             "wrong_answer": {
                 "en": "The answer provided is incorrect. Please wait while we get a verified answer from an expert.",
                 "hi": "यह जवाब गलत है। कृपया विशेषज्ञ से सही जवाब मिलने तक इंतजार करें।"
