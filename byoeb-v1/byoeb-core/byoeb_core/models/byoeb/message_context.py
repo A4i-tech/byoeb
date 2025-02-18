@@ -6,7 +6,8 @@ from byoeb_core.models.byoeb.user import User
 class MessageTypes(Enum):
     REGULAR_TEXT = "regular_text"
     REGULAR_AUDIO = "regular_audio"
-    TEMPLATE_BUTTON = "template_button"                                   
+    TEMPLATE_BUTTON = "template_button"
+    TEMPLATE_TEXT = "template_text"                                
     INTERACTIVE_BUTTON = "interactive_button_reply"
     INTERACTIVE_LIST = "interactive_list_reply"
 
