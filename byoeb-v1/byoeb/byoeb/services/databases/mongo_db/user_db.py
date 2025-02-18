@@ -43,7 +43,13 @@ class UserMongoDBService(BaseMongoDBService):
         user_collection_client = await self._get_collection_client(self.collection_name)
         users_obj = await user_collection_client.afetch_all({"_id": {"$in": user_ids}})
         return [User(**user_obj["User"]) for user_obj in users_obj]
-
+    
+    async def get_users_by_type(self, user_type: str) -> List[User]:
+        """Fetch users by type."""
+        user_collection_client = await self._get_collection_client(self.collection_name)
+        users_obj = await user_collection_client.afetch_all({"User.user_type": user_type})
+        return [User(**user_obj["User"]) for user_obj in users_obj]
+    
     def user_activity_update_query(self, user: User, qa: Dict[str, Any] = None):
         """Generate update query for user activity."""
         latest_timestamp = str(int(datetime.now(timezone.utc).timestamp()))

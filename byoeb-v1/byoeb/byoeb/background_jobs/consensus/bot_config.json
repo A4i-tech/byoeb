@@ -1,0 +1,23 @@
+{
+    "llm_response": {
+        "consensus": {
+            "system_prompt": "Please verify the answer",
+            "user_propmt": "Is the answer correct?",
+        }
+    },
+    "template_messages": {
+        "expert": {
+            "consensus": {
+                "header": {
+                    "en": "Please provide answer to below query",
+                    "hi": "कृपया नीचे पूछे गए प्रश्न का उत्तर दें"
+                },
+                "footer": {
+                    "en": "Reply by tagging the message",
+                    "hi": "संदेश को टैग करके जवाब दें"
+                },
+                "template_name": "consensus"
+            }   
+        }
+    }
+}

@@ -238,6 +238,7 @@ class UserService(BaseUserService):
                 continue
             new_user = User(
                 user_id=hashlib.md5(user.phone_number_id.encode()).hexdigest(),
+                user_name=user.user_name,
                 phone_number_id=user.phone_number_id,
                 user_language=user.user_language,
                 user_type=user.user_type,

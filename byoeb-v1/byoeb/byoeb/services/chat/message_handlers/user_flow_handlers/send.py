@@ -1,10 +1,10 @@
 import asyncio
 from byoeb.models.message_category import MessageCategory
 import byoeb.services.chat.constants as constants
-import byoeb.utils.utils as b_utils
+import byoeb.utils.utils as utils
 from datetime import datetime, timezone
 from byoeb.chat_app.configuration.config import app_config
-from byoeb.services.chat import utils
+from byoeb.services.chat import utils as chat_utils
 from byoeb.services.chat import mocks
 from typing import Any, Dict, List
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageTypes
@@ -49,7 +49,7 @@ class ByoebUserSendResponse(Handler):
             }
         audio_message_id = None
         text_message_id = None
-        user_convs = utils.get_user_byoeb_messages(convs)
+        user_convs = chat_utils.get_user_byoeb_messages(convs)
         for user_conv in user_convs:
             if user_conv.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
                 audio_message_id = user_conv.message_context.message_id
@@ -58,9 +58,12 @@ class ByoebUserSendResponse(Handler):
         qa = {
             constants.AUDIO_MESSAGE_ID: audio_message_id,
             constants.TEXT_MESSAGE_ID: text_message_id,
+            constants.TIMESTAMP: str(int(datetime.now(timezone.utc).timestamp())),
             constants.QUESTION: byoeb_user_message.reply_context.reply_english_text,
             constants.ANSWER: byoeb_user_message.message_context.message_english_text
         }
+        if utils.is_idk(byoeb_user_message.message_context.message_english_text):
+            qa = None
         user_db_queries = {
             constants.UPDATE: [self._user_db_service.user_activity_update_query(byoeb_user_message.user, qa)]
         }
@@ -71,7 +74,7 @@ class ByoebUserSendResponse(Handler):
         
     async def is_active_user(self, user_id: str):
         user_timestamp, cached = await self._user_db_service.get_user_activity_timestamp(user_id)
-        last_active_duration_seconds = utils.get_last_active_duration_seconds(user_timestamp)
+        last_active_duration_seconds = chat_utils.get_last_active_duration_seconds(user_timestamp)
         print("Last active duration", last_active_duration_seconds)
         print("Cached", cached)
         if last_active_duration_seconds >= self.__max_last_active_duration_seconds and cached:
@@ -79,7 +82,7 @@ class ByoebUserSendResponse(Handler):
             await self._user_db_service.invalidate_user_cache(user_id)
             user_timestamp, cached = await self._user_db_service.get_user_activity_timestamp(user_id)
             print("Cached", cached)
-            last_active_duration_seconds = utils.get_last_active_duration_seconds(user_timestamp)
+            last_active_duration_seconds = chat_utils.get_last_active_duration_seconds(user_timestamp)
             print("Last active duration", last_active_duration_seconds)
         if last_active_duration_seconds >= self.__max_last_active_duration_seconds:
             return False
@@ -154,11 +157,11 @@ class ByoebUserSendResponse(Handler):
             start_time = datetime.now(timezone.utc).timestamp()
             response_text, message_id_text = await channel_service.send_requests([text_tag_message])
             end_time = datetime.now(timezone.utc).timestamp()
-            b_utils.log_to_text_file(f"Successfully sent interactive message in {end_time - start_time} seconds")
+            utils.log_to_text_file(f"Successfully sent interactive message in {end_time - start_time} seconds")
             start_time = datetime.now(timezone.utc).timestamp()
             response_audio, message_id_audio = await channel_service.send_requests([audio_no_tag_message])
             end_time = datetime.now(timezone.utc).timestamp()
-            b_utils.log_to_text_file(f"Successfully sent audio message in {end_time - start_time} seconds")
+            utils.log_to_text_file(f"Successfully sent audio message in {end_time - start_time} seconds")
             responses = response_text
             message_ids = message_id_text
         elif user_message_context.message_context.message_type == MessageTypes.REGULAR_TEXT.value:
@@ -186,13 +189,13 @@ class ByoebUserSendResponse(Handler):
         messages: List[ByoebMessageContext]
     ):
         # verification_status = constants.VERIFICATION_STATUS
-        read_receipt_messages = utils.get_read_receipt_byoeb_messages(messages)
-        byoeb_user_messages = utils.get_user_byoeb_messages(messages)
+        read_receipt_messages = chat_utils.get_read_receipt_byoeb_messages(messages)
+        byoeb_user_messages = chat_utils.get_user_byoeb_messages(messages)
         byoeb_user_message = byoeb_user_messages[0]
         channel_service = self.get_channel_service(byoeb_user_message.channel_type)
         mark_read_task = channel_service.amark_read(read_receipt_messages)
         user_task = self.__handle_user(channel_service, byoeb_user_message)
-        byoeb_expert_messages = utils.get_expert_byoeb_messages(messages)
+        byoeb_expert_messages = chat_utils.get_expert_byoeb_messages(messages)
         if byoeb_expert_messages is None or len(byoeb_expert_messages) == 0:
             byoeb_expert_message = None
         else:
@@ -238,8 +241,8 @@ class ByoebUserSendResponse(Handler):
             convs, byoeb_user_message = await self.__handle_message_send_workflow(messages)
             db_queries = self.__prepare_db_queries(convs, byoeb_user_message)
             end_time = datetime.now(timezone.utc).timestamp()
-            b_utils.log_to_text_file(f"E2E for send workflow {end_time - start_time} seconds")
+            utils.log_to_text_file(f"E2E for send workflow {end_time - start_time} seconds")
             return db_queries
         except Exception as e:
-            b_utils.log_to_text_file(f"Error in sending message to user and expert: {str(e)}")
+            utils.log_to_text_file(f"Error in sending message to user and expert: {str(e)}")
             raise e

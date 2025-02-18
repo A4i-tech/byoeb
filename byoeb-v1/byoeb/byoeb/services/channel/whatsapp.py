@@ -3,6 +3,7 @@ import byoeb.services.chat.constants as constants
 import byoeb.services.chat.utils as utils 
 import byoeb_integrations.channel.whatsapp.request_payload as wa_req_payload
 from byoeb.services.channel.base import BaseChannelService, MessageReaction
+from byoeb.factory import ChannelClientFactory
 from byoeb_core.models.byoeb.message_context import (
     User,
     ByoebMessageContext,   
@@ -14,11 +15,17 @@ from byoeb_core.models.byoeb.message_context import (
 from byoeb_core.models.whatsapp.response.message_response import WhatsAppResponse
 from typing import List, Dict, Any, Tuple
 from datetime import datetime, timezone
+from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import AsyncWhatsAppClient
 
 
 class WhatsAppService(BaseChannelService):
     __client_type = "whatsapp"
 
+    def __init__(
+        self,
+        channel_client_factory: ChannelClientFactory
+    ):
+        self.__channel_client_factory = channel_client_factory
     def prepare_reaction_requests(
         self,
         message_reactions: List[MessageReaction]
@@ -63,8 +70,9 @@ class WhatsAppService(BaseChannelService):
         self,
         messages: List[ByoebMessageContext]
     ) -> List[WhatsAppResponse]:
-        from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
-        client = await channel_client_factory.get(self.__client_type)
+        client = await self.__channel_client_factory.get(self.__client_type)
+        if not isinstance(client, AsyncWhatsAppClient):
+            raise ValueError("Invalid client type")
         tasks = []
         for message in messages:
             if message.message_context.message_id is None:
@@ -76,8 +84,9 @@ class WhatsAppService(BaseChannelService):
         self,
         requests: List[Dict[str, Any]]
     ) -> Tuple[List[WhatsAppResponse], List[str]]:
-        from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
-        client = await channel_client_factory.get(self.__client_type)
+        client = await self.__channel_client_factory.get(self.__client_type)
+        if not isinstance(client, AsyncWhatsAppClient):
+            raise ValueError("Invalid client type")
         tasks = []
         for request in requests:
             message_type = request["type"]

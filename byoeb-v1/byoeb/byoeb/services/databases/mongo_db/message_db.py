@@ -18,6 +18,12 @@ class MessageMongoDBService(BaseMongoDBService):
         message_collection_client = await self._get_collection_client(self.collection_name)
         messages_obj = await message_collection_client.afetch_all({"_id": {"$in": bot_message_ids}})
         return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
+    
+    async def get_bot_messages_by_status(self, status: str) -> List[ByoebMessageContext]:
+        """Fetch bot messages with the given status."""
+        message_collection_client = await self._get_collection_client(self.collection_name)
+        messages_obj = await message_collection_client.afetch_all({"message_data.message_context.additional_info.status": status})
+        return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
 
     async def get_latest_bot_messages_by_timestamp(self, timestamp: str):
         """Fetch bot messages with timestamps greater than the given timestamp."""
