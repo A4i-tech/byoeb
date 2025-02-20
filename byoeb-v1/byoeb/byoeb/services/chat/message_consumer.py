@@ -80,7 +80,7 @@ class MessageConsmerService:
         bot_message_ids = list(
             set(message.reply_context.reply_id for message in messages if message.reply_context.reply_id is not None)
         )
-        bot_messages = await self._message_db_service.get_bot_messages(bot_message_ids)
+        bot_messages = await self._message_db_service.get_bot_messages_by_ids(bot_message_ids)
         conversations = []
         for message in messages:
             user = self.__get_user(byoeb_users,message.user.phone_number_id)
@@ -160,6 +160,7 @@ class MessageConsmerService:
             error_message = f"Timeout error: Task took longer than {self.__timeout_seconds} seconds."
             self._logger.error(error_message)
             print(error_message)
+            traceback.print_exc()
             return None, byoeb_message_copy, "TimeoutError"
         except Exception as e:
             self._logger.error(f"Error processing user message: {e}")
@@ -181,9 +182,11 @@ class MessageConsmerService:
         except asyncio.TimeoutError:
             error_message = f"Timeout error: Expert process task took longer than {self.__timeout_seconds} seconds."
             self._logger.error(error_message)
+            traceback.print_exc()
             print(error_message)
             return None, byoeb_message_copy, "TimeoutError"
         except Exception as e:
             self._logger.error(f"Error processing expert message: {e}")
             print("Error processing expert message: ", e)
+            traceback.print_exc()
             return None, byoeb_message_copy, e

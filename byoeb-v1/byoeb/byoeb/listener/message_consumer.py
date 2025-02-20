@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import byoeb.utils.utils as utils
+import threading
 from datetime import datetime
 from byoeb_core.message_queue.base import BaseQueue
 from byoeb.factory import ChannelClientFactory

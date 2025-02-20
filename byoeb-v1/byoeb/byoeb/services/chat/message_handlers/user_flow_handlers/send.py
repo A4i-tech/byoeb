@@ -29,9 +29,10 @@ class ByoebUserSendResponse(Handler):
         self,
         channel_type
     ) -> BaseChannelService:
+        from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
         if channel_type == "whatsapp":
             from byoeb.services.channel.whatsapp import WhatsAppService
-            return WhatsAppService()
+            return WhatsAppService(channel_client_factory)
         return None
 
     def __prepare_db_queries(

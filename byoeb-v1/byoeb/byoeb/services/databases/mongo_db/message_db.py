@@ -1,3 +1,4 @@
+from byoeb.models.consensus import Consensus
 import byoeb.services.chat.constants as constants
 from datetime import datetime, timezone
 from typing import List, Dict, Any
@@ -13,7 +14,7 @@ class MessageMongoDBService(BaseMongoDBService):
         super().__init__(config, mongo_db_factory)
         self.collection_name = self._config["databases"]["mongo_db"]["message_collection"]
 
-    async def get_bot_messages(self, bot_message_ids: List[str]) -> List[ByoebMessageContext]:
+    async def get_bot_messages_by_ids(self, bot_message_ids: List[str]) -> List[ByoebMessageContext]:
         """Fetch multiple bot messages from the database."""
         message_collection_client = await self._get_collection_client(self.collection_name)
         messages_obj = await message_collection_client.afetch_all({"_id": {"$in": bot_message_ids}})
@@ -45,10 +46,12 @@ class MessageMongoDBService(BaseMongoDBService):
             update_id = reply_context.additional_info.get(constants.UPDATE_ID)
             reply_context.reply_id = update_id
             byoeb_user_message.reply_context = reply_context
+        expert_modified_timestamp = byoeb_expert_message.reply_context.additional_info.get(constants.MODIFIED_TIMESTAMP)
         update_data = {
             "$set":{
                 "message_data.message_context.additional_info.correction_en_text": byoeb_expert_message.reply_context.additional_info.get(constants.CORRECTION_EN),
                 "message_data.message_context.additional_info.correction_source_text": byoeb_expert_message.reply_context.additional_info.get(constants.CORRECTION_SOURCE),
+                "message_data.message_context.additional_info.modified_timestamp": expert_modified_timestamp,
             }
         }
         expert_update_queries = [({"_id": byoeb_expert_message.reply_context.reply_id}, update_data)]
@@ -115,6 +118,24 @@ class MessageMongoDBService(BaseMongoDBService):
             user_update_queries.append(({"_id": byoeb_user_message.reply_context.reply_id}, update_data))
         return expert_update_queries + user_update_queries
     
+    def consensus_update_query(self, user_message: ByoebMessageContext, cross_convs: List[ByoebMessageContext]):
+        consensus_list = user_message.message_context.additional_info.get(constants.CONSENSUS)
+        if consensus_list is None:
+            consensus_list = []
+        for cross_conv in cross_convs:
+            consensus = Consensus(
+                user_id = cross_conv.user.user_id,
+                status = constants.WAITING,
+                message_id = cross_conv.message_context.message_id,
+            )
+            consensus_list.append(consensus.model_dump())
+        update_data = {
+            "$set":{
+                "message_data.message_context.additional_info.consensus": consensus_list
+            }
+        }
+        return [({"_id": user_message.message_context.message_id}, update_data)]
+
     def message_create_queries(self, byoeb_messages: List[ByoebMessageContext]) -> List[Dict[str, Any]]:
         """Generate create queries for messages."""
         if not byoeb_messages:

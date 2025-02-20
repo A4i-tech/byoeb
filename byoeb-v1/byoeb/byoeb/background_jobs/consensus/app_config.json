@@ -4,7 +4,7 @@
         "azure_cognitive_endpoint": "https://cognitiveservices.azure.com/.default",
         "db_provider": "azure_cosmos_mongo_db",
         "history_length": 3,
-        "max_last_active_duration_seconds": 86400
+        "max_last_active_duration_seconds": 80000
     },
     "channel": {
         "whatsapp": {

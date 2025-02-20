@@ -29,6 +29,7 @@ WAITING = "waiting"
 WRONG = "wrong"
 VERIFIED = "verified"
 RESOLVED = "resolved"
+CONSENSUS = "consensus"
 
 CORRECTED_ANSWER_EN = "corrected_answer_en"
 CORRECTED_ANSWER_SOURCE = "corrected_answer_source"

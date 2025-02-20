@@ -2,7 +2,7 @@
     "llm_response": {
         "consensus": {
             "system_prompt": "Please verify the answer",
-            "user_propmt": "Is the answer correct?",
+            "user_propmt": "Is the answer correct?"
         }
     },
     "template_messages": {
@@ -18,6 +18,12 @@
                 },
                 "template_name": "consensus"
             }   
+        },
+        "user": {
+            "follow_up_questions_description": {
+                "en": "Related questions",
+                "hi": "संबंधित सवाल"
+            }
         }
     }
 }

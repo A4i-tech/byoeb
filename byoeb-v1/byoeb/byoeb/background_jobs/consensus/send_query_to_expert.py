@@ -1,4 +1,6 @@
 import asyncio
+import json
+import threading
 from byoeb.services.chat import constants
 from byoeb.services.chat import utils as chat_utils
 from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
@@ -17,13 +19,7 @@ from byoeb_core.models.byoeb.message_context import (
 )
 from byoeb.background_jobs.consensus.config import bot_config, app_config
 from byoeb.models.message_category import MessageCategory
-
-class Consensus(BaseModel):
-    user_id: Optional[str] = Field(None, title="User ID")
-    status: Optional[str] = Field(None, title="Status")
-    message_id: Optional[str] = Field(None, title="Message ID")
-    timestamp: Optional[str] = Field(None, title="Timestamp")
-    modified_timestamp: Optional[str] = Field(None, title="Timestamp")
+from byoeb.models.consensus import Consensus
 
 EXPERT_TYPE = "anm"
 CONSENSUS = "consensus"
@@ -39,9 +35,9 @@ def create_expert_consensus_message(
     expert_user_id = expert_user.user_id
     expert_language = expert_user.user_language
     if expert_language == "en":
-        question = message.message_context.message_english_text
+        question = message.reply_context.reply_english_text
     else:
-        question = message.message_context.message_source_text
+        question = message.reply_context.reply_source_text
     consensus_header = bot_config["template_messages"]["expert"]["consensus"]["header"][expert_language]
     consensus_footer = bot_config["template_messages"]["expert"]["consensus"]["footer"][expert_language]
     additional_info = {
@@ -69,6 +65,18 @@ def create_expert_consensus_message(
     )
     return new_expert_verification_message
 
+def create_db_queries(
+    cross_convs: List[ByoebMessageContext],
+    user_message: ByoebMessageContext,
+    user_db_service: UserMongoDBService,
+    message_db_service: MessageMongoDBService,
+):
+    message_db_create_queries = {
+        constants.CREATE: message_db_service.message_create_queries(cross_convs),
+        constants.UPDATE: message_db_service.consensus_update_query(user_message, cross_convs)
+    }
+    return message_db_create_queries
+
 async def is_active_user(user_db_service: UserMongoDBService, user_id: str):
     user_timestamp, cached = await user_db_service.get_user_activity_timestamp(user_id)
     last_active_duration_seconds = chat_utils.get_last_active_duration_seconds(user_timestamp)
@@ -88,7 +96,9 @@ async def is_active_user(user_db_service: UserMongoDBService, user_id: str):
 async def send_pending_query_to_expert(
     whatsapp_service: WhatsAppService,
     message: ByoebMessageContext,
-    experts: List[User]
+    experts: List[User],
+    user_db_service: UserMongoDBService,
+    message_db_service: MessageMongoDBService
 ):
     consensus_info = message.message_context.additional_info.get(CONSENSUS, None)
     consensus_list = []
@@ -99,12 +109,13 @@ async def send_pending_query_to_expert(
         return None
     consensus_user_ids = {consensus.user_id for consensus in consensus_list}
     filtered_experts = [expert for expert in experts if expert.user_id not in consensus_user_ids]
-    top_10_active_experts = filtered_experts[:10]
-    expert_messages = []
-    for expert in top_10_active_experts:
+    selected_experts = filtered_experts[:10]
+    cross_convs = []
+    for expert in selected_experts:
         expert_message = create_expert_consensus_message(message, expert)
         # expert_messages.append(expert_message)
-        active_user = await is_active_user(expert_message.user.user_id)
+        active_user = await is_active_user(user_db_service, expert_message.user.user_id)
+        print("Active user", active_user)
         expert_requests = whatsapp_service.prepare_requests(expert_message)
         text_message = expert_requests[0]
         template_verification_message = expert_requests[1]
@@ -114,22 +125,40 @@ async def send_pending_query_to_expert(
             responses, message_ids = await whatsapp_service.send_requests([template_verification_message])
         else:
             responses, message_ids = await whatsapp_service.send_requests([text_message])
-        print("responses", responses)
+        expert_message.message_context.additional_info = None
+        consensus_cross_conv = whatsapp_service.create_consensus_cross_conv(
+            message,
+            expert_message,
+            responses[0]
+        )
+        cross_convs.append(consensus_cross_conv)
 
+    message_db_queries = create_db_queries(
+        cross_convs,
+        message,
+        user_db_service,
+        message_db_service
+    )
+    await message_db_service.execute_queries(message_db_queries)
+    
 
 async def send_pending_queries_to_expert(
-    whatsapp_service: WhatsAppService,
-    user_db_service: UserMongoDBService, 
-    message_db_service: MessageMongoDBService
+    user_db_service: UserMongoDBService,
+    message_db_service: MessageMongoDBService,
+    whatsapp_service: WhatsAppService
 ):
     waiting_status = constants.WAITING
     experts = await user_db_service.get_users_by_type(EXPERT_TYPE)
     experts.sort(key=lambda expert: expert.activity_timestamp, reverse=True)
     messages = await message_db_service.get_bot_messages_by_status(waiting_status)
-    for me
-
-    print(messages)
-    print(experts)
+    for message in messages:
+        await send_pending_query_to_expert(
+            whatsapp_service,
+            message,
+            experts,
+            user_db_service,
+            message_db_service
+        )
 
 async def main():
     from byoeb.background_jobs.consensus.dependency_setup import (
@@ -137,12 +166,10 @@ async def main():
         user_db_service,
         message_db_service
     )
+    print(threading.get_ident())
     whatsapp_service = WhatsAppService(channel_client_factory)
-    await send_pending_queries_to_expert(
-        whatsapp_service,
-        user_db_service,
-        message_db_service
-    )
+    await send_pending_queries_to_expert(user_db_service, message_db_service, whatsapp_service)
+    await channel_client_factory.close()
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,6 +1,7 @@
 import byoeb.services.chat.constants as constants
 import byoeb.services.chat.utils as utils
 from typing import List, Dict, Any
+from byoeb.chat_app.configuration.config import app_config
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageTypes
 from byoeb.services.channel.base import BaseChannelService, MessageReaction
 from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
@@ -8,6 +9,7 @@ from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.services.channel.base import MessageReaction
 
 class ByoebExpertSendResponse(Handler):
+    __reaction_enabled: bool = app_config["channel"]["reaction"]["enabled"]
     def __init__(
         self,
         user_db_service: UserMongoDBService,
@@ -57,14 +59,7 @@ class ByoebExpertSendResponse(Handler):
         byoeb_user_messages: List[ByoebMessageContext],
         byoeb_expert_message: ByoebMessageContext,
     ):
-        message_update_queries = []
-        if byoeb_user_messages is None or len(byoeb_user_messages) == 0:
-            message_update_queries = []
-        else:
-            message_update_queries = (
-                self._message_db_service.correction_update_query(byoeb_user_messages, byoeb_expert_message) +
-                self._message_db_service.verification_status_update_query(byoeb_user_messages, byoeb_expert_message)
-            )
+        message_update_queries = self._message_db_service.correction_update_query(byoeb_user_messages, byoeb_expert_message)
         user_update_queries = [self._user_db_service.user_activity_update_query(byoeb_expert_message.user)]
         return {
             constants.MESSAGE_DB_QUERIES: {
@@ -125,7 +120,8 @@ class ByoebExpertSendResponse(Handler):
         responses, _ = await channel_service.send_requests(expert_requests)
 
         # Check if reply_id is present
-        if (expert_message_context.reply_context
+        if (self.__reaction_enabled
+            and expert_message_context.reply_context
             and expert_message_context.reply_context.reply_id
             and expert_message_context.reply_context.additional_info.get(constants.EMOJI)
         ):
@@ -145,13 +141,12 @@ class ByoebExpertSendResponse(Handler):
     ) -> Dict[str, Any]:
         db_queries = {}
         read_receipt_messages = utils.get_read_receipt_byoeb_messages(messages)
-        byoeb_user_messages = utils.get_user_byoeb_messages(messages)
         byoeb_expert_messages = utils.get_expert_byoeb_messages(messages)
         byoeb_expert_message = byoeb_expert_messages[0]
         channel_service = self.get_channel_service(byoeb_expert_message.channel_type)
         await channel_service.amark_read(read_receipt_messages)
         expert_responses = await self.__handle_expert(channel_service, byoeb_expert_message)
-        if byoeb_user_messages is not None and len(byoeb_user_messages) != 0:
-            user_responses = await self.__handle_user(channel_service, byoeb_user_messages)
-        db_queries = self.__prepare_db_queries(byoeb_user_messages, byoeb_expert_message)
+        # if byoeb_user_messages is not None and len(byoeb_user_messages) != 0:
+        #     user_responses = await self.__handle_user(channel_service, byoeb_user_messages)
+        db_queries = self.__prepare_db_queries([], byoeb_expert_message)
         return db_queries

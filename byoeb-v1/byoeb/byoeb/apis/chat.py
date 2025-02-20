@@ -1,4 +1,5 @@
 import logging
+import asyncio
 import json
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from fastapi import APIRouter, Request, Query

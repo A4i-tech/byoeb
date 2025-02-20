@@ -145,6 +145,55 @@ class WhatsAppService(BaseChannelService):
             bot_to_user_messages.append(byoeb_message)
         return bot_to_user_messages
     
+    def create_consensus_cross_conv(
+        self,
+        byoeb_user_message: ByoebMessageContext,
+        byoeb_expert_message: ByoebMessageContext,
+        expert_response: WhatsAppResponse
+    ):
+        """
+        Create cross conversation context for consensus messages
+        This is only for background jobs
+        """
+        message_context = MessageContext(
+            message_id=byoeb_user_message.message_context.message_id,
+        )
+        reply_context = ReplyContext(
+            reply_id=byoeb_user_message.reply_context.reply_id,
+        )
+        cross_conversation_context = {
+            constants.USER: User(
+                user_id=byoeb_user_message.user.user_id,
+                user_type=byoeb_user_message.user.user_type,
+                user_language=byoeb_user_message.user.user_language,
+                test_user=byoeb_user_message.user.test_user,
+                phone_number_id=byoeb_user_message.user.phone_number_id,
+            ),
+            constants.MESSAGES_CONTEXT: [
+                ByoebMessageContext(
+                    channel_type=byoeb_user_message.channel_type,
+                    message_context=message_context,
+                    reply_context=reply_context
+                )
+            ]
+        }
+        bot_to_expert_message = ByoebMessageContext(
+            channel_type=byoeb_expert_message.channel_type,
+            message_category=byoeb_expert_message.message_category,
+            user=byoeb_expert_message.user,
+            message_context=MessageContext(
+                message_id=expert_response.messages[0].id,
+                message_type=byoeb_expert_message.message_context.message_type,
+                message_english_text=byoeb_expert_message.message_context.message_english_text,
+                message_source_text=byoeb_expert_message.message_context.message_source_text,
+                additional_info={}
+            ),
+            cross_conversation_context=cross_conversation_context,
+            incoming_timestamp=byoeb_expert_message.incoming_timestamp,
+            outgoing_timestamp=str(int(datetime.now(timezone.utc).timestamp()))
+        )
+        return bot_to_expert_message
+    
     def create_cross_conv(
         self,
         byoeb_user_message: ByoebMessageContext,

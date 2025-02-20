@@ -11,7 +11,6 @@ fastapi = "^0.115.5"
 aiocache = "0.12.3"
 byoeb-integrations = {path = "../byoeb-integrations/dist/byoeb_integrations-0.1.0-py3-none-any.whl"}
 
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
