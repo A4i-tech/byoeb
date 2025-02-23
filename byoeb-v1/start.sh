@@ -1,4 +1,5 @@
 pip install poetry
+poetry config virtualenvs.in-project true
 
 cd byoeb-v1/byoeb-core
 poetry install --no-interaction
