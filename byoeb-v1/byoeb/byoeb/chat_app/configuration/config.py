@@ -18,7 +18,10 @@ with open(bot_config_path, 'r') as file:
 
 environment_path = os.path.join(current_dir, '../../..', 'keys.env')
 environment_path = os.path.normpath(environment_path)
-load_dotenv(environment_path)
+if os.path.exists(environment_path):
+    load_dotenv(environment_path)
+else:
+    print(f"Warning: Environment file not found at {environment_path}")
 
 # Environment variables
 # Whatsapp
