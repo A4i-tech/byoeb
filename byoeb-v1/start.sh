@@ -14,6 +14,6 @@ cd ..
 cd byoeb
 poetry install --no-interaction
 poetry add ../byoeb-integrations/dist/byoeb_integrations-0.1.0-py3-none-any.whl
-
+poetry shell
 python byoeb/chat_app/run.py
 
