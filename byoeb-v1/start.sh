@@ -1,5 +1,6 @@
 curl -sSL https://install.python-poetry.org | python3 - --version 2.1.1
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 poetry config virtualenvs.in-project true
 
 cd byoeb-v1/byoeb-core
@@ -12,5 +13,5 @@ poetry build
 
 cd ../byoeb
 poetry install --no-interaction
-eval "$(poetry env activate)"
+source "$(poetry env info --path)/bin/activate"
 python byoeb/chat_app/run.py
