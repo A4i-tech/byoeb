@@ -9,6 +9,7 @@ cd ..
 cd byoeb-integrations
 poetry install --no-interaction
 poetry add ../byoeb-core/dist/byoeb_core-0.1.0-py3-none-any.whl 
+poetry build
 
 cd ..
 cd byoeb
