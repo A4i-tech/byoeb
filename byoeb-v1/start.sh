@@ -1,9 +1,9 @@
 #!/bin/bash
 
+unset VIRTUAL_ENV
 curl -sSL https://install.python-poetry.org | python3 - --uninstall
 curl -sSL https://install.python-poetry.org | python3 - --version 2.1.1
-export PATH="/root/.local/bin:$PATH"
-# echo '' >> ~/.bashrc
+echo 'export PATH="/root/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 poetry config virtualenvs.in-project true
 
