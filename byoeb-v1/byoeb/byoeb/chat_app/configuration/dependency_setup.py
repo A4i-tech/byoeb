@@ -96,7 +96,6 @@ speech_translator_whisper = AsyncAzureOpenAIWhisper(
 # vector store
 import os
 from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
-from byoeb_integrations.vector_stores.llama_index.llama_index_chroma_store import LlamaIndexChromaDBStore
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 
 azure_search_doc_index_name = app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
