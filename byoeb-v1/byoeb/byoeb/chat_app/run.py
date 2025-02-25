@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
     print("Closed all clients.")
 
 app = create_app()
+
 if __name__ == '__main__':
     if os.getenv("APP_ENV") == "PROD":
         LOGGING_CONFIG["formatters"]["default"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s %(name)s - %(funcName)s - %(lineno)d"
