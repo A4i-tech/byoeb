@@ -13,8 +13,8 @@
 # echo "After deactivating: $VIRTUAL_ENV"
 
 # Remove existing Poetry
-curl -sSL https://install.python-poetry.org | python3 - --uninstall
-curl -sSL https://install.python-poetry.org | python3 - --version 2.1.1
+# curl -sSL https://install.python-poetry.org | python3 - --uninstall
+# curl -sSL https://install.python-poetry.org | python3 - --version 2.1.1
 
 # # Set up Poetry correctly
 # echo 'export PATH="/root/.local/bin:$PATH"' >> ~/.bashrc
@@ -34,8 +34,8 @@ curl -sSL https://install.python-poetry.org | python3 - --version 2.1.1
 # poetry install --no-interaction
 # poetry build
 
-cd byoeb-v1/byoeb
-poetry install --no-interaction
+# cd byoeb-v1/byoeb
+# poetry install --no-interaction
 
 # # Explicitly activate the new Poetry environment
 # eval "$(poetry env info --path)/bin/activate"
