@@ -47,8 +47,18 @@ async def lifespan(app: FastAPI):
 
 app = create_app()
 if __name__ == '__main__':
-    uvicorn.run(
-        app,
-        host="127.0.0.1",
-        port=5000
-    )
+    if os.getenv("APP_ENV") == "PROD":
+        LOGGING_CONFIG["formatters"]["default"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s %(name)s - %(funcName)s - %(lineno)d"
+        logging.basicConfig(level=logging.INFO)
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=8000,
+            log_config=LOGGING_CONFIG
+        )
+    else:
+        uvicorn.run(
+            app,
+            host="127.0.0.1",
+            port=5000
+        )
