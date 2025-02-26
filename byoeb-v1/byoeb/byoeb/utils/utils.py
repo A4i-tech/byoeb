@@ -4,7 +4,7 @@ def get_git_root_path():
     current_dir = os.path.abspath(__file__)
     try:
         while current_dir != os.path.dirname(current_dir):  # Stop at the filesystem root
-            if os.path.isdir(os.path.join(current_dir, ".git")):
+            if os.path.isdir(os.path.join(current_dir, ".github")):
                 return current_dir
             current_dir = os.path.dirname(current_dir)
         return current_dir
