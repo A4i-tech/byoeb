@@ -54,7 +54,7 @@ def wav_to_aac_bytes(wav_bytes: bytes) -> bytes:
 
     # Convert to AAC in-memory
     aac_buffer = io.BytesIO()
-    audio.export(aac_buffer, format="aac")
+    audio.export(aac_buffer, format="adts", codec="aac")
     aac_buffer.seek(0)  # Reset buffer to the beginning
 
     return aac_buffer.read()
