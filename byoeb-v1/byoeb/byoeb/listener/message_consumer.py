@@ -95,17 +95,14 @@ class QueueConsumer:
         )
         self._logger.info(f"Queue info: {self._az_storage_queue}")
         while True:
-            time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self._logger.info(f"Listening for messages at: {time_now}")
-            start_time = datetime.now()
             messages = await self.__areceive()
             message_content = []
             for message in messages:
                 message_content.append(message.content)
             if len(messages) == 0:
-                self._logger.info("No messages received")
                 await asyncio.sleep(0.5)
                 continue
+            start_time = datetime.now()
             try:
                 self._logger.info(f"Received {len(messages)} messages")
                 successfully_processed_messages =  await message_consumer_svc.consume(message_content)
