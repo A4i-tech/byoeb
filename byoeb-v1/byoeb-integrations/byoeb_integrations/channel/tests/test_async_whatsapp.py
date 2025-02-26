@@ -246,11 +246,9 @@ async def atest_mark_as_read():
 
 async def atest_batch_send_audio_message():
     message_type = wa_media.WhatsAppMediaTypes.AUDIO.value
-    audio_wav = None
-    with open("audio.wav", "rb") as f:
-        audio_wav = f.read()
-    audio_bytes = ac.wav_to_ogg_opus_bytes(audio_wav)
-    media_type=wa_media.FileMediaType.AUDIO_OGG.value
+    audio_bytes = ac.text_to_wav_bytes("अंतरा एक गर्भनिरोधक इंजेक्शन है जो जन्म नियंत्रण के लिए उपयोग किया जाता है। यह एक प्रतिवर्ती गर्भनिरोधक विधि है जो सरकारी स्वास्थ्य केंद्रों और अस्पतालों में मुफ्त में उपलब्ध है।")
+    audio_bytes = ac.wav_to_aac_bytes(audio_bytes)
+    media_type=wa_media.FileMediaType.AUDIO_AAC.value
     whatsapp_client = AsyncWhatsAppClient(
         phone_number_id=WHATSAPP_PHONE_NUMBER_ID,
         bearer_token=WHATSAPP_AUTH_TOKEN,
@@ -270,8 +268,8 @@ async def atest_batch_send_audio_message():
         batch_request.append(whatsapp_media_message.model_dump())
     whatsapp_responses = await whatsapp_client.asend_batch_messages(batch_request, message_type)
     media_id = whatsapp_responses[0].media_message.id
-    ack = await whatsapp_client.adelete_media(media_id)
-    assert ack.success is True
+    # ack = await whatsapp_client.adelete_media(media_id)
+    # assert ack.success is True
     await whatsapp_client._close()
 
 def test_template_message():
@@ -349,6 +347,6 @@ if __name__ == "__main__":
     # test_template_message()
     # test_regular_message()
     # test_interactive_message()
-    test_status_message()
-    # asyncio.run(atest_audio_download())
+    # test_status_message()
+    asyncio.run(atest_batch_send_audio_message())
 

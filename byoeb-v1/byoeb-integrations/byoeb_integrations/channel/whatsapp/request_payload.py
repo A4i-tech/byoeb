@@ -1,10 +1,13 @@
 import uuid
+import logging
 import byoeb_core.models.whatsapp.requests as wa_requests
 import byoeb_core.convertor.audio_convertor as audio_convertor
+from byoeb_core.models.whatsapp.requests import media_request as wa_media
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb_core.models.whatsapp.message_context import WhatsappMessageReplyContext
 from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import WhatsAppMessageTypes
 
+logger = logging.getLogger(__name__)
 def get_whatsapp_text_request_from_byoeb_message(
     byoeb_message: ByoebMessageContext
 ):
@@ -29,6 +32,33 @@ def get_whatsapp_text_request_from_byoeb_message(
 def get_whatsapp_audio_request_from_byoeb_message(
     byoeb_message: ByoebMessageContext
 ):
+    def convert_audio_to_whatsapp_supported_format(audio_data):
+        """
+        Convert audio data to a WhatsApp-supported format (OGG OPUS or AAC).
+
+        :param audio_data: Input audio bytes (WAV format expected).
+        :return: Tuple (converted audio bytes, MIME type).
+        """
+        errors = []
+
+        # Try converting to OGG OPUS first
+        try:
+            audio_ogg = audio_convertor.wav_to_ogg_opus_bytes(audio_data)
+            return audio_ogg, wa_media.FileMediaType.AUDIO_OGG.value
+        except Exception as e:
+            errors.append(f"OGG conversion failed: {e}")
+
+        # If OGG fails, try converting to AAC
+        try:
+            audio_aac = audio_convertor.wav_to_aac_bytes(audio_data)
+            return audio_aac, wa_media.FileMediaType.AUDIO_AAC.value
+        except Exception as e:
+            errors.append(f"AAC conversion failed: {e}")
+
+        # If both conversions fail, raise a ValueError
+        raise ValueError(f"Unsupported audio format. Errors: {', '.join(errors)}")
+
+            
     audio_data = byoeb_message.message_context.additional_info["data"]
     phone_number_id = byoeb_message.user.phone_number_id
     messaging_product = "whatsapp"
@@ -38,18 +68,23 @@ def get_whatsapp_audio_request_from_byoeb_message(
         context = WhatsappMessageReplyContext(
             message_id=reply_id
         )
-    audio_ogg = audio_convertor.wav_to_ogg_opus_bytes(audio_data)
-    audio_message = wa_requests.WhatsAppMediaMessage(
-        messaging_product=messaging_product,
-        to=phone_number_id,
-        type=WhatsAppMessageTypes.AUDIO.value,
-        media=wa_requests.MediaData(
-            data=audio_ogg,
-            mime_type="audio/ogg"
-        ),
-        context=context
-    )
-    return audio_message.model_dump()
+    try:
+        audio, mime_type = convert_audio_to_whatsapp_supported_format(audio_data)
+        audio_message = wa_requests.WhatsAppMediaMessage(
+            messaging_product=messaging_product,
+            to=phone_number_id,
+            type=WhatsAppMessageTypes.AUDIO.value,
+            media=wa_requests.MediaData(
+                data=audio,
+                mime_type=mime_type
+            ),
+            context=context
+        )
+        return audio_message.model_dump()
+    except ValueError as e:
+        logger.error(f"Audio conversion error: {e}")
+        print(f"Audio conversion error: {e}")
+        return None
 
 def get_whatsapp_interactive_button_request_from_byoeb_message(
     byoeb_message: ByoebMessageContext
