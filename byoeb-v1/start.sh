@@ -39,4 +39,6 @@
 
 # # Explicitly activate the new Poetry environment
 # eval "$(poetry env info --path)/bin/activate"
+apt-get update -y
+apt-get install -y ffmpeg libavcodec-extra
 python byoeb-v1/byoeb/byoeb/chat_app/run.py

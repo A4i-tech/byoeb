@@ -137,7 +137,9 @@ class ByoebUserSendResponse(Handler):
         message_ids = []
         responses = []
         user_requests = channel_service.prepare_requests(user_message_context)
-        if user_message_context.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
+        if (user_message_context.message_context.message_type == MessageTypes.REGULAR_AUDIO.value
+            and len(user_requests) == 2
+        ):
             user_message_copy = user_message_context.__deepcopy__()
             user_message_copy.reply_context = None
             user_requests_no_tag = channel_service.prepare_requests(user_message_copy)
@@ -147,8 +149,9 @@ class ByoebUserSendResponse(Handler):
             response_text, message_id_text = await channel_service.send_requests([text_no_tag_message])
             responses = response_text
             message_ids = message_id_text
-        elif (user_message_context.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value
-            or user_message_context.message_context.message_type == MessageTypes.INTERACTIVE_BUTTON.value
+        elif ((user_message_context.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value
+            or user_message_context.message_context.message_type == MessageTypes.INTERACTIVE_BUTTON.value)
+            and len(user_requests) == 2
         ):
             user_message_copy = user_message_context.__deepcopy__()
             user_message_copy.reply_context = None
@@ -165,7 +168,7 @@ class ByoebUserSendResponse(Handler):
             utils.log_to_text_file(f"Successfully sent audio message in {end_time - start_time} seconds")
             responses = response_text
             message_ids = message_id_text
-        elif user_message_context.message_context.message_type == MessageTypes.REGULAR_TEXT.value:
+        elif user_message_context.message_context.message_type == MessageTypes.REGULAR_TEXT.value or len(user_requests) == 1:
             response, message_id = await channel_service.send_requests(user_requests)
             responses = response
             message_ids = message_id

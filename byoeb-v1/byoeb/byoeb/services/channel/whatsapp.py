@@ -63,7 +63,8 @@ class WhatsAppService(BaseChannelService):
             wa_requests.append(wa_template_message)
         if utils.has_audio_additional_info(byoeb_message):
             wa_audio_message = wa_req_payload.get_whatsapp_audio_request_from_byoeb_message(byoeb_message)
-            wa_requests.append(wa_audio_message)
+            if wa_audio_message is not None:
+                wa_requests.append(wa_audio_message)
         return wa_requests
     
     async def amark_read(
