@@ -64,14 +64,14 @@ users_handler = UsersHandler(
 
 # Text translator
 from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
-from azure.identity import get_bearer_token_provider, AzureCliCredential
+from azure.identity import get_bearer_token_provider, DefaultAzureCredential
 
 token_provider = get_bearer_token_provider(
-    AzureCliCredential(), app_config["app"]["azure_cognitive_endpoint"]
+    DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
 )
 # TODO: factory implementation
 text_translator = AsyncAzureTextTranslator(
-    credential=AzureCliCredential(),
+    credential=DefaultAzureCredential(),
     region=app_config["translators"]["text"]["azure_cognitive"]["region"],
     resource_id=app_config["translators"]["text"]["azure_cognitive"]["resource_id"],
 )
@@ -122,7 +122,7 @@ vector_store = AzureVectorStore(
     service_name=azure_search_service_name,
     index_name=azure_search_doc_index_name,
     embedding_function=embedding_fn,
-    credential=AzureCliCredential()
+    credential=DefaultAzureCredential()
 )
 
 # llm
