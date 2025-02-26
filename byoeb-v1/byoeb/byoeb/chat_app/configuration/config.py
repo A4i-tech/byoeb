@@ -1,5 +1,6 @@
 import os
 import json
+import yaml
 from dotenv import load_dotenv
 
 # Get the directory of the current script

@@ -1,8 +1,9 @@
 import logging
+import logging.config
 import os
 import asyncio
 import uvicorn
-from uvicorn.config import LOGGING_CONFIG
+import yaml
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from byoeb.apis.health import health_apis_router
@@ -10,6 +11,8 @@ from byoeb.apis.channel_register import register_apis_router
 from byoeb.apis.chat import chat_apis_router
 from byoeb.apis.user import user_apis_router
 
+
+logger = logging.getLogger(__name__)
 asyncio.get_event_loop().set_debug(True)
 def create_app():
     """
@@ -43,19 +46,24 @@ async def lifespan(app: FastAPI):
     await message_consumer.close()
     await queue_producer_factory.close()
     await text_translator._close()
-    print("Closed all clients.")
+    logger.info("FastAPI app is shutting down. Closing all clients")
 
 app = create_app()
 
 if __name__ == '__main__':
     if os.getenv("APP_ENV") == "PROD":
-        LOGGING_CONFIG["formatters"]["default"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s %(name)s - %(funcName)s - %(lineno)d"
-        logging.basicConfig(level=logging.INFO)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        log_config_path = os.path.join(current_dir, 'logging.yaml')
+        log_config_path = os.path.normpath(log_config_path)
+        log_config = None
+        with open(log_config_path, 'r') as file:
+            log_config = yaml.safe_load(file)
+        logging.config.dictConfig(log_config)
+        logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.CRITICAL)
         uvicorn.run(
             app,
             host="0.0.0.0",
-            port=8000,
-            log_config=LOGGING_CONFIG
+            port=8000
         )
     else:
         uvicorn.run(
