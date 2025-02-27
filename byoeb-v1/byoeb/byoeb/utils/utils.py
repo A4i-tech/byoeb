@@ -26,5 +26,7 @@ def is_idk(
         "i don't know",
         "i do not know",
         "i don't know the answer",
+        "i do not know the answer to your question"
     ]
-    return text.lower() in idks
+    text = text.lower()
+    return any(idk in text for idk in idks)  # Check if any phrase exists in text
