@@ -1,6 +1,8 @@
 import logging
 import json
 import time
+import byoeb.utils.utils as utils
+from datetime import datetime, timezone
 from byoeb_core.models.byoeb.message_status import ByoebMessageStatus
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb_core.message_queue.base import BaseQueue
@@ -31,7 +33,8 @@ class MessageProducerService:
         unix_timestamp
     ) -> bool:
         seconds = n*60
-        current_time = int(time.time())   
+        current_time = datetime.now(timezone.utc).timestamp()
+        utils.log_to_text_file("Message duration: ", current_time - unix_timestamp)   
         if current_time - unix_timestamp > seconds:
             return True
         return False
