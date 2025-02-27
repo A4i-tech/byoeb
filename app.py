@@ -3,6 +3,7 @@ import sys
 from threading import Thread, Lock
 import yaml
 import logging
+import requests
 from azure.storage.queue import QueueClient
 from azure.core.exceptions import ResourceExistsError
 from datetime import datetime
@@ -24,6 +25,7 @@ import kb_update
 from onboard import onboard_template
 from database import AppLogger
 from responder import WhatsappResponder
+from database import UserDB
 from utils import is_older_than_n_minutes
 
 
@@ -36,6 +38,7 @@ log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
 
 app_logger = AppLogger()
+user_db = UserDB(config)
 print("Loading Databases done")
 
 if config["CHAT_APPLICATION"] == "whatsapp":
@@ -48,12 +51,18 @@ queue_lock = Lock()
 queue_name = os.environ["AZURE_QUEUE_NAME"].strip()
 queue_connection_string = os.environ["AZURE_STORAGE_CONNECTION_STRING"].strip()
 queue_client = QueueClient.from_connection_string(queue_connection_string, queue_name)
-
 try:
     queue_client.create_queue()
 except ResourceExistsError:
     pass
 
+reroute_endpoint = "https://khushi-baby-asha-bot-h2byfgceh7fte4ff.swedencentral-01.azurewebsites.net/receive"
+
+def traffic_reroute(phone_number):
+    user = user_db.get_from_whatsapp_id(phone_number)
+    if user["whatsapp_id"] == "918837701828":
+        return True
+    return False
 
 @app.route("/")
 def index():
@@ -96,6 +105,10 @@ def process_expert_responses_to_update_kb():
 @app.route("/webhooks", methods=["POST"])
 def webhook():
     body = request.json
+    app_logger.add_log(
+        event_name="Webhook received",
+        details=body,
+    )
     if (
         body.get("object")
         and body.get("entry")
@@ -105,7 +118,7 @@ def webhook():
         and body["entry"][0]["changes"][0]["value"]["messages"][0]
     ):
         timestamp = body["entry"][0]["changes"][0]["value"]["messages"][0]["timestamp"]
-        body["entry"][0]["changes"][0]["value"]["messages"][0]["timestamp"] = datetime.now().timestamp()
+        body["entry"][0]["changes"][0]["value"]["messages"][0]["timestamp"] = str(int(datetime.now().timestamp()))
         print("difference in time: ", datetime.now().timestamp() - int(timestamp))
         n = 5
         if is_older_than_n_minutes(int(timestamp), n=n):
@@ -115,12 +128,14 @@ def webhook():
                 timestamp=datetime.now(),
             )
             return "OK", 200
+        msg_object = body["entry"][0]["changes"][0]["value"]["messages"][0]
+        from_number = msg_object["from"]
+        if traffic_reroute(from_number):
+            print("Rerouting message to ", reroute_endpoint)
+            requests.post(reroute_endpoint, json=body)
+            return "OK", 200
     # adding request to queue
     # print("Adding message to queue, ", body)
-    app_logger.add_log(
-        event_name="Webhook received",
-        details=body,
-    )
     queue_client.send_message(json.dumps(body))
     return "OK", 200
 
