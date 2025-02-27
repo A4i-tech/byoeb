@@ -7,7 +7,6 @@ from byoeb_core.models.byoeb.message_status import ByoebMessageStatus
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb_core.message_queue.base import BaseQueue
 
-logger = logging.getLogger(__name__)
 class MessageProducerService:
     def __init__(
         self,
@@ -36,7 +35,7 @@ class MessageProducerService:
         seconds = n*60
         current_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Message duration: {current_time - unix_timestamp}")
-        logger.info(f"Message duration: {current_time - unix_timestamp}")
+        self._logger.info(f"Message duration: {current_time - unix_timestamp}")
         if current_time - unix_timestamp > seconds:
             return True
         return False
