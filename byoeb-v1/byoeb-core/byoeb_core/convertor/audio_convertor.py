@@ -27,7 +27,7 @@ def convert_wav_bytes_to_aac(wav_bytes: bytes) -> bytes:
     process = (
         ffmpeg
         .input('pipe:0')  # Read from stdin (WAV bytes)
-        .output('pipe:1', format='aac', acodec='aac')  # Output to stdout (AAC bytes)
+        .output('pipe:1', format='adts', acodec='aac', audio_bitrate='128k')  # Output to stdout (AAC bytes)
         .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True)
     )
     
