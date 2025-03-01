@@ -43,14 +43,14 @@ def get_whatsapp_audio_request_from_byoeb_message(
 
         # Try converting to OGG OPUS first
         try:
-            audio_ogg = audio_convertor.wav_to_ogg_opus_bytes(audio_data)
+            audio_ogg = audio_convertor.convert_wav_bytes_to_ogg(audio_data)
             return audio_ogg, wa_media.FileMediaType.AUDIO_OGG.value
         except Exception as e:
             errors.append(f"OGG conversion failed: {e}")
 
         # If OGG fails, try converting to AAC
         try:
-            audio_aac = audio_convertor.wav_to_aac_bytes(audio_data)
+            audio_aac = audio_convertor.convert_wav_bytes_to_aac(audio_data)
             return audio_aac, wa_media.FileMediaType.AUDIO_AAC.value
         except Exception as e:
             errors.append(f"AAC conversion failed: {e}")
