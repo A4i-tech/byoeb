@@ -1,6 +1,43 @@
+import ffmpeg
 import io
 from gtts import gTTS
 from pydub import AudioSegment
+
+def convert_wav_bytes_to_ogg(wav_bytes: bytes) -> bytes:
+    """Convert WAV audio in bytes to OGG with libopus codec in bytes.
+    ffmpeg is used to perform the conversion.
+    """
+    process = (
+        ffmpeg
+        .input('pipe:0')  # Read from stdin (WAV bytes)
+        .output('pipe:1', format='ogg', acodec='libopus')  # Output to stdout (OGG bytes)
+        .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True)
+    )
+    
+    # Send WAV data and capture OGG output
+    stdout, stderr = process.communicate(input=wav_bytes)
+    
+    if process.returncode != 0:
+        raise RuntimeError(f"FFmpeg error: {stderr.decode()}")
+
+    return stdout  # Return OGG bytes
+
+def convert_wav_bytes_to_aac(wav_bytes: bytes) -> bytes:
+    """Convert WAV audio in bytes to AAC format in bytes."""
+    process = (
+        ffmpeg
+        .input('pipe:0')  # Read from stdin (WAV bytes)
+        .output('pipe:1', format='aac', acodec='aac')  # Output to stdout (AAC bytes)
+        .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True)
+    )
+    
+    # Send WAV data and capture AAC output
+    stdout, stderr = process.communicate(input=wav_bytes)
+    
+    if process.returncode != 0:
+        raise RuntimeError(f"FFmpeg error: {stderr.decode()}")
+
+    return stdout  # Return AAC bytes
 
 def text_to_wav_bytes(text: str) -> bytes:
     """
@@ -76,3 +113,4 @@ def ogg_opus_to_wav_bytes(ogg_bytes: bytes) -> bytes:
     wav_buffer.seek(0)  # Reset buffer to the beginning
 
     return wav_buffer.read()
+
