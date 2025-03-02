@@ -556,6 +556,8 @@ class ByoebUserGenerateResponse(Handler):
             )
             start_time = datetime.now(timezone.utc).timestamp()
             response_en, response_source, tokens = await self.agenerate_answer(message_english, query_type, retrieved_chunks)
+            if message.user.user_language == "en":
+                response_source = response_en
             related_questions = self.get_follow_up_questions(message.user.user_language, retrieved_chunks)
             end_time = datetime.now(timezone.utc).timestamp()
             app_insights_logger.add_log(
