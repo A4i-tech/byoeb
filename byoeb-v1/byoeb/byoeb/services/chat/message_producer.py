@@ -69,7 +69,7 @@ class MessageProducerService:
                 event_name="message_published",
                 details={
                     "message_id": byoeb_message.message_context.message_id,
-                    "user_name": byoeb_message.user.user_name,
+                    "phone_number_id": byoeb_message.user.phone_number_id
                 }
             )
             return f"Published successfully {result.id}", None
