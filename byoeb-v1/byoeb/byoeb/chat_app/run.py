@@ -66,8 +66,11 @@ if __name__ == '__main__':
             port=8000
         )
     else:
+        module_name = os.path.splitext(os.path.basename(__file__))[0]
+        print(module_name)
         uvicorn.run(
-            app,
+            f"{module_name}:app",
             host="127.0.0.1",
-            port=5000
+            port=5000,
+            workers=4
         )
