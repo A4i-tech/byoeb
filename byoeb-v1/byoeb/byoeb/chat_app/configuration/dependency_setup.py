@@ -53,7 +53,8 @@ queue_producer_factory = QueueProducerFactory(
 )
 message_producer_handler = QueueProducerHandler(
     config=app_config,
-    queue_producer_factory=queue_producer_factory
+    queue_producer_factory=queue_producer_factory,
+    message_db_service=message_db_service
 )
 
 # message consumer

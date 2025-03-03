@@ -144,10 +144,10 @@ class ByoebUserSendResponse(Handler):
             user_message_copy = user_message_context.__deepcopy__()
             user_message_copy.reply_context = None
             user_requests_no_tag = channel_service.prepare_requests(user_message_copy)
-            audio_tag_message = user_requests[1]
-            text_no_tag_message = user_requests_no_tag[0]
-            response_audio, message_id_audio = await channel_service.send_requests([audio_tag_message])
-            response_text, message_id_text = await channel_service.send_requests([text_no_tag_message])
+            text_tag_message = user_requests[0]
+            audio_no_tag_message = user_requests_no_tag[1]
+            response_text, message_id_text = await channel_service.send_requests([text_tag_message])
+            response_audio, message_id_audio = await channel_service.send_requests([audio_no_tag_message])
             responses = response_text
             message_ids = message_id_text
         elif ((user_message_context.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value

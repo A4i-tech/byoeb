@@ -1,4 +1,5 @@
 import logging
+from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
 import byoeb_integrations.channel.whatsapp.validate_message as wa_validator
 from typing import Any
 from byoeb.factory import QueueProducerFactory
@@ -10,11 +11,13 @@ class QueueProducerHandler:
         self,
         config,
         queue_producer_factory: QueueProducerFactory
+        message_db_service: MessageMongoDBService
     ):
         self._logger = logging.getLogger(self.__class__.__name__)
         self._config = config
         self._queue_provider = config["app"]["queue_provider"]
         self.queue_producer_factory = queue_producer_factory
+        self.message_db_service = message_db_service
 
     async def __get_or_create_message_producer(
         self,
