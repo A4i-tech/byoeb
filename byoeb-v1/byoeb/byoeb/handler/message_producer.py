@@ -10,7 +10,7 @@ class QueueProducerHandler:
     def __init__(
         self,
         config,
-        queue_producer_factory: QueueProducerFactory
+        queue_producer_factory: QueueProducerFactory,
         message_db_service: MessageMongoDBService
     ):
         self._logger = logging.getLogger(self.__class__.__name__)
