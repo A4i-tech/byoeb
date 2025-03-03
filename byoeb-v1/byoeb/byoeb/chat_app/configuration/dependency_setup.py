@@ -1,3 +1,14 @@
+import byoeb.chat_app.configuration.config as env_config
+from byoeb.chat_app.configuration.config import app_config
+
+# App logger
+from byoeb.application_logger.azure_app_insights import AzureAppInsightsLogger
+app_insights_logger = AzureAppInsightsLogger(
+    logger_name=app_config["app_logger"]["azure"]["logger_name"],
+    connection_string=env_config.env_appinsights_connection_string
+)
+
+
 import byoeb.utils.utils as byoeb_utils
 from byoeb.factory import (
     ChannelRegisterFactory,
@@ -10,18 +21,10 @@ from byoeb.handler import (
     QueueProducerHandler,
     UsersHandler
 )
-import byoeb.chat_app.configuration.config as env_config
-from byoeb.chat_app.configuration.config import app_config
+
 from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 
 SINGLETON = "singleton"
-
-# App logger
-from byoeb.application_logger.azure_app_insights import AzureAppInsightsLogger
-app_insights_logger = AzureAppInsightsLogger(
-    logger_name=app_config["app_logger"]["azure"]["logger_name"],
-    connection_string=env_config.env_appinsights_connection_string
-)
 
 # channel
 channel_register_factory = ChannelRegisterFactory()

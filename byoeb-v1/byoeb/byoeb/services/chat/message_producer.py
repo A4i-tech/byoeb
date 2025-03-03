@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from byoeb_core.models.byoeb.message_status import ByoebMessageStatus
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb_core.message_queue.base import BaseQueue
+from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
 
 class MessageProducerService:
     def __init__(
@@ -63,6 +64,14 @@ class MessageProducerService:
                 time_to_live=self._config["message_queue"]["azure"]["time_to_live"])
             self._logger.info(f"Message sent: {result}")
             print(f"Published successfully {result.id}")
+            
+            app_insights_logger.add_log(
+                event_name="message_published",
+                details={
+                    "message_id": byoeb_message.message_context.message_id,
+                    "user_name": byoeb_message.user.user_name,
+                }
+            )
             return f"Published successfully {result.id}", None
         except Exception as e:
             return None, e
