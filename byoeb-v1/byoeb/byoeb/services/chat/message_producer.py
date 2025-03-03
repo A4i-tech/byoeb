@@ -1,22 +1,26 @@
 import logging
 import json
 import time
+from byoeb.services.chat import constants
 import byoeb.utils.utils as utils
 from datetime import datetime, timezone
 from byoeb_core.models.byoeb.message_status import ByoebMessageStatus
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb_core.message_queue.base import BaseQueue
 from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
+from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
 
 class MessageProducerService:
     def __init__(
         self,
         config,
         queue_client: BaseQueue,
+        message_db_service: MessageMongoDBService
     ):
         self._logger = logging.getLogger(self.__class__.__name__)
         self._config = config
         self.__queue_client = queue_client
+        self.__message_db_service = message_db_service
 
     def __convert_whatsapp_to_byoeb_message(
         self,
@@ -59,11 +63,14 @@ class MessageProducerService:
                 byoeb_message.incoming_timestamp,
             ):
                 return f"Skipped. Older than {n} minutes", None
+            if self.__message_db_service.get_bot_messages_by_ids(
+                [byoeb_message.message_context.message_id]
+            ) is not None:
+                return f"Already processed", None
+            
             result = await self.__queue_client.asend_message(
                 byoeb_message.model_dump_json(),
                 time_to_live=self._config["message_queue"]["azure"]["time_to_live"])
-            self._logger.info(f"Message sent: {result}")
-            print(f"Published successfully {result.id}")
             
             app_insights_logger.add_log(
                 event_name="message_published",
@@ -72,6 +79,12 @@ class MessageProducerService:
                     "phone_number_id": byoeb_message.user.phone_number_id
                 }
             )
+            message_db_queries = {
+                constants.CREATE: self.__message_db_service.message_create_queries(byoeb_messages=[byoeb_message]),
+            }
+            self.__message_db_service.execute_queries(message_db_queries)
+            self._logger.info(f"Message sent: {result}")
+            print(f"Published successfully {result.id}")
             return f"Published successfully {result.id}", None
         except Exception as e:
             return None, e

@@ -48,7 +48,7 @@
                         },
                         "send": {
                             "en": "This question is outside the scope of my current knowledge. Please wait, I will check with our team of ANMs and get back to you with an answer soon.\nIn the meantime, you can ask me any other questions about pregnancy, childcare, or health in general.",
-                            "hi": "यह सवाल मेरे वर्तमान ज्ञान से बाहर है। कृपया प्रतीक्षा करें, मैं हमारी ANM टीम से पूछकर जल्द ही जवाब दूंगी।\nइस बीच, आप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।"
+                            "hi": "कृपया प्रतीक्षा करें, मैं हमारी ANM टीम से पूछकर जल्द ही जवाब दूंगी।\nइस बीच, आप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।"
                         },
                         "pending": {
                             "en": "Please select one of the options.",
