@@ -1,8 +1,9 @@
 import logging
 import json
 import time
-from byoeb.services.chat import constants
+import traceback
 import byoeb.utils.utils as utils
+from byoeb.services.chat import constants
 from datetime import datetime, timezone
 from byoeb_core.models.byoeb.message_status import ByoebMessageStatus
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
@@ -63,9 +64,9 @@ class MessageProducerService:
                 byoeb_message.incoming_timestamp,
             ):
                 return f"Skipped. Older than {n} minutes", None
-            if self.__message_db_service.get_bot_messages_by_ids(
-                [byoeb_message.message_context.message_id]
-            ) is not None:
+            res = await self.__message_db_service.get_bot_messages_by_ids([byoeb_message.message_context.message_id])
+            print("Res: ", res)
+            if len(res) > 0:
                 return f"Already processed", None
             
             result = await self.__queue_client.asend_message(
@@ -82,9 +83,10 @@ class MessageProducerService:
             message_db_queries = {
                 constants.CREATE: self.__message_db_service.message_create_queries(byoeb_messages=[byoeb_message]),
             }
-            self.__message_db_service.execute_queries(message_db_queries)
+            await self.__message_db_service.execute_queries(message_db_queries)
             self._logger.info(f"Message sent: {result}")
             print(f"Published successfully {result.id}")
             return f"Published successfully {result.id}", None
         except Exception as e:
+            traceback.print_exc()
             return None, e

@@ -1,6 +1,7 @@
 import logging
-from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
+import traceback
 import byoeb_integrations.channel.whatsapp.validate_message as wa_validator
+from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
 from typing import Any
 from byoeb.factory import QueueProducerFactory
 from byoeb.services.chat.message_producer import MessageProducerService
@@ -24,7 +25,10 @@ class QueueProducerHandler:
         message_type
     ) -> MessageProducerService:
         queue_client = await self.queue_producer_factory.get(self._queue_provider, message_type)
-        return MessageProducerService(self._config, queue_client)
+        return MessageProducerService(
+            self._config,
+            queue_client,
+            self.message_db_service)
 
     async def __validate_channel_and_get_message_type(
         self,
@@ -55,6 +59,7 @@ class QueueProducerHandler:
         try:
             message_producer_service = await self.__get_or_create_message_producer(message_type)
         except Exception as e:
+            traceback.print_exc()
             return ByoebResponseModel(
                 status_code=ByoebStatusCodes.INTERNAL_SERVER_ERROR,
                 message= f"Invalid producer type: {str(e)}"
