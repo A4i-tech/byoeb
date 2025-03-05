@@ -136,9 +136,15 @@ def webhook():
             return "OK", 200
         msg_object = body["entry"][0]["changes"][0]["value"]["messages"][0]
         from_number = msg_object["from"]
+        difference = datetime.now().timestamp() - int(timestamp)
         if traffic_reroute(from_number):
             print("Rerouting message to ", reroute_endpoint)
             requests.post(reroute_endpoint, json=body)
+            app_logger.add_log(
+                event_name="Rerouting message",
+                details={"phone_number_id": from_number, "time_taken": difference},
+                timestamp=datetime.now(),
+            )
             return "OK", 200
     # adding request to queue
     # print("Adding message to queue, ", body)
