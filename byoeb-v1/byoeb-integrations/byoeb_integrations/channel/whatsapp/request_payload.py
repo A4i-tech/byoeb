@@ -73,7 +73,7 @@ def get_whatsapp_audio_request_from_byoeb_message(
         audio = None
         if mime_type is None:
             audio, mime_type = convert_audio_to_whatsapp_supported_format(audio_data)
-        elif mime_type == WhatsAppMessageTypes:
+        elif mime_type == wa_media.FileMediaType.AUDIO_OGG.value:
             audio = audio_data
             mime_type = wa_media.FileMediaType.AUDIO_OGG.value
         audio_message = wa_requests.WhatsAppMediaMessage(
