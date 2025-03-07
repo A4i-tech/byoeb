@@ -50,6 +50,8 @@ async def lifespan(app: FastAPI):
 
 app = create_app()
 
+# Issue with multiple workers in FastAPI
+# https://github.com/encode/uvicorn/discussions/2450
 if __name__ == '__main__':
     if os.getenv("APP_ENV") == "PROD":
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -62,10 +64,9 @@ if __name__ == '__main__':
         logging.config.dictConfig(log_config)
         logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.CRITICAL)
         uvicorn.run(
-            f"{module_name}:app",
+            app,
             host="0.0.0.0",
-            port=8000,
-            workers=2
+            port=8000
         )
     else:
         module_name = os.path.splitext(os.path.basename(__file__))[0]
