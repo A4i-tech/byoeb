@@ -146,8 +146,14 @@ class ByoebUserSendResponse(Handler):
             user_requests_no_tag = channel_service.prepare_requests(user_message_copy)
             text_tag_message = user_requests[0]
             audio_no_tag_message = user_requests_no_tag[1]
+            start_time = datetime.now(timezone.utc).timestamp()
             response_text, message_id_text = await channel_service.send_requests([text_tag_message])
+            end_time = datetime.now(timezone.utc).timestamp()
+            utils.log_to_text_file(f"Successfully sent interactive message in {end_time - start_time} seconds")
+            start_time = datetime.now(timezone.utc).timestamp()
             response_audio, message_id_audio = await channel_service.send_requests([audio_no_tag_message])
+            end_time = datetime.now(timezone.utc).timestamp()
+            utils.log_to_text_file(f"Successfully sent audio message in {end_time - start_time} seconds. Audio id: {message_id_audio}")
             responses = response_text
             message_ids = message_id_text
         elif ((user_message_context.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value
@@ -166,7 +172,7 @@ class ByoebUserSendResponse(Handler):
             start_time = datetime.now(timezone.utc).timestamp()
             response_audio, message_id_audio = await channel_service.send_requests([audio_no_tag_message])
             end_time = datetime.now(timezone.utc).timestamp()
-            utils.log_to_text_file(f"Successfully sent audio message in {end_time - start_time} seconds")
+            utils.log_to_text_file(f"Successfully sent audio message in {end_time - start_time} seconds. Audio id: {message_id_audio}")
             responses = response_text
             message_ids = message_id_text
         elif user_message_context.message_context.message_type == MessageTypes.REGULAR_TEXT.value or len(user_requests) == 1:
