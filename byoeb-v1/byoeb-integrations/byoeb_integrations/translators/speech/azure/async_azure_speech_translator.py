@@ -110,8 +110,9 @@ class AsyncAzureSpeechTranslator(BaseSpeechTranslator):
                 speech_config=speech_config, audio_config=audio_config
             )
             self.__synthesizers[key] = (synthesizer, current_time)  # Store with timestamp
-
-        return self.__synthesizers[key]
+        
+        synthesizer, timestamp = self.__synthesizers[key]
+        return synthesizer
 
     def __get_speech_config(self) -> speechsdk.SpeechConfig:
         if self.__token_provider:
