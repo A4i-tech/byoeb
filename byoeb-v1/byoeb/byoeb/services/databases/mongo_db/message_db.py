@@ -41,6 +41,8 @@ class MessageMongoDBService(BaseMongoDBService):
         byoeb_user_messages: List[ByoebMessageContext],
         byoeb_expert_message: ByoebMessageContext
     ):
+        if byoeb_expert_message.reply_context is None:
+            return []
         for byoeb_user_message in byoeb_user_messages:
             reply_context = byoeb_user_message.reply_context
             update_id = reply_context.additional_info.get(constants.UPDATE_ID)
@@ -65,6 +67,29 @@ class MessageMongoDBService(BaseMongoDBService):
             }
             user_update_queries.append(({"_id": byoeb_user_message.reply_context.reply_id}, update_data))
         return expert_update_queries + user_update_queries
+    
+    def idk_status_update_query(
+        self,
+        byoeb_message: ByoebMessageContext,
+    ):
+        message_id = byoeb_message.message_context.message_id
+        status = byoeb_message.message_context.additional_info.get(constants.STATUS, None)
+        consensus_answer_en = ""
+        consensus_answer_source = ""
+        if status is None:
+            return
+        if status == constants.RESOLVED:
+            consensus_answer_en = byoeb_message.message_context.additional_info.get(constants.CONSENSUS_ANSWER_EN)
+            consensus_answer_source = byoeb_message.message_context.additional_info.get(constants.CONSENSUS_ANSWER_SOURCE)
+        update_data = {
+            "$set":{
+                f"message_data.message_context.additional_info.{constants.STATUS}": status,
+                f"message_data.message_context.additional_info.{constants.CONSENSUS_ANSWER_EN}": consensus_answer_en,
+                f"message_data.message_context.additional_info.{constants.CONSENSUS_ANSWER_SOURCE}": consensus_answer_source,
+                f"message_data.message_context.additional_info.{constants.MODIFIED_TIMESTAMP}": str(int(datetime.now(timezone.utc).timestamp()))
+            }
+        }
+        return ({"_id": message_id}, update_data)
     
     def audio_idk_status_update_query(
         self,

@@ -50,10 +50,12 @@ class UserMongoDBService(BaseMongoDBService):
         users_obj = await user_collection_client.afetch_all({"User.user_type": user_type})
         return [User(**user_obj["User"]) for user_obj in users_obj]
     
-    def user_activity_update_query(self, user: User, qa: Dict[str, Any] = None):
+    def user_activity_update_query(self, user: User, qa: Dict[str, Any] = None, skip_timestamp: bool = False):
         """Generate update query for user activity."""
-        latest_timestamp = str(int(datetime.now(timezone.utc).timestamp()))
-        update_data = {"$set": {"User.activity_timestamp": latest_timestamp}}
+        update_data = {"$set": {}}
+        if not skip_timestamp:
+            latest_timestamp = str(int(datetime.now(timezone.utc).timestamp()))
+            update_data = {"$set": {"User.activity_timestamp": latest_timestamp}}
 
         if qa is None:
             return ({"_id": user.user_id}, update_data)

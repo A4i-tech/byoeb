@@ -18,6 +18,7 @@ class ByoebExpertGenerateResponse(Handler):
 
     EXPERT_DEFAULT_MESSAGE_DICT = bot_config["template_messages"]["expert"]["default"]
     EXPERT_THANK_YOU_MESSAGE_DICT = bot_config["template_messages"]["expert"]["thank_you"]
+    EXPERT_TIMEOUT_MESSAGE_DICT = bot_config["template_messages"]["expert"]["timeout"]
 
     def __get_user_language(
         self,
@@ -265,7 +266,11 @@ class ByoebExpertGenerateResponse(Handler):
             byoeb_expert_messages = self.__create_expert_message(self.EXPERT_DEFAULT_MESSAGE_DICT[expert_language], message)
 
         elif (message.reply_context.message_category == MessageCategory.BOT_TO_EXPERT_CONSENSUS.value):
-            byoeb_expert_messages = self.__create_expert_message(self.EXPERT_THANK_YOU_MESSAGE_DICT[expert_language], message)
+            status = message.reply_context.additional_info.get(constants.STATUS)
+            if status == constants.TIMEOUT:
+                byoeb_expert_messages = self.__create_expert_message(self.EXPERT_TIMEOUT_MESSAGE_DICT[expert_language], message)
+            else:
+                byoeb_expert_messages = self.__create_expert_message(self.EXPERT_THANK_YOU_MESSAGE_DICT[expert_language], message)
 
         if self._successor:
             return await self._successor.handle(byoeb_expert_messages + [read_reciept_message])

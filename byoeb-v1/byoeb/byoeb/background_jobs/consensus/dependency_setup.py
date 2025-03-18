@@ -6,6 +6,8 @@ import byoeb.background_jobs.consensus.config as env_config
 from byoeb.background_jobs.consensus.config import app_config
 from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 
+
+
 SINGLETON = "singleton"
 
 # channel

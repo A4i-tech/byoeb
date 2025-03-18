@@ -23,7 +23,7 @@ from byoeb.models.consensus import Consensus
 
 EXPERT_TYPE = "anm"
 CONSENSUS = "consensus"
-CONSENSUS_SEND_LIMIT = 40
+CONSENSUS_SEND_LIMIT = 30
 max_last_active_duration_seconds: int = app_config["app"]["max_last_active_duration_seconds"]
 
 def create_expert_consensus_message(
@@ -65,10 +65,21 @@ def create_expert_consensus_message(
     )
     return new_expert_verification_message
 
-def create_db_queries(
+def create_user_db_queries(cross_convs: List[ByoebMessageContext]):
+    user_db_queries_list = []
+    for cross_conv in cross_convs:
+        user_id = cross_conv.user.user_id
+        message_id = cross_conv.message_context.message_id
+        update_data = {"$set": {"User.last_conversations": [{"message_id": message_id}]}}
+        user_db_queries_list.append(({"_id": user_id}, update_data))
+    user_db_queries = {
+        constants.UPDATE: user_db_queries_list
+    }
+    return user_db_queries
+
+def create_message_db_queries(
     cross_convs: List[ByoebMessageContext],
     user_message: ByoebMessageContext,
-    user_db_service: UserMongoDBService,
     message_db_service: MessageMongoDBService,
 ):
     message_db_create_queries = {
@@ -110,6 +121,7 @@ async def send_pending_query_to_expert(
     consensus_user_ids = {consensus.user_id for consensus in consensus_list}
     filtered_experts = [expert for expert in experts if expert.user_id not in consensus_user_ids]
     selected_experts = filtered_experts[:10]
+    print("Selected experts", selected_experts)
     cross_convs = []
     for expert in selected_experts:
         expert_message = create_expert_consensus_message(message, expert)
@@ -132,13 +144,14 @@ async def send_pending_query_to_expert(
             responses[0]
         )
         cross_convs.append(consensus_cross_conv)
-
-    message_db_queries = create_db_queries(
+        
+    user_db_queries = create_user_db_queries(cross_convs)
+    message_db_queries = create_message_db_queries(
         cross_convs,
         message,
-        user_db_service,
         message_db_service
     )
+    await user_db_service.execute_queries(user_db_queries)
     await message_db_service.execute_queries(message_db_queries)
     
 
