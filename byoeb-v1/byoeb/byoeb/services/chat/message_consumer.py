@@ -12,6 +12,7 @@ from byoeb.models.message_category import MessageCategory
 from byoeb.factory import ChannelClientFactory
 from byoeb.chat_app.configuration.config import bot_config
 from byoeb_core.models.byoeb.user import User
+from byoeb_core.models.byoeb.message_context import ReplyContext
 from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
@@ -79,9 +80,18 @@ class MessageConsmerService:
         phone_numbers = list(set([message.user.phone_number_id for message in messages]))
         user_ids = list(set([hashlib.md5(number.encode()).hexdigest() for number in phone_numbers]))
         byoeb_users = await self._user_db_service.get_users(user_ids)
+        for message in messages:
+            user = self.__get_user(byoeb_users,message.user.phone_number_id)
+            print("User: ", user)
+            print("Message: ", message)
+            if self.__is_expert_user_type(user.user_type) and message.reply_context.reply_id is None:
+                message.reply_context = ReplyContext(
+                    reply_id=user.last_conversations[0].get("message_id")
+                )
         bot_message_ids = list(
             set(message.reply_context.reply_id for message in messages if message.reply_context.reply_id is not None)
         )
+        print("Bot message ids: ", bot_message_ids)
         bot_messages = await self._message_db_service.get_bot_messages_by_ids(bot_message_ids)
         end_time = datetime.now(timezone.utc).timestamp()
         conversations = []

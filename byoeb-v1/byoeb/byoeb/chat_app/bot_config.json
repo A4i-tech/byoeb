@@ -23,6 +23,10 @@
                 "en": "Reply by tagging the message",
                 "hi": "संदेश को टैग करके जवाब दें"
             },
+            "timeout": {
+                "en": "This question is old. Please try to answer within 2 hours. Thank you.",
+                "hi": "यह सवाल पुराना है। कृपया 2 घंटे के भीतर उत्तर देने का प्रयास करें। धन्यवाद।"
+            },
             "thank_you": {
                 "en": "Thank you for your response.",
                 "hi": "आपके जवाब के लिए धन्यवाद।"
@@ -47,7 +51,7 @@
                             "hi": "कृपया अपना सवाल फिर से पूछें। यदि आपने पहले से किया है, तो इस संदेश को नज़रअंदाज़ करें।"
                         },
                         "send": {
-                            "en": "This question is outside the scope of my current knowledge. Please wait, I will check with our team of ANMs and get back to you with an answer soon.\nIn the meantime, you can ask me any other questions about pregnancy, childcare, or health in general.",
+                            "en": "Please wait, I will check with our team of ANMs and get back to you with an answer soon.\nIn the meantime, you can ask me any other questions about pregnancy, childcare, or health in general.",
                             "hi": "कृपया प्रतीक्षा करें, मैं हमारी ANM टीम से पूछकर जल्द ही जवाब दूंगी।\nइस बीच, आप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।"
                         },
                         "pending": {
@@ -83,8 +87,8 @@
                             "hi": "कृपया अपना सवाल फिर से पूछें। यदि आपने पहले से किया है, तो इस संदेश को नज़रअंदाज़ करें।"
                         },
                         "send": {
-                            "en": "This question is outside the scope of my current knowledge. Please wait, I will check with our team of ANMs and get back to you with an answer soon.\nIn the meantime, you can ask me any other questions about pregnancy, childcare, or health in general.",
-                            "hi": "यह सवाल मेरे वर्तमान ज्ञान से बाहर है। कृपया प्रतीक्षा करें, मैं हमारी ANM टीम से पूछकर जल्द ही जवाब दूंगी।\nइस बीच, आप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।"
+                            "en": "Please wait, I will check with our team of ANMs and get back to you with an answer soon.\nIn the meantime, you can ask me any other questions about pregnancy, childcare, or health in general.",
+                            "hi": "कृपया प्रतीक्षा करें, मैं हमारी ANM टीम से पूछकर जल्द ही जवाब दूंगी।\nइस बीच, आप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।"
                         },
                         "pending": {
                             "en": "Please select one of the options.",

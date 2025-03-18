@@ -20,6 +20,12 @@
             }   
         },
         "user": {
+            "consensus": {
+                "timeout": {
+                    "en": "Please ask your question directly to ANM",
+                    "hi": "कृपया अपना प्रश्न सीधे ANM से पूछें"
+                }
+            },
             "follow_up_questions_description": {
                 "en": "Related questions",
                 "hi": "संबंधित सवाल"
