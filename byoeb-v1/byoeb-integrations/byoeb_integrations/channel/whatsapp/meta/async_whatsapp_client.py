@@ -13,6 +13,7 @@ from byoeb_core.models.whatsapp.requests import (
     WhatsAppTemplateMessage,
     WhatsAppMediaMessage, 
     WhatsAppAudio,
+    WhatsAppVideo,
     WhatsAppReadMessage,
     MediaData
 )
@@ -43,6 +44,7 @@ class WhatsAppMessageTypes(Enum):
     INTERACTIVE = "interactive"
     AUDIO = "audio"
     READ = "read"
+    VIDEO = "video"
 
 class WhatsAppRoutes(Enum):
     MESSAGE = "messages"
@@ -150,6 +152,8 @@ class AsyncWhatsAppClient(ABC):
             return self.asend_template_message
         elif type == WhatsAppMessageTypes.AUDIO.value:
             return self.asend_audio_message
+        elif type == WhatsAppMessageTypes.VIDEO.value:
+            return self.asend_video_message
         elif type == WhatsAppMessageTypes.READ.value:
             return self.amark_as_read
         
@@ -495,6 +499,64 @@ class AsyncWhatsAppClient(ABC):
         )
         return whatsapp_response
     
+    async def asend_video_message(
+        self,
+        payload: dict
+    ) -> WhatsAppResponse:
+        
+        # Upload media
+        whatsapp_video_context = WhatsAppMediaMessage.model_validate(payload)
+        video = whatsapp_video_context.video
+        if video is None:
+            status, response, err = await self._upload_media(
+                whatsapp_video_context.media.data,
+                whatsapp_video_context.media.mime_type
+            )
+            if err:
+                return WhatsAppResponse(
+                    response_status=WhatsAppResponseStatus(
+                        status=str(status),
+                        error=str(err)
+                    ),
+                    messaging_product=whatsapp_video_context.messaging_product,
+                    contacts=[],
+                    messages=[]
+                )
+            video = WhatsAppVideo.model_validate(response)
+
+        # Send media message
+        whatsapp_video_message = WhatsAppMediaMessage(
+            messaging_product=whatsapp_video_context.messaging_product,
+            type=whatsapp_video_context.type,
+            to=whatsapp_video_context.to,
+            video=video,
+            context=whatsapp_video_context.context,
+        )
+        payload = whatsapp_video_message.model_dump()
+        message_url = f"{self.root}/{WhatsAppRoutes.MESSAGE.value}"
+        status, response, err = await self.__post__(message_url, payload)
+        if (status != StatusCode.ACCEPTED.value
+            and status != StatusCode.SUCCESS.value
+        ):
+            return WhatsAppResponse(
+                response_status=WhatsAppResponseStatus(
+                    status=str(status),
+                    error=str(err)
+                ),
+                messaging_product=whatsapp_video_message.messaging_product,
+                contacts=[],
+                messages=[]
+            ), video
+        whatsapp_response = WhatsAppResponse.model_validate(response)
+        whatsapp_response.media_message=MediaMessage(
+            id = video.id
+        )
+        whatsapp_response.response_status=WhatsAppResponseStatus(
+            status=str(status),
+            error=str(err)
+        )
+        return whatsapp_response
+    
     async def amark_as_read(
         self,
         message_id: str
@@ -544,6 +606,7 @@ class AsyncWhatsAppClient(ABC):
         tasks = []
         send_function = self.get_send_function(message_type)
         for payload in payloads:
+            # print(f"Sending message: {payload}")
             tasks.append(send_function(payload))
         responses = await asyncio.gather(*tasks)
         batch_responses = []
