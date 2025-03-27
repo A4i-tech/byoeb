@@ -244,6 +244,38 @@ async def atest_mark_as_read():
     assert ack.success is True
     await whatsapp_client._close()
 
+async def atest_send_video_message():
+    # Get the directory of the current script
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    video_path = os.path.join(current_dir, 'asha.mp4')
+    video_path = os.path.normpath(video_path)
+    video_bytes = None
+    with open(video_path, 'rb') as file:
+        video_bytes = file.read()
+    whatsapp_client = AsyncWhatsAppClient(
+        phone_number_id=WHATSAPP_PHONE_NUMBER_ID,
+        bearer_token=WHATSAPP_AUTH_TOKEN,
+        reuse_client=True
+    )
+    number = "918837701828"
+    message_type = wa_media.WhatsAppMediaTypes.VIDEO.value
+    media_type=wa_media.FileMediaType.VIDEO_MP4.value
+    video_message = wa_media.WhatsAppMediaMessage(
+        messaging_product=whatsapp_client.get_product_name(),
+        to=number,
+        type=message_type,
+        media=wa_media.MediaData(
+            data=video_bytes,
+            mime_type=media_type
+        )
+    )
+    whatsapp_responses = await whatsapp_client.asend_batch_messages([video_message.model_dump()], message_type)
+    media_id = whatsapp_responses[0].media_message.id
+    print(whatsapp_responses)
+    # ack = await whatsapp_client.adelete_media(media_id)
+    # assert ack.success is True
+    await whatsapp_client._close()
+
 async def atest_batch_send_audio_message():
     from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
     from azure.identity import get_bearer_token_provider, DefaultAzureCredential
@@ -368,5 +400,5 @@ if __name__ == "__main__":
     # test_regular_message()
     # test_interactive_message()
     # test_status_message()
-    asyncio.run(atest_batch_send_audio_message())
+    asyncio.run(atest_send_video_message())
 

@@ -16,6 +16,7 @@ from byoeb_core.models.byoeb.message_context import ReplyContext
 from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
+from byoeb.services.user.onboarding import handle_unknown_user
 
 class Conversation(BaseModel):
     user_message: Optional[ByoebMessageContext]
@@ -71,17 +72,22 @@ class MessageConsmerService:
             ),
             None
         )
-
+    
     async def __create_conversations(
         self,
         messages: List[ByoebMessageContext]
     ) -> List[ByoebMessageContext]:
+        conversations = []
+        onboard_convs = []
         start_time = datetime.now(timezone.utc).timestamp()
         phone_numbers = list(set([message.user.phone_number_id for message in messages]))
         user_ids = list(set([hashlib.md5(number.encode()).hexdigest() for number in phone_numbers]))
         byoeb_users = await self._user_db_service.get_users(user_ids)
         for message in messages:
             user = self.__get_user(byoeb_users,message.user.phone_number_id)
+            if user is None:
+                onboard_convs.append(message)
+                continue
             print("User: ", user)
             print("Message: ", message)
             if self.__is_expert_user_type(user.user_type) and message.reply_context.reply_id is None:
@@ -94,9 +100,10 @@ class MessageConsmerService:
         print("Bot message ids: ", bot_message_ids)
         bot_messages = await self._message_db_service.get_bot_messages_by_ids(bot_message_ids)
         end_time = datetime.now(timezone.utc).timestamp()
-        conversations = []
         for message in messages:
             user = self.__get_user(byoeb_users,message.user.phone_number_id)
+            if user is None:
+                continue
             bot_message = self.__get_bot_message(bot_messages, message.reply_context.reply_id)
             conversation = ByoebMessageContext.model_validate(message)
             if user.user_type == self._regular_user_type:
@@ -129,8 +136,18 @@ class MessageConsmerService:
                 conversation.reply_context.reply_id = bot_message.reply_context.reply_id
                 conversation.reply_context.media_info = bot_message.reply_context.media_info
                 conversation.reply_context.reply_type = bot_message.reply_context.reply_type
-            conversations.append(conversation)
-        return conversations
+            
+            if (bot_message.message_category == constants.USER_TYPE
+                or bot_message.message_category == constants.LANGUAGE_SELECTION
+                or bot_message.message_category == constants.CONSENT
+            ):
+                onboard_convs.append(conversation)
+            elif user.user_type is None or user.user_language is None or user.additional_info.get(constants.CONSENT, None) is None:
+                onboard_convs.append(message)
+            else:
+                print(f"Regular conversation: {conversation}")
+                conversations.append(conversation)
+        return conversations, onboard_convs
     
     async def __process_byoebuser_conversation(self, byoeb_message):
         from byoeb.chat_app.configuration.dependency_setup import byoeb_user_process
@@ -184,10 +201,18 @@ class MessageConsmerService:
             byoeb_message = ByoebMessageContext.model_validate(json_message)
             byoeb_messages.append(byoeb_message)
         start_time = datetime.now(timezone.utc).timestamp()
-        conversations = await self.__create_conversations(byoeb_messages)
+        conversations, onboard_convs = await self.__create_conversations(byoeb_messages)
         end_time = datetime.now(timezone.utc).timestamp()
+        print(f"convs len: {len(conversations)}, onboard_convs len: {len(onboard_convs)}")
         utils.log_to_text_file(f"Conversations created in: {end_time - start_time} seconds")
         task = []
+        if onboard_convs is not None and len(onboard_convs) > 0:
+            await handle_unknown_user(
+                messages=onboard_convs,
+                message_db_service=self._message_db_service,
+                user_db_service=self._user_db_service,
+                channel_factory=self._channel_client_factory
+            )
         for conversation in conversations:
             conversation.user.activity_timestamp = str(int(datetime.now(timezone.utc).timestamp()))
             # utils.log_to_text_file("Processing message: " + json.dumps(conversation.model_dump()))
@@ -224,4 +249,5 @@ class MessageConsmerService:
                 }
             )
         utils.log_to_text_file(f"DB queries executed in: {end_time - start_time} seconds")
+        successfully_processed_messages.extend(onboard_convs)
         return successfully_processed_messages
