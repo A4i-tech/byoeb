@@ -136,13 +136,14 @@ class MessageConsmerService:
                 conversation.reply_context.reply_id = bot_message.reply_context.reply_id
                 conversation.reply_context.media_info = bot_message.reply_context.media_info
                 conversation.reply_context.reply_type = bot_message.reply_context.reply_type
-
+            
             if (bot_message.message_category == constants.USER_TYPE
                 or bot_message.message_category == constants.LANGUAGE_SELECTION
                 or bot_message.message_category == constants.CONSENT
             ):
-                print(f"Onboarding conversation: {conversation}")
                 onboard_convs.append(conversation)
+            elif user.user_type is None or user.user_language is None or user.additional_info.get(constants.CONSENT, None) is None:
+                onboard_convs.append(message)
             else:
                 print(f"Regular conversation: {conversation}")
                 conversations.append(conversation)

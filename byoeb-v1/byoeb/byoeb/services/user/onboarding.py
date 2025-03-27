@@ -1,4 +1,5 @@
 import hashlib
+import os
 import byoeb.services.user.constants as user_const
 import byoeb.services.chat.constants as chat_const
 from typing import List
@@ -13,7 +14,8 @@ from byoeb.services.channel.whatsapp import WhatsAppService
 from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from byoeb_core.models.byoeb.user import User
 from datetime import datetime, timezone
-from byoeb_core.convertor.audio_convertor import
+from byoeb_core.convertor.audio_convertor import wav_to_ogg_opus_bytes
+from byoeb_core.models.whatsapp.requests import media_request as wa_media
 
 def get_language_code(language):
     language_dict = {
@@ -123,7 +125,23 @@ def create_consent_message(
         ),
     )
 
-def create_thank_you_message(
+def create_audio(
+    user_lang: str,
+    user_type: str
+):
+    # Get the directory of the current script
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    audio_path = os.path.join(current_dir, 'onboarding', user_lang, f'welcome_messages_{user_type}.wav')
+    audio_path = os.path.normpath(audio_path)
+    audio_bytes = None
+    with open(audio_path, 'rb') as file:
+        audio_bytes = file.read()
+    ogg_bytes = wav_to_ogg_opus_bytes(audio_bytes)
+    media_type=wa_media.FileMediaType.AUDIO_OGG.value
+    return ogg_bytes, media_type
+    
+        
+def create_initial_message(
     message: ByoebMessageContext
 ) -> ByoebMessageContext:
     user_type = message.user.user_type
@@ -138,21 +156,55 @@ def create_thank_you_message(
             "en": "🙏🏽 Namaste from Khushi Baby. We are working on a new program to help ASHA workers with their questions. For more information about this program, please call our helpdesk number +91 77270 79678. Thank you for your support."
         }
     }
-    audio_file = os.
+    related_questions = {
+        "description": {
+            "en": "Suggested Questions",
+            "hi": "सुझाए गए प्रश्न"
+        },
+        "questions": {
+            "en": [
+                "What is the weight of a healthy newborn?",
+                "My friend smokes beedi. Will it harm me?",
+                "What is Antara injection?"
+            ],
+            "hi": [
+                "एक स्वस्थ नवजात का वजन क्या है?",
+                "मेरी दोस्त बीड़ी पीती है। क्या इससे मुझे नुकसान होगा?",
+                "अंतराल इंजेक्शन क्या है?"
+            ]
+        }
+    }
+    audio_bytes, audio_type = create_audio(user_lang, user_type)
     text_message = thank_you_dict[user_type][user_lang]
-    message_type = MessageTypes.REGULAR_TEXT.value
+    if user_type == "anm":
+        message_type = MessageTypes.REGULAR_TEXT.value
+        return ByoebMessageContext(
+            channel_type=message.channel_type,
+            message_category=user_const.THANK_YOU,
+            user=message.user,
+            message_context=MessageContext(
+                message_type=message_type,
+                message_source_text=text_message,
+                additional_info = {
+                    chat_const.DATA: audio_bytes,
+                    chat_const.MIME_TYPE: audio_type,
+                }
+            )
+        )
     return ByoebMessageContext(
         channel_type=message.channel_type,
         message_category=user_const.THANK_YOU,
         user=message.user,
         message_context=MessageContext(
-            message_type=message_type,
+            message_type=MessageTypes.INTERACTIVE_LIST.value,
             message_source_text=text_message,
-        ),
-        reply_context=ReplyContext(
-            reply_id=message.message_context.message_id,
-            message_category=message.message_category,
-        ),
+            additional_info = {
+                chat_const.DESCRIPTION: related_questions["description"][user_lang],
+                chat_const.ROW_TEXTS: related_questions["questions"][user_lang],
+                chat_const.DATA: audio_bytes,
+                chat_const.MIME_TYPE: audio_type,
+            }
+        )
     )
 
 def create_user(
@@ -188,7 +240,7 @@ async def handle_unknown_user(
         raise ValueError("Invalid channel service type")
     for message in messages:
         if message.reply_context is None or message.reply_context.reply_id is None:
-            print(f"onboarding message: {message}")
+            # print(f"onboarding message: {message}")
             byoeb_message = create_onboarding_message(message)
             requests = channel_service.prepare_requests(byoeb_message)
             responses, message_ids = await channel_service.send_requests(requests)
@@ -201,9 +253,12 @@ async def handle_unknown_user(
             user_db_queries = {
                 chat_const.CREATE: [user_db_service.user_create_query(new_user)]
             }
-            await message_db_service.execute_queries(message_db_queries)
-            await user_db_service.execute_queries(user_db_queries)
-        elif  message.reply_context.message_category == chat_const.USER_TYPE:
+            try:
+                await message_db_service.execute_queries(message_db_queries)
+                await user_db_service.execute_queries(user_db_queries)
+            except Exception as e:
+                print(f"Error in onboarding message: {e}")
+        elif message.reply_context.message_category == chat_const.USER_TYPE:
             text = message.message_context.message_source_text
             user_type = get_user_type(text)
             update_user = create_user(
@@ -255,7 +310,8 @@ async def handle_unknown_user(
             user_db_queries = {
                 chat_const.UPDATE: [user_db_service.user_update_query(update_user)]
             }
-            byoeb_message = create_thank_you_message(message)
+            byoeb_message = create_initial_message(message)
+            # print(f"Initial message: {byoeb_message}")
             requests = channel_service.prepare_requests(byoeb_message)
             responses, message_ids = await channel_service.send_requests(requests)
             convs = channel_service.create_conv(byoeb_message, responses)
@@ -264,4 +320,23 @@ async def handle_unknown_user(
             }
             await message_db_service.execute_queries(message_db_queries)
             await user_db_service.execute_queries(user_db_queries)
+        else:
+            print(f"onboarding message: {message}")
+            byoeb_message = create_onboarding_message(message)
+            requests = channel_service.prepare_requests(byoeb_message)
+            responses, message_ids = await channel_service.send_requests(requests)
+            convs = channel_service.create_conv(byoeb_message, responses)
+            new_user = create_user(phone_number_id=message.user.phone_number_id)
+            print(new_user)
+            message_db_queries = {
+                chat_const.CREATE: message_db_service.message_create_queries(convs)
+            }
+            user_db_queries = {
+                chat_const.CREATE: [user_db_service.user_create_query(new_user)]
+            }
+            try:
+                await message_db_service.execute_queries(message_db_queries)
+                await user_db_service.execute_queries(user_db_queries)
+            except Exception as e:
+                print(f"Error in onboarding message: {e}")
     
