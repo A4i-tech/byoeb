@@ -1,6 +1,7 @@
 EMOJI = "emoji"
 VERIFICATION_STATUS = "verification_status"
 STATUS = "status"
+UNKNOWN = "unknown"
 
 DESCRIPTION = "description"
 ROW_TEXTS = "row_texts"
@@ -55,3 +56,8 @@ TRACK_MESSAGE_ID = "track_message_id"
 
 MESSAGE_DB_QUERIES = "message_db_queries"
 USER_DB_QUERIES = "user_db_queries"
+
+USER_TYPE = "user_type"
+LANGUAGE_SELECTION = "language_selection"
+CONSENT = "consent"
+THANK_YOU = "thank_you"

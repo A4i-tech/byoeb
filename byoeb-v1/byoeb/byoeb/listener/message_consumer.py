@@ -2,6 +2,7 @@ import logging
 import asyncio
 import byoeb.utils.utils as utils
 import uuid
+import traceback
 from datetime import datetime
 from byoeb_core.message_queue.base import BaseQueue
 from byoeb.factory import ChannelClientFactory
@@ -149,6 +150,7 @@ class QueueConsumer:
                 )
             except Exception as e:
                 self._logger.error(f"Error logging to app insights: {e}")
+                traceback.print_exc()
             self._logger.info(f"Processing time: {duration} seconds")
             utils.log_to_text_file(f"Processed {len(messages)} message in: {duration} seconds")
             await asyncio.sleep(0.5)

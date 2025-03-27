@@ -42,7 +42,10 @@ class UserMongoDBService(BaseMongoDBService):
         """Fetch multiple users from the database."""
         user_collection_client = await self._get_collection_client(self.collection_name)
         users_obj = await user_collection_client.afetch_all({"_id": {"$in": user_ids}})
-        return [User(**user_obj["User"]) for user_obj in users_obj]
+        try:
+            return [User(**user_obj["User"]) for user_obj in users_obj]
+        except Exception as e:
+            return []
     
     async def get_users_by_type(self, user_type: str) -> List[User]:
         """Fetch users by type."""
@@ -66,6 +69,19 @@ class UserMongoDBService(BaseMongoDBService):
         last_convs.append(qa)
         update_data["$set"]["User.last_conversations"] = last_convs
 
+        return ({"_id": user.user_id}, update_data)
+    
+    def user_create_query(self, user: User):
+        """Generate insert query for user."""
+        return ({
+            "_id": user.user_id,
+            "User": user.model_dump(),
+            "timestamp": str(int(datetime.now(timezone.utc).timestamp()))
+        })
+    
+    def user_update_query(self, user: User):
+        """Generate update query for user."""
+        update_data = {"$set": {"User": user.model_dump()}}
         return ({"_id": user.user_id}, update_data)
     
     def aggregate_queries(

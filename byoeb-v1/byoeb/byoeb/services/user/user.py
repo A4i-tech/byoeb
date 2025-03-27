@@ -217,6 +217,7 @@ class UserService(BaseUserService):
     ) -> List[User]:
         query = {"_id": {"$in": user_ids}}
         documents = await self.__collection_client.afetch_all(query)
+        print(f"Documents: {documents}")
         users_data: List[User] = []
         for document in documents:
             user_data = document['User']
@@ -298,6 +299,10 @@ class UserService(BaseUserService):
     
     async def aupdate(
         self,
-        data: User
+        user: User
     ) -> str:
-        pass
+        update_query = (
+            {"_id": user.user_id},
+            {"$set": {"User": user.model_dump()}}
+        )
+        await self.__collection_client.aupdate(bulk_queries=[update_query])
