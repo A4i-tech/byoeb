@@ -1,5 +1,6 @@
 import asyncio
-import json
+import os
+import sys
 import threading
 from byoeb.services.chat import constants
 from byoeb.services.chat import utils as chat_utils
@@ -162,7 +163,7 @@ async def send_pending_queries_to_expert(
 ):
     waiting_status = constants.WAITING
     experts = await user_db_service.get_users_by_type(EXPERT_TYPE)
-    experts.sort(key=lambda expert: expert.activity_timestamp, reverse=True)
+    experts.sort(key=lambda expert: expert.activity_timestamp or 0, reverse=True)
     messages = await message_db_service.get_bot_messages_by_status(waiting_status)
     for message in messages:
         await send_pending_query_to_expert(
@@ -180,9 +181,13 @@ async def main():
         message_db_service
     )
     print(threading.get_ident())
+    print("PID:", os.getpid())
     whatsapp_service = WhatsAppService(channel_client_factory)
     await send_pending_queries_to_expert(user_db_service, message_db_service, whatsapp_service)
     await channel_client_factory.close()
 
 if __name__ == "__main__":
+    print("start")
     asyncio.run(main())
+    print("end")
+    sys.exit(0)

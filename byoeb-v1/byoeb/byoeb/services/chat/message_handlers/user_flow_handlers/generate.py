@@ -42,7 +42,7 @@ class ByoebUserGenerateResponse(Handler):
         retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
             text,
             k,
-            search_type=AzureVectorSearchType.HYBRID.value,
+            search_type=AzureVectorSearchType.DENSE.value,
             select=["id", "text", "metadata", "related_questions"],
             vector_field="text_vector_3072"
         )
