@@ -1,6 +1,7 @@
 import asyncio
 import re
 import os
+import sys
 import threading
 import datetime
 from byoeb.services.chat import constants
@@ -236,9 +237,13 @@ async def main():
         user_db_service
     )
     print(threading.get_ident())
+    print("PID:", os.getpid())
     whatsapp_service = WhatsAppService(channel_client_factory)
     await process_queries_consensus(message_db_service, user_db_service, whatsapp_service)
     await channel_client_factory.close()
 
 if __name__ == "__main__":
+    print("start")
     asyncio.run(main())
+    print("end")
+    sys.exit(0)

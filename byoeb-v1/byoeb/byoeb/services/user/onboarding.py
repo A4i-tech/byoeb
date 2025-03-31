@@ -163,13 +163,13 @@ def create_initial_message(
         },
         "questions": {
             "en": [
-                "What is the weight of a healthy newborn?",
-                "My friend smokes beedi. Will it harm me?",
+                "How much does a 1-year-old typically weigh?",
+                "What long-term effects does tobacco cause?",
                 "What is Antara injection?"
             ],
             "hi": [
-                "एक स्वस्थ नवजात का वजन क्या है?",
-                "मेरी दोस्त बीड़ी पीती है। क्या इससे मुझे नुकसान होगा?",
+                "1 साल का बच्चा आमतौर पर कितना वज़न रखता है?",
+                "तंबाकू के दीर्घकालिक प्रभाव क्या होते हैं?",
                 "अंतराल इंजेक्शन क्या है?"
             ]
         }
@@ -189,7 +189,11 @@ def create_initial_message(
                     chat_const.DATA: audio_bytes,
                     chat_const.MIME_TYPE: audio_type,
                 }
-            )
+            ),
+            reply_context=ReplyContext(
+                reply_id=message.message_context.message_id,
+                message_category=message.message_category,
+            ),
         )
     return ByoebMessageContext(
         channel_type=message.channel_type,
@@ -204,7 +208,11 @@ def create_initial_message(
                 chat_const.DATA: audio_bytes,
                 chat_const.MIME_TYPE: audio_type,
             }
-        )
+        ),
+        reply_context=ReplyContext(
+            reply_id=message.message_context.message_id,
+            message_category=message.message_category,
+        ),
     )
 
 def create_user(
@@ -311,14 +319,11 @@ async def handle_unknown_user(
                 chat_const.UPDATE: [user_db_service.user_update_query(update_user)]
             }
             byoeb_message = create_initial_message(message)
+            byoeb_message_no_reply = byoeb_message.model_copy(deep=True)
+            byoeb_message_no_reply.reply_context = None
             # print(f"Initial message: {byoeb_message}")
-            requests = channel_service.prepare_requests(byoeb_message)
+            requests = channel_service.prepare_requests(byoeb_message_no_reply)
             responses, message_ids = await channel_service.send_requests(requests)
-            convs = channel_service.create_conv(byoeb_message, responses)
-            message_db_queries = {
-                chat_const.CREATE: message_db_service.message_create_queries(convs)
-            }
-            await message_db_service.execute_queries(message_db_queries)
             await user_db_service.execute_queries(user_db_queries)
         else:
             print(f"onboarding message: {message}")
@@ -327,7 +332,6 @@ async def handle_unknown_user(
             responses, message_ids = await channel_service.send_requests(requests)
             convs = channel_service.create_conv(byoeb_message, responses)
             new_user = create_user(phone_number_id=message.user.phone_number_id)
-            print(new_user)
             message_db_queries = {
                 chat_const.CREATE: message_db_service.message_create_queries(convs)
             }
@@ -339,4 +343,3 @@ async def handle_unknown_user(
                 await user_db_service.execute_queries(user_db_queries)
             except Exception as e:
                 print(f"Error in onboarding message: {e}")
-    
