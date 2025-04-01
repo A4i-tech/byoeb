@@ -63,7 +63,8 @@ def traffic_reroute(phone_number):
         "918837701828",
         "919620833132",
         "919448109028",
-        "918375066113"
+        "918375066113",
+        "917496847981"
     ]
     user = user_db.get_from_whatsapp_id(phone_number)
     if user["whatsapp_id"] in phone_number_ids or user["test_user"] == True:
