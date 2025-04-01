@@ -245,7 +245,8 @@ class UserService(BaseUserService):
                 user_type=user.user_type,
                 experts=user.experts,
                 audience=user.audience,
-                created_timestamp = str(int(datetime.now(timezone.utc).timestamp()))
+                created_timestamp = str(int(datetime.now(timezone.utc).timestamp())),
+                additional_info=user.additional_info,
             )
             byoeb_users.append(new_user)
         json_data_users = self.__prepare_user_insert_data(byoeb_users)
