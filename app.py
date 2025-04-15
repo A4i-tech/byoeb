@@ -162,6 +162,23 @@ def scheduler():
     global pause_queue, queue_lock
     queue_lock.acquire()
     pause_queue = True
+    background_url = "https://khushi-baby-asha-bot-h2byfgceh7fte4ff.swedencentral-01.azurewebsites.net/schedule"
+    try:
+        response = requests.post(background_url)
+        if response.status_code == 202:
+            print("Background job scheduled successfully")
+            app_logger.add_log(
+                event_name="Background job scheduled",
+                details={"response": response.json()},
+            )
+    except requests.exceptions.RequestException as e:
+        error_message = "Error in scheduling: " + str(e)
+        error_message = error_message + "\n" + traceback.format_exc()
+        traceback.print_exc()
+        app_logger.add_log(
+            event_name="app_error",
+            details={"error": error_message},
+        )
 
     # Get the current time in IST
     now = datetime.now(pytz.timezone("Asia/Kolkata"))
