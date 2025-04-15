@@ -123,8 +123,6 @@ def get_user_district_leaderboard_message(leaderboard_hi, district):
 def send_leaderboard(users_df):
     leaderboard_hi = create_leaderboard_hi_messages()
     for _, user_row in users_df.iterrows():
-        if user_row['whatsapp_id'] != "918837701828":
-            continue
         if user_row.get("opt out", False) and not pd.isna(user_row["opt out"]):
             print("User opted out: ", user_row["whatsapp_id"], user_row["opt out"])
             continue
