@@ -17,8 +17,8 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 jobs_path = os.path.join(current_dir, '..', 'background_jobs')
 jobs_path = os.path.normpath(jobs_path)
 background_jobs = [
-    f"* * * * * exec python3 {jobs_path}/consensus/respond_with_consensus.py; exit",
-    f"* * * * * exec python3 {jobs_path}/consensus/send_query_to_expert.py; exit"
+    f"*/30 * * * * exec python3 {jobs_path}/consensus/respond_with_consensus.py; exit",
+    f"00 8-20 * * * exec python3 {jobs_path}/consensus/send_query_to_expert.py; exit"
 ]
 pids = []
 
