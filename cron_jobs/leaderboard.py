@@ -20,6 +20,14 @@ from email.mime.text import MIMEText
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
+EVENT_NAME = "leaderboard"
+user_db = UserDB(config)
+user_conv_db = UserConvDB(config)
+bot_conv_db = BotConvDB(config)
+app_logger = AppLogger()
+messenger = WhatsappMessenger(config, app_logger)
+template_name = "leaderboard"
+
 def extract_onboarding_count(onboarding_responses_df, user_ids):
     num_yes = len(user_ids.intersection(set(onboarding_responses_df[onboarding_responses_df["message_source_lang"] == "हाँ"]["user_id"])))
     num_no = len(user_ids.intersection(set(onboarding_responses_df[onboarding_responses_df["message_source_lang"] == "नहीं"]["user_id"])))
@@ -107,6 +115,62 @@ def create_leaderboard_hi_messages():
     # body = "\n".join(formatted_entries)
     # return header + body
 
+def get_user_district_leaderboard_message(leaderboard_hi, district):
+    if district is None or pd.isna(district):
+        return leaderboard_hi.get("Udaipur", None)
+    return leaderboard_hi.get(district, None)
+
+def send_leaderboard(users_df):
+    leaderboard_hi = create_leaderboard_hi_messages()
+    for _, user_row in users_df.iterrows():
+        if user_row['whatsapp_id'] != "918837701828":
+            continue
+        if user_row.get("opt out", False) and not pd.isna(user_row["opt out"]):
+            print("User opted out: ", user_row["whatsapp_id"], user_row["opt out"])
+            continue
+        try:
+            user_leaderboard = get_user_district_leaderboard_message(leaderboard_hi, user_row["District"])
+            param_list = user_leaderboard.split("\n")
+            sent_msg_id = messenger.send_template(
+                user_row["whatsapp_id"],
+                template_name,
+                user_row["user_language"],
+                param_list,
+                None
+            )
+
+            bot_conv_db.insert_row(
+                receiver_id=user_row["user_id"],
+                message_type=EVENT_NAME,
+                message_id=sent_msg_id,
+                audio_message_id=None,
+                message_source_lang="en",
+                message_language=user_row["user_language"],
+                message_english=None,
+                reply_id=None,
+                citations=None,
+                message_timestamp=datetime.datetime.now(),
+                transaction_message_id=None
+            )
+        except Exception as e:
+            print("Error in sending fact: ", str(e))
+            app_logger.add_log(event_name=EVENT_NAME, details={"message": f"Error in sending fact: {str(e)} for user: {user_row['user_id']}"})
+
+def send_leaderboard_to_asha():
+    users = user_db.get_all_users(user_type="Asha")
+    # users = [user_db.get_from_whatsapp_id('918837701828')]
+    user_df = pd.DataFrame(users)
+    if "Location" in user_df.columns:
+        location_df = pd.json_normalize(user_df["Location"])  # Flatten Location into columns
+        user_df = pd.concat([user_df.drop(columns=["Location"]), location_df], axis=1)  # Combine
+
+    app_logger.add_log(event_name=EVENT_NAME, details={"message": f"Total users: {len(users)}"})
+    try:
+        send_leaderboard(user_df)
+        app_logger.add_log(event_name=EVENT_NAME, details={"message": "Successfully sent facts to Asha"})
+    except Exception as e:
+        print("Error in sending facts to Asha: ", str(e))
+        app_logger.add_log(event_name=EVENT_NAME, details={"message": f"Error in sending facts to Asha: {str(e)}"})
+
 if __name__ == "__main__":
-    messages = create_leaderboard_hi_messages()
-    print(messages)
+    send_leaderboard_to_asha()
