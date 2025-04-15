@@ -172,7 +172,7 @@ def get_sheet_id(SCOPES, spreadsheet_id, sheet_name, local_path):
             return sheet_id
     
     print(f"Sheet name '{sheet_name}' not found.")
-    return sheet_id
+    return None
 
 def get_sheet_names(SCOPES, spreadsheet_id, local_path):
     creds = gsheet_api_check(SCOPES, local_path)
