@@ -21,13 +21,14 @@ def get_language_code(language):
     language_dict = {
         "हिंदी": "hi",
         "English": "en",
+        "मराठी": "mr",
     }
     if language in language_dict:
         return language_dict[language]
 
 def get_consent(choice):
-    yes = ["हाँ", "Yes"]
-    no = ["नहीं", "No"]
+    yes = ["हाँ", "Yes", "होय"]
+    no = ["नहीं", "No" "नाही"]
     if choice in yes:
         return True
     elif choice in no:
@@ -54,6 +55,10 @@ def create_user_selection_message(
             "text": "🙏🏽 Namaste! I am ASHA Saheli from Khushi Baby. Who are you?",
             "options": ["Asha", "ANM"]
         },
+        "mr": {
+            "text": "🙏🏽 नमस्कार! मी खुशी बेबी कडून आशा सहेली आहे. तुम्ही कोण आहात?",
+            "options": ["आशा", "नर्सदीदी / ए.एन.एम"]
+        },
     }
     text_message = message_dict[user_lang]["text"]
     text_options = message_dict[user_lang]["options"]
@@ -79,8 +84,8 @@ def create_user_selection_message(
 def create_language_selection_message(
     message: ByoebMessageContext
 ) -> ByoebMessageContext:
-    text_message = "अपनी भाषा का चयन करें।"
-    lang_list = ["हिंदी", "English"]
+    text_message = "अपनी भाषा का चयन करें। \n Select your language"
+    lang_list = ["हिंदी", "English", "मराठी"]
     interactive_list_additional_info = {
         chat_const.DESCRIPTION: "भाषा चुनें:",
         chat_const.ROW_TEXTS: lang_list,
@@ -114,6 +119,10 @@ def create_consent_message(
             "en": {
                 "text": """I am ASHA Saheli, a free-of-charge, 24x7 tool offered by Khushi Baby. I am here to answer any questions you have about your work as an ASHA.\nResearchers will log and analyze your messages only for research purposes, and won't share it with any ANM, CHO, or government official. If you agree, please click 'Yes' or continue to send me messages; otherwise, say 'No.'""",
                 "options": ["Yes", "No"]
+            },
+            "mr": {
+                "text": """मी आशा सहेली आहे, खुशी बेबी कडून मोफत उपलब्ध असलेला 24x7 टूल. मी तुमच्या आशा कार्याशी संबंधित कोणत्याही प्रश्नाचे उत्तर देण्यासाठी येथे आहे.\nशोधक फक्त संशोधन उद्देशांसाठी तुमच्या संदेशांचे रेकॉर्ड आणि विश्लेषण करतील, आणि ते कोणत्याही एएनएम, सीएचओ किंवा सरकारी अधिकाऱ्यांबरोबर सामायिक करणार नाहीत. तुम्ही सहमत असाल तर कृपया 'होय' वर क्लिक करा किंवा मला संदेश पाठवणे सुरू ठेवा; अन्यथा, 'नाही' सांगा.""",
+                "options": ["होय", "नाही"]
             }
         },
         "anm": {
@@ -124,6 +133,10 @@ def create_consent_message(
             "en": {
                 "text": """I am ASHA Saheli, a free-of-charge, 24x7 tool offered by Khushi Baby. I am here to answer any questions ASHAs have about their work. Whenever I do not know the answer to an ASHA's question, I will request you for help.\nResearchers will log and analyze your messages only for research purposes, and won't share it with any ASHA, CHO, or government official. If you agree, please click 'Yes' or continue to send me messages; otherwise, say 'No.'""",
                 "options": ["Yes", "No"]
+            },
+            "mr": {
+                "text": """मी आशा सहेली आहे, खुशी बेबी कडून मोफत उपलब्ध असलेला 24x7 टूल. मी आशांच्या कार्याशी संबंधित कोणत्याही प्रश्नाचे उत्तर देण्यासाठी येथे आहे. जेव्हा मला एखाद्या आशा च्या प्रश्नाचे उत्तर माहित नसते, तेव्हा मी तुमच्याकडून मदतीची विनंती करीन.\nशोधक फक्त संशोधन उद्देशांसाठी तुमच्या संदेशांचे रेकॉर्ड आणि विश्लेषण करतील, आणि ते कोणत्याही आशा, सीएचओ किंवा सरकारी अधिकाऱ्यांबरोबर सामायिक करणार नाहीत. तुम्ही सहमत असाल तर कृपया 'होय' वर क्लिक करा किंवा मला संदेश पाठवणे सुरू ठेवा; अन्यथा, 'नाही' सांगा.""",
+                "options": ["होय", "नाही"]
             }
         }  
     }
@@ -172,17 +185,20 @@ def create_initial_message(
     thank_you_dict = {
         "asha": {
             "hi": "आप मुझसे गर्भावस्था, शिशु देखभाल और सामान्य स्वास्थ्य से जुड़े किसी भी प्रश्न को टाइप करके या वॉयस मैसेज 🎙️ भेजकर पूछ सकते हैं। \nआपकी बातचीत मुझसे गोपनीय रहेगी। यदि मुझे आपके किसी प्रश्न का उत्तर नहीं पता होगा, तो मैं इसे एएनएम को भेजूंगी। हालांकि, एएनएम को यह नहीं पता चलेगा कि प्रश्न किस आशा ने पूछा है।\nइसलिए, बिना किसी झिझक के मुझसे अपने सभी प्रश्न पूछें।",
-            "en": "You can ask me any question about pregnancy, childcare, and health in general, by typing or sending me a voice message 🎙️.\nYour conversation with me is private. If I don't know the answer to a question you ask me, I will send it to an ANM. However, the ANM won't know the identity of the ASHA who asked the question. Feel free to ask any questions to me without hesitation."
+            "en": "You can ask me any question about pregnancy, childcare, and health in general, by typing or sending me a voice message 🎙️.\nYour conversation with me is private. If I don't know the answer to a question you ask me, I will send it to an ANM. However, the ANM won't know the identity of the ASHA who asked the question. Feel free to ask any questions to me without hesitation.",
+            "mr": "तुम्ही गर्भावस्था, शिशु देखभाल आणि आरोग्याबद्दल कोणतेही प्रश्न मला टाइप करून किंवा वॉयस मेसेज 🎙️ पाठवून विचारू शकता.\nतुमची माझ्याशी गोपनीयता राहील. जर मला तुमच्या विचारलेल्या प्रश्नाचे उत्तर माहित नसेल तर मी ते एएनएम कडे पाठवीन. तथापि, एएनएमला प्रश्न कोणत्या आशाने विचारला हे माहित होणार नाही.\nम्हणजेच, तुम्ही कोणतीही शंका मनाशी ठेऊ नका आणि मला विचारा."
         },
         "anm": {
             "hi": "यदि मुझे किसी आशा के प्रश्न का उत्तर नहीं पता होगा, तो मैं आपसे सहायता मांगूंगी। आप अपने उत्तर टाइप करके या वॉयस मैसेज 🎙️ भेजकर दे सकते हैं।\nआपकी बातचीत मुझसे गोपनीय रहेगी। बिना किसी झिझक के अपने उत्तर साझा करें।",
-            "en": "Whenever I do not know the answer to an ASHA's question, I will request you for help. You can answer the questions by typing or sending me a voice message 🎙️.\nYour conversation with me is private. Feel free to share any answers without hesitation."
+            "en": "Whenever I do not know the answer to an ASHA's question, I will request you for help. You can answer the questions by typing or sending me a voice message 🎙️.\nYour conversation with me is private. Feel free to share any answers without hesitation.",
+            "mr": "जेव्हा मला एखाद्या आशा च्या प्रश्नाचे उत्तर माहित नसते, तेव्हा मी तुमच्याकडून मदतीची विनंती करीन. तुम्ही प्रश्नांचे उत्तर टाइप करून किंवा वॉयस मेसेज 🎙️ पाठवून देऊ शकता.\nतुमची माझ्याशी गोपनीयता राहील. तुम्ही कोणतीही शंका मनाशी ठेऊ नका आणि तुमचे उत्तर द्या."
         }
     }
     related_questions = {
         "description": {
             "en": "Suggested Questions",
-            "hi": "सुझाए गए प्रश्न"
+            "hi": "सुझाए गए प्रश्न",
+            "mr": "सूचवलेले प्रश्न"
         },
         "questions": {
             "en": [
@@ -194,6 +210,11 @@ def create_initial_message(
                 "1 साल का बच्चा आमतौर पर कितना वज़न रखता है?",
                 "तंबाकू के दीर्घकालिक प्रभाव क्या होते हैं?",
                 "अंतराल इंजेक्शन क्या है?"
+            ],
+            "mr": [
+                "1 वर्षाचा मुलगा सामान्यतः किती वजन ठेवतो?",
+                "तंबाकूचे दीर्घकालीन परिणाम काय आहेत?",
+                "अंतराल इंजेक्शन म्हणजे काय?"
             ]
         }
     }

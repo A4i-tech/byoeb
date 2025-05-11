@@ -27,6 +27,15 @@ class ByoebUserProcess(Handler):
         ]
         return augmented_prompts
     
+    def _get_system_prompt(self, user_language: str) -> str:
+        task_description = bot_config["llm_response"]["translation_and_rewrite_prompts"]["system_prompt"]["task_description"]
+        query_translate = bot_config["llm_response"]["translation_and_rewrite_prompts"]["system_prompt"]["query_translate"][user_language]
+        query_rewrtie = bot_config["llm_response"]["translation_and_rewrite_prompts"]["system_prompt"]["query_rewrite"]
+        query_classify = bot_config["llm_response"]["translation_and_rewrite_prompts"]["system_prompt"]["query_classify"]
+        output = bot_config["llm_response"]["translation_and_rewrite_prompts"]["system_prompt"]["output"]
+        system_prompt = task_description + "\n" + query_translate + "\n" + query_rewrtie + "\n" + query_classify + "\n" + output
+        return system_prompt
+    
     def _create_conversation_history(self, last_conversations: List[Dict[str, Any]]) -> str:
         conversation_history = []
         curr_time = datetime.now(timezone.utc).timestamp()
@@ -71,7 +80,7 @@ class ByoebUserProcess(Handler):
         source_text = messages.message_context.message_source_text
         conversation_history = self._create_conversation_history(messages.user.last_conversations)
         conversation_history_str = ", ".join(conversation_history)
-        system_prompt = bot_config["llm_response"]["translation_and_rewrite_prompts"]["system_prompt"]
+        system_prompt = self._get_system_prompt(messages.user.user_language)
         template_user_prompt = bot_config["llm_response"]["translation_and_rewrite_prompts"]["user_prompt"]
         user_prompt = template_user_prompt.replace("<QUERY>", source_text).replace("<CONVERSATION_HISTORY>", conversation_history_str)
         augmented_prompts = self.__augment(system_prompt, user_prompt)
@@ -149,7 +158,7 @@ class ByoebUserProcess(Handler):
         message.message_context.message_english_text = query_en_addcontext
         message.message_context.additional_info = {
             constants.QUERY_TYPE: query_type,
-            self.QUERY_EN: query_en,
+            constants.QUERY_EN: query_en,
             constants.CONV_HISTORY: self._create_conversation_history(message.user.last_conversations)
         }
         return message
