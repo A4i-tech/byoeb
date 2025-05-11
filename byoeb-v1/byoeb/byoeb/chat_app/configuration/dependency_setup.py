@@ -92,11 +92,24 @@ text_translator = AsyncAzureTextTranslator(
 # Speech translator
 # TODO: factory implementation
 from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
+voice_dict = {
+    "male": {
+        "en-IN": "en-IN-PrabhatNeural",
+        "hi-IN": "hi-IN-MadhurNeural",
+        "mr-IN": "mr-IN-ManoharNeural"
+    },
+    "female": {
+        "en-IN": "en-IN-NeerjaNeural",
+        "hi-IN": "hi-IN-SwaraNeural",
+        "mr-IN": "mr-IN-AarohiNeural"
+    }
+}
 speech_translator = AsyncAzureSpeechTranslator(
     token_provider=token_provider,
     region=app_config["translators"]["speech"]["azure_cognitive"]["region"],
     resource_id=app_config["translators"]["speech"]["azure_cognitive"]["resource_id"],
 )
+speech_translator.change_voice_dict(voice_dict)
 
 from byoeb_integrations.translators.speech.azure.async_azure_openai_whisper import AsyncAzureOpenAIWhisper
 speech_translator_whisper = AsyncAzureOpenAIWhisper(

@@ -3,6 +3,7 @@ import byoeb.services.chat.constants as constants
 import re
 import byoeb.utils.utils as utils
 import random
+from rapidfuzz.fuzz import ratio
 from datetime import datetime, timezone
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 from typing import List, Dict, Any
@@ -49,7 +50,15 @@ class ByoebUserGenerateResponse(Handler):
         end_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Retrieved chunks in {end_time - start_time} seconds")
         return retrieved_chunks
-        
+    
+    def _get_system_prompt(self, user_language: str) -> str:
+        task_description = bot_config["llm_response"]["answer_prompts"]["system_prompt"]["task_description"]
+        response_generate = bot_config["llm_response"]["answer_prompts"]["system_prompt"]["response_generate"]
+        response_translate = bot_config["llm_response"]["answer_prompts"]["system_prompt"]["response_translate"][user_language]
+        output = bot_config["llm_response"]["answer_prompts"]["system_prompt"]["output"]
+        system_prompt = task_description + "\n" + response_generate + "\n" + response_translate + "\n" + output
+        return system_prompt
+      
     def __augment(
         self,
         system_prompt,
@@ -439,6 +448,7 @@ class ByoebUserGenerateResponse(Handler):
     )
     async def agenerate_answer(
         self,
+        user_language: str,
         query,
         query_type,
         retrieved_chunks: List[Chunk],
@@ -447,7 +457,7 @@ class ByoebUserGenerateResponse(Handler):
             # Patterns for extracting response_en and response_hi
             patterns = {
                 "response_en": r"<response_en\s*>(.*?)</response_en\s*>",
-                "response_hi": r"<response_hi\s*>(.*?)</response_hi\s*>",
+                "response_src": r"<response_src\s*>(.*?)</response_src\s*>",
             }
 
             extracted_data = {}
@@ -455,14 +465,14 @@ class ByoebUserGenerateResponse(Handler):
                 match = re.search(pattern, xml_string, re.DOTALL | re.IGNORECASE)  # Supports multiline and case-insensitive matches
                 extracted_data[key] = match.group(1).strip() if match else None  # Strip removes extra spaces and newlines
 
-            return extracted_data["response_en"], extracted_data["response_hi"]
+            return extracted_data["response_en"], extracted_data["response_src"]
         
         update_kb = [chunk.text for chunk in retrieved_chunks if "KB Updated" in chunk.metadata.source]
         raw_kb = [chunk.text for chunk in retrieved_chunks if "KB Updated" not in chunk.metadata.source]
         update_kb_list = ", ".join(update_kb)
         raw_kb_list = ", ".join(raw_kb)
 
-        system_prompt = bot_config["llm_response"]["answer_prompts"]["system_prompt"]
+        system_prompt = self._get_system_prompt(user_language)
         template_user_prompt = bot_config["llm_response"]["answer_prompts"]["user_prompt"]
         # Replace placeholders with actual values
         
@@ -502,18 +512,22 @@ class ByoebUserGenerateResponse(Handler):
             raise ValueError("Parsing failed, next_questions.")
         return next_questions
     
-    def get_follow_up_questions(
+    def get_related_questions(
         self,
         user_lang_code: str,
         retrieved_chunks: List[Chunk],
+        message_english
     ):
         all_questions = []
-
         # Collect all related questions from all chunks
         for retrieved_chunk in retrieved_chunks:
-            related_questions = retrieved_chunk.related_questions.get(user_lang_code)
-            if related_questions:
-                all_questions.extend(related_questions)
+            related_questions_en = retrieved_chunk.related_questions.get("en")
+            related_questions_src = retrieved_chunk.related_questions.get(user_lang_code)
+            for i, related_question_en in enumerate(related_questions_en):
+                related_question_src = related_questions_src[i]
+                if ratio(related_question_en, message_english) > 70:
+                    continue
+                all_questions.append(related_question_src)
 
         # Filter questions based on length constraint
         valid_questions = [q for q in all_questions if len(q) < 70]
@@ -543,6 +557,7 @@ class ByoebUserGenerateResponse(Handler):
             )
         else:
             message_english = message.message_context.message_english_text
+            user_language = message.user.user_language
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
             start_time = datetime.now(timezone.utc).timestamp()
             retrieved_chunks = await self.__aretrieve_chunks(message_english, k=3)
@@ -555,10 +570,10 @@ class ByoebUserGenerateResponse(Handler):
                 }
             )
             start_time = datetime.now(timezone.utc).timestamp()
-            response_en, response_source, tokens = await self.agenerate_answer(message_english, query_type, retrieved_chunks)
+            response_en, response_source, tokens = await self.agenerate_answer(user_language, message_english, query_type, retrieved_chunks)
             if message.user.user_language == "en":
                 response_source = response_en
-            related_questions = self.get_follow_up_questions(message.user.user_language, retrieved_chunks)
+            related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks, message.message_context.additional_info.get(constants.QUERY_EN))
             end_time = datetime.now(timezone.utc).timestamp()
             app_insights_logger.add_log(
                 event_name="generate_answer_and_related_questions",
