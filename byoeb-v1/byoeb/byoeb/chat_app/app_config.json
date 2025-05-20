@@ -70,7 +70,7 @@
         "azure": {
             "account_url": "https://khushibabyashastorage.queue.core.windows.net",
             "queue_status": "statusmessages",
-            "queue_bot": "botmessagestest",
+            "queue_bot": "botmessages",
             "dead_letter_queue": "deadletterqueue",
             "messages_per_page": 5,
             "visibility_timeout": 120,
