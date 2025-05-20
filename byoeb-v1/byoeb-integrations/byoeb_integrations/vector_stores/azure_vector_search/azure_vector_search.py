@@ -217,14 +217,18 @@ class AzureVectorStore(BaseVectorStore):
 
         for result in results:
             azure_search_result = AzureSearchNode(**result)
-            chunk = Chunk(
-                chunk_id=azure_search_result.id,
-                text=azure_search_result.text,
-                metadata=Chunk_metadata(
+            if azure_search_result.metadata is None:
+                metadata = None
+            else:
+                metadata = Metadata(
                     source=azure_search_result.metadata.source,
                     creation_timestamp=azure_search_result.metadata.creation_timestamp,
                     update_timestamp=azure_search_result.metadata.update_timestamp
-                ),
+                )
+            chunk = Chunk(
+                chunk_id=azure_search_result.id,
+                text=azure_search_result.text,
+                metadata=metadata,
                 related_questions=azure_search_result.related_questions
             )
             chunk_list.append(chunk)

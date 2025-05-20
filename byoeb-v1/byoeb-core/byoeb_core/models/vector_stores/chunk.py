@@ -21,6 +21,6 @@ class Chunk_metadata(BaseModel):
 class Chunk(BaseModel):
     # Mandatory fields
     chunk_id: str = Field(..., description="Unique identifier for the chunk")
-    text: str = Field(..., description="Content of the chunk")
+    text: Optional[str] = Field(None, description="Content of the chunk")
     metadata: Optional[Chunk_metadata] = Field(None, description="Metadata associated with the chunk")
     related_questions: Optional[dict] = Field({}, description="Related questions for the chunk")
