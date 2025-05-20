@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import byoeb.services.chat.constants as constants
 import re
@@ -43,12 +44,30 @@ class ByoebUserGenerateResponse(Handler):
         retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
             text,
             k,
-            search_type=AzureVectorSearchType.DENSE.value,
+            search_type=AzureVectorSearchType.HYBRID.value,
             select=["id", "text", "metadata", "related_questions"],
             vector_field="text_vector_3072"
         )
         end_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Retrieved chunks in {end_time - start_time} seconds")
+        return retrieved_chunks
+    
+    async def _retrieve_top_k_chunks_for_related_questions(
+        self,
+        text,
+        k
+    ) -> List[Chunk]:
+        from byoeb.chat_app.configuration.dependency_setup import vector_store
+        start_time = datetime.now(timezone.utc).timestamp()
+        retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
+            text,
+            k,
+            search_type=AzureVectorSearchType.DENSE.value,
+            select=["id", "metadata", "related_questions"],
+            vector_field="text_vector_3072"
+        )
+        end_time = datetime.now(timezone.utc).timestamp()
+        utils.log_to_text_file(f"Retrieved chunks for related questions in {end_time - start_time} seconds")
         return retrieved_chunks
     
     def _get_system_prompt(self, user_language: str) -> str:
@@ -516,26 +535,25 @@ class ByoebUserGenerateResponse(Handler):
         self,
         user_lang_code: str,
         retrieved_chunks: List[Chunk],
-        message_english
+        message_src
     ):
-        all_questions = []
+        all_questions = set()
         # Collect all related questions from all chunks
         for retrieved_chunk in retrieved_chunks:
-            related_questions_en = retrieved_chunk.related_questions.get("en")
-            related_questions_src = retrieved_chunk.related_questions.get(user_lang_code)
-            for i, related_question_en in enumerate(related_questions_en):
-                related_question_src = related_questions_src[i]
-                if ratio(related_question_en, message_english) > 70:
+            related_questions = retrieved_chunk.related_questions.get(user_lang_code)
+            if not related_questions:
+                continue
+
+            for related_question in related_questions:
+                if ratio(related_question, message_src) > 70:
                     continue
-                all_questions.append(related_question_src)
+                all_questions.add(related_question)
 
-        # Filter questions based on length constraint
+        # Filter and shuffle
         valid_questions = [q for q in all_questions if len(q) < 70]
-
-        # Shuffle and pick up to 3
         random.shuffle(valid_questions)
-        
-        return valid_questions[:3]  # Return at most 3 questions
+
+        return valid_questions[:3]
     
     async def __handle_message_generate_workflow(
         self,
@@ -560,7 +578,12 @@ class ByoebUserGenerateResponse(Handler):
             user_language = message.user.user_language
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
             start_time = datetime.now(timezone.utc).timestamp()
-            retrieved_chunks = await self.__aretrieve_chunks(message_english, k=3)
+            retrieved_chunks_task = self.__aretrieve_chunks(message_english, k=3)
+            retrieved_chunks_related_questions_task = self._retrieve_top_k_chunks_for_related_questions(message_english, k=10)
+            retrieved_chunks, retrieved_chunks_related_questions = await asyncio.gather(
+                retrieved_chunks_task,
+                retrieved_chunks_related_questions_task
+            )
             end_time = datetime.now(timezone.utc).timestamp()
             app_insights_logger.add_log(
                 event_name="retrieve_chunks",
@@ -573,7 +596,7 @@ class ByoebUserGenerateResponse(Handler):
             response_en, response_source, tokens = await self.agenerate_answer(user_language, message_english, query_type, retrieved_chunks)
             if message.user.user_language == "en":
                 response_source = response_en
-            related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks, message.message_context.additional_info.get(constants.QUERY_EN))
+            related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
             end_time = datetime.now(timezone.utc).timestamp()
             app_insights_logger.add_log(
                 event_name="generate_answer_and_related_questions",
