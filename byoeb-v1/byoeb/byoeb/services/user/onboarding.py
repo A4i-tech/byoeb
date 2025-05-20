@@ -84,8 +84,8 @@ def create_user_selection_message(
 def create_language_selection_message(
     message: ByoebMessageContext
 ) -> ByoebMessageContext:
-    text_message = "अपनी भाषा का चयन करें। \n Select your language"
-    lang_list = ["हिंदी", "English", "मराठी"]
+    text_message = "अपनी भाषा का चयन करें। \n तुमची भाषा निवडा \n Select your language"
+    lang_list = ["हिंदी", "मराठी", "English"]
     interactive_list_additional_info = {
         chat_const.DESCRIPTION: "भाषा चुनें:",
         chat_const.ROW_TEXTS: lang_list,
