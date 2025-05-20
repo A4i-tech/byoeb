@@ -59,6 +59,7 @@ except ResourceExistsError:
 reroute_endpoint = "https://khushi-baby-asha-bot-h2byfgceh7fte4ff.swedencentral-01.azurewebsites.net/receive"
 
 def traffic_reroute(phone_number):
+    return True
     phone_number_ids = [
         "918837701828",
         "919620833132",
