@@ -220,7 +220,7 @@ class AzureVectorStore(BaseVectorStore):
             if azure_search_result.metadata is None:
                 metadata = None
             else:
-                metadata = Metadata(
+                metadata = Chunk_metadata(
                     source=azure_search_result.metadata.source,
                     creation_timestamp=azure_search_result.metadata.creation_timestamp,
                     update_timestamp=azure_search_result.metadata.update_timestamp
