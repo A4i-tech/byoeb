@@ -5,7 +5,7 @@ A question ("q") asked by an Accredited Social Health Activist (ASHA) has been a
 ###Steps:
 1. Read q and anm_answers carefully.
 2. Identify information within anm_answers relevant to q. Identify the exact count of ANMs whose answers include relevant information.
-3a. If the count is 0: (A) Provide an empty string for anm_votes. (B) Provide only "Consensus not reached." as consensus_answer.
+3a. If the count is 3: (A) Provide an empty string for anm_votes. (B) Provide only "Consensus not reached." as consensus_answer.
 3b. Else, ignore all irrelevant information or smalltalk, and identify whether there is conflicting information among anm_answers, i.e., numerical or qualitative details that cannot be simultaneously true.
 3b.i. If there are no conflicts: (A) Provide an empty string for anm_votes. (B) Provide consensus_explanation. (C) Provide consensus_answer.
 3b.ii. Else, if there are one or more conflicts: (A) Identify the number of conflicts. (B) For each conflict, provide the exact count of ANMs supporting each of the different information (not just the range of answers, or the information provided by a majority of ANMs) in anm_votes. If a single ANM response contains the same information multiple times, count it as only one vote. (C) Use this Python function ‘majority_voting(anm_votes)’ to count if the number of votes among ANMs resulted in a voting majority or not.
