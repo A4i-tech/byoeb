@@ -23,11 +23,12 @@ from byoeb_core.models.byoeb.message_context import (
 from byoeb.background_jobs.consensus.config import bot_config, app_config
 from byoeb.models.message_category import MessageCategory
 from byoeb.models.consensus import Consensus
+from byoeb.background_jobs.consensus.consensus_prompt import consensus_prompt
 
-curr_dir = os.path.dirname(os.path.abspath(__file__))
-consensus_prompt_path = os.path.join(curr_dir, "consensus_prompt.txt")
-with open(consensus_prompt_path, "r") as f:
-    consensus_prompt = f.read()
+# curr_dir = os.path.dirname(os.path.abspath(__file__))
+# consensus_prompt_path = os.path.join(curr_dir, "consensus_prompt.txt")
+# with open(consensus_prompt_path, "r") as f:
+#     consensus_prompt = f.read()
 
 EXPERT_TYPE = "anm"
 CONSENSUS = "consensus"
