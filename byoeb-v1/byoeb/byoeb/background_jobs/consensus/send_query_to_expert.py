@@ -163,12 +163,12 @@ async def send_pending_queries_to_expert(
     waiting_status = constants.WAITING
     experts = await user_db_service.get_users_by_type(EXPERT_TYPE)
     experts.sort(key=lambda expert: expert.activity_timestamp or 0, reverse=True)
-    experts = [expert for expert in experts if expert.phone_number_id == "918904954952"]
+    # experts = [expert for expert in experts if expert.phone_number_id == "918904954952"]
     messages = await message_db_service.get_bot_messages_by_status(waiting_status)
     for message in messages:
-        if message.user.phone_number_id != "918837701828":
-            continue
-        print(message.reply_context.reply_id)
+        # if message.user.phone_number_id != "918837701828":
+        #     continue
+        # print(message.reply_context.reply_id)
         await send_pending_query_to_expert(
             whatsapp_service,
             message,
