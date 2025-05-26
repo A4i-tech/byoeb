@@ -151,8 +151,8 @@ async def send_pending_query_to_expert(
         message,
         message_db_service
     )
-    # await user_db_service.execute_queries(user_db_queries)
-    # await message_db_service.execute_queries(message_db_queries)
+    await user_db_service.execute_queries(user_db_queries)
+    await message_db_service.execute_queries(message_db_queries)
     
 
 async def send_pending_queries_to_expert(
