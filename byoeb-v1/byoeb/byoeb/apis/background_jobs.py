@@ -38,7 +38,7 @@ async def schedule(request: Request):
     now = datetime.now(pytz.timezone("Asia/Kolkata"))
     print("Current time: ", now)
     # Round the time to the nearest half hour
-    minutes = (now.minute // 5) * 5 
+    minutes = (now.minute // 5) * 5
     rounded_now = now.replace(minute=minutes, second=0, microsecond=0)
     for background_job in background_jobs:
         # Parse the cron schedule

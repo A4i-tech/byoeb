@@ -1,0 +1,58 @@
+{
+    "app":{
+        "batch_size": 5,
+        "azure_cognitive_endpoint": "https://cognitiveservices.azure.com/.default",
+        "db_provider": "azure_cosmos_mongo_db",
+        "history_length": 3,
+        "max_last_active_duration_seconds": 80000
+    },
+    "channel": {
+        "whatsapp": {
+            "allowed_message_types": [
+                "audio",
+                "text"
+            ],
+            "reuse_client": true
+        }
+    },
+    "databases": {
+        "mongo_db":
+        {
+            "provider_type": "azure_cosmos_mongo_db",
+            "database_name": "ashadb",
+            "user_collection": "ashausers",
+            "message_collection": "ashamessages"
+        }
+    },
+    "llms": {
+        "azure": {
+            "model": "gpt-4o",
+            "endpoint": "https://khushi-baby-asha-oai.openai.azure.com/",
+            "deployment_name": "gpt-4o",
+            "api_version": "2023-03-15-preview"
+        },
+        "openai": {
+            "model": "gpt-4o-2024-08-06",
+            "api_version": "2023-03-15-preview"
+        }
+    },
+    "translators": {
+        "speech":{
+            "azure_cognitive": {
+                "resource_id": "/subscriptions/fa06c841-cd7a-4855-b39b-70621812fff3/resourceGroups/khushi_baby_asha/providers/Microsoft.CognitiveServices/accounts/khushi-baby-asha-speech-to-text",
+                "region": "swedencentral"
+            },
+            "azure_oai": {
+                "endpoint": "https://khushi-baby-asha-oai.openai.azure.com/",
+                "model": "whisper",
+                "api_version": "2024-06-01"
+            }
+        },
+        "text": {
+            "azure_cognitive": {
+                "resource_id": "/subscriptions/fa06c841-cd7a-4855-b39b-70621812fff3/resourceGroups/khushi_baby_asha/providers/Microsoft.CognitiveServices/accounts/khushi-baby-asha-text-to-text",
+                "region": "swedencentral"
+            }
+        }
+    }
+}

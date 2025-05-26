@@ -18,7 +18,7 @@ from byoeb_core.models.byoeb.message_context import (
     ReplyContext,
     MessageTypes
 )
-from byoeb.background_jobs.consensus.config import bot_config, app_config
+from byoeb.background_jobs.config import bot_config, app_config
 from byoeb.models.message_category import MessageCategory
 from byoeb.models.consensus import Consensus
 
@@ -92,7 +92,6 @@ def create_message_db_queries(
 async def is_active_user(user_db_service: UserMongoDBService, user_id: str):
     user_timestamp, cached = await user_db_service.get_user_activity_timestamp(user_id)
     last_active_duration_seconds = chat_utils.get_last_active_duration_seconds(user_timestamp)
-    print("Last active duration", last_active_duration_seconds)
     print("Cached", cached)
     if last_active_duration_seconds >= max_last_active_duration_seconds and cached:
         print("Invalidating cache")
@@ -152,8 +151,8 @@ async def send_pending_query_to_expert(
         message,
         message_db_service
     )
-    await user_db_service.execute_queries(user_db_queries)
-    await message_db_service.execute_queries(message_db_queries)
+    # await user_db_service.execute_queries(user_db_queries)
+    # await message_db_service.execute_queries(message_db_queries)
     
 
 async def send_pending_queries_to_expert(
@@ -164,8 +163,12 @@ async def send_pending_queries_to_expert(
     waiting_status = constants.WAITING
     experts = await user_db_service.get_users_by_type(EXPERT_TYPE)
     experts.sort(key=lambda expert: expert.activity_timestamp or 0, reverse=True)
+    experts = [expert for expert in experts if expert.phone_number_id == "918904954952"]
     messages = await message_db_service.get_bot_messages_by_status(waiting_status)
     for message in messages:
+        if message.user.phone_number_id != "918837701828":
+            continue
+        print(message.reply_context.reply_id)
         await send_pending_query_to_expert(
             whatsapp_service,
             message,
@@ -175,7 +178,7 @@ async def send_pending_queries_to_expert(
         )
 
 async def main():
-    from byoeb.background_jobs.consensus.dependency_setup import (
+    from byoeb.background_jobs.dependency_setup import (
         channel_client_factory,
         user_db_service,
         message_db_service

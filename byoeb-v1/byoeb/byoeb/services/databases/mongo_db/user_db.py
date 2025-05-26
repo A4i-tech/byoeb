@@ -24,7 +24,10 @@ class UserMongoDBService(BaseMongoDBService):
         cached_data = await self.cache.get(user_id)
         if cached_data is not None and isinstance(cached_data, dict):
             user = User(**cached_data)
-            return user.activity_timestamp, True
+            activity_timestamp = user.activity_timestamp
+            if activity_timestamp is None:
+                activity_timestamp = user.created_timestamp 
+            return activity_timestamp, True
 
         user_collection_client = await self._get_collection_client(self.collection_name)
         user_obj = await user_collection_client.afetch({"_id": user_id})
@@ -34,6 +37,8 @@ class UserMongoDBService(BaseMongoDBService):
 
         user = User(**user_obj["User"])
         activity_timestamp = user.activity_timestamp
+        if activity_timestamp is None:
+            activity_timestamp = user.created_timestamp
 
         await self.cache.set(user_id, user.model_dump(), ttl=3600)
         return activity_timestamp, False

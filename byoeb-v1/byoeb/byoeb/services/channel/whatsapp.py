@@ -94,6 +94,7 @@ class WhatsAppService(BaseChannelService):
             tasks.append(client.asend_batch_messages([request], message_type))
         results = await asyncio.gather(*tasks)
         responses = [response for result in results for response in result]
+        print("WhatsApp responses", responses)
         message_ids = [response.messages[0].id if response.messages else None for response in responses]
         return responses, message_ids
     
