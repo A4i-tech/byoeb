@@ -181,7 +181,7 @@ def scheduler():
             event_name="app_error",
             details={"error": error_message},
         )
-
+    return "OK", 200
     # Get the current time in IST
     now = datetime.now(pytz.timezone("Asia/Kolkata"))
     print("Current time: ", now)
