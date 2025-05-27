@@ -3,10 +3,16 @@ import os
 import subprocess
 import pytz
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
+from io import BytesIO
 from datetime import datetime
 from fastapi import APIRouter, Request
 from croniter import croniter
 from fastapi.responses import JSONResponse
+from fastapi import Form, Request
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import StreamingResponse
+from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
 
 REGISTER_API_NAME = 'background_api'
 
@@ -16,11 +22,53 @@ _logger = logging.getLogger(REGISTER_API_NAME)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 jobs_path = os.path.join(current_dir, '..', 'background_jobs')
 jobs_path = os.path.normpath(jobs_path)
+template_dir = os.path.join(current_dir, 'ui_templates')
+templates = Jinja2Templates(directory=template_dir)
+file_path = "asha_data.xlsx"
+
 background_jobs = [
     f"*/30 * * * * exec python3 {jobs_path}/consensus/respond_with_consensus.py; exit",
     f"00 8-20 * * * exec python3 {jobs_path}/consensus/send_query_to_expert.py; exit"
 ]
 pids = []
+
+@background_apis_router.get("/asha_logs", response_class=HTMLResponse)
+async def form_get(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@background_apis_router.post("/asha_logs", response_class=HTMLResponse)
+async def form_post(request: Request, start_datetime: str = Form(...), end_datetime: str = Form(...)):
+    start = datetime.strptime(start_datetime, "%Y-%m-%dT%H:%M")
+    end = datetime.strptime(end_datetime, "%Y-%m-%dT%H:%M")
+    
+    start_unix = str(start.timestamp())
+    end_unix = str(end.timestamp())
+
+    print("Start timestamp:", start_unix)
+    print("End timestamp:", end_unix)
+    ashas_df = await fetch_daily_logs(
+        start_timestamp=start_unix,
+        end_timestamp=end_unix
+    )
+    
+    # Save to excel for download
+    ashas_df.to_excel(file_path, index=False)
+
+    # Render HTML
+    df_html = ashas_df.to_html(classes="table table-bordered", index=False)
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "table": df_html,
+        "show_download": True
+    })
+
+@background_apis_router.get("/download")
+async def download_excel():
+    return FileResponse(
+        path=file_path,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename="data.xlsx",
+    )
 
 @background_apis_router.post("/schedule")
 async def schedule(request: Request):
