@@ -4,15 +4,17 @@ import subprocess
 import pytz
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from io import BytesIO
+from azure.identity import DefaultAzureCredential
 from datetime import datetime
 from fastapi import APIRouter, Request
 from croniter import croniter
 from fastapi.responses import JSONResponse
 from fastapi import Form, Request
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import StreamingResponse
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
+from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
 
 REGISTER_API_NAME = 'background_api'
 
@@ -25,6 +27,8 @@ jobs_path = os.path.normpath(jobs_path)
 template_dir = os.path.join(current_dir, 'ui_templates')
 templates = Jinja2Templates(directory=template_dir)
 file_path = "asha_data.xlsx"
+account_url = "https://khushibabyashastorage.blob.core.windows.net"
+container_name = "ashacontainer"
 
 background_jobs = [
     f"*/30 * * * * exec python3 {jobs_path}/consensus/respond_with_consensus.py; exit",
@@ -43,9 +47,12 @@ async def form_post(request: Request, start_datetime: str = Form(...), end_datet
     
     start_unix = str(start.timestamp())
     end_unix = str(end.timestamp())
+    media_storage = AsyncAzureBlobStorage(
+        container_name=container_name,
+        account_url=account_url,
+        credentials=DefaultAzureCredential()
+    )
 
-    print("Start timestamp:", start_unix)
-    print("End timestamp:", end_unix)
     ashas_df = await fetch_daily_logs(
         start_timestamp=start_unix,
         end_timestamp=end_unix
@@ -53,7 +60,15 @@ async def form_post(request: Request, start_datetime: str = Form(...), end_datet
     
     # Save to excel for download
     ashas_df.to_excel(file_path, index=False)
-
+    blob_file_name = f"logs/{os.path.basename(file_path)}"
+    await media_storage.adelete_file(
+        file_name=blob_file_name
+    )
+    await media_storage.aupload_file(
+        file_path=file_path,
+        file_name=blob_file_name
+    )
+    await media_storage._close()
     # Render HTML
     df_html = ashas_df.to_html(classes="table table-bordered", index=False)
     return templates.TemplateResponse("index.html", {
@@ -64,11 +79,28 @@ async def form_post(request: Request, start_datetime: str = Form(...), end_datet
 
 @background_apis_router.get("/download")
 async def download_excel():
-    return FileResponse(
-        path=file_path,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename="data.xlsx",
+    media_storage = AsyncAzureBlobStorage(
+        container_name=container_name,
+        account_url=account_url,
+        credentials=DefaultAzureCredential()
     )
+    _, asha_data = await media_storage.adownload_file(
+        file_name=f"logs/{os.path.basename(file_path)}"
+    )
+    await media_storage._close()
+    stream = BytesIO(asha_data.data)  # or just use Filedata if already BytesIO
+    return StreamingResponse(
+        stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=downloaded.xlsx"
+        }
+    )
+    # return FileResponse(
+    #     path=file_path,
+    #     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    #     filename="data.xlsx",
+    # )
 
 @background_apis_router.post("/schedule")
 async def schedule(request: Request):
