@@ -126,5 +126,7 @@ async def fetch_daily_logs(start_timestamp: str, end_timestamp: str):
         message_collection=message_collection
     )
     ashas_df = pd.concat([answer_df, audio_idk_df, text_idk_df], ignore_index=True)
+    if ashas_df.empty:
+        return ashas_df
     ashas_df.sort_values(by=["incoming_timestamp"], inplace=True, ascending=False, ignore_index=True)
     return ashas_df
