@@ -12,6 +12,8 @@
 *.ipynb
 **/*.ipynb
 *.txt
+*.csv
+*.xlsx
 
 # But do not ignore requirements.txt
 !requirements.txt
