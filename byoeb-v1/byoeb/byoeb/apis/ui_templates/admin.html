@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FastAPI QA Interface</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    form { max-width: 600px; margin: auto; }
+    label { display: block; margin-top: 10px; }
+    input[type=text], select, textarea { width: 80%; padding: 8px; margin-top: 5px; }
+    input[type=range] { width: 80%; }
+    button { margin-top: 20px; padding: 10px 15px; font-size: 16px; cursor: pointer; }
+    .output { margin-top: 30px; max-width: 800px; margin: auto; background: #f8f8f8; padding: 15px; border-radius: 8px; }
+    .button-group { text-align: center; margin-top: 20px; }
+    .status { text-align: center; margin-top: 10px; color: #555; }
+  </style>
+</head>
+<body>
+  <h2>Query Interface</h2>
+
+  <form id="qa-form">
+    <label for="translation-prompt">System Prompt: Translation and Rewriting (.txt file)</label>
+    <input type="file" id="translation-prompt" accept=".txt" required>
+
+    <label for="answer-prompt">System Prompt: Answer Generation (.txt file)</label>
+    <input type="file" id="answer-prompt" accept=".txt" required>
+
+    <label for="top-k">Top K (<span id="top-k-val">3</span>)</label>
+    <input type="range" id="top-k" name="top-k" min="0" max="15" value="3" oninput="document.getElementById('top-k-val').innerText = this.value">
+
+    <label for="phone-number">Phone Number ID</label>
+    <input type="text" id="phone-number" name="phone-number" maxlength="10" pattern="\d{10}" required>
+
+    <label for="history-length">History Length (<span id="history-length-val">3</span>)</label>
+    <input type="range" id="history-length" name="history-length" min="0" max="15" value="3" oninput="document.getElementById('history-length-val').innerText = this.value">
+
+    <label for="search-type">Search Type</label>
+    <select id="search-type" name="search-type">
+      <option value="dense">Dense</option>
+      <option value="hybrid">Hybrid</option>
+    </select>
+
+    <label for="question">Question</label>
+    <textarea id="question" name="question" rows="3" required></textarea>
+
+    <div class="button-group">
+      <button type="submit" id="generate-btn">Generate</button>
+      <button type="button" id="clear-btn" style="background-color: #f44336; color: white;">Clear History</button>
+    </div>
+  </form>
+
+  <div class="status" id="status"></div>
+  <div class="output" id="output"></div>
+
+  <script>
+    const generateBtn = document.getElementById('generate-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const statusDiv = document.getElementById('status');
+
+    function setButtonsDisabled(state) {
+      generateBtn.disabled = state;
+      clearBtn.disabled = state;
+    }
+
+    document.getElementById('qa-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      setButtonsDisabled(true);
+      statusDiv.textContent = "Generating response...";
+
+      const translationPromptFile = document.getElementById('translation-prompt').files[0];
+      const answerPromptFile = document.getElementById('answer-prompt').files[0];
+      const translationPromptText = await translationPromptFile.text();
+      const answerPromptText = await answerPromptFile.text();
+
+      const payload = {
+        translation_prompt: translationPromptText,
+        answer_prompt: answerPromptText,
+        top_k: parseInt(document.getElementById('top-k').value),
+        phone_number_id: document.getElementById('phone-number').value,
+        history_length: parseInt(document.getElementById('history-length').value),
+        search_type: document.getElementById('search-type').value,
+        question: document.getElementById('question').value
+      };
+
+      try {
+        const response = await fetch('/experiment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        document.getElementById('output').innerHTML = `
+          <h3>Response</h3>
+          <p><strong>Query Type:</strong> ${data.query_type}</p>
+          <p><strong>English Translation:</strong> ${data.query_en}</p>
+          <p><strong>English Rewriting with Context:</strong> ${data.query_en_addcontext}</p>
+          <p><strong>Answer:</strong> ${data.answer_en}</p>
+          <p><strong>Answer Source:</strong> ${data.answer_source}</p>
+          <h4>Top ${payload.top_k} Retrieved Documents:</h4>
+          <ol>
+            ${data.top_documents.map(doc => `
+              <li>
+                <p><strong>Rank:</strong> ${doc.rank}</p>
+                <p><strong>Source:</strong> ${doc.source}</p>
+                <p><strong>Text:</strong><br>${doc.text.replace(/\n/g, '<br>')}</p>
+              </li>
+            `).join('')}
+          </ol>
+        `;
+        statusDiv.textContent = "";
+      } catch (err) {
+        console.error(err);
+        statusDiv.textContent = "An error occurred while generating the response.";
+      }
+
+      setButtonsDisabled(false);
+    });
+
+    clearBtn.addEventListener('click', async () => {
+    setButtonsDisabled(true);
+    statusDiv.textContent = "Clearing history...";
+
+    const phoneNumber = document.getElementById('phone-number').value;
+    const payload = { phone_number_id: phoneNumber };
+
+    try {
+        const response = await fetch('/clear_history', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+        statusDiv.textContent = "History cleared.";
+        } else {
+        statusDiv.textContent = "Failed to clear history.";
+        }
+    } catch (err) {
+        console.error(err);
+        statusDiv.textContent = "Error clearing history.";
+    }
+
+    setButtonsDisabled(false);
+    });
+  </script>
+</body>
+</html>

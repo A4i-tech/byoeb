@@ -11,6 +11,7 @@ from byoeb.apis.channel_register import register_apis_router
 from byoeb.apis.chat import chat_apis_router
 from byoeb.apis.user import user_apis_router
 from byoeb.apis.background_jobs import background_apis_router
+from byoeb.apis.admin import admin_apis_router
 
 logger = logging.getLogger(__name__)
 asyncio.get_event_loop().set_debug(True)
@@ -28,6 +29,7 @@ def create_app():
     app.include_router(register_apis_router)
     app.include_router(chat_apis_router)
     app.include_router(user_apis_router)
+    app.include_router(admin_apis_router)
     return app
 
 @asynccontextmanager
