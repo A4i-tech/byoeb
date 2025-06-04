@@ -243,6 +243,7 @@ class UserService(BaseUserService):
                 phone_number_id=user.phone_number_id,
                 user_language=user.user_language,
                 user_type=user.user_type,
+                test_user=user.test_user,
                 experts=user.experts,
                 audience=user.audience,
                 created_timestamp = str(int(datetime.now(timezone.utc).timestamp())),
