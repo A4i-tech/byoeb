@@ -36,71 +36,71 @@ background_jobs = [
 ]
 pids = []
 
-@background_apis_router.get("/asha_logs", response_class=HTMLResponse)
-async def form_get(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+# @background_apis_router.get("/asha_logs", response_class=HTMLResponse)
+# async def form_get(request: Request):
+#     return templates.TemplateResponse("index.html", {"request": request})
 
-@background_apis_router.post("/asha_logs", response_class=HTMLResponse)
-async def form_post(request: Request, start_datetime: str = Form(...), end_datetime: str = Form(...)):
-    start = datetime.strptime(start_datetime, "%Y-%m-%dT%H:%M")
-    end = datetime.strptime(end_datetime, "%Y-%m-%dT%H:%M")
+# @background_apis_router.post("/asha_logs", response_class=HTMLResponse)
+# async def form_post(request: Request, start_datetime: str = Form(...), end_datetime: str = Form(...)):
+#     start = datetime.strptime(start_datetime, "%Y-%m-%dT%H:%M")
+#     end = datetime.strptime(end_datetime, "%Y-%m-%dT%H:%M")
     
-    start_unix = str(start.timestamp())
-    end_unix = str(end.timestamp())
-    media_storage = AsyncAzureBlobStorage(
-        container_name=container_name,
-        account_url=account_url,
-        credentials=DefaultAzureCredential()
-    )
+#     start_unix = str(start.timestamp())
+#     end_unix = str(end.timestamp())
+#     media_storage = AsyncAzureBlobStorage(
+#         container_name=container_name,
+#         account_url=account_url,
+#         credentials=DefaultAzureCredential()
+#     )
 
-    ashas_df = await fetch_daily_logs(
-        start_timestamp=start_unix,
-        end_timestamp=end_unix
-    )
+#     ashas_df = await fetch_daily_logs(
+#         start_timestamp=start_unix,
+#         end_timestamp=end_unix
+#     )
     
-    # Save to excel for download
-    ashas_df.to_excel(file_path, index=False)
-    blob_file_name = f"logs/{os.path.basename(file_path)}"
-    await media_storage.adelete_file(
-        file_name=blob_file_name
-    )
-    await media_storage.aupload_file(
-        file_path=file_path,
-        file_name=blob_file_name
-    )
-    await media_storage._close()
-    # Render HTML
-    df_html = ashas_df.to_html(classes="table table-bordered", index=False)
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "table": df_html,
-        "show_download": True
-    })
+#     # Save to excel for download
+#     ashas_df.to_excel(file_path, index=False)
+#     blob_file_name = f"logs/{os.path.basename(file_path)}"
+#     await media_storage.adelete_file(
+#         file_name=blob_file_name
+#     )
+#     await media_storage.aupload_file(
+#         file_path=file_path,
+#         file_name=blob_file_name
+#     )
+#     await media_storage._close()
+#     # Render HTML
+#     df_html = ashas_df.to_html(classes="table table-bordered", index=False)
+#     return templates.TemplateResponse("index.html", {
+#         "request": request,
+#         "table": df_html,
+#         "show_download": True
+#     })
 
-@background_apis_router.get("/download")
-async def download_excel():
-    media_storage = AsyncAzureBlobStorage(
-        container_name=container_name,
-        account_url=account_url,
-        credentials=DefaultAzureCredential()
-    )
-    _, asha_data = await media_storage.adownload_file(
-        file_name=f"logs/{os.path.basename(file_path)}"
-    )
-    await media_storage._close()
-    stream = BytesIO(asha_data.data)  # or just use Filedata if already BytesIO
-    return StreamingResponse(
-        stream,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={
-            "Content-Disposition": "attachment; filename=downloaded.xlsx"
-        }
-    )
-    # return FileResponse(
-    #     path=file_path,
-    #     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    #     filename="data.xlsx",
-    # )
+# @background_apis_router.get("/download")
+# async def download_excel():
+#     media_storage = AsyncAzureBlobStorage(
+#         container_name=container_name,
+#         account_url=account_url,
+#         credentials=DefaultAzureCredential()
+#     )
+#     _, asha_data = await media_storage.adownload_file(
+#         file_name=f"logs/{os.path.basename(file_path)}"
+#     )
+#     await media_storage._close()
+#     stream = BytesIO(asha_data.data)  # or just use Filedata if already BytesIO
+#     return StreamingResponse(
+#         stream,
+#         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+#         headers={
+#             "Content-Disposition": "attachment; filename=downloaded.xlsx"
+#         }
+#     )
+#     # return FileResponse(
+#     #     path=file_path,
+#     #     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+#     #     filename="data.xlsx",
+#     # )
 
 @background_apis_router.post("/schedule")
 async def schedule(request: Request):
