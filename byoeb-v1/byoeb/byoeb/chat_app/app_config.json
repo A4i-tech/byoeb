@@ -102,7 +102,7 @@
         },
         "azure_vector_search": {
             "service_name": "khushi-baby-asha-search",
-            "doc_index_name": "khushi-baby-asha-doc-index-2"
+            "doc_index_name": "khushi-baby-asha-doc-index"
         }
     },
     "app_logger": {

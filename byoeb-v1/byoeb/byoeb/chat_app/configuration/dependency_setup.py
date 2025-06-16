@@ -96,13 +96,15 @@ voice_dict = {
     "male": {
         "en-IN": "en-IN-PrabhatNeural",
         "hi-IN": "hi-IN-MadhurNeural",
-        "mr-IN": "mr-IN-ManoharNeural"
+        "mr-IN": "mr-IN-ManoharNeural",
+        "te-IN": "te-IN-MohanNeural"
     },
     "female": {
         "en-IN": "en-IN-NeerjaNeural",
         "hi-IN": "hi-IN-SwaraNeural",
-        "mr-IN": "mr-IN-AarohiNeural"
-    }
+        "mr-IN": "mr-IN-AarohiNeural",
+        "te-IN": "te-IN-ShrutiNeural"
+    },
 }
 speech_translator = AsyncAzureSpeechTranslator(
     token_provider=token_provider,
