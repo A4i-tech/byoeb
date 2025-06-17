@@ -1,12 +1,16 @@
 import re
 import hashlib
+import httpx
 from typing import List, Dict, Any
 from datetime import datetime, timezone
 from byoeb.chat_app.configuration.config import bot_config
-from byoeb.chat_app.configuration.dependency_setup import vector_store, user_db_service, llm_translate_and_rewrite_client, llm_client
+from byoeb.chat_app.configuration.dependency_setup import embedding_fn, llm_translate_and_rewrite_client, llm_client, DefaultAzureCredential
 from byoeb.models.experiment import QueryInput, QueryOutput
-from byoeb_core.models.vector_stores.chunk import Chunk
+from byoeb_core.models.vector_stores.chunk import Chunk, Chunk_metadata
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+from azure.search.documents.models import VectorizedQuery
+from byoeb_core.models.vector_stores.azure.azure_search import AzureSearchNode
+from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 
 QUERY_EN = "query_en"
 QUERY_EN_ADDCONTEXT = "query_en_addcontext"
@@ -17,6 +21,14 @@ TIMESTAMP = "timestamp"
 
 conversations: Dict[str, List[Dict[str, str]]] = {}
 
+service_name = "khushi-baby-asha-search"
+doc_index_name = "khushi-baby-asha-doc-index-3"
+vector_store = AzureVectorStore(
+    service_name=service_name,
+    index_name=doc_index_name,
+    embedding_function=embedding_fn,
+    credential=DefaultAzureCredential()  # Assuming credential is set in the environment or elsewhere
+)
 def update_conversations(user_id, question, answer, history_length):
     """
     Update the conversation history for a user.
@@ -35,14 +47,15 @@ def update_conversations(user_id, question, answer, history_length):
     # Append the new conversation entry
     conversations[user_id].append(conversation_entry)
     
-    # Limit the history length to 1000 entries
-    if len(conversations[user_id]) > 1000:
-        conversations[user_id] = conversations[user_id][-history_length:]  # Keep only the last 1000 entries
+    # Limit the history length
+    if len(conversations[user_id]) > history_length:
+        # Remove the oldest conversation if history exceeds the limit
+        conversations[user_id] = conversations[user_id][-history_length:]
 def get_conversation_history(user_id, history_length):
     last_convs = conversations.get(user_id, [])
     conversation_history = []
     curr_time = datetime.now(timezone.utc).timestamp()
-    for i, conv in enumerate(last_convs[-history_length:]):
+    for i, conv in enumerate(last_convs[:history_length]):
         question = conv.get(QUESTION, None)
         answer = conv.get(ANSWER, None)
         timestamp = int(conv.get(TIMESTAMP, 0))
@@ -83,16 +96,82 @@ async def llm_translation_and_query_rewritting(system_prompt, question, conversa
         raise Exception("LLM response is not in expected format")
     return query_en, query_en_addcontext, query_type, tokens
 
-async def aretrieve_top_k_chunks(query_text, k, search_type, select=None):
-    print(f"Retrieving top {k} chunks for query: {query_text} with search type: {search_type}")
-    retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
-        query_text,
-        k,
-        search_type=search_type,
-        select=["id", "text", "metadata", "related_questions"],
-        vector_field="text_vector_3072"
-    )
-    return retrieved_chunks
+async def get_embedding(text):
+    url = "https://ee8e-20-163-117-70.ngrok-free.app/embed"
+    payload = {
+        "text": text
+    }
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            return result
+        except httpx.RequestError as e:
+            print(f"An error occurred: {e}")
+            return None
+        except httpx.HTTPStatusError as e:
+            print(f"Bad status code: {e.response.status_code} - {e.response.text}")
+            return None
+        
+async def aretrieve_top_k_chunks(query_text, k, search_type, embedding_type = "text-embedding-3-large", select=None):
+    print(f"Retrieving top {k} chunks for query: {query_text} with search type: {search_type} and embedding type: {embedding_type}")
+    if embedding_type == "text-embedding-3-large":
+        retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
+            query_text,
+            k,
+            search_type=search_type,
+            select=["id", "text", "metadata", "related_questions"],
+            vector_field="text_vector_3072"
+        )
+        return retrieved_chunks
+    
+    # This is not running from azure but a vm wiht A100 GPU whose endpoint is exposed via ngrok
+    if embedding_type == "qwen3-embedding-8b":
+        chunk_list: List[Chunk] = []
+        qwen_embedding = await get_embedding(query_text)
+        vector_query = VectorizedQuery(
+            vector=qwen_embedding['embedding'],
+            k_nearest_neighbors=10,
+            fields="qwen_3_4096"
+        )
+        if search_type == "hybrid":
+            results = vector_store.search_client.search(
+                search_text=query_text,
+                vector_queries=[vector_query],
+                select=["id", "text", "metadata", "related_questions"],
+                top=3
+            )
+        elif search_type == "dense":
+            results = vector_store.search_client.search(
+                vector_queries=[vector_query],
+                select=["id", "text", "metadata", "related_questions"],
+                top=3
+            )
+        results = vector_store.search_client.search(
+            vector_queries=[vector_query],
+            select=["id", "text", "metadata", "related_questions"],
+            top=3
+        )
+        for result in results:
+            azure_search_result = AzureSearchNode(**result)
+            if azure_search_result.metadata is None:
+                metadata = None
+            else:
+                metadata = Chunk_metadata(
+                    source=azure_search_result.metadata.source,
+                    creation_timestamp=azure_search_result.metadata.creation_timestamp,
+                    update_timestamp=azure_search_result.metadata.update_timestamp
+                )
+            chunk = Chunk(
+                chunk_id=azure_search_result.id,
+                text=azure_search_result.text,
+                metadata=metadata,
+                related_questions=azure_search_result.related_questions
+            )
+            chunk_list.append(chunk)
+        return chunk_list
 
 @retry(
     stop=stop_after_attempt(3),  # Retry up to 3 times
@@ -145,12 +224,14 @@ async def process_message(input: QueryInput) -> QueryOutput:
     phone_number_id = input.phone_number_id
     history_length = input.history_length
     search_type = input.search_type.lower()
+    embedding_type = input.embedding_type.lower()
     question = input.question
 
     user_id = hashlib.md5(phone_number_id.encode()).hexdigest()
     conversation_history = get_conversation_history(user_id, history_length)
+    print(conversation_history)
     query_en, query_en_addcontext, query_type, tokens = await llm_translation_and_query_rewritting(translation_and_rewritting_prompt, question, conversation_history)
-    retrieved_chunks = await aretrieve_top_k_chunks(query_en_addcontext, top_k, search_type)
+    retrieved_chunks = await aretrieve_top_k_chunks(query_en_addcontext, top_k, search_type, embedding_type)
     response_en, response_source, tokens = await agenerate_answer(answer_prompt, query_en_addcontext, query_type, retrieved_chunks)
     retrieved_data = []
     for i, chunk in enumerate(retrieved_chunks):

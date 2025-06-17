@@ -40,6 +40,12 @@
       <option value="hybrid">Hybrid</option>
     </select>
 
+    <label for="embedding-type">Embedding Type</label>
+    <select id="embedding-type" name="embedding-type">
+      <option value="text-embedding-3-large">text-embedding-3-large</option>
+      <option value="qwen3-embedding-8B">qwen3-embedding-8B</option>
+    </select>
+
     <label for="question">Question</label>
     <textarea id="question" name="question" rows="3" required></textarea>
 
@@ -79,6 +85,7 @@
         phone_number_id: document.getElementById('phone-number').value,
         history_length: parseInt(document.getElementById('history-length').value),
         search_type: document.getElementById('search-type').value,
+        embedding_type: document.getElementById('embedding-type').value,
         question: document.getElementById('question').value
       };
 
@@ -119,30 +126,30 @@
     });
 
     clearBtn.addEventListener('click', async () => {
-    setButtonsDisabled(true);
-    statusDiv.textContent = "Clearing history...";
+      setButtonsDisabled(true);
+      statusDiv.textContent = "Clearing history...";
 
-    const phoneNumber = document.getElementById('phone-number').value;
-    const payload = { phone_number_id: phoneNumber };
+      const phoneNumber = document.getElementById('phone-number').value;
+      const payload = { phone_number_id: phoneNumber };
 
-    try {
+      try {
         const response = await fetch('/clear_history', { 
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
 
         if (response.ok) {
-        statusDiv.textContent = "History cleared.";
+          statusDiv.textContent = "History cleared.";
         } else {
-        statusDiv.textContent = "Failed to clear history.";
+          statusDiv.textContent = "Failed to clear history.";
         }
-    } catch (err) {
+      } catch (err) {
         console.error(err);
         statusDiv.textContent = "Error clearing history.";
-    }
+      }
 
-    setButtonsDisabled(false);
+      setButtonsDisabled(false);
     });
   </script>
 </body>

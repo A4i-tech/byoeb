@@ -8,6 +8,7 @@ class QueryInput(BaseModel):
     phone_number_id: str
     history_length: int
     search_type: str
+    embedding_type: str
     question: str
 
 class QueryOutput(BaseModel):
