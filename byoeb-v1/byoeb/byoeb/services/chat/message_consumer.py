@@ -119,7 +119,10 @@ class MessageConsmerService:
                 }
             )
             if bot_message is None:
-                conversations.append(conversation)
+                if user.user_type is None or user.user_language is None:
+                    onboard_convs.append(message)
+                else:
+                    conversations.append(conversation)
                 continue
             conversation.reply_context.message_category = bot_message.message_category
             conversation.reply_context.reply_id = bot_message.message_context.message_id
