@@ -73,7 +73,7 @@
             "queue_bot": "botmessages",
             "dead_letter_queue": "deadletterqueue",
             "messages_per_page": 5,
-            "visibility_timeout": 120,
+            "visibility_timeout": 180,
             "time_to_live": 604800
         }
     },

@@ -25,7 +25,7 @@ class Conversation(BaseModel):
 
 class MessageConsmerService:
 
-    __timeout_seconds = 60
+    __timeout_seconds = 180
     def __init__(
         self,
         config,
@@ -153,7 +153,7 @@ class MessageConsmerService:
                 conversations.append(conversation)
         return conversations, onboard_convs
     
-    async def __process_byoebuser_conversation(self, byoeb_message):
+    async def __process_byoebuser_conversation(self, byoeb_message: ByoebMessageContext):
         from byoeb.chat_app.configuration.dependency_setup import byoeb_user_process
         byoeb_message_copy = byoeb_message.model_copy(deep=True)
         try:
@@ -161,9 +161,15 @@ class MessageConsmerService:
             return queries, byoeb_message_copy, None
         except asyncio.TimeoutError:
             error_message = f"Timeout error: Task took longer than {self.__timeout_seconds} seconds."
-            self._logger.error(error_message)
-            print(error_message)
-            traceback.print_exc()
+            app_insights_logger.add_log(
+                event_name="timeout_error",
+                details={
+                    "user_type": byoeb_message.user.user_type,
+                    "message_id": byoeb_message.message_context.message_id,
+                    "message_text": byoeb_message.message_context.message_source_text,
+                    "timeout_seconds": self.__timeout_seconds
+                }
+            )
             return None, byoeb_message_copy, "TimeoutError"
         except Exception as e:
             self._logger.error(f"Error processing user message: {e}")
@@ -184,9 +190,15 @@ class MessageConsmerService:
             return queries, byoeb_message_copy, None
         except asyncio.TimeoutError:
             error_message = f"Timeout error: Expert process task took longer than {self.__timeout_seconds} seconds."
-            self._logger.error(error_message)
-            traceback.print_exc()
-            print(error_message)
+            app_insights_logger.add_log(
+                event_name="timeout_error",
+                details={
+                    "user_type": byoeb_message.user.user_type,
+                    "message_id": byoeb_message.message_context.message_id,
+                    "message_text": byoeb_message.message_context.message_source_text,
+                    "timeout_seconds": self.__timeout_seconds
+                }
+            )
             return None, byoeb_message_copy, "TimeoutError"
         except Exception as e:
             self._logger.error(f"Error processing expert message: {e}")
