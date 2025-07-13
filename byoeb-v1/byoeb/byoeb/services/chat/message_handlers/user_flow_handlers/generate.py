@@ -37,14 +37,30 @@ class ByoebUserGenerateResponse(Handler):
     async def __aretrieve_chunks(
         self,
         text,
-        k
+        k,
+        search_type=AzureVectorSearchType.HYBRID.value
     ) -> List[Chunk]:
+        """
+        Retrieve top k chunks from the vector store based on the input text.
+        
+        Args:
+            text (str): The input text to search for relevant chunks.
+            k (int): The number of top chunks to retrieve.
+            search_type (str): The type of search to perform (default is HYBRID).
+        
+        Returns:
+            List[Chunk]: A list of retrieved chunks containing relevant information.
+        
+        This method uses the AzureVectorSearchType.HYBRID search type by default,
+        which combines both dense and sparse search methods to find relevant chunks.
+        The retrieved chunks include fields such as id, text, metadata, and related questions.
+        """
         from byoeb.chat_app.configuration.dependency_setup import vector_store
         start_time = datetime.now(timezone.utc).timestamp()
         retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
             text,
             k,
-            search_type=AzureVectorSearchType.HYBRID.value,
+            search_type=search_type,
             select=["id", "text", "metadata", "related_questions"],
             vector_field="text_vector_3072"
         )
@@ -57,6 +73,17 @@ class ByoebUserGenerateResponse(Handler):
         text,
         k
     ) -> List[Chunk]:
+        """
+        Retrieve top k chunks for related questions based on the input text.
+        Uses the AzureVectorSearchType.DENSE search type to find relevant chunks.
+        
+        Args:
+            text (str): The input text to search for related questions.
+            k (int): The number of top chunks to retrieve.
+        
+        Returns:
+            List[Chunk]: A list of retrieved chunks containing related questions.
+        """
         from byoeb.chat_app.configuration.dependency_setup import vector_store
         start_time = datetime.now(timezone.utc).timestamp()
         retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
@@ -579,9 +606,15 @@ class ByoebUserGenerateResponse(Handler):
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
             start_time = datetime.now(timezone.utc).timestamp()
             retrieved_chunks_task = self.__aretrieve_chunks(message_english, k=3)
+            retrieved_chunks_backup_task = self.__aretrieve_chunks(
+                message_english,
+                k=5,
+                search_type=AzureVectorSearchType.DENSE.value
+            )
             retrieved_chunks_related_questions_task = self._retrieve_top_k_chunks_for_related_questions(message_english, k=10)
-            retrieved_chunks, retrieved_chunks_related_questions = await asyncio.gather(
+            retrieved_chunks, retrieved_chunks_backup, retrieved_chunks_related_questions = await asyncio.gather(
                 retrieved_chunks_task,
+                retrieved_chunks_backup_task,
                 retrieved_chunks_related_questions_task
             )
             end_time = datetime.now(timezone.utc).timestamp()
@@ -593,7 +626,20 @@ class ByoebUserGenerateResponse(Handler):
                 }
             )
             start_time = datetime.now(timezone.utc).timestamp()
-            response_en, response_source, tokens = await self.agenerate_answer(user_language, message_english, query_type, retrieved_chunks)
+            response_task = self.agenerate_answer(user_language,message_english,query_type,retrieved_chunks)
+            response_backup_task = self.agenerate_answer(user_language,message_english,query_type,retrieved_chunks_backup)
+            response_result, response_backup_result = await asyncio.gather(
+                response_task,
+                response_backup_task
+            )
+            response_en, response_source, tokens = response_result
+            response_en_backup, response_source_backup, tokens_backup = response_backup_result
+            
+            if utils.is_idk(response_en):
+                response_en = response_en_backup
+                response_source = response_source_backup
+            # response_en, response_source, tokens = await self.agenerate_answer(user_language, message_english, query_type, retrieved_chunks)
+            
             if message.user.user_language == "en":
                 response_source = response_en
             related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
@@ -604,7 +650,9 @@ class ByoebUserGenerateResponse(Handler):
                     "message_id": message.message_context.message_id,
                     "time_taken": end_time - start_time,
                     "completion_tokens": tokens.get("completion_tokens"),
-                    "prompt_tokens": tokens.get("prompt_tokens")
+                    "backup_completion_tokens": tokens_backup.get("completion_tokens"),
+                    "prompt_tokens": tokens.get("prompt_tokens"),
+                    "backup_prompt_tokens": tokens_backup.get("prompt_tokens")
                 }
             )
             byoeb_user_message = await self.__create_user_message(
