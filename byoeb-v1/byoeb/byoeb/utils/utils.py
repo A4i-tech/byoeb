@@ -30,3 +30,13 @@ def is_idk(
     ]
     text = text.lower()
     return any(idk in text for idk in idks)  # Check if any phrase exists in text
+
+def is_onboard(
+    text: str
+):
+    idks = [
+        "onboard-asha",
+        "onboard asha"
+    ]
+    text = text.lower()
+    return any(idk in text for idk in idks)  # Check if any phrase exists in text

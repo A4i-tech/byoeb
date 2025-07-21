@@ -600,6 +600,19 @@ class ByoebUserGenerateResponse(Handler):
                 status=constants.PENDING,
                 related_questions=related_questions
             )
+        elif utils.is_onboard(message.message_context.message_english_text):
+            print("Is onboard message")
+            query_type = "asha_work_related"
+            query = "antara injection, tobacco, chaaya goli"
+            retrieved_chunks_related_questions = await self._retrieve_top_k_chunks_for_related_questions(query, k=10)
+            related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
+            byoeb_user_message = await self.__create_user_message(
+                message=message,
+                response_en="You are already connected to Ashabot.",
+                response_source=None,
+                query_type=query_type,
+                related_questions=related_questions
+            )
         else:
             message_english = message.message_context.message_english_text
             user_language = message.user.user_language
