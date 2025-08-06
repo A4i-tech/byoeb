@@ -4,6 +4,23 @@ import certifi
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection,AsyncIOMotorDatabase
 from byoeb_core.databases.mongo_db.base import BaseDocumentDatabase, BaseDocumentCollection
 from pymongo import DeleteOne, UpdateOne
+import urllib.parse
+
+def is_tls_enabled(connection_string: str) -> bool:
+    import urllib.parse
+    parsed = urllib.parse.urlparse(connection_string)
+    query = urllib.parse.parse_qs(parsed.query)
+    for key in ['tls', 'ssl']:
+        if key in query:
+            val = query[key][0].strip().lower()
+            if val in ("true", "1", "yes"):
+                return True
+            elif val in ("false", "0", "no"):
+                return False
+            else:
+                print(f"Unrecognized value for {key}: {val}. Defaulting to False.")
+                return False
+    return False
 
 class AsyncAzureCosmosMongoDB(BaseDocumentDatabase):
     _client = None
@@ -25,10 +42,16 @@ class AsyncAzureCosmosMongoDB(BaseDocumentDatabase):
 
     def __initialize_client(self):
         if not AsyncAzureCosmosMongoDB._client:
-            AsyncAzureCosmosMongoDB._client = AsyncIOMotorClient(
-                self.__connection_string,
-                tlsCAFile=certifi.where()
-            )
+            tls_enabled = is_tls_enabled(self.__connection_string)
+            if tls_enabled:
+                AsyncAzureCosmosMongoDB._client = AsyncIOMotorClient(
+                    self.__connection_string,
+                    tlsCAFile=certifi.where()
+                )
+            else:
+                AsyncAzureCosmosMongoDB._client = AsyncIOMotorClient(
+                    self.__connection_string
+                )
         
 
     def get_db_name(self) -> str:
@@ -83,6 +106,21 @@ class AsyncAzureCosmosMongoDB(BaseDocumentDatabase):
         self.__db = None
         self.__database_name = None
     
+    def __is_tls_enabled(self, connection_string: str) -> bool:
+        parsed = urllib.parse.urlparse(connection_string)
+        query = urllib.parse.parse_qs(parsed.query)
+        for key in ['tls', 'ssl']:
+            if key in query:
+                val = query[key][0].strip().lower()
+                if val in ("true", "1", "yes"):
+                    return True
+                elif val in ("false", "0", "no"):
+                    return False
+                else:
+                    self.__logger.warning(f"Unrecognized value for {key}: {val}. Defaulting to False.")
+                    return False
+        return False
+
 
 class AsyncAzureCosmosMongoDBCollection(BaseDocumentCollection):
     __db_client = None

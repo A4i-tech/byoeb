@@ -2,12 +2,12 @@ import asyncio
 import json
 import os
 import pytest
-from byoeb_integrations.databases.mongo_db.azure.async_azure_cosmos_mongo_db import AsyncAzureCosmosMongoDB, AsyncAzureCosmosMongoDBCollection
+from byoeb_integrations.databases.mongo_db.azure.async_azure_cosmos_mongo_db import AsyncAzureCosmosMongoDB, AsyncAzureCosmosMongoDBCollection, is_tls_enabled
 from byoeb_integrations import test_environment_path
 from dotenv import load_dotenv
 
 load_dotenv(test_environment_path)
-connection_string = os.getenv("MONGO_DB_CONNECTION_STRING")
+connection_string = "mongodb://localhost:27017/?tls=false"
 db_name = "test_new_frame"
 
 c1 = "c1"
@@ -92,6 +92,21 @@ def test_aazure_cosmos_mongo_db_batch(event_loop):
 
 def test_aazure_cosmos_mongo_db(event_loop):
     event_loop.run_until_complete(aazure_cosmos_mongo_db())
+
+@pytest.mark.parametrize("conn_str,expected", [
+    ("mongodb://localhost:27017/?tls=false", False),
+    ("mongodb://localhost:27017/?tls=true", True),
+    ("mongodb://localhost:27017/?ssl=true", True),
+    ("mongodb://localhost:27017/?ssl=false", False),
+    ("mongodb://localhost:27017/", False),
+    ("mongodb://localhost:27017/?tls=1", True),
+    ("mongodb://localhost:27017/?tls=0", False),
+    ("mongodb://localhost:27017/?tls=yes", True),
+    ("mongodb://localhost:27017/?tls=no", False),
+    ("mongodb://localhost:27017/?tls=unexpected", False),
+])
+def test_is_tls_enabled(conn_str, expected):
+    assert is_tls_enabled(conn_str) == expected
 
 if __name__ == "__main__":
     event_loop = asyncio.get_event_loop()
