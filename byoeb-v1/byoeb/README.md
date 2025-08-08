@@ -182,7 +182,7 @@ poetry run uvicorn byoeb.chat_app.run:app --host 0.0.0.0 --port 8000
 
 The repository uses FAST API Swagger docs to keep API documentation up to date and readily available. Once the application is up and running, go to {domain}/docs to access the Swagger API documentation.
 
-## 🔐 Authentication Options
+### 🔐 Authentication Options
 
 This tool supports multiple authentication modes:
 
