@@ -180,11 +180,15 @@ poetry run uvicorn byoeb.chat_app.run:app --host 0.0.0.0 --port 8000
 
 ### API Endpoints
 
-- `GET /`: Health check
-- `POST /webhooks`: WhatsApp webhook endpoint
-- `GET /webhooks`: WhatsApp webhook verification
-- `POST /process_response_to_send_for_kb_update`: Knowledge base update
-- `POST /scheduler`: Scheduled tasks trigger
+The repository uses FAST API Swagger docs to keep API documentation up to date and readily available. Once the application is up and running, go to {domain}/docs to access the Swagger API documentation.
+
+## 🔐 Authentication Options
+
+This tool supports multiple authentication modes:
+
+1. **Azure Managed Identity** (recommended for production in Azure)
+2. **Azure CLI / Visual Studio** (recommended for local development)
+3. **Environment Variables** (for local, CI/CD or non-Azure environments)
 
 ### Message Flow
 
