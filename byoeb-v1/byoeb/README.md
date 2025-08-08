@@ -83,7 +83,8 @@ byoeb/
    cp keys.env.example keys.env
    ```
 
-       Required environment variables:
+   Required environment variables:
+
     ```env
     # Application Environment
     APP_ENV=TEST
@@ -180,7 +181,7 @@ poetry run uvicorn byoeb.chat_app.run:app --host 0.0.0.0 --port 8000
 
 ### API Endpoints
 
-The repository uses FAST API Swagger docs to keep API documentation up to date and readily available. Once the application is up and running, go to {domain}/docs to access the Swagger API documentation.
+The repository uses FAST API Swagger docs to keep API documentation up to date and readily available. Once the application is up and running, go to `{domain}/docs` to access the Swagger API documentation.
 
 ### 🔐 Authentication Options
 
