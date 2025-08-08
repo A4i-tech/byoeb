@@ -34,30 +34,41 @@ class QueueConsumer:
         self._message_db_service = message_db_service
         self._channel_client_factory = channel_client_factory
     
+    async def __create_azure_storage_queue_client(
+        self,
+        queue_name: str
+    ) -> BaseQueue:
+        """Create an Azure Storage Queue client with connection string or managed identity fallback."""
+        from byoeb.chat_app.configuration.config import env_azure_storage_connection_string
+        
+        if env_azure_storage_connection_string:
+            # Use connection string if available
+            return await AsyncAzureStorageQueue.aget_or_create(
+                connection_string=env_azure_storage_connection_string,
+                queue_name=queue_name
+            )
+        else:
+            # Fallback to managed identity (for backward compatibility)
+            from azure.identity import DefaultAzureCredential
+            default_credential = DefaultAzureCredential()
+            return await AsyncAzureStorageQueue.aget_or_create(
+                account_url=self._account_url,
+                queue_name=queue_name,
+                credentials=default_credential
+            )
+    
     async def __get_or_create_dead_letter_queue_client(
         self
     ) -> BaseQueue:
-        from azure.identity import DefaultAzureCredential
-        default_credential = DefaultAzureCredential()
         dlq_name = self._config["message_queue"]["azure"]["dead_letter_queue"]
-        self._dlq_client = await AsyncAzureStorageQueue.aget_or_create(
-            account_url=self._account_url,
-            queue_name=dlq_name,
-            credentials=default_credential
-        )
+        self._dlq_client = await self.__create_azure_storage_queue_client(dlq_name)
         return self._dlq_client
     
     async def __get_or_create_az_storage_queue_client(
         self,
     ) -> BaseQueue:
-        from azure.identity import DefaultAzureCredential
-        default_credential = DefaultAzureCredential()
         if not self._az_storage_queue:
-            self._az_storage_queue = await AsyncAzureStorageQueue.aget_or_create(
-                account_url=self._account_url,
-                queue_name=self._queue_name,
-                credentials=default_credential
-            )
+            self._az_storage_queue = await self.__create_azure_storage_queue_client(self._queue_name)
         return self._az_storage_queue
     
     async def initialize(
