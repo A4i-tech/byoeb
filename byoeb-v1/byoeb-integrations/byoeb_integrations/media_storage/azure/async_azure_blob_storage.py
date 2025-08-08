@@ -41,7 +41,7 @@ class AsyncAzureBlobStorage(BaseMediaStorage):
             )
         elif connection_string is not None:
             self.__blob_service_client = BlobServiceClient.from_connection_string(
-                connection_string=connection_string,
+                connection_string,
                 container_name=container_name
             )
         else:

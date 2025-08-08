@@ -5,6 +5,7 @@ from byoeb_integrations.media_storage.azure.async_azure_blob_storage import Asyn
 from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 from byoeb_integrations.llms.llama_index.llama_index_openai import AsyncLLamaIndexOpenAILLM
+from byoeb_core.media_storage.base import BaseMediaStorage
 
 account_url = app_config["media_storage"]["azure"]["account_url"]
 container_name = app_config["media_storage"]["azure"]["container_name"]
@@ -34,11 +35,19 @@ azure_openai_embed = AzureOpenAIEmbed(
     api_version=api_version
 )
 
-amedia_storage = AsyncAzureBlobStorage(
-    container_name=container_name,
-    account_url=account_url,
-    credentials=default_credential
-)
+if env_config.env_azure_storage_connection_string:
+    amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
+        container_name=container_name,
+        account_url=None,
+        credentials=None,
+        connection_string=env_config.env_azure_storage_connection_string
+    )
+else:
+    amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
+        container_name=container_name,
+        account_url=account_url,
+        credentials=DefaultAzureCredential()
+    )
 
 vector_store = AzureVectorStore(
     service_name=azure_search_service_name,
