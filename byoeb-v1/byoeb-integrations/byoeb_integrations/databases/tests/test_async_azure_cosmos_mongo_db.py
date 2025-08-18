@@ -87,11 +87,9 @@ async def inspect():
     await c1_client.adelete_collection()
 
 # asyncio.run(aazure_cosmos_mongo_db())
-@pytest.mark.skip(reason="Needs local MongoDB at localhost:27017")
 def test_aazure_cosmos_mongo_db_batch(event_loop):
     event_loop.run_until_complete(aazure_cosmos_mongo_db_batch())
 
-@pytest.mark.skip(reason="Needs local MongoDB at localhost:27017")
 def test_aazure_cosmos_mongo_db(event_loop):
     event_loop.run_until_complete(aazure_cosmos_mongo_db())
 
