@@ -15,9 +15,69 @@ from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import Async
 from byoeb_integrations import test_environment_path
 from dotenv import load_dotenv
 
+from types import SimpleNamespace
+
+DUMMY_TOKEN = "dummy_auth_token_123456789"
+
+def _make_ok_send_response(kind: str):
+    return SimpleNamespace(
+        response_status=SimpleNamespace(status="200"),
+        messages=[SimpleNamespace(id="wamid.FAKE_MESSAGE_ID")],
+        contacts=[SimpleNamespace(wa_id="918837701828")],
+        media_message=SimpleNamespace(id="FAKE_MEDIA_ID") if kind in {"audio","video","image","document"} else None,
+    )
+
+@pytest.fixture(autouse=True)
+def mock_whatsapp_when_dummy(monkeypatch):
+    if os.getenv("USE_REAL_WHATSAPP") == "1":
+        return
+
+    from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import AsyncWhatsAppClient
+
+    async def fake_asend_batch_messages(self, batch_request, message_type):
+        kind = message_type
+        return [_make_ok_send_response(kind) for _ in (batch_request or [None])]
+
+    async def fake__upload_media(self, data, mime_type):
+        return 200, SimpleNamespace(id="FAKE_UPLOAD_ID"), None
+
+    async def fake_adownload_media(self, media_id):
+        return 200, SimpleNamespace(data=b"FAKE_BYTES"), None
+
+    async def fake_adelete_media(self, media_id):
+        return SimpleNamespace(success=True)
+
+    async def fake_amark_as_read(self, message_id):
+        return SimpleNamespace(success=True)
+
+    monkeypatch.setattr(AsyncWhatsAppClient, "asend_batch_messages", fake_asend_batch_messages, raising=True)
+    monkeypatch.setattr(AsyncWhatsAppClient, "_upload_media", fake__upload_media, raising=True)
+    monkeypatch.setattr(AsyncWhatsAppClient, "adownload_media", fake_adownload_media, raising=True)
+    monkeypatch.setattr(AsyncWhatsAppClient, "adelete_media", fake_adelete_media, raising=True)
+    monkeypatch.setattr(AsyncWhatsAppClient, "amark_as_read", fake_amark_as_read, raising=True)
+
+@pytest.fixture(autouse=True)
+def mock_azure_tts(monkeypatch):
+    if os.getenv("USE_REAL_AZURE_TTS") == "1":
+        return
+
+    from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import (
+        AsyncAzureSpeechTranslator,
+    )
+
+    def fake_init(self, *args, **kwargs):
+        pass
+
+    async def fake_atext_to_speech(self, input_text: str, source_language: str = "en"):
+        wav = ac.text_to_wav_bytes(input_text)
+        return ac.wav_to_ogg_opus_bytes(wav)
+
+    monkeypatch.setattr(AsyncAzureSpeechTranslator, "__init__", fake_init, raising=True)
+    monkeypatch.setattr(AsyncAzureSpeechTranslator, "atext_to_speech", fake_atext_to_speech, raising=True)
+
 load_dotenv(test_environment_path)
-WHATSAPP_AUTH_TOKEN = os.getenv('WHATSAPP_AUTH_TOKEN')
-WHATSAPP_PHONE_NUMBER_ID = os.getenv('WHATSAPP_PHONE_NUMBER_ID')
+WHATSAPP_AUTH_TOKEN = "dummy_auth_token_123456789"
+WHATSAPP_PHONE_NUMBER_ID = "123456789012345"
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -368,7 +428,7 @@ def test_status_message():
 import byoeb_integrations.channel.whatsapp.request_payload as wa_request_payload
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 def test_text_request_payload():
-    byoeb_message = '{"channel_type": "whatsapp", "message_category": "Bot_to_user_response", "user": {"user_id": "6dfd0676f602bdf2cd545160efd99e01", "user_name": null, "user_region": null, "user_language": "en", "user_type": "byoebuser", "phone_number_id": "918837701828", "test_user": false, "experts": ["918904954952"], "audience": [], "created_timestamp": 1732451468, "activity_timestamp": 1732451468}, "message_context": {"message_id": null, "message_type": "regular_text", "message_source_text": "Hello! How can I assist you today?", "message_english_text": "Hello! How can I assist you today?", "media_info": null, "additional_info": null}, "reply_context": {"reply_id": "wamid.HBgMOTE4ODM3NzAxODI4FQIAEhggNzc0MUZCRkREOTEzNEY4NkRENURCRDMzOTQ1MEYyNzQA", "reply_type": "regular_text", "reply_source_text": "Hi", "reply_english_text": "Hi", "media_info": null, "additional_info": null}, "cross_conversation_id": null, "cross_conversation_context": null, "incoming_timestamp": null, "outgoing_timestamp": null}'
+    byoeb_message = '{"channel_type": "whatsapp", "message_category": "Bot_to_user_response", "user": {"user_id": "6dfd0676f602bdf2cd545160efd99e01", "user_name": null, "user_region": null, "user_language": "en", "user_type": "byoebuser", "phone_number_id": "918837701828", "test_user": false, "experts": { "primary": ["918904954952"] }, "audience": [], "created_timestamp": 1732451468, "activity_timestamp": 1732451468}, "message_context": {"message_id": null, "message_type": "regular_text", "message_source_text": "Hello! How can I assist you today?", "message_english_text": "Hello! How can I assist you today?", "media_info": null, "additional_info": null}, "reply_context": {"reply_id": "wamid.HBgMOTE4ODM3NzAxODI4FQIAEhggNzc0MUZCRkREOTEzNEY4NkRENURCRDMzOTQ1MEYyNzQA", "reply_type": "regular_text", "reply_source_text": "Hi", "reply_english_text": "Hi", "media_info": null, "additional_info": null}, "cross_conversation_id": null, "cross_conversation_context": null, "incoming_timestamp": null, "outgoing_timestamp": null}'
     byoeb_message = ByoebMessageContext.model_validate(json.loads(byoeb_message))
     payload = wa_request_payload.get_whatsapp_text_request_from_byoeb_message(byoeb_message)
     print(json.dumps(payload))
