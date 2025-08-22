@@ -53,4 +53,4 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Run MongoDB tests
-        run: poetry run pytest byoeb_integrations/databases/tests/test_async_azure_cosmos_mongo_db.py -v
+        run: poetry run pytest
