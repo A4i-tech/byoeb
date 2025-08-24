@@ -37,6 +37,9 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: Install ffmpeg (needed by pydub)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Install Poetry
         run: pipx install poetry
 
@@ -47,7 +50,9 @@ jobs:
             ~/.cache/pypoetry
             ~/.cache/pip
             .venv
-          key: poetry-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
+          key: poetry-${{ runner.os }}-${{ hashFiles('byoeb-v1/byoeb-integrations/poetry.lock') }}
+          restore-keys: |
+            poetry-${{ runner.os }}-
 
       - name: Install dependencies
         run: poetry install --no-interaction
