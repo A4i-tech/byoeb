@@ -14,17 +14,6 @@ jobs:
       run:
         working-directory: ./byoeb-v1/byoeb-integrations
 
-    services:
-      mongo:
-        image: mongo:7
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd="mongosh --quiet --eval 'db.runCommand({ ping: 1 })' || exit 1"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=20
-
     env:
       POETRY_VIRTUALENVS_IN_PROJECT: "true"
 
@@ -42,17 +31,6 @@ jobs:
 
       - name: Install Poetry
         run: pipx install poetry
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pypoetry
-            ~/.cache/pip
-            .venv
-          key: poetry-${{ runner.os }}-${{ hashFiles('byoeb-v1/byoeb-integrations/poetry.lock') }}
-          restore-keys: |
-            poetry-${{ runner.os }}-
 
       - name: Install dependencies
         run: poetry install --no-interaction
