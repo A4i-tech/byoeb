@@ -10,11 +10,63 @@ from byoeb_core.models.media_storage.file_data import FileMetadata, FileData
 from azure.identity import DefaultAzureCredential
 from byoeb_integrations import test_environment_path
 from dotenv import load_dotenv
+from unittest.mock import AsyncMock
+from datetime import datetime, timezone
 
 load_dotenv(test_environment_path)
 
-MEDIA_STORAGE_ACCOUNT_URL=os.getenv("MEDIA_STORAGE_ACCOUNT_URL")
-MEDIA_STORAGE_CONTAINER_NAME=os.getenv("MEDIA_STORAGE_CONTAINER_NAME")
+MEDIA_STORAGE_ACCOUNT_URL="https://example.com"
+MEDIA_STORAGE_CONTAINER_NAME="dummy"
+
+@pytest.fixture(autouse=True)
+def patch_async_azure_blob_storage_methods(mocker):
+    target = "byoeb_integrations.media_storage.azure.async_azure_blob_storage.AsyncAzureBlobStorage"
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # upload: no-op
+    mocker.patch(f"{target}.aupload_file", new=AsyncMock(return_value=None))
+
+    # get props: return valid metadata, reflecting the requested file_name
+    async def fake_get_props(*args, **kwargs):
+        # works whether called as method or function; last positional arg is file_name
+        file_name = kwargs.get("file_name")
+        if not file_name and args:
+            file_name = args[-1]
+        return True, FileMetadata(
+            file_name=file_name or "sample.txt",
+            content_type="text/plain",
+            size=42,
+            creation_time=now_iso,  # <-- STRING, not datetime
+        )
+
+    # download: return data for the same name
+    async def fake_download(*args, **kwargs):
+        file_name = kwargs.get("file_name")
+        if not file_name and args:
+            file_name = args[-1]
+        return True, FileData(
+            file_name=file_name or "sample.txt",
+            data=b"Hello",
+            content_type="text/plain",
+            size=5,
+        )
+
+    mocker.patch(f"{target}.aget_file_properties", new=AsyncMock(side_effect=fake_get_props))
+    mocker.patch(f"{target}.adownload_file", new=AsyncMock(side_effect=fake_download))
+    mocker.patch(f"{target}.adelete_file", new=AsyncMock(return_value=None))
+    mocker.patch(f"{target}._close", new=AsyncMock(return_value=None))
+
+    # Optional: prevent any SDK constructor side-effects
+    mocker.patch("azure.storage.blob.aio.BlobServiceClient", autospec=True)
+
+# Optional: avoid identity warnings/noise
+@pytest.fixture(autouse=True)
+def patch_default_credential(mocker):
+    mocker.patch(
+        "byoeb_integrations.media_storage.tests.test_media_storage_azure.DefaultAzureCredential",
+        new=lambda: object()
+    )
 
 @pytest.fixture
 def event_loop():

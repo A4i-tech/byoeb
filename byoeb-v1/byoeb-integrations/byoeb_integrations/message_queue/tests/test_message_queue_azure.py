@@ -6,6 +6,7 @@ from byoeb_integrations.message_queue.azure.async_azure_storage_queue import Asy
 from azure.identity import DefaultAzureCredential
 from byoeb_integrations import test_environment_path
 from dotenv import load_dotenv
+from unittest.mock import AsyncMock
 
 load_dotenv(test_environment_path)
 
@@ -14,11 +15,47 @@ load_dotenv(test_environment_path)
 #     format='%(asctime)s %(levelname)s %(name)s %(filename)s %(lineno)d %(threadName)s : %(message)s'
 # )
 
-MESSAGE_QUEUE_ACCOUNT_URL = os.getenv("MESSAGE_QUEUE_ACCOUNT_URL")
-MESSAGE_QUEUE_BOT = os.getenv("MESSAGE_QUEUE_BOT")
-MESSAGE_QUEUE_CHANNEL = os.getenv("MESSAGE_QUEUE_CHANNEL")
-MESSAGE_QUEUE_MESSAGES_PER_PAGE = os.getenv("MESSAGE_QUEUE_MESSAGES_PER_PAGE")
-MESSAGE_QUEUE_VISIBILITY_TIMEOUT = os.getenv("MESSAGE_QUEUE_VISIBILITY_TIMEOUT")
+MESSAGE_QUEUE_ACCOUNT_URL = "https://dummyaccount.queue.core.windows.net"
+MESSAGE_QUEUE_BOT = "dummy-queue"
+MESSAGE_QUEUE_CHANNEL = "dummy-channel"
+MESSAGE_QUEUE_MESSAGES_PER_PAGE = 10
+MESSAGE_QUEUE_VISIBILITY_TIMEOUT = 30
+
+@pytest.fixture(autouse=True)
+def stub_async_azure_storage_queue(mocker):
+    # a tiny in-memory fake
+    class _FakeMsg:
+        def __init__(self, content):
+            self.content = content
+
+    class _FakeQueue:
+        def __init__(self):
+            self._messages = []
+
+        async def asend_message(self, message: str):
+            self._messages.append(_FakeMsg(message))
+            # shape this to whatever your code logs/expects
+            return {"message_id": "fake-id", "status": "ok"}
+
+        async def areceive_message(self, messages_per_page=None, visibility_timeout=None):
+            async def _gen():
+                # yield any messages currently queued; simple single-page behavior
+                while self._messages:
+                    yield self._messages.pop(0)
+            return _gen()
+
+        async def adelete_message(self, msg):
+            # already popped on receive; nothing to do
+            return None
+
+        async def _close(self):
+            return None
+
+    # Patch the factory to return our fake instead of a real Azure-backed instance
+    mocker.patch(
+        "byoeb_integrations.message_queue.azure.async_azure_storage_queue.AsyncAzureStorageQueue.aget_or_create",
+        new=AsyncMock(return_value=_FakeQueue()),
+    )
 
 @pytest.fixture
 def event_loop():

@@ -6,12 +6,29 @@ from byoeb_integrations.translators.text.azure.async_azure_text_translator impor
 from azure.identity import DefaultAzureCredential
 from byoeb_integrations import test_environment_path
 from dotenv import load_dotenv
+from unittest.mock import AsyncMock
 
 load_dotenv(test_environment_path)
 
 credential = DefaultAzureCredential()
-TEXT_TRANSLATOR_RESOURCE_ID=os.getenv('TEXT_TRANSLATOR_RESOURCE_ID')
-TEXT_TRANSLATOR_REGION=os.getenv('TEXT_TRANSLATOR_REGION')
+TEXT_TRANSLATOR_RESOURCE_ID="/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.CognitiveServices/accounts/your-translator"
+TEXT_TRANSLATOR_REGION="eastus"
+
+@pytest.fixture
+def mock_translate(mocker):
+    async_mock = AsyncMock(side_effect=lambda **kwargs: (
+        "नमस्ते, आप कैसे हैं?" if kwargs.get("target_language") == "hi" else kwargs.get("input_text")
+    ))
+    mocker.patch(
+        "byoeb_integrations.translators.text.azure.async_azure_text_translator.AsyncAzureTextTranslator.atranslate_text",
+        new=async_mock
+    )
+    # Also mock _close so awaiting it doesn't touch real resources
+    mocker.patch(
+        "byoeb_integrations.translators.text.azure.async_azure_text_translator.AsyncAzureTextTranslator._close",
+        new=AsyncMock()
+    )
+    return async_mock
 
 @pytest.fixture
 def event_loop():
@@ -58,10 +75,10 @@ async def aazure_translate_text_en_en():
     assert translated_text == input_text
 
 # asyncio.run(aazure_translate_text_en_hi())
-def test_aazure_translate_text_en_hi(event_loop):
+def test_aazure_translate_text_en_hi(event_loop, mock_translate):
     event_loop.run_until_complete(aazure_translate_text_en_hi())
 
-def test_aazure_translate_text_en_en(event_loop):
+def test_aazure_translate_text_en_en(event_loop, mock_translate):
     event_loop.run_until_complete(aazure_translate_text_en_en())
 
 if __name__ == "__main__":

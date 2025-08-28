@@ -13,10 +13,17 @@ from dotenv import load_dotenv
 
 load_dotenv(test_environment_path)
 
-AZURE_COGNITIVE_ENDPOINT = os.getenv('AZURE_COGNITIVE_ENDPOINT')
-LLM_MODEL = os.getenv('LLM_MODEL')
-LLM_ENDPOINT = os.getenv('LLM_ENDPOINT')
-LLM_API_VERSION = os.getenv('LLM_API_VERSION')
+# For get_bearer_token_provider you pass a scope, not the endpoint.
+AZURE_COGNITIVE_ENDPOINT = "https://cognitiveservices.azure.com/.default"  # scope
+LLM_MODEL = "gpt-4o"  # dummy model name
+LLM_ENDPOINT = "https://dummy-azure-openai-resource.openai.azure.com"  # fake endpoint
+LLM_API_VERSION = "2024-06-01"  # example API version
+
+# OpenAI (non-Azure) dummy values
+OPENAI_API_KEY = "sk-dummy-key-00000000000000000000000000000000"
+OPENAI_API_VERSION = "2024-06-01"
+OPENAI_ORG_ID = "org_dummy_123"
+OPENAI_MODEL = "gpt-4o-mini"
 token_provider = get_bearer_token_provider(
     AzureCliCredential(), AZURE_COGNITIVE_ENDPOINT
 )
@@ -37,10 +44,10 @@ llama_index_azure_openai = AsyncLLamaIndexAzureOpenAILLM(
 )
 
 async def atest_llama_index_openai():
-    api_key=os.getenv('OPENAI_API_KEY').strip()
-    api_version = os.getenv('OPENAI_API_VERSION').strip()
-    organization=os.getenv('OPENAI_ORG_ID').strip()
-    model = os.getenv('OPENAI_MODEL').strip()
+    api_key = OPENAI_API_KEY
+    api_version = OPENAI_API_VERSION
+    organization = OPENAI_ORG_ID
+    model = OPENAI_MODEL
     llama_index_openai = AsyncLLamaIndexOpenAILLM(
         model=model,
         api_key=api_key,
