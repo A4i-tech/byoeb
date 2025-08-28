@@ -1,53 +1,23 @@
-import os
 import hashlib
-import asyncio
 from datetime import datetime
-from azure.identity import DefaultAzureCredential, AzureCliCredential, get_bearer_token_provider
-from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
-from byoeb_integrations.llms.llama_index.llama_index_azure_openai import AsyncLLamaIndexAzureOpenAILLM
-from byoeb_integrations import test_environment_path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
+from azure.core.exceptions import ResourceNotFoundError
+from azure.identity import DefaultAzureCredential
 from dotenv import load_dotenv
-from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore, AzureVectorSearchType
+
+from byoeb_integrations import test_environment_path
+from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import (
+    AzureVectorStore,
+    AzureVectorSearchType,
+)
+
+pytestmark = pytest.mark.asyncio
 
 load_dotenv(test_environment_path)
 
-# Azure Search Config
-SERVICE_NAME = "byoeb-search"
-INDEX_NAME = "byoeb_index"
-ENDPOINT = f"https://{SERVICE_NAME}.search.windows.net"
-
-AZURE_COGNITIVE_ENDPOINT = os.getenv('AZURE_COGNITIVE_ENDPOINT')
-EMBEDDINGS_MODEL=os.getenv('EMBEDDINGS_MODEL')
-EMBEDDINGS_ENDPOINT=os.getenv('EMBEDDINGS_ENDPOINT')
-EMBEDDINGS_DEPLOYMENT_NAME=os.getenv('EMBEDDINGS_DEPLOYMENT_NAME')
-EMBEDDINGS_API_VERSION=os.getenv('EMBEDDINGS_API_VERSION')
-
-AZURE_COGNITIVE_ENDPOINT = os.getenv('AZURE_COGNITIVE_ENDPOINT')
-LLM_MODEL = os.getenv('LLM_MODEL')
-LLM_ENDPOINT = os.getenv('LLM_ENDPOINT')
-LLM_API_VERSION = os.getenv('LLM_API_VERSION')
-token_provider = get_bearer_token_provider(
-    AzureCliCredential(), AZURE_COGNITIVE_ENDPOINT
-)
-
-token_provider = get_bearer_token_provider(
-    AzureCliCredential(), AZURE_COGNITIVE_ENDPOINT
-)
-embedding_fn = AzureOpenAIEmbed(
-    model=EMBEDDINGS_MODEL,
-    deployment_name=EMBEDDINGS_DEPLOYMENT_NAME,
-    api_version=EMBEDDINGS_API_VERSION,
-    azure_endpoint=EMBEDDINGS_ENDPOINT,
-    token_provider=token_provider,
-).get_embedding_function()
-
-llama_index_azure_openai = AsyncLLamaIndexAzureOpenAILLM(
-    model=LLM_MODEL,
-    deployment_name=LLM_MODEL,
-    azure_endpoint=LLM_ENDPOINT,
-    token_provider=token_provider,
-    api_version=LLM_API_VERSION
-)
 
 texts = [
     "Photosynthesis is the process by which green plants convert sunlight into chemical energy, producing oxygen and glucose.",
@@ -72,11 +42,93 @@ texts = [
     "Deforestation and pollution negatively impact photosynthesis by reducing plant populations and increasing greenhouse gases."
 ]
 
-languages_translation_prompts = {
-    "hi": "You are an english to hindi translator.",
-}
-async def test_azure_vector_search_upload_documents():
-    
+languages_translation_prompts = {"hi": "You are an english to hindi translator."}
+
+SERVICE_NAME = "dummy-search-service"
+INDEX_NAME = "dummy_index"
+
+# -------------------------
+# Stubs (pure in-memory)
+# -------------------------
+class _DummyEmbed:
+    """Embedding stub that matches the async interface your store expects."""
+    def get_text_embedding(self, text: str):
+        return [0.0] * 3072
+
+    async def aget_text_embedding(self, text: str):
+        return [0.0] * 3072
+
+    def __call__(self, texts):
+        return [[0.0] * 3072 for _ in texts]
+
+
+async def _fake_agenerate_response(*args, **kwargs):
+    """LLM stub: returns a tuple of strings (as your code expects)."""
+    tagged = (
+        "<q_1>What is photosynthesis?</q_1>"
+        "<q_2>How does chlorophyll work?</q_2>"
+        "<q_3>Why is photosynthesis important?</q_3>"
+    )
+    return tagged, tagged
+
+
+@pytest.fixture
+def embedding_fn_stub():
+    return _DummyEmbed()
+
+
+@pytest.fixture
+def llm_client_stub():
+    ns = SimpleNamespace()
+    ns.agenerate_response = AsyncMock(side_effect=_fake_agenerate_response)
+    return ns
+
+
+@pytest.fixture(autouse=True)
+def mock_search_clients(mocker):
+    """
+    Patch Azure Search clients where AzureVectorStore imports them.
+    Ensures: no network, no real credentials, deterministic results.
+    """
+    path = "byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search"
+
+    mock_index_client = mocker.Mock(name="SearchIndexClient")
+    mock_search_client = mocker.Mock(name="SearchClient")
+
+    # Constructors return mocks
+    mocker.patch(f"{path}.SearchIndexClient", return_value=mock_index_client)
+    mocker.patch(f"{path}.SearchClient", return_value=mock_search_client)
+
+    # Force "index not found" initially so code creates it
+    mock_index_client.get_index.side_effect = ResourceNotFoundError("not found")
+    mock_index_client.create_or_update_index.return_value = None
+    mock_index_client.delete_index.return_value = None
+
+    # Upload returns per-doc result objects
+    mock_search_client.upload_documents.return_value = [{"key": "doc-1", "status": True}]
+
+    # Search returns hits; ensure related_questions is a dict (model expects dict)
+    def _fake_search(*args, **kwargs):
+        return [
+            {
+                "id": "1",
+                "text": "Photosynthesis basics",
+                "metadata": {"source": "0"},
+                "related_questions": {},
+            },
+            {
+                "id": "2",
+                "text": "Chlorophyll overview",
+                "metadata": {"source": "1"},
+                "related_questions": {},
+            },
+        ]
+
+    mock_search_client.search.side_effect = _fake_search
+    return mock_index_client, mock_search_client
+
+@pytest.mark.asyncio
+async def test_azure_vector_search_upload_documents(embedding_fn_stub, llm_client_stub):
     ids = [hashlib.md5(text.encode()).hexdigest() for text in texts]
     metadatas = [
         {
@@ -90,20 +142,20 @@ async def test_azure_vector_search_upload_documents():
     azure_vector_search = AzureVectorStore(
         SERVICE_NAME,
         INDEX_NAME,
-        embedding_fn,
+        embedding_fn_stub,
         credential=DefaultAzureCredential()
     )
     await azure_vector_search.aadd_chunks(
         ids=ids,
         data_chunks=texts,
         metadata=metadatas,
-        llm_client=llama_index_azure_openai,
+        llm_client=llm_client_stub,
         languages_translation_prompts=languages_translation_prompts,
         show_progress=True
     )
 
-async def test_azure_vector_search_query():
-
+@pytest.mark.asyncio
+async def test_azure_vector_search_query(embedding_fn_stub):
     query_texts = [
         "What is photosynthesis?",
         "Explain chlorophyll",
@@ -113,7 +165,7 @@ async def test_azure_vector_search_query():
     azure_vector_search = AzureVectorStore(
         SERVICE_NAME,
         INDEX_NAME,
-        embedding_fn,
+        embedding_fn_stub,
         credential=DefaultAzureCredential()
     )
     for query_text in query_texts:
@@ -129,18 +181,11 @@ async def test_azure_vector_search_query():
         end_time = datetime.now().timestamp()
         print("Execution Time: ", end_time - start_time)
 
-def test_azure_vector_search_delete():
+def test_azure_vector_search_delete(embedding_fn_stub):
     azure_vector_search = AzureVectorStore(
         SERVICE_NAME,
         INDEX_NAME,
-        embedding_fn,
+        embedding_fn_stub,
         credential=DefaultAzureCredential()
     )
     azure_vector_search.delete_store()
-
-if __name__ == "__main__":
-    # asyncio.run(test_azure_vector_search_upload_documents())
-    asyncio.run(test_azure_vector_search_query())
-    # test_azure_vector_search_delete()
-    
-
