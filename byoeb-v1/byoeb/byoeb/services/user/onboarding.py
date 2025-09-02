@@ -29,7 +29,7 @@ def get_language_code(language):
 
 def get_consent(choice):
     yes = ["हाँ", "Yes", "होय", "అవును"]
-    no = ["नहीं", "No" "नाही", "కాదు"]
+    no = ["नहीं", "No", "नाही", "కాదు"]
     if choice in yes:
         return True
     elif choice in no:
@@ -38,10 +38,13 @@ def get_consent(choice):
 def get_user_type(choice):
     asha = ["Asha", "आशा", "ఆశ"]
     anm = ["ANM", "नर्सदीदी / ए.एन.एम", "నర్స్‌దీది / ఎ.ఎన్.ఎం"]
+    others = ["Others", "अन्य", "इतर", "ఇతరులు"]
     if choice in asha:
         return "asha"
     elif choice in anm:
         return "anm"
+    elif choice in others:
+        return "others"
 
 def create_user_selection_message(
     message: ByoebMessageContext,
@@ -50,19 +53,19 @@ def create_user_selection_message(
     message_dict = {
         "hi": {
             "text": "🙏🏽 नमस्ते! मैं खुशी बेबी से आशा सहेली हूँ। आप कौन हैं?",
-            "options": ["आशा", "नर्सदीदी / ए.एन.एम"]
+            "options": ["आशा", "नर्सदीदी / ए.एन.एम", "अन्य"]
         },
         "en": {
             "text": "🙏🏽 Namaste! I am ASHA Saheli from Khushi Baby. Who are you?",
-            "options": ["Asha", "ANM"]
+            "options": ["Asha", "ANM", "Others"]
         },
         "mr": {
             "text": "🙏🏽 नमस्कार! मी खुशी बेबी कडून आशा सहेली आहे. तुम्ही कोण आहात?",
-            "options": ["आशा", "नर्सदीदी / ए.एन.एम"]
+            "options": ["आशा", "नर्सदीदी / ए.एन.एम", "इतर"]
         },
         "te": {
             "text": "🙏🏽 నమస్తే! నేను ఖుషి బేబీ నుండి ఆశ సహेली. మీరు ఎవరు?",
-            "options": ["ఆశ", "నర్స్‌దీది / ఎ.ఎన్.ఎం"]
+            "options": ["ఆశ", "నర్స్‌దీది / ఎ.ఎన్.ఎం", "ఇతరులు"]
         }
     }
     text_message = message_dict[user_lang]["text"]
@@ -115,6 +118,7 @@ def create_consent_message(
     message: ByoebMessageContext,
     user_type: str = None
 ) -> ByoebMessageContext:
+    mapped_type = "asha" if user_type == "others" else user_type
     consent_dict = {
         "asha": {
             "hi": {
@@ -153,8 +157,8 @@ def create_consent_message(
             }
         }  
     }
-    text_message = consent_dict[user_type][message.user.user_language]["text"]
-    text_options = consent_dict[user_type][message.user.user_language]["options"]
+    text_message = consent_dict[mapped_type][message.user.user_language]["text"]
+    text_options = consent_dict[mapped_type][message.user.user_language]["options"]
     message_type = MessageTypes.INTERACTIVE_BUTTON.value
     button_additional_info = {
         chat_const.BUTTON_TITLES: text_options,
@@ -193,7 +197,7 @@ def create_audio(
 def create_initial_message(
     message: ByoebMessageContext
 ) -> ByoebMessageContext:
-    user_type = message.user.user_type
+    user_type = "asha" if message.user.user_type == "others" else message.user.user_type
     user_lang = message.user.user_language
     thank_you_dict = {
         "asha": {
@@ -294,7 +298,7 @@ def create_user(
         additional_info={
             user_const.CONSENT: consent,
         },
-        test_user=False,
+        test_user=True if user_type == "others" else False,
         experts={},
         audience=[],
         created_timestamp=int(datetime.now(timezone.utc).timestamp()),

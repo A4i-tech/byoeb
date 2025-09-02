@@ -21,9 +21,13 @@ class UsersHandler:
         self.__user_collection = app_config["databases"]["mongo_db"]["user_collection"]
         self.__mongo_db = None
         self.__user_collection_client = None
-        self.__regular_user_type = bot_config["regular"]["user_type"]
+        _regular = bot_config["regular"]["user_type"]
+        self.__regular_user_types = _regular if isinstance(_regular, list) else [_regular]
         self.__expert_user_types = bot_config["expert"].values()
-    
+
+    def __is_regular_user_type(self, user_type: str) -> bool:
+        return user_type in self.__regular_user_types
+
     def __validate_expert_user_type(
         self,
         expert_user_type: str
@@ -84,35 +88,35 @@ class UsersHandler:
                 message = "User type must be provided"
                 byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
                 continue
-            if (byoeb_user.user_type != self.__regular_user_type 
-                and not self.__validate_expert_user_type(byoeb_user.user_type)):
-                message = f"""Invalid user type. Available user types are {self.__regular_user_type} and {list(self.__expert_user_types)}"""
+            is_regular = self.__is_regular_user_type(byoeb_user.user_type)
+            is_expert  = self.__validate_expert_user_type(byoeb_user.user_type)
+            if not is_regular and not is_expert:
+                message = (
+                    f"Invalid user type. Available user types are "
+                    f"{self.__regular_user_types} and {list(self.__expert_user_types)}"
+                )
                 byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
                 continue
-            if (byoeb_user.user_type == self.__regular_user_type
-                and self.__validate_experts(byoeb_user.experts) is False):
-                message = f"""Invalid expert user type. Available expert user types are {list(self.__expert_user_types)}"""
+            if is_regular and self.__validate_experts(byoeb_user.experts) is False:
+                message = (
+                    f"Invalid expert user type. Available expert user types are "
+                    f"{list(self.__expert_user_types)}"
+                )
                 byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
                 continue
-            if (byoeb_user.user_type == self.__regular_user_type and len(byoeb_user.audience) != 0):
+            if is_regular and len(byoeb_user.audience or []) != 0:
                 message = "Cannot have list of audience"
                 byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
                 continue
-            if (byoeb_user.user_type == self.__regular_user_type
-                and expert_numbers is not None
-                and byoeb_user.phone_number_id in expert_numbers
-            ):
+            if is_regular and expert_numbers is not None and byoeb_user.phone_number_id in expert_numbers:
                 message = "Cannot be in their own list of experts"
                 byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
                 continue
-            if (self.__validate_expert_user_type(byoeb_user.user_type) and len(expert_numbers) != 0):
-                message =  "Cannot have list of experts"
+            if is_expert and len(expert_numbers or []) != 0:
+                message = "Cannot have list of experts"
                 byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
                 continue
-            if (self.__validate_expert_user_type(byoeb_user.user_type)
-                and byoeb_user.audience is not None
-                and byoeb_user.phone_number_id in byoeb_user.audience
-            ):
+            if is_expert and (byoeb_user.audience is not None) and (byoeb_user.phone_number_id in byoeb_user.audience):
                 message = "Cannot be in their own list of audience"
                 byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
                 continue
