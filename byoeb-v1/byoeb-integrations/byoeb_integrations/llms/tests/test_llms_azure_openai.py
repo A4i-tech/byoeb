@@ -1,13 +1,10 @@
-import os
 import asyncio
-import logging
 import threading
 import time
 import pytest
 from azure.identity import get_bearer_token_provider, AzureCliCredential
 from byoeb_integrations.llms.azure_openai.async_azure_openai import AsyncAzureOpenAILLM
 from byoeb_integrations.llms.llama_index.llama_index_azure_openai import AsyncLLamaIndexAzureOpenAILLM
-from byoeb_integrations.llms.llama_index.llama_index_openai import AsyncLLamaIndexOpenAILLM
 from byoeb_integrations import test_environment_path
 from dotenv import load_dotenv
 from _test_llms_generic import *
