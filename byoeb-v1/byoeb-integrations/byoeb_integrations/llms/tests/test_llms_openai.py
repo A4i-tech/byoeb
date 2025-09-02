@@ -7,10 +7,10 @@ from _test_llms_generic import *
 
 load_dotenv(test_environment_path)
 
-API_KEY = os.getenv('OPENAI_API_KEY').strip()
-API_VERSION = os.getenv('OPENAI_API_VERSION').strip()
-ORGANIZATION = os.getenv('OPENAI_ORG_ID').strip()
-MODEL = os.getenv('OPENAI_MODEL').strip()
+API_KEY = "sk-dummy-key-00000000000000000000000000000000"
+API_VERSION = "2024-06-01"
+ORGANIZATION = "org_dummy_123"
+MODEL = "gpt-4o-mini"
 
 @pytest.fixture
 def llm(mocker):
