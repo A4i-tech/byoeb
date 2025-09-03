@@ -3,7 +3,7 @@ import pytest
 from byoeb_integrations.llms.llama_index.llama_index_openai import AsyncLLamaIndexOpenAILLM
 from byoeb_integrations import test_environment_path
 from dotenv import load_dotenv
-from _test_llms_generic import *
+from _test_llama_index_generic import *
 
 load_dotenv(test_environment_path)
 
@@ -13,7 +13,7 @@ ORGANIZATION = "org_dummy_123"
 MODEL = "gpt-4o-mini"
 
 @pytest.fixture
-def llm(mocker):
+def llm_llama(mocker):
     resp = mocker.Mock()
     resp.raw = mocker.Mock()
     resp.raw.choices = [mocker.Mock(message=mocker.Mock(content="content"))]
@@ -40,16 +40,16 @@ def test_azure_openai_instantiation(kwargs, error_msg):
         AsyncLLamaIndexOpenAILLM(organization=ORGANIZATION, **kwargs)
 
 @pytest.mark.asyncio
-async def test_llama_index_openai(llm):
+async def test_llama_index_openai(llm_llama):
     msg = "Hello, how are you?"
     prompt = [{"role": "system", "content": "You are a helpful assistant."}]
     prompt.append({"role": "user", "content": msg})
-    llm_resp, response = await llm.agenerate_response(
+    llm_resp, response = await llm_llama.agenerate_response(
         prompts=prompt
     )
     print (response)
     assert response is not None
-    print(llm.get_response_tokens(llm_resp))
+    print(llm_llama.get_response_tokens(llm_resp))
 
-def test_valid_llm_client(llm):
-    assert llm.get_llm_client() is not None
+def test_valid_llm_client(llm_llama):
+    assert llm_llama.get_llm_client() is not None

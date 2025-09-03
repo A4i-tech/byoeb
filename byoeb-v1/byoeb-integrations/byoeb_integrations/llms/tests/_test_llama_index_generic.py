@@ -5,7 +5,7 @@ import pytest
 # defined here, import the functions.
 #   from _test_llms_generic import *
 #   @pytest.fixture
-#   def llm():
+#   def llm_llama():
 #       return LLM(...)
 
 @pytest.mark.parametrize(
@@ -17,6 +17,6 @@ import pytest
     ],
 )
 @pytest.mark.asyncio
-async def test_llama_index_openai_prompt_format(llm, prompts):
+async def test_llama_index_openai_prompt_format(llm_llama, prompts):
     with pytest.raises(ValueError, match="role and content must be provided in prompt"):
-        await llm.agenerate_response(prompts=prompts)
+        await llm_llama.agenerate_response(prompts=prompts)

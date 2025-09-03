@@ -46,7 +46,6 @@ class AsyncAzureOpenAILLM(BaseLLM):
 
     def generate_response(self, query: str) -> Any:
         raise NotImplementedError
-    
     async def agenerate_response(
         self,
         prompts: list,

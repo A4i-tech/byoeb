@@ -7,7 +7,7 @@ from byoeb_integrations.llms.azure_openai.async_azure_openai import AsyncAzureOp
 from byoeb_integrations.llms.llama_index.llama_index_azure_openai import AsyncLLamaIndexAzureOpenAILLM
 from byoeb_integrations import test_environment_path
 from dotenv import load_dotenv
-from _test_llms_generic import *
+from _test_llama_index_generic import *
 
 load_dotenv(test_environment_path)
 
@@ -46,7 +46,7 @@ def llm_simple(mocker):
     )
 
 @pytest.fixture
-def llm_llama_indexed(mocker):
+def llm_llama(mocker):
     tokenizer = mocker.Mock()
     tokenizer.encode = lambda s: [0]
     mocker.patch("tiktoken.encoding_for_model", return_value=tokenizer)
@@ -71,7 +71,7 @@ def llm_llama_indexed(mocker):
         api_version=LLM_API_VERSION
     )
 
-@pytest.fixture(params=["llm_simple", "llm_llama_indexed"])
+@pytest.fixture(params=["llm_simple", "llm_llama"])
 def llm(request):
     return request.getfixturevalue(request.param)
 
@@ -144,24 +144,24 @@ async def agenerate_response(llm, msg):
     print(f"Thread ID: {threading.get_ident()} Response: {response} Elapsed Time: {end-start}")
 
 @pytest.mark.asyncio
-async def test_llama_index_azure_openai(llm_llama_indexed):
+async def test_llama_index_azure_openai(llm_llama):
     msg = "Hello, how are you?"
     prompt = [{"role": "system", "content": "You are a helpful assistant."}]
     prompt.append({"role": "user", "content": msg})
-    llm_resp, response = await llm_llama_indexed.agenerate_response(
+    llm_resp, response = await llm_llama.agenerate_response(
         prompts=prompt
     )
     assert response is not None
-    print(llm_llama_indexed.get_response_tokens(llm_resp))
+    print(llm_llama.get_response_tokens(llm_resp))
 
-def test_agenerate_response(llm_llama_indexed):
+def test_agenerate_response(llm_llama):
     prompt1 = "Hello, how are you?"
     prompt2 = "What is your role?"
 
     start = time.time()
-    thread1 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm_llama_indexed, prompt1)))
-    thread2 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm_llama_indexed, prompt2)))
-    thread3 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm_llama_indexed, prompt1+prompt2)))
+    thread1 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm_llama, prompt1)))
+    thread2 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm_llama, prompt2)))
+    thread3 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm_llama, prompt1+prompt2)))
 
     barrier = threading.Barrier(3)
     # Start threads
