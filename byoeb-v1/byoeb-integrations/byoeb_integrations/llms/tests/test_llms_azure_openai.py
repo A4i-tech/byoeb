@@ -1,4 +1,5 @@
 import asyncio
+import queue
 import threading
 import time
 import pytest
@@ -152,12 +153,19 @@ def test_agenerate_response(llm):
     prompt1 = "Hello, how are you?"
     prompt2 = "What is your role?"
 
+    ex = queue.Queue()
+    async def run_prompt(llm, prompt):
+        try:
+            await agenerate_response(llm, prompt)
+        except Exception as e:
+            ex.put(e)
+            raise e
+
     start = time.time()
     thread1 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm, prompt1)))
     thread2 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm, prompt2)))
     thread3 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm, prompt1+prompt2)))
 
-    barrier = threading.Barrier(3)
     # Start threads
     thread1.start()
     thread2.start()
@@ -169,6 +177,9 @@ def test_agenerate_response(llm):
     thread3.join()
 
     end= time.time()
+
+    while not ex.empty():
+        raise ex.get()
 
     print(f"Elapsed Time: {end-start}")
     # start = time.time()
