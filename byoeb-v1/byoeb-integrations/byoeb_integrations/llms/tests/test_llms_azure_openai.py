@@ -7,6 +7,8 @@ from byoeb_integrations.llms.azure_openai.async_azure_openai import AsyncAzureOp
 from byoeb_integrations.llms.llama_index.llama_index_azure_openai import AsyncLLamaIndexAzureOpenAILLM
 from byoeb_integrations import test_environment_path
 from dotenv import load_dotenv
+from openai import AsyncAzureOpenAI
+from openai.resources.chat.completions import AsyncCompletions
 from _test_llama_index_generic import *
 
 load_dotenv(test_environment_path)
@@ -32,9 +34,10 @@ def llm_simple(mocker):
     resp = mocker.Mock()
     resp.choices = [mocker.Mock(message=mocker.Mock(content="content"))]
 
-    create = mocker.AsyncMock(return_value=resp)
-    client = mocker.Mock()
-    client.chat.completions.create = create
+    client = mocker.create_autospec(AsyncAzureOpenAI, instance=True)
+    client.chat = mocker.Mock()
+    client.chat.completions = mocker.create_autospec(AsyncCompletions, instance=True)
+    client.chat.completions.create = mocker.AsyncMock(AsyncCompletions.create, return_value=resp)
 
     mocker.patch("byoeb_integrations.llms.azure_openai.async_azure_openai.AsyncAzureOpenAI", return_value=client)
 
