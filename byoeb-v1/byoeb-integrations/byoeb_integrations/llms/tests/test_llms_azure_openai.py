@@ -96,14 +96,6 @@ def test_llama_index_azure_openai_instantiation(kwargs, error_msg):
     with pytest.raises(ValueError, match=error_msg):
         AsyncLLamaIndexAzureOpenAILLM(**kwargs)
 
-def test_valid_llm_simple_client():
-    llm = AsyncAzureOpenAILLM(
-        model=LLM_MODEL,
-        azure_endpoint=LLM_ENDPOINT,
-        token_provider=token_provider,
-        api_version=LLM_API_VERSION
-    )
-    assert llm.get_llm_client() is not None
 @pytest.mark.parametrize("kwargs", [
     {"token_provider": token_provider},
     {"api_key": OPENAI_API_KEY},
