@@ -104,7 +104,6 @@ def test_valid_llm_simple_client():
         api_version=LLM_API_VERSION
     )
     assert llm.get_llm_client() is not None
-
 @pytest.mark.parametrize("kwargs", [
     {"token_provider": token_provider},
     {"api_key": OPENAI_API_KEY},
@@ -154,14 +153,14 @@ async def test_llama_index_azure_openai(llm_llama):
     assert response is not None
     print(llm_llama.get_response_tokens(llm_resp))
 
-def test_agenerate_response(llm_llama):
+def test_agenerate_response(llm):
     prompt1 = "Hello, how are you?"
     prompt2 = "What is your role?"
 
     start = time.time()
-    thread1 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm_llama, prompt1)))
-    thread2 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm_llama, prompt2)))
-    thread3 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm_llama, prompt1+prompt2)))
+    thread1 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm, prompt1)))
+    thread2 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm, prompt2)))
+    thread3 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm, prompt1+prompt2)))
 
     barrier = threading.Barrier(3)
     # Start threads
