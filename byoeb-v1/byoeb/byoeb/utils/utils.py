@@ -32,11 +32,30 @@ def is_idk(
     return any(idk in text for idk in idks)  # Check if any phrase exists in text
 
 def is_onboard(
-    text: str
+    text: str,
+    lang: str = "en"
 ):
-    idks = [
-        "onboard-asha",
-        "onboard asha"
-    ]
+    onboards = {
+        "en": [
+            "onboard-asha",
+            "onboard asha"
+        ],
+        "hi": [
+            "में एक आशा हूँ और मुझे आशा सहेली बोट से जुड़ना है"
+        ],
+        "kn": [
+            "ನಾನು ಆಶಾ ಮತ್ತು ನಾನು ಆಶಾ ಸಹೇಲಿ ಬಾಟ್‌ಗೆ ಸೇರಲು ಬಯಸುತ್ತೇನೆ"
+        ],
+        "mr": [
+            "मी आशा आहे आणि मला आशा सहेली बॉटमध्ये सामील व्हायचे आहे"
+        ],
+        "te": [
+            "నేను ఆశాను మరియు ఆశా సహేలి బాట్‌లో చేరాలనుకుంటున్నాను"
+        ]
+    }
+    if lang not in onboards:
+        # TODO: we should probably raise a ValueError than silently returning
+        # false for unexpected languages.
+        return False
     text = text.lower()
-    return any(idk in text for idk in idks)  # Check if any phrase exists in text
+    return any(phrase in text for phrase in onboards[lang])  # Check if any phrase exists in text
