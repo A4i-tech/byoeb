@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Rahul Sharma <rahul5982439@gmail.com>"]
 readme = "README.md"
+exclude = ["**/tests/**", "**/tests"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -17,6 +18,29 @@ croniter = "6.0.0"
 rapidfuzz = "3.13.0"
 python-multipart = "0.0.20"
 openpyxl = "3.1.5"
+pytest-mock = "^3.14.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+coverage = {extras = ["toml"], version = "^7.10.5"}
+pytest-asyncio = "^1.1.0"
+pytest-cov = "^6.2.1"
+
+[tool.coverage.run]
+branch = true
+source = ["byoeb"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 0
+omit = [
+  "byoeb/**/tests/**",
+  "byoeb/**/__init__.py",
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov=byoeb --cov-branch --cov-report=term-missing:skip-covered --cov-report=xml:coverage.xml --cov-report=html"
 
 [build-system]
 requires = ["poetry-core"]
