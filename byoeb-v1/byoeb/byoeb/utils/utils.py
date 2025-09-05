@@ -1,4 +1,5 @@
 import os
+from urllib.parse import unquote
 
 def get_git_root_path():
     current_dir = os.path.abspath(__file__)
@@ -37,7 +38,6 @@ def is_onboard(
 ):
     onboards = {
         "en": [
-            "onboard-asha",
             "onboard asha"
         ],
         "hi": [
@@ -57,5 +57,6 @@ def is_onboard(
         # TODO: we should probably raise a ValueError than silently returning
         # false for unexpected languages.
         return False
-    text = text.lower()
+    text = unquote(text)  # "%20%" -> " "
+    text = text.lower().replace("-", " ")  # "onboard-asha" -> "onboard asha"
     return any(phrase in text for phrase in onboards[lang])  # Check if any phrase exists in text
