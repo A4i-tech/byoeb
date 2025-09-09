@@ -76,50 +76,63 @@ class UsersHandler:
         for user in data:
             byoeb_user = User(**user)
             expert_numbers = user_utils.get_experts_numbers(byoeb_user.experts)
-            if byoeb_user.phone_number_id is None:
-                message = ErrorMessage.PHONE_NUMBER_ID_REQUIRED.value
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
+
+            required_fields = [
+                ("phone_number_id", ErrorMessage.PHONE_NUMBER_ID_REQUIRED.value),
+                ("user_language",   ErrorMessage.USER_LANGUAGE_REQUIRED.value),
+                ("user_type",       ErrorMessage.USER_TYPE_REQUIRED.value),
+            ]
+            missing_msg = next(
+                (msg for attr, msg in required_fields if getattr(byoeb_user, attr) is None),
+                None
+            )
+            if missing_msg:
+                byoeb_messages.append(user_utils.get_register_message(byoeb_user, missing_msg))
                 continue
-            if byoeb_user.user_language is None:
-                message = ErrorMessage.USER_LANGUAGE_REQUIRED.value
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if byoeb_user.user_type is None:
-                message = ErrorMessage.USER_TYPE_REQUIRED.value
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
+
             is_regular = self.__is_regular_user_type(byoeb_user.user_type)
             is_expert  = self.__validate_expert_user_type(byoeb_user.user_type)
-            if not is_regular and not is_expert:
-                message = ErrorMessage.INVALID_USER_TYPE.value.format(
-                    regular_types=self.__regular_user_types,
-                    expert_types=self.__expert_user_types
-                )
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if is_regular and self.__validate_experts(byoeb_user.experts) is False:
-                message = ErrorMessage.INVALID_EXPERT_TYPE.value.format(
-                    expert_types=self.__expert_user_types
-                )
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if is_regular and len(byoeb_user.audience or []) != 0:
-                message = ErrorMessage.CANNOT_HAVE_AUDIENCE.value
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if is_regular and expert_numbers is not None and byoeb_user.phone_number_id in expert_numbers:
-                message = ErrorMessage.CANNOT_BE_OWN_EXPERT.value
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if is_expert and len(expert_numbers or []) != 0:
-                message = ErrorMessage.CANNOT_HAVE_EXPERTS.value
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if is_expert and (byoeb_user.audience is not None) and (byoeb_user.phone_number_id in byoeb_user.audience):
-                message = ErrorMessage.CANNOT_BE_OWN_AUDIENCE.value
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            byoeb_users.append(byoeb_user)
+            audience     = byoeb_user.audience or []
+            experts_ok   = self.__validate_experts(byoeb_user.experts)
+
+            checks = [
+                (
+                    not is_regular and not is_expert,
+                    ErrorMessage.INVALID_USER_TYPE.value.format(
+                        regular_types=self.__regular_user_types,
+                        expert_types=self.__expert_user_types
+                    )
+                ),
+                (
+                    is_regular and not experts_ok,
+                    ErrorMessage.INVALID_EXPERT_TYPE.value.format(
+                        expert_types=self.__expert_user_types
+                    )
+                ),
+                (
+                    is_regular and len(audience) != 0,
+                    ErrorMessage.CANNOT_HAVE_AUDIENCE.value
+                ),
+                (
+                    is_regular and expert_numbers is not None and byoeb_user.phone_number_id in expert_numbers,
+                    ErrorMessage.CANNOT_BE_OWN_EXPERT.value
+                ),
+                (
+                    is_expert and len(expert_numbers or []) != 0,
+                    ErrorMessage.CANNOT_HAVE_EXPERTS.value
+                ),
+                (
+                    is_expert and byoeb_user.audience is not None and byoeb_user.phone_number_id in audience,
+                    ErrorMessage.CANNOT_BE_OWN_AUDIENCE.value
+                ),
+            ]
+            for condition, message in checks:
+                if condition:
+                    byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
+                    break
+            else:
+                # No check triggered → accept user
+                byoeb_users.append(byoeb_user)
 
         if len(byoeb_messages) > 0:
             return ByoebResponseModel(
