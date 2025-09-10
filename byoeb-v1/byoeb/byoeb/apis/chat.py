@@ -20,7 +20,7 @@ async def receive(request: Request):
     response = await dependency_setup.message_producer_handler.handle(body)
     _logger.info(f"Response: {response}")
     return JSONResponse(
-        content=response.message,
+        response.message,
         status_code=response.status_code
     )
 
