@@ -42,11 +42,11 @@ async def lifespan(app: FastAPI):
         queue_producer_factory,
         text_translator
     )
-    # await message_consumer.initialize()
-    # asyncio.create_task(message_consumer.listen())
+    await message_consumer.initialize()
+    asyncio.create_task(message_consumer.listen())
     yield
     await channel_client_factory.close()
-    # await message_consumer.close()
+    await message_consumer.close()
     await queue_producer_factory.close()
     await text_translator._close()
     logger.info("FastAPI app is shutting down. Closing all clients")
