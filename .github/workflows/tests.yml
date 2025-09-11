@@ -81,6 +81,10 @@ jobs:
       - name: Run MongoDB tests
         run: poetry run pytest
 
+      - name: Install deps (byoeb)
+        working-directory: ./byoeb-v1/byoeb
+        run: poetry install --no-interaction
+
       - name: Run tests (byoeb)
         working-directory: ./byoeb-v1/byoeb
         run: poetry run pytest
