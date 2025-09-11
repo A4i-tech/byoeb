@@ -3,10 +3,14 @@ from byoeb.chat_app.configuration.config import app_config
 
 # App logger
 from byoeb.application_logger.azure_app_insights import AzureAppInsightsLogger
-app_insights_logger = AzureAppInsightsLogger(
-    logger_name=app_config["app_logger"]["azure"]["logger_name"],
-    connection_string=env_config.env_appinsights_connection_string
-)
+app_insights_logger = None
+if env_config.env_appinsights_connection_string:
+    app_insights_logger = AzureAppInsightsLogger(
+        logger_name=app_config["app_logger"]["azure"]["logger_name"],
+        connection_string=env_config.env_appinsights_connection_string
+    )
+else:
+    print("⚠️ App Insights connection string not set. Skipping Azure logging.")
 
 
 import byoeb.utils.utils as byoeb_utils
@@ -218,9 +222,12 @@ if env_config.env_azure_storage_connection_string:
         credentials=None,
         connection_string=env_config.env_azure_storage_connection_string
     )
-else:
+elif account_url:
     media_storage: BaseMediaStorage = AsyncAzureBlobStorage(
         container_name=container_name,
         account_url=account_url,
         credentials=DefaultAzureCredential()
     )
+else:
+    media_storage = None
+    print("⚠️ Azure Blob Storage not configured. Media storage disabled.")
