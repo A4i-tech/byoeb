@@ -85,14 +85,9 @@ jobs:
         working-directory: ./byoeb-v1/byoeb
         run: poetry install --no-interaction
 
-      - name: Run tests w/ coverage (byoeb)
+      - name: Run tests (byoeb)
         working-directory: ./byoeb-v1/byoeb
-        run: |
-          poetry run pytest \
-            --cov=byoeb \
-            --cov-report=term-missing \
-            --cov-report=html:htmlcov \
-            --cov-report=xml:coverage.xml
+        run: poetry run pytest
 
       - name: Upload HTML coverage (byoeb)
         if: always()
