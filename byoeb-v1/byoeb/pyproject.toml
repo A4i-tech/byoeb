@@ -23,7 +23,20 @@ python-dotenv = "^1.1.1"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
 pytest-asyncio = "^1.1.0"
+pytest-cov = "^7.0.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+  "--cov=byoeb",
+  "--cov-branch",
+  "--cov-report=term-missing:skip-covered",
+  "--cov-report=html:htmlcov",
+  "--cov-report=xml:coverage.xml"
+]
+asyncio_mode = "auto"
