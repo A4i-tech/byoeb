@@ -82,11 +82,13 @@ jobs:
         run: poetry run pytest
 
       - name: Install deps (byoeb)
-        run: poetry -C ./byoeb-v1/byoeb install --no-interaction
+        working-directory: ./byoeb-v1/byoeb
+        run: poetry install --no-interaction
 
       - name: Run tests w/ coverage (byoeb)
+        working-directory: ./byoeb-v1/byoeb
         run: |
-          poetry -C ./byoeb-v1/byoeb run pytest \
+          poetry run pytest \
             --cov=byoeb \
             --cov-report=term-missing \
             --cov-report=html:htmlcov \
