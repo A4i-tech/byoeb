@@ -1,5 +1,6 @@
 import os
-from byoeb.services.chat import constants
+from byoeb.constants.onboarding_text import ONBOARD_WELCOME_MESSAGE_DICT
+from byoeb.constants.user_enums import LanguageCode
 from urllib.parse import unquote
 from pathlib import Path
 
@@ -36,15 +37,12 @@ def is_idk(
 
 def is_onboard(
     text: str,
-    lang: str = "en"
+    lang: str = LanguageCode.ENGLISH.value
 ):
-    match lang:
-        case "en": onboards = constants.ONBOARD_MESSAGES_EN
-        case "hi": onboards = constants.ONBOARD_MESSAGES_HI
-        case "kn": onboards = constants.ONBOARD_MESSAGES_KN
-        case "mr": onboards = constants.ONBOARD_MESSAGES_MR
-        case "te": onboards = constants.ONBOARD_MESSAGES_TE
-        case _:    onboards = []  # TODO: we should probably raise a ValueError than short-circuiting a False for unexpected languages.
+    if lang not in ONBOARD_WELCOME_MESSAGE_DICT:
+        # TODO: we should probably raise a ValueError than returning False for
+        # unexpected languages.
+        return False
     text = unquote(text)  # "%20%" -> " "
     text = text.lower().replace("-", " ")  # "onboard-asha" -> "onboard asha"
-    return any(phrase in text for phrase in onboards)  # Check if any phrase exists in text
+    return any(phrase in text for phrase in ONBOARD_WELCOME_MESSAGE_DICT[lang])  # Check if any phrase exists in text
