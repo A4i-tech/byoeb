@@ -16,14 +16,14 @@
         ]
     },
     "idk_response" : {
-        "en" : "I am sorry, I do not know the answer to this question. I will check with our team of ANMs and get back to you soon. Meanwhile, you can continue asking me other questions.",
-        "hi" : "क्षमा करें, मुझे इस प्रश्न का उत्तर नहीं पता। मैं एएनएम की हमारी टीम से जांच करूंगी और जल्द ही आपसे संपर्क करूंगी। इस बीच, आप मुझसे प्रश्न पूछना जारी रख सकते हैं।"
+        "en" : "I am sorry, I do not know the answer to this question. Please ask your ANM. Meanwhile, you can continue asking me other questions.",
+        "hi" : "क्षमा करें, मुझे इस प्रश्न का उत्तर नहीं पता। कृपया अपने ANM से पूछें। इस बीच, आप मुझसे प्रश्न पूछना जारी रख सकते हैं।"
     },
     "idk_response_audio": {
-        "en": "You asked me the following: *<query>*\n\nDid I misunderstand your question? If yes, please ask again clearly. Otherwise, I will ask ANMs for the answer and share it with you.",
-        "en_options": ["I will ask again.", "Send to ANMs"],
-        "hi": "आपने मुझे यह सवाल पुछा: *<query>*\n\nक्या मैंने आपके सवाल को गलत समझा? यदि हां, तो कृपया फिर से स्पष्ट रूप से पूछें। अन्यथा, मैं ANMs से इसका जवान पूछूँगी और इसे आपके साथ साझा करुँगी।",
-        "hi_options": ["मैं फिर से पूछूँगी।", "ANMs को भेजें"]
+        "en": "You asked me the following: *<query>*\n\nDid I misunderstand your question? If yes, please ask again clearly. Otherwise, please ask your ANM.",
+        "en_options": ["I will ask again."],
+        "hi": "आपने मुझे यह सवाल पुछा: *<query>*\n\nक्या मैंने आपके सवाल को गलत समझा? यदि हां, तो कृपया फिर से स्पष्ट रूप से पूछें। अन्यथा, कृपया अपने ANM से पूछें। आप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।",
+        "hi_options": ["मैं फिर से पूछूँगी।"]
     },
     "response_audio": {
         "en": "You asked: <query>\n\nAnswer: <answer>",
