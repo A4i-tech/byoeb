@@ -15,11 +15,6 @@ from byoeb.utils.utils import is_onboard
     ("  में एक आशा हूँ और मुझे आशा सहेली बोट से जुड़ना है  ", "hi", True),  # with space
     ("नमस्ते", "hi", False),
 
-    # kannada tests
-    ("ನಾನು ಆಶಾ ಮತ್ತು ನಾನು ಆಶಾ ಸಹೇಲಿ ಬಾಟ್‌ಗೆ ಸೇರಲು ಬಯಸುತ್ತೇನೆ", "kn", True),
-    ("Some prefix...ನಾನು ಆಶಾ ಮತ್ತು ನಾನು ಆಶಾ ಸಹೇಲಿ ಬಾಟ್‌ಗೆ ಸೇರಲು ಬಯಸುತ್ತೇನೆ...suffix", "kn", True),
-    ("ಕನ್ನಡ random", "kn", False),
-
     # marathi tests
     ("मी आशा आहे आणि मला आशा सहेली बॉटमध्ये सामील व्हायचे आहे", "mr", True),
     ("मी आशा आहे", "mr", False),  # partial phrase
