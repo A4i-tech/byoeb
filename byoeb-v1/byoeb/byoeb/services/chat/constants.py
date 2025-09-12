@@ -62,3 +62,9 @@ USER_TYPE = "user_type"
 LANGUAGE_SELECTION = "language_selection"
 CONSENT = "consent"
 THANK_YOU = "thank_you"
+
+ONBOARD_MESSAGES_EN = ["onboard asha"]
+ONBOARD_MESSAGES_HI = ["में एक आशा हूँ और मुझे आशा सहेली बोट से जुड़ना है"]
+ONBOARD_MESSAGES_KN = ["ನಾನು ಆಶಾ ಮತ್ತು ನಾನು ಆಶಾ ಸಹೇಲಿ ಬಾಟ್‌ಗೆ ಸೇರಲು ಬಯಸುತ್ತೇನೆ"]
+ONBOARD_MESSAGES_MR = ["मी आशा आहे आणि मला आशा सहेली बॉटमध्ये सामील व्हायचे आहे"]
+ONBOARD_MESSAGES_TE = ["నేను ఆశాను మరియు ఆశా సహేలి బాట్‌లో చేరాలనుకుంటున్నాను"]

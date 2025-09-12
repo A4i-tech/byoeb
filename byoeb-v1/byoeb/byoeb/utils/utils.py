@@ -1,4 +1,5 @@
 import os
+from byoeb.services.chat import constants
 from urllib.parse import unquote
 from pathlib import Path
 
@@ -37,27 +38,13 @@ def is_onboard(
     text: str,
     lang: str = "en"
 ):
-    onboards = {
-        "en": [
-            "onboard asha"
-        ],
-        "hi": [
-            "में एक आशा हूँ और मुझे आशा सहेली बोट से जुड़ना है"
-        ],
-        "kn": [
-            "ನಾನು ಆಶಾ ಮತ್ತು ನಾನು ಆಶಾ ಸಹೇಲಿ ಬಾಟ್‌ಗೆ ಸೇರಲು ಬಯಸುತ್ತೇನೆ"
-        ],
-        "mr": [
-            "मी आशा आहे आणि मला आशा सहेली बॉटमध्ये सामील व्हायचे आहे"
-        ],
-        "te": [
-            "నేను ఆశాను మరియు ఆశా సహేలి బాట్‌లో చేరాలనుకుంటున్నాను"
-        ]
-    }
-    if lang not in onboards:
-        # TODO: we should probably raise a ValueError than silently returning
-        # false for unexpected languages.
-        return False
+    match lang:
+        case "en": onboards = constants.ONBOARD_MESSAGES_EN
+        case "hi": onboards = constants.ONBOARD_MESSAGES_HI
+        case "kn": onboards = constants.ONBOARD_MESSAGES_KN
+        case "mr": onboards = constants.ONBOARD_MESSAGES_MR
+        case "te": onboards = constants.ONBOARD_MESSAGES_TE
+        case _:    onboards = []  # TODO: we should probably raise a ValueError than short-circuiting a False for unexpected languages.
     text = unquote(text)  # "%20%" -> " "
     text = text.lower().replace("-", " ")  # "onboard-asha" -> "onboard asha"
-    return any(phrase in text for phrase in onboards[lang])  # Check if any phrase exists in text
+    return any(phrase in text for phrase in onboards)  # Check if any phrase exists in text
