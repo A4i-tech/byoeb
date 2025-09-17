@@ -146,8 +146,8 @@ class QueueConsumer:
                 remove_messages = [msg for msg in messages if any(processed_id in msg.content for processed_id in processed_ids)]
                 await self.__delete_message(remove_messages)
                 self._logger.info(f"Deleted {len(remove_messages)} messages")
-            except Exception as e:
-                self._logger.error(f"Error consuming messages: {e}")
+            except Exception:
+                self._logger.exception("Error consuming messages")
             end_time = datetime.now()
             duration = (end_time - start_time).seconds
             try:
