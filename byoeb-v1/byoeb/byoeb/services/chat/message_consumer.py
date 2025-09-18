@@ -213,8 +213,6 @@ class MessageConsmerService:
         byoeb_messages: List[ByoebMessageContext] = []
         successfully_processed_messages = []
         for message in messages:
-            if message is None or (isinstance(message, str) and not message.strip()):
-                continue
             json_message = json.loads(message)
             byoeb_message = ByoebMessageContext.model_validate(json_message)
             byoeb_messages.append(byoeb_message)

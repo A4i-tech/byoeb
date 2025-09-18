@@ -139,8 +139,6 @@ class QueueConsumer:
             successfully_processed_messages = []
             try:
                 self._logger.info(f"Received {len(messages)} messages")
-                print("messages", messages)
-                print("message_content", message_content)
                 successfully_processed_messages =  await message_consumer_svc.consume(message_content) or []
                 self._logger.info(f"Successfully processed {len(successfully_processed_messages)} messages")
                 utils.log_to_text_file(f"Successfully processed {len(successfully_processed_messages)} messages")

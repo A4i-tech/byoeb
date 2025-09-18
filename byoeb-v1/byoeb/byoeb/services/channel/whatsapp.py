@@ -116,8 +116,6 @@ class WhatsAppService(BaseChannelService):
                 message_type = MessageTypes.INTERACTIVE_LIST.value
             elif byoeb_user_message.message_context.message_type == MessageTypes.INTERACTIVE_BUTTON.value:
                 message_type = MessageTypes.INTERACTIVE_BUTTON.value
-            print("response: ", response)
-            print("response.messages[0]", response.messages[0])
             byoeb_message = ByoebMessageContext( 
                 channel_type=byoeb_user_message.channel_type,
                 message_category=byoeb_user_message.message_category,
