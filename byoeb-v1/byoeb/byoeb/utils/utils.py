@@ -14,10 +14,15 @@ def get_git_root_path():
         return None
     
 def log_to_text_file(text):
-    file_path = Path("byoeb-v1/byoeb/log.txt")  # relative path
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with file_path.open("a", encoding="utf-8") as f:
-        f.write(text + "\n")
+    git_root = get_git_root_path()
+    file_path = os.path.join(git_root, "byoeb-v1/byoeb/log.txt")
+    try:
+        with open(file_path, "a", encoding="utf-8") as f:
+            f.write(text + "\n")
+    except FileNotFoundError:
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(text + "\n")
 
 def is_idk(
     text: str
