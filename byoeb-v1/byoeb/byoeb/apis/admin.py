@@ -2,7 +2,6 @@ import logging
 import os
 import subprocess
 import pytz
-import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from byoeb.models.experiment import QueryInput
 from io import BytesIO
 from azure.identity import DefaultAzureCredential
@@ -17,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
 from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
 from byoeb.services.admin.message_process import process_message, clear_history
+from byoeb.chat_app.configuration.dependency_setup import media_storage
 
 REGISTER_API_NAME = 'admin_apis'
 
@@ -47,12 +47,6 @@ async def form_post(request: Request, start_datetime: str = Form(...), end_datet
     
     start_unix = str(start.timestamp())
     end_unix = str(end.timestamp())
-    media_storage = AsyncAzureBlobStorage(
-        container_name=container_name,
-        account_url=account_url,
-        credentials=DefaultAzureCredential()
-    )
-
     ashas_df = await fetch_daily_logs(
         start_timestamp=start_unix,
         end_timestamp=end_unix
@@ -79,11 +73,6 @@ async def form_post(request: Request, start_datetime: str = Form(...), end_datet
 
 @admin_apis_router.get("/download")
 async def download_excel():
-    media_storage = AsyncAzureBlobStorage(
-        container_name=container_name,
-        account_url=account_url,
-        credentials=DefaultAzureCredential()
-    )
     _, asha_data = await media_storage.adownload_file(
         file_name=f"logs/{os.path.basename(file_path)}"
     )

@@ -1,3 +1,4 @@
+[![Tests Status](https://github.com/A4i-tech/byoeb/actions/workflows/tests.yml/badge.svg)](https://github.com/A4i-tech/byoeb/actions/workflows/tests.yml)
 # Introduction 
 BYOeB (Build Your Own Expert Bot) is a platform designed to build expert-in-the-loop WhatsApp-based chatbots. It enables developers to build chatbots that leverages human expertise to verify and edit responses. It is particularly valuable in fields like medicine and law. The platform offers various features, such as support to integrate custom knowledge base, compatibility with multiple languages, supports both text and audio inputs/outputs, and the ability to improve the knowledge base using edits provided by experts.
 

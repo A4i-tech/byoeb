@@ -22,31 +22,47 @@ class QueueProducerFactory:
         self._config = config
         self._scope = scope
         
+    async def __create_azure_storage_queue_client(
+        self,
+        queue_name: str
+    ) -> BaseQueue:
+        """Create an Azure Storage Queue client with connection string or managed identity fallback."""
+        from byoeb_integrations.message_queue.azure.async_azure_storage_queue import AsyncAzureStorageQueue
+        from byoeb.chat_app.configuration.config import env_azure_storage_connection_string
+        
+        if env_azure_storage_connection_string:
+            # Use connection string if available
+            return await AsyncAzureStorageQueue.aget_or_create(
+                connection_string=env_azure_storage_connection_string,
+                queue_name=queue_name
+            )
+        else:
+            # Fallback to managed identity (for backward compatibility)
+            from azure.identity import DefaultAzureCredential
+            default_credential = DefaultAzureCredential()
+            return await AsyncAzureStorageQueue.aget_or_create(
+                account_url=self._config["message_queue"]["azure"]["account_url"],
+                queue_name=queue_name,
+                credentials=default_credential
+            )
+
     async def __get_or_create_az_storage_queue_client(
         self,
         message_type
     ) -> BaseQueue:
-        from byoeb_integrations.message_queue.azure.async_azure_storage_queue import AsyncAzureStorageQueue
-        from azure.identity import DefaultAzureCredential
         if message_type not in self._locks:
             self._locks[message_type] = asyncio.Lock()
         async with self._locks[message_type]:
             if self._az_storage_queues.get(message_type) and self._scope == Scope.SINGLETON.value:
                 return self._az_storage_queues[message_type]
-            default_credential = DefaultAzureCredential()
+            
+            # Determine queue name based on message type
             if message_type == "status":
-                self._az_storage_queues[message_type] = await AsyncAzureStorageQueue.aget_or_create(
-                    account_url=self._config["message_queue"]["azure"]["account_url"],
-                    queue_name=self._config["message_queue"]["azure"]["queue_status"],
-                    credentials=default_credential
-                )
+                queue_name = self._config["message_queue"]["azure"]["queue_status"]
             else:
-                self._az_storage_queues[message_type] = await AsyncAzureStorageQueue.aget_or_create(
-                    account_url=self._config["message_queue"]["azure"]["account_url"],
-                    queue_name=self._config["message_queue"]["azure"]["queue_bot"],
-                    credentials=default_credential
-                )
-
+                queue_name = self._config["message_queue"]["azure"]["queue_bot"]
+            
+            self._az_storage_queues[message_type] = await self.__create_azure_storage_queue_client(queue_name)
             return self._az_storage_queues[message_type]
 
     async def __close_az_storage_queue_client(

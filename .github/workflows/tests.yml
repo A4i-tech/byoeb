@@ -1,0 +1,103 @@
+name: CI - MongoDB Tests
+
+on:
+  push:
+    branches: [ a4i/main ]
+  pull_request:
+    branches: [ a4i/main ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./byoeb-v1/byoeb-integrations
+
+    env:
+      POETRY_VIRTUALENVS_IN_PROJECT: "true"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install ffmpeg (needed by pydub)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Cache Poetry/pip
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pypoetry
+            ~/.cache/pip
+          key: poetry-pip-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}
+          restore-keys: |
+            poetry-pip-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}
+            poetry-pip-${{ runner.os }}-
+            poetry-pip-
+
+      - name: Cache .venv (byoeb-core)
+        uses: actions/cache@v4
+        with:
+          path: ./byoeb-v1/byoeb-core/.venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-core-${{ hashFiles('byoeb-v1/byoeb-core/poetry.lock') }}
+          restore-keys: |
+            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-core-
+
+      - name: Cache .venv (byoeb)
+        uses: actions/cache@v4
+        with:
+          path: ./byoeb-v1/byoeb/.venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-${{ hashFiles('byoeb-v1/byoeb/poetry.lock') }}
+          restore-keys: |
+            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-
+
+      - name: Cache .venv (byoeb-integrations)
+        uses: actions/cache@v4
+        with:
+          path: ./byoeb-v1/byoeb-integrations/.venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-integrations-${{ hashFiles('byoeb-v1/byoeb-integrations/poetry.lock') }}
+          restore-keys: |
+            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-integrations-
+
+      - name: Install dependencies (all projects)
+        run: |
+          cd ./byoeb-v1/byoeb-core && poetry install --no-interaction
+          cd ../byoeb && poetry install --no-interaction
+          cd ../byoeb-integrations && poetry install --no-interaction
+        working-directory: .
+
+      - name: Run MongoDB tests
+        run: poetry run pytest
+
+      - name: Install deps (byoeb)
+        working-directory: ./byoeb-v1/byoeb
+        run: poetry install --no-interaction
+
+      - name: Run tests (byoeb)
+        working-directory: ./byoeb-v1/byoeb
+        run: poetry run pytest
+
+      - name: Upload HTML coverage (byoeb)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html-byoeb
+          path: ./byoeb-v1/byoeb/htmlcov
+
+      - name: Upload HTML coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: ./byoeb-v1/byoeb-integrations/htmlcov

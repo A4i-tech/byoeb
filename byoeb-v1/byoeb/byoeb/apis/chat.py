@@ -4,6 +4,7 @@ import json
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 
 CHAT_API_NAME = 'chat_api'
 chat_apis_router = APIRouter()
