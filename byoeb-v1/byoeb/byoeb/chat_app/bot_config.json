@@ -1,6 +1,6 @@
 {
     "regular": {
-        "user_type": "asha"
+        "user_type": ["asha", "others"]
     },
     "expert": {
         "asha_work_related": "anm",
@@ -66,16 +66,16 @@
                     "asha_work_related":{
                         "interactive": {
                             "text": {
-                                "en": "You asked me the following: *<query>*\n\nDid I misunderstand your question? If yes, please ask again clearly. Otherwise, I will ask ANMs for the answer and share it with you.",
-                                "hi": "आपने मुझे यह सवाल पुछा: *<query>*\n\nक्या मैंने आपके सवाल को गलत समझा? यदि हां, तो कृपया फिर से स्पष्ट रूप से पूछें। अन्यथा, मैं ANMs से इसका जवाब पूछूँगी और इसे आपके साथ साझा करुँगी।",
+                                "en": "You asked me the following: *<query>*\n\nDid I misunderstand your question? If yes, please ask again clearly. Otherwise, please ask your ANM.",
+                                "hi": "आपने मुझे यह सवाल पुछा: *<query>*\n\nक्या मैंने आपके सवाल को गलत समझा? यदि हां, तो कृपया फिर से स्पष्ट रूप से पूछें। अन्यथा, कृपया अपने ANM से पूछें। आप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।",
                                 "mr": "तुम्ही मला हे प्रश्न विचारले: *<query>*\n\nमी तुमचा प्रश्न चुकीचा समजला का? जर होय, तर कृपया पुन्हा स्पष्टपणे विचारा. अन्यथा, मी ANMs कडून उत्तर विचारेल आणि ते तुमच्यासोबत सामायिक करेल.",
                                 "te": "మీరు నాకు ఈ ప్రశ్న అడిగారు: *<query>*\n\nమీ ప్రశ్నను నేను తప్పుగా అర్థం చేసుకున్నారా? అయితే, దయచేసి మళ్లీ స్పష్టంగా అడగండి. లేకపోతే, నేను ANMs నుండి సమాధానం అడుగుతాను మరియు మీతో పంచుకుంటాను."
                             },
                             "options": {
-                                "en": ["I will ask again.", "Send to ANMs"],
-                                "hi": ["मैं फिर से पूछूँगी।", "ANMs को भेजें"],
-                                "mr": ["मी पुन्हा विचारेल.", "ANMs कडे पाठवा"],
-                                "te": ["నేను మళ్లీ అడుగుతాను.", "ANMs కు పంపండి"]
+                                "en": ["I will ask again."],
+                                "hi": ["मैं फिर से पूछूँगी।"],
+                                "mr": ["मी पुन्हा विचारेल."],
+                                "te": ["నేను మళ్లీ అడుగుతాను."]
                             }
                         },
                         "ask_again": {
@@ -118,16 +118,16 @@
                     "incomprehensible":{
                         "interactive": {
                             "text": {
-                                "en": "You asked me the following: *<query>*\n\nDid I misunderstand your question? If yes, please ask again clearly. Otherwise, I will ask ANMs for the answer and share it with you.",
-                                "hi": "आपने मुझे यह सवाल पुछा: *<query>*\n\nक्या मैंने आपके सवाल को गलत समझा? यदि हां, तो कृपया फिर से स्पष्ट रूप से पूछें। अन्यथा, मैं ANMs से इसका जवाब पूछूँगी और इसे आपके साथ साझा करुँगी।",
+                                "en": "You asked me the following: *<query>*\n\nDid I misunderstand your question? If yes, please ask again clearly. Otherwise, please ask your ANM.",
+                                "hi": "आपने मुझे यह सवाल पुछा: *<query>*\n\nक्या मैंने आपके सवाल को गलत समझा? यदि हां, तो कृपया फिर से स्पष्ट रूप से पूछें। अन्यथा, कृपया अपने ANM से पूछें। आप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।",
                                 "mr": "तुम्ही मला हे प्रश्न विचारले: *<query>*\n\nमी तुमचा प्रश्न चुकीचा समजला का? जर होय, तर कृपया पुन्हा स्पष्टपणे विचारा. अन्यथा, मी ANMs कडून उत्तर विचारेल आणि ते तुमच्यासोबत सामायिक करेल.",
                                 "te": "నువ్వు నన్ను ఇలా అడిగావు: *<query>*\n\nనేను నీ ప్రశ్నను తప్పుగా అర్థం చేసుకున్నానా? అలా అయితే, దయచేసి స్పష్టంగా మళ్లీ అడుగు. లేదంటే, నేను ANMs ని అడిగి సమాధానం నీకు చెబుతాను."
                             },
                             "options": {
-                                "en": ["I will ask again.", "Send to ANMs"],
-                                "hi": ["मैं फिर से पूछूँगी।", "ANMs को भेजें"],
-                                "mr": ["मी पुन्हा विचारेल.", "ANMs कडे पाठवा"],
-                                "te": ["నేను మళ్లీ అడుగుతాను.", "ANMs కు పంపండి"]
+                                "en": ["I will ask again."],
+                                "hi": ["मैं फिर से पूछूँगी।"],
+                                "mr": ["मी पुन्हा विचारेल."],
+                                "te": ["నేను మళ్లీ అడుగుతాను."]
                             }
                         },
                         "ask_again": {
@@ -166,8 +166,8 @@
             "text":{
                 "idk": {
                     "asha_work_related":{
-                        "en": "This question is outside the scope of my current knowledge. Please wait, I will check with our team of ANMs and get back to you with an answer soon.\nIn the meantime, you can ask me any other questions about pregnancy, childcare, or health in general.",
-                        "hi": "यह सवाल मेरे वर्तमान ज्ञान से बाहर है। कृपया प्रतीक्षा करें, मैं हमारी ANM टीम से पूछकर जल्द ही जवाब दूंगी।\nइस बीच, आप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।",
+                        "en": "This question is outside the scope of my current knowledge. Please wait, ask your ANM.\nIn the meantime, you can ask me any other questions about pregnancy, childcare, or health in general.",
+                        "hi": "यह सवाल मेरे वर्तमान ज्ञान से बाहर है। कृपया अपने ANM से पूछें।\nआप मुझसे गर्भावस्था, बच्चे की देखभाल या स्वास्थ्य से जुड़े अन्य सवाल पूछ सकते हैं।",
                         "mr": "हा प्रश्न माझ्या विद्यमान ज्ञानाच्या पलीकडे आहे. कृपया थांबा, मी आमच्या ANM टीमकडून विचारून लवकरच तुम्हाला उत्तर देईन.\nया दरम्यान, तुम्ही गर्भावस्था, बाल देखभाल किंवा आरोग्याबद्दल इतर कोणतेही प्रश्न विचारू शकता.",
                         "te": "ఈ ప్రశ్న నా ప్రస్తుత జ్ఞానం పరిధికి మించి ఉంది. దయచేసి వేచి ఉండండి, నేను మా ANMs జట్టుతో తనిఖీ చేస్తాను మరియు త్వరలో మీకు సమాధానం అందిస్తాను.\nఈ సమయంలో, మీరు నాకు గర్భధారణ, శిశు సంరక్షణ లేదా ఆరోగ్యం గురించి ఏ ఇతర ప్రశ్నలు అడగవచ్చు."
                     },

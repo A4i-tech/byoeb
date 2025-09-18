@@ -4,6 +4,7 @@ import json
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 
 CHAT_API_NAME = 'chat_api'
 chat_apis_router = APIRouter()
@@ -23,6 +24,8 @@ async def receive(request: Request):
         response.message,
         status_code=response.status_code
     )
+
+    return JSONResponse(content=safe, status_code=int(getattr(resp, "status_code", 200)))
 
 @chat_apis_router.get("/get_bot_messages")
 async def get_bot_messages(
