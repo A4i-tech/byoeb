@@ -139,6 +139,8 @@ class QueueConsumer:
             successfully_processed_messages = []
             try:
                 self._logger.info(f"Received {len(messages)} messages")
+                print("messages", messages)
+                print("message_content", message_content)
                 successfully_processed_messages =  await message_consumer_svc.consume(message_content) or []
                 self._logger.info(f"Successfully processed {len(successfully_processed_messages)} messages")
                 utils.log_to_text_file(f"Successfully processed {len(successfully_processed_messages)} messages")
@@ -146,8 +148,8 @@ class QueueConsumer:
                 remove_messages = [msg for msg in messages if any(processed_id in msg.content for processed_id in processed_ids)]
                 await self.__delete_message(remove_messages)
                 self._logger.info(f"Deleted {len(remove_messages)} messages")
-            except Exception:
-                self._logger.exception("Error consuming messages")
+            except Exception as e:
+                self._logger.error(f"Error consuming messages: {e}")
             end_time = datetime.now()
             duration = (end_time - start_time).seconds
             try:
