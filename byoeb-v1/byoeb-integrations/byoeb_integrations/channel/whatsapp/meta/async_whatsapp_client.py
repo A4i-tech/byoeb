@@ -68,7 +68,7 @@ class AsyncWhatsAppClient(ABC):
     ):
         self.phone_number_id = phone_number_id.strip()
         self._session = None
-        self._bearer_token = bearer_token or "".strip()
+        self._bearer_token = bearer_token.strip()
         self.root = f"{self.__BASE_URL}{self.phone_number_id}"
         self._reuse_client = reuse_client
         self._parallel_connection_count = parallel_connection_count
