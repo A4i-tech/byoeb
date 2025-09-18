@@ -21,11 +21,9 @@ async def receive(request: Request):
     response = await dependency_setup.message_producer_handler.handle(body)
     _logger.info(f"Response: {response}")
     return JSONResponse(
-        response.message,
+        content=response.message,
         status_code=response.status_code
     )
-
-    return JSONResponse(content=safe, status_code=int(getattr(resp, "status_code", 200)))
 
 @chat_apis_router.get("/get_bot_messages")
 async def get_bot_messages(
