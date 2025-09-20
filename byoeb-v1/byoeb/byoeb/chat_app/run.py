@@ -5,6 +5,7 @@ import asyncio
 import uvicorn
 import yaml
 from fastapi import FastAPI
+from fastmcp import FastMCP
 from contextlib import asynccontextmanager
 from byoeb.apis.health import health_apis_router
 from byoeb.apis.channel_register import register_apis_router
@@ -15,7 +16,7 @@ from byoeb.apis.admin import admin_apis_router
 
 logger = logging.getLogger(__name__)
 asyncio.get_event_loop().set_debug(True)
-def create_app():
+def create_apps():
     """
     Creates and configures a FastAPI application.
 
@@ -30,7 +31,11 @@ def create_app():
     app.include_router(chat_apis_router)
     app.include_router(user_apis_router)
     app.include_router(admin_apis_router)
-    return app
+
+    mcp = FastMCP()
+    mcp_app = mcp.http_app(path="/mcp")
+    app.mount("/", mcp_app)
+    return app, mcp_app
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -44,14 +49,15 @@ async def lifespan(app: FastAPI):
     )
     await message_consumer.initialize()
     asyncio.create_task(message_consumer.listen())
-    yield
+    async with mcp_app.lifespan(app):
+        yield
     await channel_client_factory.close()
     await message_consumer.close()
     await queue_producer_factory.close()
     await text_translator._close()
     logger.info("FastAPI app is shutting down. Closing all clients")
 
-app = create_app()
+app, mcp_app = create_apps()
 
 # Issue with multiple workers in FastAPI
 # https://github.com/encode/uvicorn/discussions/2450
