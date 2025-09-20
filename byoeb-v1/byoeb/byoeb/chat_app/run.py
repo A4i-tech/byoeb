@@ -7,10 +7,10 @@ import yaml
 from fastapi import FastAPI
 from fastmcp import FastMCP
 from contextlib import asynccontextmanager
-from byoeb.apis.health import health_apis_router
+from byoeb.apis.health import health_apis_router, health_mcps_router
 from byoeb.apis.channel_register import register_apis_router
 from byoeb.apis.chat import chat_apis_router
-from byoeb.apis.user import user_apis_router
+from byoeb.apis.user import user_apis_router, user_mcps_router
 from byoeb.apis.background_jobs import background_apis_router
 from byoeb.apis.admin import admin_apis_router
 
@@ -33,6 +33,8 @@ def create_apps():
     app.include_router(admin_apis_router)
 
     mcp = FastMCP()
+    health_mcps_router(mcp)
+    user_mcps_router(mcp)
     mcp_app = mcp.http_app(path="/mcp")
     app.mount("/", mcp_app)
     return app, mcp_app
