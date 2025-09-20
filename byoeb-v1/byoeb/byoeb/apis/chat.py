@@ -1,6 +1,8 @@
 import logging
 import asyncio
 import json
+import uuid
+import time
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import JSONResponse
@@ -65,3 +67,33 @@ async def delete_collection(
             content=f"Error: {e}",
             status_code=500
         )
+
+def chat_mcps_router(mcp):
+    @mcp.tool
+    async def chat(phone_number: str, message: str):
+        """
+        Ask any health-related query and get a response.
+        """
+        body = {
+            "object": "whatsapp_business_account",
+            "entry": [{
+                "id": "waba",
+                "changes": [{
+                    "field": "messages",
+                    "value": {
+                        "messaging_product": "whatsapp",
+                        "metadata": { "display_phone_number": phone_number, "phone_number_id": phone_number },
+                        "contacts": [{ "profile": { "name": "Tester" }, "wa_id": phone_number }],
+                        "messages": [{
+                            "from": phone_number,
+                            "id": str(uuid.uuid4()),
+                            "timestamp": str(int(time.time())),
+                            "type": "text",
+                            "text": { "body": message }
+                        }]
+                    }
+                }]
+            }]
+        }
+        response = await dependency_setup.message_producer_handler.handle(body)
+        return response.message
