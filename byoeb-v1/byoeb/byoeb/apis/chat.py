@@ -92,7 +92,7 @@ def chat_mcps_router(mcp):
                 message_source_text=message,
                 message_english_text=message,
                 media_info=None,
-                additional_info=None
+                additional_info=dict(query_type="asha_work_related")
             ),
             reply_context=ReplyContext(
                 reply_id="reply-id-unknown",
@@ -108,5 +108,8 @@ def chat_mcps_router(mcp):
             incoming_timestamp=None,
             outgoing_timestamp=None
         )
-        resp = await dependency_setup.byoeb_user_process.handle([ctx])
-        return resp
+        responses = await dependency_setup.byoeb_user_generate_response.handle_message_generate_workflow([ctx])
+        for resp in responses:
+            if resp.message_category == "bot_to_asha_response":
+                return dict(message=resp.message_context.message_source_text, additional=resp.message_context.additional_info)
+        return "I don't know"

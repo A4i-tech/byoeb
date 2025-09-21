@@ -582,7 +582,7 @@ class ByoebUserGenerateResponse(Handler):
 
         return valid_questions[:3]
     
-    async def __handle_message_generate_workflow(
+    async def handle_message_generate_workflow(
         self,
         messages: ByoebMessageContext
     ) -> List[ByoebMessageContext]:
@@ -706,7 +706,7 @@ class ByoebUserGenerateResponse(Handler):
         new_messages = []
         try:
             start_time = datetime.now(timezone.utc).timestamp()
-            new_messages = await self.__handle_message_generate_workflow(messages)
+            new_messages = await self.handle_message_generate_workflow(messages)
             end_time = datetime.now(timezone.utc).timestamp()
             utils.log_to_text_file(f"E2E Generated answer and related questions in {end_time - start_time} seconds")
         except RetryError as e:
