@@ -4,7 +4,6 @@ import random
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from fastmcp import Context
 from pydantic import BaseModel, Field
 from typing import Literal
 
@@ -53,20 +52,16 @@ def user_mcps_router(mcp):
         state: str = Field(..., description="Name of a state in India")
 
     @mcp.tool
-    async def register_asha_user(ctx: Context):
+    async def register_asha_user(data: UserInput):
         """
         Register a new Asha user.
         """
-        response = await ctx.elicit("Please provide user information", response_type=UserInput)
-        if response.action != "accept":
-            return "User creation aborted"
-
         response = await dependency_setup.users_handler.aregister([dict(
             user_id=str(random.randint(10000, 99999)),
-            user_name=response.data.name,
-            user_location=dict(country="IN", region=response.data.state),
-            user_language=response.data.language,
+            user_name=data.name,
+            user_location=dict(country="IN", region=data.state),
+            user_language=data.language,
             user_type="asha",
-            phone_number_id=response.data.phone_number
+            phone_number_id=data.phone_number
         )])
         return response
