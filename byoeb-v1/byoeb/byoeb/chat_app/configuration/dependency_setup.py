@@ -82,6 +82,7 @@ users_handler = UsersHandler(
 # Text translator
 from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
 from azure.identity import get_bearer_token_provider, DefaultAzureCredential
+from azure.core.credentials import AzureKeyCredential
 
 token_provider = get_bearer_token_provider(
     DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
@@ -150,11 +151,12 @@ embedding_fn = azure_openai_embed.get_embedding_function()
 #     embedding_function=embedding_fn
 # )
 
+vector_store_creds_key = os.environ("AZURE_VECTOR_STORE_KEY")
 vector_store = AzureVectorStore(
     service_name=azure_search_service_name,
     index_name=azure_search_doc_index_name,
     embedding_function=embedding_fn,
-    credential=DefaultAzureCredential()
+    credential=DefaultAzureCredential() if vector_store_creds_key is None else AzureKeyCredential(vector_store_creds_key)
 )
 
 # llm
