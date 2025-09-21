@@ -17,7 +17,7 @@ async def webhook():
 
 def health_mcps_router(mcp):
     @mcp.tool("health")
-    def health():
+    def asha_service_health():
         """
         Health check route to confirm the bot is running.
         """

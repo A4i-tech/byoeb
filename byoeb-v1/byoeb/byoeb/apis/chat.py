@@ -72,7 +72,7 @@ async def delete_collection(
 
 def chat_mcps_router(mcp):
     @mcp.tool
-    async def chat(phone_number: str, message: str):
+    async def asha_chat(phone_number: str, message: str):
         """
         Ask any health-related query and get a response.
         """

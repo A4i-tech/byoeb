@@ -52,7 +52,7 @@ def user_mcps_router(mcp):
         state: str = Field(..., description="Name of a state in India")
 
     @mcp.tool
-    async def register_asha_user(data: UserInput):
+    async def asha_register_user(data: UserInput):
         """
         Register a new Asha user.
         """
