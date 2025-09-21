@@ -9,6 +9,7 @@ from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from fastmcp.server.dependencies import get_http_request
 
 CHAT_API_NAME = 'chat_api'
 chat_apis_router = APIRouter()
@@ -72,10 +73,15 @@ async def delete_collection(
 
 def chat_mcps_router(mcp):
     @mcp.tool
-    async def asha_chat(phone_number: str, message: str):
+    async def asha_chat(message: str):
         """
         Ask any health-related query and get a response.
         """
+        request = get_http_request()
+        if "phone_number" not in request.query_params:
+            return JSONResponse(content="Cannot proceed with request due to missing 'phone_number' param", status_code=400)
+
+        phone_number = request.query_params["phone_number"]
         user_id = get_user_ids_from_phone_number_ids([phone_number])[0]
         users = await dependency_setup.user_db_service.get_users([user_id])
         if len(users) == 0:
