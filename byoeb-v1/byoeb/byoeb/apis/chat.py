@@ -4,6 +4,8 @@ import json
 import uuid
 import time
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
+from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageContext, MessageTypes, ReplyContext
+from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -74,26 +76,37 @@ def chat_mcps_router(mcp):
         """
         Ask any health-related query and get a response.
         """
-        body = {
-            "object": "whatsapp_business_account",
-            "entry": [{
-                "id": "waba",
-                "changes": [{
-                    "field": "messages",
-                    "value": {
-                        "messaging_product": "whatsapp",
-                        "metadata": { "display_phone_number": phone_number, "phone_number_id": phone_number },
-                        "contacts": [{ "profile": { "name": "Tester" }, "wa_id": phone_number }],
-                        "messages": [{
-                            "from": phone_number,
-                            "id": str(uuid.uuid4()),
-                            "timestamp": str(int(time.time())),
-                            "type": "text",
-                            "text": { "body": message }
-                        }]
-                    }
-                }]
-            }]
-        }
-        response = await dependency_setup.message_producer_handler.handle(body)
-        return response.message
+        user_id = get_user_ids_from_phone_number_ids([phone_number])[0]
+        users = await dependency_setup.user_db_service.get_users([user_id])
+        if len(users) == 0:
+            return JSONResponse(content="User not found", status_code=404)
+
+        user = users[0]
+        ctx = ByoebMessageContext(
+            channel_type="whatsapp",
+            message_category="whatsapp",
+            user=user,
+            message_context=MessageContext(
+                message_id="chat-mcps-router-for-" + user_id,
+                message_type=MessageTypes.REGULAR_TEXT.value,
+                message_source_text=message,
+                message_english_text=message,
+                media_info=None,
+                additional_info=None
+            ),
+            reply_context=ReplyContext(
+                reply_id="reply-id-unknown",
+                reply_type="acknowledgement",
+                reply_source_text=message,
+                reply_english_text=message,
+                media_info=None,
+                message_category="notification",
+                additional_info=None
+            ),
+            cross_conversation_id=None,
+            cross_conversation_context=None,
+            incoming_timestamp=None,
+            outgoing_timestamp=None
+        )
+        resp = await dependency_setup.byoeb_user_process.handle([ctx])
+        return resp
