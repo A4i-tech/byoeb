@@ -2,6 +2,7 @@ import logging
 import json
 import random
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
+from byoeb.utils.utils import mcp_get_phone_number
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -47,7 +48,6 @@ async def get_users(request: Request):
 def user_mcps_router(mcp):
     class UserInput(BaseModel):
         name: str = Field(..., min_length=3, max_length=100)
-        phone_number: str = Field(..., description="10 digit phone number")
         language: Literal["en", "hi", "mr", "te"] = Field(..., description="Supported language codes")
         state: str = Field(..., description="Name of a state in India")
 
@@ -62,6 +62,6 @@ def user_mcps_router(mcp):
             user_location=dict(country="IN", region=data.state),
             user_language=data.language,
             user_type="asha",
-            phone_number_id=data.phone_number
+            phone_number_id=mcp_get_phone_number()
         )])
         return response

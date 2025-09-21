@@ -6,10 +6,10 @@ import time
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageContext, MessageTypes, ReplyContext
 from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
+from byoeb.utils.utils import mcp_get_phone_number
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from fastmcp.server.dependencies import get_http_request
 
 CHAT_API_NAME = 'chat_api'
 chat_apis_router = APIRouter()
@@ -77,11 +77,7 @@ def chat_mcps_router(mcp):
         """
         Ask any health-related query and get a response.
         """
-        request = get_http_request()
-        if "phone_number" not in request.query_params:
-            return JSONResponse(content="Cannot proceed with request due to missing 'phone_number' param", status_code=400)
-
-        phone_number = request.query_params["phone_number"]
+        phone_number = mcp_get_phone_number()
         user_id = get_user_ids_from_phone_number_ids([phone_number])[0]
         users = await dependency_setup.user_db_service.get_users([user_id])
         if len(users) == 0:
