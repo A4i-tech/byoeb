@@ -151,12 +151,11 @@ embedding_fn = azure_openai_embed.get_embedding_function()
 #     embedding_function=embedding_fn
 # )
 
-vector_store_creds_key = os.environ("AZURE_VECTOR_STORE_KEY")
 vector_store = AzureVectorStore(
     service_name=azure_search_service_name,
     index_name=azure_search_doc_index_name,
     embedding_function=embedding_fn,
-    credential=DefaultAzureCredential() if vector_store_creds_key is None else AzureKeyCredential(vector_store_creds_key)
+    credential=DefaultAzureCredential() if "AZURE_VECTOR_STORE_KEY" not in os.environ else AzureKeyCredential(os.environ["AZURE_VECTOR_STORE_KEY"])
 )
 
 # llm
