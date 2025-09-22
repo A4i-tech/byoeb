@@ -1,6 +1,53 @@
 import byoeb.chat_app.configuration.config as env_config
 from byoeb.chat_app.configuration.config import app_config
 
+import time, json, traceback, uuid, asyncio
+import logging
+
+_logger = logging.getLogger("flow")
+
+def _safe_json(obj):
+    try:
+        return json.dumps(obj, ensure_ascii=False)[:50_000]  # cap size
+    except Exception:
+        return f"<non-serializable type={type(obj).__name__}>"
+
+def log_async_call(name):
+    def decorator(fn):
+        if asyncio.iscoroutinefunction(fn):
+            async def wrapper(*args, **kwargs):
+                rid = str(uuid.uuid4())[:8]  # request trace id
+                t0 = time.perf_counter()
+                _logger.info(f"[{rid}] ▶ {name} args={_safe_json(args)} kwargs={_safe_json(kwargs)}")
+                try:
+                    result = await fn(*args, **kwargs)
+                    dt = (time.perf_counter() - t0) * 1000
+                    _logger.info(f"[{rid}] ◀ {name} ok in {dt:.1f}ms result={_safe_json(getattr(result, '__dict__', result))}")
+                    return result
+                except Exception as e:
+                    dt = (time.perf_counter() - t0) * 1000
+                    _logger.exception(f"[{rid}] ✖ {name} failed in {dt:.1f}ms: {e}\n{traceback.format_exc()}")
+                    raise
+            return wrapper
+        else:
+            def wrapper(*args, **kwargs):
+                rid = str(uuid.uuid4())[:8]
+                t0 = time.perf_counter()
+                _logger.info(f"[{rid}] ▶ {name} args={_safe_json(args)} kwargs={_safe_json(kwargs)}")
+                try:
+                    result = fn(*args, **kwargs)
+                    dt = (time.perf_counter() - t0) * 1000
+                    _logger.info(f"[{rid}] ◀ {name} ok in {dt:.1f}ms result={_safe_json(getattr(result, '__dict__', result))}")
+                    return result
+                except Exception as e:
+                    dt = (time.perf_counter() - t0) * 1000
+                    _logger.exception(f"[{rid}] ✖ {name} failed in {dt:.1f}ms: {e}\n{traceback.format_exc()}")
+                    raise
+            return wrapper
+    return decorator
+
+
+
 # App logger
 from byoeb.application_logger.azure_app_insights import AzureAppInsightsLogger
 app_insights_logger = None
