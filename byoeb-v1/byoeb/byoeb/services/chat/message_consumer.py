@@ -132,6 +132,13 @@ class MessageConsmerService:
                 conversation.message_category = MessageCategory.EXPERT_TO_BOT.value
 
             conversation.user = user
+            app_insights_logger.add_log(
+                event_name="create_conversations",
+                details={
+                    "message_id": m.message_context.message_id,
+                    "time_taken": end_time - start_time
+                }
+            )
 
             if bot_message is None:
                 if user.user_type is None or user.user_language is None:
@@ -257,7 +264,7 @@ class MessageConsmerService:
         print(f"[consume] conversations={len(conversations)} onboard={len(onboard_convs)} create_time={end_time - start_time:.3f}s")
 
         # onboarding first (if any)
-        if onboard_convs:
+        if onboard_convs is not None and len(onboard_convs) > 0:
             print(f"[consume] → handle_unknown_user count={len(onboard_convs)}")
             print("onboard_convs", onboard_convs)
             await handle_unknown_user(
