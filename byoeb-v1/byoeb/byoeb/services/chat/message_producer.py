@@ -30,7 +30,29 @@ class MessageProducerService:
         import byoeb_integrations.channel.whatsapp.validate_message as wa_validator
         import byoeb_integrations.channel.whatsapp.convert_message as wa_converter
         _, message_type = wa_validator.validate_whatsapp_message(message)
+        print("message", message)
         byoeb_message = wa_converter.convert_whatsapp_to_byoeb_message(message, message_type)
+        # Fallback for interactive list replies: set message_source_text from selected title/id
+        try:
+            msg_ctx = getattr(byoeb_message, "message_context", None)
+            if (
+                msg_ctx is not None
+                and getattr(msg_ctx, "message_type", None) == "interactive_list_reply"
+                and not getattr(msg_ctx, "message_source_text", None)
+            ):
+                entry = (message or {}).get("entry", [])
+                changes = entry[0].get("changes", []) if entry else []
+                value = changes[0].get("value", {}) if changes else {}
+                msgs = value.get("messages", [])
+                interactive = msgs[0].get("interactive", {}) if msgs else {}
+                list_reply = interactive.get("list_reply", {}) if interactive else {}
+                selected_text = list_reply.get("title") or list_reply.get("id")
+                if selected_text:
+                    msg_ctx.message_source_text = selected_text
+                    print(f"[FALLBACK] Set message_source_text='{selected_text}' for interactive list reply")
+        except Exception as e:
+            print(f"[FALLBACK] Error extracting text: {e}")
+        print("byoeb_message", byoeb_message)
         return byoeb_message
     
     def is_older_than_n_minutes(
@@ -61,6 +83,7 @@ class MessageProducerService:
         if channel == "whatsapp":
             print("[apublish_message] → __convert_whatsapp_to_byoeb_message")
             byoeb_message = self.__convert_whatsapp_to_byoeb_message(message)
+            print("converted byoed_message", byoeb_message)
             print(f"[apublish_message] ← converted "
                 f"message_id={getattr(getattr(byoeb_message, 'message_context', None), 'message_id', None)} "
                 f"incoming_ts={getattr(byoeb_message, 'incoming_timestamp', None)}")

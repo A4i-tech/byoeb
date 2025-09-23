@@ -114,6 +114,7 @@ class MessageConsmerService:
 
         bot_messages = await self._message_db_service.get_bot_messages_by_ids(bot_message_ids)
         print(f"[__create_conversations] fetched_bot_messages={len(bot_messages)}")
+        print("bot_messages", bot_messages)
 
         end_time = datetime.now(timezone.utc).timestamp()
 
@@ -243,9 +244,11 @@ class MessageConsmerService:
 
         for raw in messages:
             json_message = json.loads(raw)
+            print("raw", raw)
             byoeb_message = ByoebMessageContext.model_validate(json_message)
             byoeb_messages.append(byoeb_message)
         print(f"[consume] parsed_messages={len(byoeb_messages)}")
+        print("byoeb_messages", byoeb_messages)
 
         start_time = datetime.now(timezone.utc).timestamp()
         conversations, onboard_convs = await self.__create_conversations(byoeb_messages)
@@ -256,6 +259,7 @@ class MessageConsmerService:
         # onboarding first (if any)
         if onboard_convs:
             print(f"[consume] → handle_unknown_user count={len(onboard_convs)}")
+            print("onboard_convs", onboard_convs)
             await handle_unknown_user(
                 messages=onboard_convs,
                 message_db_service=self._message_db_service,

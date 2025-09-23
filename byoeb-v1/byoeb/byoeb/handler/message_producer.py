@@ -35,6 +35,7 @@ class QueueProducerHandler:
         message
     ) -> Any:
         is_whatsapp, message_type = wa_validator.validate_whatsapp_message(message)
+        print("message_type", message_type)
         if is_whatsapp:
             return "whatsapp", message_type
         return False, None
@@ -74,7 +75,7 @@ class QueueProducerHandler:
                 message=f"Invalid producer type: {str(e)}"
             )
 
-        print("[handle] → apublish_message(message, channel)")
+        print("[handle] → apublish_message(message, channel)", message)
         response, err = await message_producer_service.apublish_message(message, channel)
         print(f"[handle] ← apublish_message out response={response}, err={err}")
 
