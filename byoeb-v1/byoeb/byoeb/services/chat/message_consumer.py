@@ -126,7 +126,7 @@ class MessageConsmerService:
             bot_message = self.__get_bot_message(bot_messages, m.reply_context.reply_id)
             conversation = ByoebMessageContext.model_validate(m)
 
-            if user.user_type == self._regular_user_type:
+            if user.user_type in self._regular_user_type:
                 conversation.message_category = MessageCategory.USER_TO_BOT.value
             elif self.__is_expert_user_type(user.user_type):
                 conversation.message_category = MessageCategory.EXPERT_TO_BOT.value
@@ -272,7 +272,7 @@ class MessageConsmerService:
         tasks = []
         for conv in conversations:
             conv.user.activity_timestamp = str(int(datetime.now(timezone.utc).timestamp()))
-            if conv.user.user_type == self._regular_user_type:
+            if conv.user.user_type in self._regular_user_type:
                 print(f"[consume] queue user_flow msg_id={conv.message_context.message_id}")
                 tasks.append(self.__process_byoebuser_conversation(conv))
             elif self.__is_expert_user_type(conv.user.user_type):
