@@ -51,6 +51,7 @@ class MessageProducerService:
                     print(f"[FALLBACK] Set message_source_text='{selected_text}' for interactive list reply")
         except Exception as e:
             print(f"[FALLBACK] Error extracting text: {e}")
+
         print("byoeb_message", byoeb_message)
         return byoeb_message
     
