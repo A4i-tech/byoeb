@@ -207,7 +207,7 @@ def create_user(
         additional_info={
             user_const.CONSENT: consent,
         },
-        test_user=True if user_type == "others" else False,
+        test_user=(user_type == "others"),
         experts={},
         audience=[],
         created_timestamp=int(datetime.now(timezone.utc).timestamp()),
