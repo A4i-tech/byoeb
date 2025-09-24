@@ -10,6 +10,7 @@ from byoeb.utils.utils import mcp_get_phone_number
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from fastmcp.exceptions import ToolError
 
 CHAT_API_NAME = 'chat_api'
 chat_apis_router = APIRouter()
@@ -73,7 +74,7 @@ async def delete_collection(
 
 def chat_mcps_router(mcp):
     @mcp.tool
-    async def asha_chat(message: str):
+    async def asha_chat(message: str) -> str:
         """
         Ask any health-related query and get a response.
         """
@@ -81,7 +82,7 @@ def chat_mcps_router(mcp):
         user_id = get_user_ids_from_phone_number_ids([phone_number])[0]
         users = await dependency_setup.user_db_service.get_users([user_id])
         if len(users) == 0:
-            return JSONResponse(content="User not found", status_code=404)
+            raise ToolError(content="User not found")
 
         user = users[0]
         ctx = ByoebMessageContext(
@@ -113,5 +114,5 @@ def chat_mcps_router(mcp):
         responses = await dependency_setup.byoeb_user_generate_response.handle_message_generate_workflow([ctx])
         for resp in responses:
             if resp.message_category == "bot_to_asha_response":
-                return dict(message=resp.message_context.message_source_text, additional=resp.message_context.additional_info)
-        return "I don't know"
+                return resp.message_context.message_source_text + "\n\nAdditional data: " + json.dumps(resp.message_context.additional_info)
+        return "I cannot answer that."
