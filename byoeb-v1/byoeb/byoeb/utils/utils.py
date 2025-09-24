@@ -32,11 +32,11 @@ def log_to_text_file(text):
 def mcp_get_phone_number() -> str:
     request = get_http_request()
     if "phone_number" not in request.query_params:
-        raise ValueError(content="Cannot proceed with request due to missing 'phone_number' param")
+        raise ValueError("Cannot proceed with request due to missing 'phone_number' param")
 
     phone_number = request.query_params["phone_number"]
-    if not re.fullmatch(r"\d{10}", phone_number):
-        raise ValueError(content="Cannot proceed with request due to malformed 'phone_number' param")
+    if not re.fullmatch(r"\d{10,13}", phone_number):
+        raise ValueError("Cannot proceed with request due to malformed 'phone_number' param")
 
     return phone_number
 
