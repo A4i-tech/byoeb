@@ -132,7 +132,7 @@ from azure.identity import get_bearer_token_provider, DefaultAzureCredential
 
 # Initialize token provider and text translator with connection string if available, otherwise use default credentials
 if env_config.env_azure_storage_connection_string:
-    print("🔗 [TEXT_TRANSLATOR] Using Azure Storage connection string for authentication")
+    print("🔗 [TEXT_TRANSLATOR] Using Azure Storage connection string for authentication", env_config.env_azure_storage_connection_string)
     # Extract credentials from connection string for cognitive services
     from azure.storage.blob import BlobServiceClient
     blob_service_client = BlobServiceClient.from_connection_string(env_config.env_azure_storage_connection_string)
