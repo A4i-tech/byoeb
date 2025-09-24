@@ -43,3 +43,13 @@ env_appinsights_connection_string = os.getenv("APPINSIGHTS_CONNECTION_STRING")
 # Azure Storage
 env_azure_storage_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 
+# Azure Cognitive Services
+env_azure_cognitive_key = os.getenv("AZURE_COGNITIVE_KEY")
+
+#Azure Speech Key
+env_azure_speech_key= os.getenv("AZURE_SPEECH_KEY")
+env_azure_openai_whisper_key= os.getenv("AZURE_OPENAI_WHISPER_KEY")
+
+# Azure Search
+env_azure_search_api_key = os.getenv("AZURE_SEARCH_API_KEY")
+
