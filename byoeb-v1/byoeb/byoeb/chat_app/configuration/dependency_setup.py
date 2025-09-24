@@ -130,15 +130,34 @@ users_handler = UsersHandler(
 from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
 from azure.identity import get_bearer_token_provider, DefaultAzureCredential
 
-token_provider = get_bearer_token_provider(
-    DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
-)
-# TODO: factory implementation
-text_translator = AsyncAzureTextTranslator(
-    credential=DefaultAzureCredential(),
-    region=app_config["translators"]["text"]["azure_cognitive"]["region"],
-    resource_id=app_config["translators"]["text"]["azure_cognitive"]["resource_id"],
-)
+# Initialize token provider and text translator with connection string if available, otherwise use default credentials
+if env_config.env_azure_storage_connection_string:
+    print("🔗 [TEXT_TRANSLATOR] Using Azure Storage connection string for authentication")
+    # Extract credentials from connection string for cognitive services
+    from azure.storage.blob import BlobServiceClient
+    blob_service_client = BlobServiceClient.from_connection_string(env_config.env_azure_storage_connection_string)
+    credential = blob_service_client.credential
+    token_provider = get_bearer_token_provider(
+        credential, app_config["app"]["azure_cognitive_endpoint"]
+    )
+    text_translator = AsyncAzureTextTranslator(
+        credential=credential,
+        region=app_config["translators"]["text"]["azure_cognitive"]["region"],
+        resource_id=app_config["translators"]["text"]["azure_cognitive"]["resource_id"],
+    )
+    print("✅ [TEXT_TRANSLATOR] Initialized with connection string credentials")
+else:
+    print("🔑 [TEXT_TRANSLATOR] Using DefaultAzureCredential for authentication")
+    token_provider = get_bearer_token_provider(
+        DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
+    )
+    # TODO: factory implementation
+    text_translator = AsyncAzureTextTranslator(
+        credential=DefaultAzureCredential(),
+        region=app_config["translators"]["text"]["azure_cognitive"]["region"],
+        resource_id=app_config["translators"]["text"]["azure_cognitive"]["resource_id"],
+    )
+    print("✅ [TEXT_TRANSLATOR] Initialized with DefaultAzureCredential")
 
 # Speech translator
 # TODO: factory implementation
@@ -197,12 +216,29 @@ embedding_fn = azure_openai_embed.get_embedding_function()
 #     embedding_function=embedding_fn
 # )
 
-vector_store = AzureVectorStore(
-    service_name=azure_search_service_name,
-    index_name=azure_search_doc_index_name,
-    embedding_function=embedding_fn,
-    credential=DefaultAzureCredential()
-)
+# Initialize vector store with connection string if available, otherwise use default credentials
+if env_config.env_azure_storage_connection_string:
+    print("🔗 [VECTOR_STORE] Using Azure Storage connection string for authentication")
+    # Extract credentials from connection string for Azure Search
+    from azure.storage.blob import BlobServiceClient
+    blob_service_client = BlobServiceClient.from_connection_string(env_config.env_azure_storage_connection_string)
+    credential = blob_service_client.credential
+    vector_store = AzureVectorStore(
+        service_name=azure_search_service_name,
+        index_name=azure_search_doc_index_name,
+        embedding_function=embedding_fn,
+        credential=credential
+    )
+    print("✅ [VECTOR_STORE] Initialized with connection string credentials")
+else:
+    print("🔑 [VECTOR_STORE] Using DefaultAzureCredential for authentication")
+    vector_store = AzureVectorStore(
+        service_name=azure_search_service_name,
+        index_name=azure_search_doc_index_name,
+        embedding_function=embedding_fn,
+        credential=DefaultAzureCredential()
+    )
+    print("✅ [VECTOR_STORE] Initialized with DefaultAzureCredential")
 
 # llm
 # from byoeb_integrations.llms.llama_index.llama_index_azure_openai import AsyncLLamaIndexAzureOpenAILLM
