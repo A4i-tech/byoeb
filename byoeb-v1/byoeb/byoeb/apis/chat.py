@@ -10,7 +10,6 @@ from byoeb.utils.utils import mcp_get_phone_number
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from fastmcp.exceptions import ToolError
 
 CHAT_API_NAME = 'chat_api'
 chat_apis_router = APIRouter()
@@ -82,7 +81,7 @@ def chat_mcps_router(mcp):
         user_id = get_user_ids_from_phone_number_ids([phone_number])[0]
         users = await dependency_setup.user_db_service.get_users([user_id])
         if len(users) == 0:
-            raise ToolError(content="User not found")
+            return "Before I can answer your question, you must register yourself as an ASHA user. Shall I start with the registration?"
 
         user = users[0]
         ctx = ByoebMessageContext(
