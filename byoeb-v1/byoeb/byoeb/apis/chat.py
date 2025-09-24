@@ -114,5 +114,5 @@ def chat_mcps_router(mcp):
         responses = await dependency_setup.byoeb_user_generate_response.handle_message_generate_workflow([ctx])
         for resp in responses:
             if resp.message_category == "bot_to_asha_response":
-                return resp.message_context.message_source_text + "\n\nAdditional data: " + json.dumps(resp.message_context.additional_info)
+                return resp.message_context.message_source_text + "\n\nAdditional data: " + str(resp.message_context.additional_info)
         return "I cannot answer that."
