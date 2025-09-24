@@ -4,7 +4,6 @@ from byoeb.constants.onboarding_text import ONBOARD_WELCOME_MESSAGE_DICT
 from byoeb.constants.user_enums import LanguageCode
 from urllib.parse import unquote
 from pathlib import Path
-from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_http_request
 
 def get_git_root_path():
@@ -33,11 +32,11 @@ def log_to_text_file(text):
 def mcp_get_phone_number() -> str:
     request = get_http_request()
     if "phone_number" not in request.query_params:
-        raise ToolError(content="Cannot proceed with request due to missing 'phone_number' param")
+        raise ValueError(content="Cannot proceed with request due to missing 'phone_number' param")
 
     phone_number = request.query_params["phone_number"]
     if not re.fullmatch(r"\d{10}", phone_number):
-        raise ToolError(content="Cannot proceed with request due to malformed 'phone_number' param")
+        raise ValueError(content="Cannot proceed with request due to malformed 'phone_number' param")
 
     return phone_number
 
