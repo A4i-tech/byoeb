@@ -139,6 +139,7 @@ if env_config.env_azure_cognitive_key:
         resource_id=app_config["translators"]["text"]["azure_cognitive"]["resource_id"],
     )
 else:
+    from azure.identity import get_bearer_token_provider, DefaultAzureCredential
     print("⚠️ Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure text translator")
     text_translator = AsyncAzureTextTranslator(
     credential=DefaultAzureCredential(),
@@ -228,6 +229,7 @@ if env_config.env_azure_openai_whisper_key:
     api_version=app_config["embeddings"]["azure"]["api_version"]
     )
 else:
+    from azure.identity import get_bearer_token_provider, DefaultAzureCredential
     print("⚠️ Azure OpenAI Embed key not set. Defaulting to DefaultAzureCredential for Azure OpenAI Embed")
     token_provider = get_bearer_token_provider(
         DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
