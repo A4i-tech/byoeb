@@ -1,6 +1,5 @@
 import byoeb.chat_app.configuration.config as env_config
 from byoeb.chat_app.configuration.config import app_config
-from azure.identity import DefaultAzureCredential
 
 import time, json, traceback, uuid, asyncio
 import logging
