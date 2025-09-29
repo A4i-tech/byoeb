@@ -29,7 +29,7 @@ class ByoebUserGenerateResponse(Handler):
     EXPERT_PENDING_EMOJI = app_config["channel"]["reaction"]["expert"]["pending"]
     USER_PENDING_EMOJI = app_config["channel"]["reaction"]["user"]["pending"]
     _expert_user_types = bot_config["expert"]
-    _regular_user_type = bot_config["regular"]["user_type"]
+    _regular_user_types = bot_config["regular"]["user_type"]
     _asha_work_related = "asha_work_related"
     _small_talk = "small_talk"
     _incomprehensible = "incomprehensible"
@@ -417,7 +417,7 @@ class ByoebUserGenerateResponse(Handler):
             user=User(
                 user_id=message.user.user_id,
                 user_language=user_language,
-                user_type=self._regular_user_type,
+                user_type=self._regular_user_types[0],
                 phone_number_id=message.user.phone_number_id,
                 last_conversations=message.user.last_conversations
             ),

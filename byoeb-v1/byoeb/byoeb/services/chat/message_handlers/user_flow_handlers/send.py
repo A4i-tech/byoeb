@@ -202,7 +202,7 @@ class ByoebUserSendResponse(Handler):
         # verification_status = constants.VERIFICATION_STATUS
         read_receipt_messages = chat_utils.get_read_receipt_byoeb_messages(messages)
         byoeb_user_messages = chat_utils.get_user_byoeb_messages(messages)
-        byoeb_user_message = byoeb_user_messages[0]
+        byoeb_user_message = byoeb_user_messages[0] if byoeb_user_messages else ""
         track_message_id = byoeb_user_message.reply_context.reply_id
         if byoeb_user_message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
             track_message_id = byoeb_user_message.message_context.additional_info.get(constants.TRACK_MESSAGE_ID)
