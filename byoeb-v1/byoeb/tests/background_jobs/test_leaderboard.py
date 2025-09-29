@@ -122,7 +122,7 @@ async def test_leaderboard_empty_data(mocker):
 @pytest.mark.asyncio
 async def test_leaderboard_with_categories(mocker):
     mocker.patch("byoeb.factory.MongoDBFactory.get", return_value=FakeMongo({}))
-    df = await leaderboard.build_district_leaderboard_last_week_ist(categories=["asha"])
+    df = await leaderboard.build_district_leaderboard_last_week_ist(message_categories=["asha"])
     assert df is not None 
 
 @pytest.mark.asyncio
