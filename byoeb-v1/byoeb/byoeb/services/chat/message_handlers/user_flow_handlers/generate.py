@@ -417,7 +417,7 @@ class ByoebUserGenerateResponse(Handler):
             user=User(
                 user_id=message.user.user_id,
                 user_language=user_language,
-                user_type="asha",
+                user_type=message.user.user_type,
                 phone_number_id=message.user.phone_number_id,
                 last_conversations=message.user.last_conversations
             ),
