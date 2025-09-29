@@ -17,24 +17,30 @@ ASHA_USERS_COLLECTION = app_config["databases"]["mongo_db"]["user_collection"]
 
 IST = ZoneInfo("Asia/Kolkata")
 
-async def get_asha_and_test_user_numbers() -> List[str]:
-    mongo = await MongoDBFactory(config=app_config, scope=SINGLETON).get(DB_PROVIDER)
-    coll = mongo.get_collection(ASHA_USERS_COLLECTION)
+async def fetch_phone_numbers_for_asha_and_test_users() -> List[str]:
+    """
+    Retrieves phone numbers for all ASHA workers and test users from the database.
+    
+    Returns:
+        List[str]: Phone numbers of ASHA workers and test users
+    """
+    mongo_database = await MongoDBFactory(config=app_config, scope=SINGLETON).get(DB_PROVIDER)
+    users_collection = mongo_database.get_collection(ASHA_USERS_COLLECTION)
 
-    query = {
+    asha_and_test_user_filter = {
         "$or": [
             {"User.user_type": "asha"},
             {"User.test_user": True}
         ]
     }
-    projection = {"_id": 0, "User.phone_number_id": 1}
+    phone_number_fields_only = {"_id": 0, "User.phone_number_id": 1}
 
-    phone_numbers = []
-    async for doc in coll.find(query, projection=projection):
-        phone_number = doc.get("User", {}).get("phone_number_id")
+    collected_phone_numbers = []
+    async for user_document in users_collection.find(asha_and_test_user_filter, projection=phone_number_fields_only):
+        phone_number = user_document.get("User", {}).get("phone_number_id")
         if phone_number:
-            phone_numbers.append(phone_number)
-    return phone_numbers
+            collected_phone_numbers.append(phone_number)
+    return collected_phone_numbers
 
 def last_week_window_ist(reference: Optional[datetime] = None) -> tuple[int, int]:
     now_ist = (reference or datetime.now(tz=IST)).astimezone(IST)
@@ -68,71 +74,81 @@ def district_of(user_obj) -> Optional[str]:
     dist = loc.get("district") if hasattr(loc, "get") else getattr(loc, "district", None)
     return str(dist).strip() if dist and str(dist).strip().lower() != "unknown" else None
 
-async def build_district_leaderboard_last_week_ist(categories: Optional[List[str]] = None, batch_size: int = 1000) -> pd.DataFrame:
-    start_ts, end_ts = last_week_window_ist()
+async def build_district_leaderboard_last_week_ist(message_categories: Optional[List[str]] = None, processing_batch_size: int = 1000) -> pd.DataFrame:
+    """
+    Builds a leaderboard of districts based on message activity from the previous week in IST timezone.
+    
+    Args:
+        message_categories: Optional list of message categories to filter by
+        processing_batch_size: Number of documents to process in each batch
+        
+    Returns:
+        pd.DataFrame: Sorted leaderboard with district statistics
+    """
+    week_start_timestamp, week_end_timestamp = last_week_window_ist()
 
-    mongo = await MongoDBFactory(config=app_config, scope=SINGLETON).get(DB_PROVIDER)
-    coll = mongo.get_collection(MESSAGE_COLLECTION)
+    mongo_database = await MongoDBFactory(config=app_config, scope=SINGLETON).get(DB_PROVIDER)
+    messages_collection = mongo_database.get_collection(MESSAGE_COLLECTION)
 
-    query = {"message_data.incoming_timestamp": {"$gte": start_ts, "$lte": end_ts}}
+    time_range_filter = {"message_data.incoming_timestamp": {"$gte": week_start_timestamp, "$lte": week_end_timestamp}}
 
-    if categories:
-        query["message_data.message_category"] = {"$in": categories}
+    if message_categories:
+        time_range_filter["message_data.message_category"] = {"$in": message_categories}
 
-    projection = {"_id": 0, "message_data.user.user_id": 1, "message_data.incoming_timestamp": 1}
+    required_fields_only = {"_id": 0, "message_data.user.user_id": 1, "message_data.incoming_timestamp": 1}
 
-    cursor = coll.find(query, projection=projection).sort("message_data.incoming_timestamp", -1)
+    messages_cursor = messages_collection.find(time_range_filter, projection=required_fields_only).sort("message_data.incoming_timestamp", -1)
 
-    user_cache = {}
-    district_msg_count = Counter()
-    district_user_set = defaultdict(set)
-    district_first_seen = {}
-    district_last_seen = {}
+    user_objects_cache = {}
+    district_message_counts = Counter()
+    district_unique_users = defaultdict(set)
+    district_first_message_timestamp = {}
+    district_last_message_timestamp = {}
 
     while True:
-        batch = await cursor.to_list(length=batch_size)
-        if not batch:
+        message_batch = await messages_cursor.to_list(length=processing_batch_size)
+        if not message_batch:
             break
 
-        await hydrate_users(batch, user_cache)
+        await hydrate_users(message_batch, user_objects_cache)
 
-        for doc in batch:
-            md = doc.get("message_data", {})
-            uid = md.get("user", {}).get("user_id")
-            ts = md.get("incoming_timestamp")
+        for message_document in message_batch:
+            message_data = message_document.get("message_data", {})
+            user_id = message_data.get("user", {}).get("user_id")
+            message_timestamp = message_data.get("incoming_timestamp")
 
-            if not isinstance(ts, int) or ts < start_ts or ts > end_ts:
+            if not isinstance(message_timestamp, int) or message_timestamp < week_start_timestamp or message_timestamp > week_end_timestamp:
                 continue
 
-            user_obj = user_cache.get(uid)
-            dist = district_of(user_obj)
-            if not dist:
+            user_object = user_objects_cache.get(user_id)
+            user_district = district_of(user_object)
+            if not user_district:
                 continue
 
-            district_msg_count[dist] += 1
-            if uid:
-                district_user_set[dist].add(uid)
+            district_message_counts[user_district] += 1
+            if user_id:
+                district_unique_users[user_district].add(user_id)
 
-            district_first_seen[dist] = min(district_first_seen.get(dist, ts), ts)
-            district_last_seen[dist] = max(district_last_seen.get(dist, ts), ts)
+            district_first_message_timestamp[user_district] = min(district_first_message_timestamp.get(user_district, message_timestamp), message_timestamp)
+            district_last_message_timestamp[user_district] = max(district_last_message_timestamp.get(user_district, message_timestamp), message_timestamp)
 
-    rows = [
+    leaderboard_rows = [
         {
-            "district": dist,
-            "message_count": count,
-            "unique_users": len(district_user_set[dist]),
-            "first_seen": datetime.fromtimestamp(district_first_seen[dist]).strftime("%d-%m-%Y %H:%M:%S"),
-            "last_seen": datetime.fromtimestamp(district_last_seen[dist]).strftime("%d-%m-%Y %H:%M:%S")
+            "district": district_name,
+            "message_count": message_count,
+            "unique_users": len(district_unique_users[district_name]),
+            "first_seen": datetime.fromtimestamp(district_first_message_timestamp[district_name]).strftime("%d-%m-%Y %H:%M:%S"),
+            "last_seen": datetime.fromtimestamp(district_last_message_timestamp[district_name]).strftime("%d-%m-%Y %H:%M:%S")
         }
-        for dist, count in district_msg_count.items()
+        for district_name, message_count in district_message_counts.items()
     ]
 
-    if not rows:
+    if not leaderboard_rows:
         return pd.DataFrame(
             columns=["district", "message_count", "unique_users", "first_seen", "last_seen"]
         )
 
-    return pd.DataFrame(rows).sort_values(by=["message_count", "unique_users"], ascending=False, ignore_index=True)
+    return pd.DataFrame(leaderboard_rows).sort_values(by=["message_count", "unique_users"], ascending=False, ignore_index=True)
 
 async def send_bulk_messages(phone_numbers, message_text):
     for phone in phone_numbers:
@@ -180,7 +196,7 @@ async def main():
     for idx, row in top3_df.iterrows():
         message_text += f"{idx + 1}) {row['district']}: {row['message_count']} messages from {row['unique_users']} users\n"
 
-    phone_numbers = await get_asha_and_test_user_numbers()
+    phone_numbers = await fetch_phone_numbers_for_asha_and_test_users()
     print(f"Total recipients found: {len(phone_numbers)}")
 
     await send_bulk_messages(phone_numbers, message_text)
