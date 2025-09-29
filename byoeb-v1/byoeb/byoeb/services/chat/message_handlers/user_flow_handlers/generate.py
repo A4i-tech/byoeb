@@ -689,12 +689,21 @@ class ByoebUserGenerateResponse(Handler):
         # print("Created expert message")
 
         # Aggregate all messages
+        print(f"[GENERATE] byoeb_user_message: {byoeb_user_message}")
+        print(f"[GENERATE] byoeb_expert_message: {byoeb_expert_message}")
+        print(f"[GENERATE] read_reciept_message: {read_reciept_message}")
+        
         if byoeb_user_message is not None:
             byoeb_messages.append(byoeb_user_message)
+            print(f"[GENERATE] Added user message to list")
         if byoeb_expert_message is not None:
             byoeb_messages.append(byoeb_expert_message)
+            print(f"[GENERATE] Added expert message to list")
         if read_reciept_message is not None:
             byoeb_messages.append(read_reciept_message)
+            print(f"[GENERATE] Added read receipt message to list")
+            
+        print(f"[GENERATE] Final byoeb_messages count: {len(byoeb_messages)}")
         return byoeb_messages
     
     async def handle(
@@ -708,6 +717,7 @@ class ByoebUserGenerateResponse(Handler):
             start_time = datetime.now(timezone.utc).timestamp()
             new_messages = await self.__handle_message_generate_workflow(messages)
             end_time = datetime.now(timezone.utc).timestamp()
+            print(f"[GENERATE] Generated {len(new_messages)} messages")
             utils.log_to_text_file(f"E2E Generated answer and related questions in {end_time - start_time} seconds")
         except RetryError as e:
             utils.log_to_text_file(f"RetryError in generating response: {e}")
@@ -718,6 +728,7 @@ class ByoebUserGenerateResponse(Handler):
             print("Error in generating response: ", e)
             raise e
         if self._successor:
+            print(f"[GENERATE] Passing {len(new_messages)} messages to successor")
             return await self._successor.handle(
                 new_messages
             )
