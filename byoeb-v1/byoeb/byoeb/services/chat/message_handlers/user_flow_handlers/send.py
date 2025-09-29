@@ -41,6 +41,10 @@ class ByoebUserSendResponse(Handler):
         convs: List[ByoebMessageContext],
         byoeb_user_message: ByoebMessageContext,
     ):
+        # Safety check for None user message
+        if byoeb_user_message is None:
+            print("[send] __prepare_db_queries: byoeb_user_message is None, returning empty queries")
+            return {}
         if byoeb_user_message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
             message_db_queries = {
                 constants.UPDATE: self._message_db_service.audio_idk_status_update_query(byoeb_user_message)
@@ -303,6 +307,10 @@ class ByoebUserSendResponse(Handler):
         try:
             start_time = datetime.now(timezone.utc).timestamp()
             convs, byoeb_user_message = await self.__handle_message_send_workflow(messages)
+            # Check if we have a valid user message to process
+            if byoeb_user_message is None:
+                print("[send] No user message to process, returning empty queries")
+                return {}
             db_queries = self.__prepare_db_queries(convs, byoeb_user_message)
             end_time = datetime.now(timezone.utc).timestamp()
             utils.log_to_text_file(f"E2E for send workflow {end_time - start_time} seconds")
