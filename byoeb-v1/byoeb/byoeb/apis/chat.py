@@ -1,15 +1,12 @@
 import logging
-import asyncio
 import json
-import uuid
-import time
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageContext, MessageTypes, ReplyContext
+from byoeb.models.message_category import MessageCategory
 from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
 from byoeb.utils.utils import mcp_get_phone_number
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 
 CHAT_API_NAME = 'chat_api'
 chat_apis_router = APIRouter()
@@ -112,7 +109,7 @@ def chat_mcps_router(mcp):
         )
         responses = await dependency_setup.byoeb_user_generate_response.handle_message_generate_workflow([ctx])
         for resp in responses:
-            if resp.message_category == "bot_to_asha_response":
+            if resp.message_category == MessageCategory.BOT_TO_USER_RESPONSE.value:
                 response = resp.message_context.message_source_text
                 if "description" in resp.message_context.additional_info and "row_texts" in resp.message_context.additional_info:
                     response += "\n\n" + resp.message_context.additional_info["description"]
