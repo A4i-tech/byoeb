@@ -96,3 +96,9 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+  deploy:
+    needs: build
+    if: ${{ success() }}
+    uses: ./.github/workflows/render-deploy.yaml
+    secrets: inherit
