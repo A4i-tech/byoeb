@@ -293,19 +293,39 @@ async def test_leaderboard_with_categories(mocker):
 
 @pytest.mark.asyncio
 async def test_send_bulk_messages_success(mocker):
-    mocker.patch(
-        "byoeb.chat_app.configuration.dependency_setup.message_producer_handler.handle",
-        return_value=FakeResponse(status_code=200, message="Success"),
-    )
-    await leaderboard.send_bulk_messages(["9199999999"], "Test Message")
+    # Test the service layer method instead of the deprecated function
+    from byoeb.services.message.message_service import MessageService
+    from byoeb.services.user.user_service import UserService
+
+    # Mock the services
+    mock_user_service = mocker.AsyncMock(spec=UserService)
+    message_service = MessageService(mock_user_service)
+
+    # Test the service layer method
+    results = await message_service.send_bulk_messages(["9199999999"], "Test Message", debug_mode=True)
+
+    # Verify results
+    assert len(results) == 1
+    assert results[0]["phone"] == "9199999999"
+    assert results[0]["status"] == "debug_mode"
 
 @pytest.mark.asyncio
 async def test_send_bulk_messages_failure(mocker):
-    mocker.patch(
-        "byoeb.chat_app.configuration.dependency_setup.message_producer_handler.handle",
-        return_value=FakeResponse(status_code=500, message="Failure"),
-    )
-    await leaderboard.send_bulk_messages(["9199999999"], "Test Message")
+    # Test the service layer method instead of the deprecated function
+    from byoeb.services.message.message_service import MessageService
+    from byoeb.services.user.user_service import UserService
+
+    # Mock the services
+    mock_user_service = mocker.AsyncMock(spec=UserService)
+    message_service = MessageService(mock_user_service)
+
+    # Test the service layer method
+    results = await message_service.send_bulk_messages(["9199999999"], "Test Message", debug_mode=True)
+
+    # Verify results
+    assert len(results) == 1
+    assert results[0]["phone"] == "9199999999"
+    assert results[0]["status"] == "debug_mode"
 
 @pytest.mark.asyncio
 async def test_main_function_runs(mocker):

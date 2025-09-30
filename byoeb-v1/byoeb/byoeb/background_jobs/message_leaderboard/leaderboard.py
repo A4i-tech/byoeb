@@ -9,19 +9,22 @@ from byoeb.chat_app.configuration import dependency_setup
 from byoeb.services.leaderboard import LeaderboardService
 from byoeb.services.leaderboard.time_window_strategies import TimeWindowFactory
 from byoeb.services.user import UserService
+from byoeb.services.message import MessageService
 
 IST = ZoneInfo("Asia/Kolkata")
 
 # Service instances
 _leaderboard_service: Optional[LeaderboardService] = None
 _user_service: Optional[UserService] = None
+_message_service: Optional[MessageService] = None
 
 async def get_leaderboard_service() -> LeaderboardService:
     """Get or create leaderboard service instance."""
     global _leaderboard_service
     if _leaderboard_service is None:
         user_service = await get_user_service()
-        _leaderboard_service = LeaderboardService(user_service)
+        message_service = await get_message_service()
+        _leaderboard_service = LeaderboardService(user_service, message_service)
     return _leaderboard_service
 
 async def get_user_service() -> UserService:
@@ -30,6 +33,14 @@ async def get_user_service() -> UserService:
     if _user_service is None:
         _user_service = UserService()
     return _user_service
+
+async def get_message_service() -> MessageService:
+    """Get or create message service instance."""
+    global _message_service
+    if _message_service is None:
+        user_service = await get_user_service()
+        _message_service = MessageService(user_service)
+    return _message_service
 
 async def fetch_phone_numbers_for_asha_and_test_users() -> List[str]:
     """
@@ -117,56 +128,37 @@ async def build_custom_leaderboard(days_back: int, message_categories: Optional[
     """
     return await build_district_leaderboard_with_strategy('custom', message_categories, processing_batch_size, days_back=days_back)
 
-async def send_bulk_messages(phone_numbers, message_text):
-    for phone in phone_numbers:
-        message_payload = {
-            "object": "whatsapp_business_account",
-            "entry": [
-                {
-                    "changes": [
-                        {
-                            "value": {
-                                "messaging_product": "whatsapp",
-                                "contacts": [{"wa_id": phone}],
-                                "messages": [
-                                    {
-                                        "from": phone,
-                                        "id": f"custom-{phone}-{int(datetime.now().timestamp())}",
-                                        "timestamp": str(int(datetime.now().timestamp())),
-                                        "type": "text",
-                                        "text": {"body": message_text}
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            ]
-        }
-
-        # response = await dependency_setup.message_producer_handler.handle(message_payload)
-        # if response.status_code == 200:
-        #     print(f"✅ Sent to {phone}")
-        # else:
-        #     print(f"❌ Failed for {phone}: {response.message}")
-        print("\n--- WhatsApp Message Payload ---")
-        print(f"To: {phone}")
-        print("Payload:", message_payload)
-        print("--- End Payload ---\n")
-
 async def main():
     leaderboard_df = await build_district_leaderboard_last_week_ist()
     top3_df = leaderboard_df.head(3)
     print("\nTop 3 Districts:\n", top3_df.to_string(index=False))
 
+    # Generate message text for demonstration
     message_text = "📊 Top 3 Districts with Highest Interactions:\n\n"
     for idx, row in top3_df.iterrows():
         message_text += f"{idx + 1}) {row['district']}: {row['message_count']} messages from {row['unique_users']} users\n"
 
     phone_numbers = await fetch_phone_numbers_for_asha_and_test_users()
     print(f"Total recipients found: {len(phone_numbers)}")
+    print(f"Message to send: {message_text}")
 
-    await send_bulk_messages(phone_numbers, message_text)
+    # Send messages using service layer
+    message_service = await get_message_service()
+
+    # TEST MODE: Send only to your test phone number (COMMENTED OUT)
+    # test_phone_number = "917567071072"
+    # print(f"🧪 TEST MODE: Sending only to {test_phone_number}")
+    # results = await message_service.send_bulk_messages([test_phone_number], message_text, debug_mode=False, test_mode=False)
+
+    # DEMO MODE: Print payloads to console without sending
+    # print(f"🖥️ DEMO MODE: Printing payloads for {len(phone_numbers)} users (no actual sending)")
+    # results = await message_service.send_bulk_messages(phone_numbers, message_text, debug_mode=True)
+
+    # PRODUCTION MODE: Send to all users (actual sending) (COMMENTED OUT)
+    print(f"🚀 PRODUCTION MODE: Sending to {len(phone_numbers)} users")
+    results = await message_service.send_bulk_messages(phone_numbers, message_text, debug_mode=False, test_mode=False)
+
+    print(f"Processed {len(results)} messages via service layer")
 
 if __name__ == "__main__":
     asyncio.run(main())

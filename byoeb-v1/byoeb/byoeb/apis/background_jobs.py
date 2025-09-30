@@ -30,11 +30,19 @@ file_path = "asha_data.xlsx"
 account_url = "https://khushibabyashastorage.blob.core.windows.net"
 container_name = "ashacontainer"
 
+# Linux/Production server commands (using exec)
 background_jobs = [
     f"*/30 * * * * exec python3 {jobs_path}/consensus/respond_with_consensus.py; exit",
     f"00 8-20 * * * exec python3 {jobs_path}/consensus/send_query_to_expert.py; exit",
     f"0 12 * * FRI exec python3 {jobs_path}/message_leaderboard/leaderboard.py; exit",
 ]
+
+# Windows/Local development commands (commented out for testing)
+# background_jobs = [
+#     f"*/30 * * * * python {jobs_path}/consensus/respond_with_consensus.py",
+#     f"00 8-20 * * * python {jobs_path}/consensus/send_query_to_expert.py",
+#     f"*/2 * * * * python {jobs_path}/message_leaderboard/leaderboard.py",  # Every 2 minutes for testing
+# ]
 pids = []
 
 # @background_apis_router.get("/asha_logs", response_class=HTMLResponse)
