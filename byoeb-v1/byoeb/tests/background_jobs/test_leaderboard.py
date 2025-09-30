@@ -231,8 +231,11 @@ async def test_leaderboard_skips_unknown_district(monkeypatch):
 @pytest.mark.asyncio
 async def test_leaderboard_ignores_out_of_window(monkeypatch):
     from types import SimpleNamespace
+    from byoeb.services.leaderboard.time_window_strategies import TimeWindowFactory
+
     ref = datetime(2025, 9, 15, 12, 0, tzinfo=timezone.utc)  # Monday
-    start_utc, end_utc = leaderboard.last_week_window_ist(ref)
+    week_strategy = TimeWindowFactory.create_strategy('week')
+    start_utc, end_utc = week_strategy.calculate_window(ref)
 
     just_before = start_utc - 1
 
@@ -256,11 +259,14 @@ async def test_leaderboard_ignores_out_of_window(monkeypatch):
     assert df.empty
 
 def test_last_week_window_math():
+    from byoeb.services.leaderboard.time_window_strategies import TimeWindowFactory
+
     IST = leaderboard.IST
     # Thu, Sep 11, 2025 10:00 IST
     ref = datetime(2025, 9, 11, 4, 30, tzinfo=timezone.utc).astimezone(IST)
 
-    s, e = leaderboard.last_week_window_ist(ref)
+    week_strategy = TimeWindowFactory.create_strategy('week')
+    s, e = week_strategy.calculate_window(ref)
 
     # Mon=0..Sun=6; Fri=4
     weekday = ref.weekday()

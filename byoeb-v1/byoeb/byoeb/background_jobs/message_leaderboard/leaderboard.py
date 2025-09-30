@@ -7,6 +7,7 @@ import pandas as pd
 from byoeb.background_jobs.config import app_config
 from byoeb.chat_app.configuration import dependency_setup
 from byoeb.services.leaderboard import LeaderboardService
+from byoeb.services.leaderboard.time_window_strategies import TimeWindowFactory
 from byoeb.services.user import UserService
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -29,29 +30,6 @@ async def get_user_service() -> UserService:
     if _user_service is None:
         _user_service = UserService()
     return _user_service
-
-def last_week_window_ist(reference: Optional[datetime] = None) -> tuple[int, int]:
-    """
-    Calculate the start and end timestamps for the previous week in IST timezone.
-    This function is kept for backward compatibility with tests.
-
-    Args:
-        reference: Reference datetime (defaults to current time)
-
-    Returns:
-        tuple: (start_timestamp, end_timestamp) in UTC
-    """
-    now_ist = (reference or datetime.now(tz=IST)).astimezone(IST)
-    weekday = now_ist.weekday()  # Mon=0 ... Sun=6, Fri=4
-
-    this_fri_00 = (now_ist - timedelta(days=(weekday - 4) % 7)).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-
-    start_ist = this_fri_00 - timedelta(days=7)
-    end_ist = this_fri_00 - timedelta(seconds=1)
-
-    return int(start_ist.astimezone(timezone.utc).timestamp()), int(end_ist.astimezone(timezone.utc).timestamp())
 
 async def fetch_phone_numbers_for_asha_and_test_users() -> List[str]:
     """
@@ -76,6 +54,68 @@ async def build_district_leaderboard_last_week_ist(message_categories: Optional[
     """
     leaderboard_service = await get_leaderboard_service()
     return await leaderboard_service.build_district_leaderboard_last_week_ist(message_categories, processing_batch_size)
+
+async def build_district_leaderboard_with_strategy(
+    strategy_type: str,
+    message_categories: Optional[List[str]] = None,
+    processing_batch_size: int = 1000,
+    **strategy_kwargs
+) -> pd.DataFrame:
+    """
+    Builds a leaderboard using a specific time window strategy.
+
+    Args:
+        strategy_type: Type of strategy ('week', 'month', 'year', 'custom')
+        message_categories: Optional list of message categories to filter by
+        processing_batch_size: Number of documents to process in each batch
+        **strategy_kwargs: Additional arguments for strategy creation (e.g., days_back for custom)
+
+    Returns:
+        pd.DataFrame: Sorted leaderboard with district statistics
+    """
+    leaderboard_service = await get_leaderboard_service()
+    strategy = TimeWindowFactory.create_strategy(strategy_type, **strategy_kwargs)
+    return await leaderboard_service.build_district_leaderboard(message_categories, processing_batch_size, strategy)
+
+async def build_monthly_leaderboard(message_categories: Optional[List[str]] = None, processing_batch_size: int = 1000) -> pd.DataFrame:
+    """
+    Builds a leaderboard for the previous month.
+
+    Args:
+        message_categories: Optional list of message categories to filter by
+        processing_batch_size: Number of documents to process in each batch
+
+    Returns:
+        pd.DataFrame: Sorted leaderboard with district statistics
+    """
+    return await build_district_leaderboard_with_strategy('month', message_categories, processing_batch_size)
+
+async def build_yearly_leaderboard(message_categories: Optional[List[str]] = None, processing_batch_size: int = 1000) -> pd.DataFrame:
+    """
+    Builds a leaderboard for the previous year.
+
+    Args:
+        message_categories: Optional list of message categories to filter by
+        processing_batch_size: Number of documents to process in each batch
+
+    Returns:
+        pd.DataFrame: Sorted leaderboard with district statistics
+    """
+    return await build_district_leaderboard_with_strategy('year', message_categories, processing_batch_size)
+
+async def build_custom_leaderboard(days_back: int, message_categories: Optional[List[str]] = None, processing_batch_size: int = 1000) -> pd.DataFrame:
+    """
+    Builds a leaderboard for a custom time period.
+
+    Args:
+        days_back: Number of days to look back
+        message_categories: Optional list of message categories to filter by
+        processing_batch_size: Number of documents to process in each batch
+
+    Returns:
+        pd.DataFrame: Sorted leaderboard with district statistics
+    """
+    return await build_district_leaderboard_with_strategy('custom', message_categories, processing_batch_size, days_back=days_back)
 
 async def send_bulk_messages(phone_numbers, message_text):
     for phone in phone_numbers:
