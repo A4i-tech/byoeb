@@ -9,6 +9,7 @@ from byoeb.background_jobs.config import app_config
 from byoeb.background_jobs.dependency_setup import user_db_service
 from byoeb.factory import MongoDBFactory
 from byoeb.chat_app.configuration import dependency_setup
+from byoeb.repositories import RepositoryFactory, MessageRepository, UserRepository
 
 SINGLETON = "singleton"
 DB_PROVIDER = app_config["app"]["db_provider"]
@@ -17,6 +18,17 @@ ASHA_USERS_COLLECTION = app_config["databases"]["mongo_db"]["user_collection"]
 
 IST = ZoneInfo("Asia/Kolkata")
 
+# Repository factory instance
+_repository_factory: Optional[RepositoryFactory] = None
+
+async def get_repository_factory() -> RepositoryFactory:
+    """Get or create repository factory instance."""
+    global _repository_factory
+    if _repository_factory is None:
+        mongo_factory = MongoDBFactory(config=app_config, scope=SINGLETON)
+        _repository_factory = RepositoryFactory(mongo_factory)
+    return _repository_factory
+
 async def fetch_phone_numbers_for_asha_and_test_users() -> List[str]:
     """
     Retrieves phone numbers for all ASHA workers and test users from the database.
@@ -24,22 +36,19 @@ async def fetch_phone_numbers_for_asha_and_test_users() -> List[str]:
     Returns:
         List[str]: Phone numbers of ASHA workers and test users
     """
-    mongo_database = await MongoDBFactory(config=app_config, scope=SINGLETON).get(DB_PROVIDER)
-    users_collection = mongo_database.get_collection(ASHA_USERS_COLLECTION)
+    repository_factory = await get_repository_factory()
+    user_repository = await repository_factory.get_user_repository()
 
-    asha_and_test_user_filter = {
-        "$or": [
-            {"User.user_type": "asha"},
-            {"User.test_user": True}
-        ]
-    }
-    phone_number_fields_only = {"_id": 0, "User.phone_number_id": 1}
+    # Use repository method to find ASHA and test users
+    asha_and_test_users = await user_repository.find_asha_and_test_users()
 
+    # Extract phone numbers from the results
     collected_phone_numbers = []
-    async for user_document in users_collection.find(asha_and_test_user_filter, projection=phone_number_fields_only):
+    for user_document in asha_and_test_users:
         phone_number = user_document.get("User", {}).get("phone_number_id")
         if phone_number:
             collected_phone_numbers.append(phone_number)
+
     return collected_phone_numbers
 
 def last_week_window_ist(reference: Optional[datetime] = None) -> tuple[int, int]:
@@ -87,17 +96,24 @@ async def build_district_leaderboard_last_week_ist(message_categories: Optional[
     """
     week_start_timestamp, week_end_timestamp = last_week_window_ist()
 
-    mongo_database = await MongoDBFactory(config=app_config, scope=SINGLETON).get(DB_PROVIDER)
-    messages_collection = mongo_database.get_collection(MESSAGE_COLLECTION)
+    # Get repository instances
+    repository_factory = await get_repository_factory()
+    message_repository = await repository_factory.get_message_repository()
+    user_repository = await repository_factory.get_user_repository()
 
-    time_range_filter = {"message_data.incoming_timestamp": {"$gte": week_start_timestamp, "$lte": week_end_timestamp}}
-
-    if message_categories:
-        time_range_filter["message_data.message_category"] = {"$in": message_categories}
-
+    # Define projection for required fields only
     required_fields_only = {"_id": 0, "message_data.user.user_id": 1, "message_data.incoming_timestamp": 1}
 
-    messages_cursor = messages_collection.find(time_range_filter, projection=required_fields_only).sort("message_data.incoming_timestamp", -1)
+    # Get messages using repository
+    message_documents = await message_repository.find_messages_by_time_range(
+        start_timestamp=week_start_timestamp,
+        end_timestamp=week_end_timestamp,
+        message_categories=message_categories,
+        projection=required_fields_only
+    )
+
+    # Sort messages by timestamp (descending)
+    message_documents.sort(key=lambda x: x.get("message_data", {}).get("incoming_timestamp", 0), reverse=True)
 
     user_objects_cache = {}
     district_message_counts = Counter()
@@ -105,10 +121,9 @@ async def build_district_leaderboard_last_week_ist(message_categories: Optional[
     district_first_message_timestamp = {}
     district_last_message_timestamp = {}
 
-    while True:
-        message_batch = await messages_cursor.to_list(length=processing_batch_size)
-        if not message_batch:
-            break
+    # Process messages in batches
+    for i in range(0, len(message_documents), processing_batch_size):
+        message_batch = message_documents[i:i + processing_batch_size]
 
         await hydrate_users(message_batch, user_objects_cache)
 
