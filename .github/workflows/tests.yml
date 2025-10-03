@@ -5,10 +5,17 @@ on:
     branches: [ a4i/main ]
   pull_request:
     branches: [ a4i/main ]
+  workflow_call:
+    outputs:
+      tests-passed:
+        description: "Whether all tests passed successfully"
+        value: ${{ jobs.tests.outputs.tests-passed }}
 
 jobs:
   tests:
     runs-on: ubuntu-latest
+    outputs:
+      tests-passed: ${{ steps.test-results.outputs.tests-passed }}
 
     defaults:
       run:
@@ -88,6 +95,16 @@ jobs:
       - name: Run tests (byoeb)
         working-directory: ./byoeb-v1/byoeb
         run: poetry run pytest
+        id: byoeb-tests
+
+      - name: Set test results
+        id: test-results
+        run: |
+          if [ "${{ steps.byoeb-tests.outcome }}" == "success" ]; then
+            echo "tests-passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "tests-passed=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Upload HTML coverage (byoeb)
         if: always()
