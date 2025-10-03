@@ -280,3 +280,19 @@ class AsyncAzureCosmosMongoDBCollection(BaseDocumentCollection):
         await self.__collection.drop()
         self.__collection = None
         self.__collection_name = None
+
+    async def aggregate(
+        self,
+        pipeline: List[Dict[str, Any]]
+    ) -> list:
+        raise NotImplementedError
+
+    async def aaggregate(
+        self,
+        pipeline: List[Dict[str, Any]]
+    ) -> Any:
+        if self.__collection is None:
+            raise ValueError("Collection is not present or deleted. Please create a new collection")
+        cursor = self.__collection.aggregate(pipeline)
+        async for doc in cursor:
+            yield doc
