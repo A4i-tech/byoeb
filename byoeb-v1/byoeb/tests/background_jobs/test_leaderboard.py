@@ -268,13 +268,11 @@ def test_last_week_window_math():
     week_strategy = TimeWindowFactory.create_strategy('week')
     s, e = week_strategy.calculate_window(ref)
 
-    # Mon=0..Sun=6; Fri=4
-    weekday = ref.weekday()
-    this_fri_00 = (ref - timedelta(days=(weekday - 4) % 7)).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    start_expected_ist = this_fri_00 - timedelta(days=7)        # prev Fri 00:00 IST
-    end_expected_ist   = this_fri_00 - timedelta(seconds=1)     # prev Thu 23:59:59 IST
+    # With CustomTimeWindowStrategy, week means 7 days back from reference time
+    # Start: 7 days before reference time at midnight
+    start_expected_ist = (ref - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+    # End: Start of current day (midnight)
+    end_expected_ist = ref.replace(hour=0, minute=0, second=0, microsecond=0)
 
     assert s == int(start_expected_ist.astimezone(timezone.utc).timestamp())
     assert e == int(end_expected_ist.astimezone(timezone.utc).timestamp())
@@ -330,4 +328,9 @@ async def test_send_bulk_messages_failure(mocker):
 @pytest.mark.asyncio
 async def test_main_function_runs(mocker):
     mocker.patch("byoeb.factory.MongoDBFactory.get", return_value=FakeMongo({}))
+    # Mock the message service to prevent actual message sending during tests
+    mock_message_service = mocker.MagicMock()
+    mock_message_service.send_bulk_messages = mocker.AsyncMock(return_value=[{"phone": "test", "status": "mocked"}])
+    mocker.patch("byoeb.background_jobs.message_leaderboard.leaderboard.get_message_service", return_value=mock_message_service)
+
     await leaderboard.main()
