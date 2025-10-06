@@ -1,36 +1,52 @@
-name: Docker
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
+name: CI/CD Pipeline - Build, Test & Deploy
 
 on:
-  schedule:
-    - cron: '24 14 * * *'
   push:
     branches: [ "a4i/main", "a4i/main-CD-1" ]
-    # Publish semver tags as releases.
     tags: [ 'v*.*.*' ]
   pull_request:
     branches: [ "a4i/main", "a4i/main-CD-1" ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment Environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+      skip_tests:
+        description: 'Skip tests (use with caution)'
+        required: false
+        default: false
+        type: boolean
 
 env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
+  # Environment configuration
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
+  # Teams webhook for notifications
+  TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
 
 jobs:
   tests:
     uses: ./.github/workflows/tests.yml
+    with:
+      environment: ${{ github.event.inputs.environment || 'staging' }}
     secrets: inherit
 
   build:
     needs: tests
-    if: ${{ needs.tests.outputs.tests-passed == 'true' }}
+    if: ${{ needs.tests.outputs.tests-passed == 'true' || github.event.inputs.skip_tests == 'true' }}
     runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      environment: ${{ env.ENVIRONMENT }}
     permissions:
       contents: read
       packages: write
@@ -73,6 +89,15 @@ jobs:
         uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Simplified tags for testing
+            type=ref,event=branch
+            type=raw,value=${{ env.ENVIRONMENT }}-{{sha}}
+            type=raw,value=${{ env.ENVIRONMENT }}-latest
+            # Commented out for testing - uncomment for production
+            # type=ref,event=pr
+            # type=semver,pattern={{version}}
+            # type=semver,pattern={{major}}.{{minor}}
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
@@ -102,8 +127,263 @@ jobs:
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
-  deploy:
+  deploy-staging:
     needs: [tests, build]
-    if: ${{ needs.tests.outputs.tests-passed == 'true' && success() }}
+    if: ${{ needs.tests.outputs.tests-passed == 'true' && success() && (github.event.inputs.environment == 'staging' || github.event.inputs.environment == '' || github.ref_name == 'main-CD-1') }}
     uses: ./.github/workflows/render-deploy.yaml
     secrets: inherit
+
+
+  build-production-image:
+    needs: [tests, build]
+    if: ${{ needs.tests.outputs.tests-passed == 'true' && success() && github.event.inputs.environment == 'production' }}
+    runs-on: ubuntu-latest
+    outputs:
+      production-image-tag: ${{ steps.meta.outputs.tags }}
+      production-image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for production
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=production
+            type=raw,value=production-{{sha}}
+            type=raw,value=latest-production
+
+      - name: Build and push production Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Output production image info
+        run: |
+          echo "🚀 Production Docker image built and published!"
+          echo "Image tags: ${{ steps.meta.outputs.tags }}"
+          echo "Image digest: ${{ steps.build.outputs.digest }}"
+          echo ""
+          echo "You can now:"
+          echo "1. Pull the image: docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:production"
+          echo "2. Run locally: docker run -p 8000:8000 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:production"
+          echo "3. Deploy to any container platform using this image"
+
+  notify-success:
+    needs: [tests, build, deploy-staging, build-production-image]
+    if: always() && (needs.tests.result == 'success' && needs.build.result == 'success' && (needs.deploy-staging.result == 'success' || needs.build-production-image.result == 'success'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Success Notification to Teams
+        run: |
+          # Create Teams adaptive card payload for success
+          CARD_PAYLOAD=$(cat <<EOF
+          {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "00FF00",
+            "summary": "🚀 Byoeb Deployment Successful",
+            "sections": [{
+              "activityTitle": "🚀 Byoeb Deployment Successful",
+              "activitySubtitle": "Deployment completed successfully",
+              "facts": [
+                {"name": "Environment", "value": "${{ env.ENVIRONMENT }}"},
+                {"name": "Branch", "value": "${{ github.ref_name }}"},
+                {"name": "Commit", "value": "${{ github.sha }}"},
+                {"name": "Image", "value": "${{ needs.build.outputs.image-tag }}"},
+                {"name": "Deployed by", "value": "${{ github.actor }}"}
+              ],
+              "markdown": true
+            }]
+          }
+          EOF
+          )
+
+          # Send to Teams webhook
+          curl -X POST -H "Content-Type: application/json" \
+            -d "$CARD_PAYLOAD" \
+            "${{ env.TEAMS_WEBHOOK_URL }}"
+
+  notify-tests-failure:
+    needs: [tests]
+    if: always() && needs.tests.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Tests Failure Notification to Teams
+        run: |
+          # Create Teams adaptive card payload for test failure
+          CARD_PAYLOAD=$(cat <<EOF
+          {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "FFA500",
+            "summary": "🧪 Byoeb Tests Failed",
+            "sections": [{
+              "activityTitle": "🧪 Byoeb Tests Failed",
+              "activitySubtitle": "Test suite failed",
+              "facts": [
+                {"name": "Branch", "value": "${{ github.ref_name }}"},
+                {"name": "Commit", "value": "${{ github.sha }}"},
+                {"name": "Failed Step", "value": "Tests"},
+                {"name": "Failed by", "value": "${{ github.actor }}"},
+                {"name": "Workflow", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}
+              ],
+              "markdown": true
+            }]
+          }
+          EOF
+          )
+
+          # Send to Teams webhook
+          curl -X POST -H "Content-Type: application/json" \
+            -d "$CARD_PAYLOAD" \
+            "${{ env.TEAMS_WEBHOOK_URL }}"
+
+  notify-build-failure:
+    needs: [tests, build]
+    if: always() && needs.tests.result == 'success' && needs.build.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Build Failure Notification to Teams
+        run: |
+          # Create Teams adaptive card payload for build failure
+          CARD_PAYLOAD=$(cat <<EOF
+          {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "FF0000",
+            "summary": "🔨 Byoeb Build Failed",
+            "sections": [{
+              "activityTitle": "🔨 Byoeb Build Failed",
+              "activitySubtitle": "Docker build failed",
+              "facts": [
+                {"name": "Branch", "value": "${{ github.ref_name }}"},
+                {"name": "Commit", "value": "${{ github.sha }}"},
+                {"name": "Failed Step", "value": "Build"},
+                {"name": "Failed by", "value": "${{ github.actor }}"},
+                {"name": "Workflow", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}
+              ],
+              "markdown": true
+            }]
+          }
+          EOF
+          )
+
+          # Send to Teams webhook
+          curl -X POST -H "Content-Type: application/json" \
+            -d "$CARD_PAYLOAD" \
+            "${{ env.TEAMS_WEBHOOK_URL }}"
+
+  notify-deploy-failure:
+    needs: [tests, build, deploy-staging]
+    if: always() && needs.tests.result == 'success' && needs.build.result == 'success' && needs.deploy-staging.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if Teams webhook is configured
+        run: |
+          if [ -z "${{ env.TEAMS_WEBHOOK_URL }}" ]; then
+            echo "⚠️ TEAMS_WEBHOOK_URL is not configured - skipping notification"
+            exit 0
+          else
+            echo "✅ Teams webhook URL is configured"
+          fi
+
+      - name: Send Deployment Failure Notification to Teams
+        id: send-notification
+        if: env.TEAMS_WEBHOOK_URL != ''
+        run: |
+          # Create Teams adaptive card payload
+          CARD_PAYLOAD=$(cat <<EOF
+          {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "FF0000",
+            "summary": "🚨 Byoeb Deployment Failed",
+            "sections": [{
+              "activityTitle": "🚨 Byoeb Deployment Failed",
+              "activitySubtitle": "Render deployment failed",
+              "facts": [
+                {"name": "Environment", "value": "${{ env.ENVIRONMENT }}"},
+                {"name": "Branch", "value": "${{ github.ref_name }}"},
+                {"name": "Commit", "value": "${{ github.sha }}"},
+                {"name": "Failed Step", "value": "Deploy to Render"},
+                {"name": "Failed by", "value": "${{ github.actor }}"},
+                {"name": "Workflow", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}
+              ],
+              "markdown": true
+            }]
+          }
+          EOF
+          )
+
+          # Send to Teams webhook
+          curl -X POST -H "Content-Type: application/json" \
+            -d "$CARD_PAYLOAD" \
+            "${{ env.TEAMS_WEBHOOK_URL }}"
+        continue-on-error: true
+
+      - name: Fallback notification (if Teams fails)
+        if: always() && (steps.send-notification.outcome == 'failure' || env.TEAMS_WEBHOOK_URL == '')
+        run: |
+          echo "🚨 BYOEB DEPLOYMENT FAILED"
+          echo "Environment: ${{ env.ENVIRONMENT }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Failed Step: Byoeb Deploy to Render"
+          echo "Failed by: ${{ github.actor }}"
+          echo "Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+  notify-deploy-timeout:
+    needs: [tests, build, deploy-staging]
+    if: always() && needs.tests.result == 'success' && needs.build.result == 'success' && needs.deploy-staging.result == 'cancelled'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Deployment Timeout Notification to Teams
+        run: |
+          # Create Teams adaptive card payload for timeout
+          CARD_PAYLOAD=$(cat <<EOF
+          {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "FFA500",
+            "summary": "⏰ Byoeb Deployment Timed Out",
+            "sections": [{
+              "activityTitle": "⏰ Byoeb Deployment Timed Out",
+              "activitySubtitle": "Render deployment took too long",
+              "facts": [
+                {"name": "Environment", "value": "${{ env.ENVIRONMENT }}"},
+                {"name": "Branch", "value": "${{ github.ref_name }}"},
+                {"name": "Commit", "value": "${{ github.sha }}"},
+                {"name": "Issue", "value": "Deployment took too long and was cancelled"},
+                {"name": "Failed by", "value": "${{ github.actor }}"},
+                {"name": "Workflow", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}
+              ],
+              "markdown": true
+            }]
+          }
+          EOF
+          )
+
+          # Send to Teams webhook
+          curl -X POST -H "Content-Type: application/json" \
+            -d "$CARD_PAYLOAD" \
+            "${{ env.TEAMS_WEBHOOK_URL }}"

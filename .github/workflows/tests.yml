@@ -1,15 +1,24 @@
-name: CI - MongoDB Tests
+name: CI - Tests & Quality Checks
 
 on:
   push:
-    branches: [ a4i/main ]
+    branches: [ a4i/main, a4i/main-CD-1 ]
   pull_request:
-    branches: [ a4i/main ]
+    branches: [ a4i/main, a4i/main-CD-1 ]
   workflow_call:
+    inputs:
+      environment:
+        description: "Deployment environment (staging/production)"
+        required: false
+        default: "staging"
+        type: string
     outputs:
       tests-passed:
         description: "Whether all tests passed successfully"
         value: ${{ jobs.tests.outputs.tests-passed }}
+      environment:
+        description: "Deployment environment"
+        value: ${{ inputs.environment || 'staging' }}
 
 jobs:
   tests:

@@ -36,20 +36,29 @@ def create_app():
 async def lifespan(app: FastAPI):
     pid = os.getpid()
     print(f"FastAPI app is running with PID: {pid}")
-    from byoeb.chat_app.configuration.dependency_setup import (
-        channel_client_factory, 
-        message_consumer,
-        queue_producer_factory,
-        text_translator
-    )
-    await message_consumer.initialize()
-    asyncio.create_task(message_consumer.listen())
-    yield
-    await channel_client_factory.close()
-    await message_consumer.close()
-    await queue_producer_factory.close()
-    await text_translator._close()
-    logger.info("FastAPI app is shutting down. Closing all clients")
+    try:
+        from byoeb.chat_app.configuration.dependency_setup import (
+            channel_client_factory,
+            message_consumer,
+            queue_producer_factory,
+            text_translator
+        )
+        await message_consumer.initialize()
+        asyncio.create_task(message_consumer.listen())
+        print("✅ All services initialized successfully")
+        yield
+    except Exception as e:
+        logger.error(f"❌ Error during startup: {e}")
+        raise
+    finally:
+        try:
+            await channel_client_factory.close()
+            await message_consumer.close()
+            await queue_producer_factory.close()
+            await text_translator._close()
+            logger.info("FastAPI app is shutting down. Closing all clients")
+        except Exception as e:
+            logger.error(f"Error during shutdown: {e}")
 
 app = create_app()
 
