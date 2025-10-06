@@ -60,19 +60,22 @@ async def synchronize(records: Dict[LanguageCode, Dict[str, str]]) -> int:
     return updated
 
 
-async def pick_candidates(langs: Iterable[LanguageCode], types: Iterable[UserType]):
+async def pick_candidates(langs: Iterable[LanguageCode]):
     """
     Does a buffered fetch operation on users collection and get their set of sent DYK ids.
     Collects only users who meet all the following criteria:
-    - the user has a role mentioned in `types`
+    - the user is an asha user (prod only)
+    - the user is a test user (staging only)
     - the user has a language available in `langs`
     - the user has no 'pending' DYKs
     """
+    match_stage = {"User.user_language": {"$in": [x.value for x in langs]}}
+    if os.getenv("APP_ENV") == "PROD":
+        match_stage["User.user_type"] = "asha"
+    else:
+        match_stage["User.test_user"] = True
     pipeline = [
-        {"$match": {
-            "User.user_type": {"$in": [x.value for x in types]},
-            "User.user_language": {"$in": [x.value for x in langs]}
-        }},
+        {"$match": match_stage},
         {"$lookup": {
             "from": dyks_sent_collection_name,
             "let": {"uid": "$User.user_id"},
@@ -135,7 +138,7 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[List[Tuple
     exhausted_ops = []
     queued_client_ops = []
     queued_ops = []
-    async for user, sent in pick_candidates(records.keys(), USER_TYPES):
+    async for user, sent in pick_candidates(records.keys()):
         lang = LanguageCode(user.user_language)
         diff = lang_sets[lang] - sent  # deduplication
         if len(diff) == 0:
@@ -288,12 +291,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 config = json.load(open(os.path.join(current_dir, "bot_config.json")))
 _LANG_ENTRIES = [LangEntry(**e) for e in config["languages"]]
 LANG_ENTRIES = {e.language: e for e in _LANG_ENTRIES}
-
-if os.getenv("APP_ENV") == "PROD":
-    USER_TYPES = [UserType.ASHA, UserType.OTHERS]
-else:
-    # in staging env, send DYKs to only test users
-    USER_TYPES = [UserType.OTHERS]
 
 dyks_sent_collection_name = app_config["databases"]["mongo_db"]["dyks_sent_collection"]
 
