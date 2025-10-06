@@ -7,7 +7,7 @@ import uuid
 import sys
 from byoeb.background_jobs.config import app_config
 from byoeb.background_jobs.dependency_setup import channel_client_factory, user_db_service
-from byoeb.constants.user_enums import LanguageCode, UserType
+from byoeb.constants.user_enums import LanguageCode
 from byoeb.services.channel.whatsapp import WhatsAppService
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageContext, MessageTypes
 from byoeb_core.models.byoeb.user import User
@@ -194,16 +194,14 @@ async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service
             "_id": 1,
             "dyk_id": 1,
             "dyk_lang": 1,
-            "User": 1
-        }},
-        {"$set": {"User": {"$arrayElemAt": ["$User", 0]}}}
+            "phone_number_id": {"$arrayElemAt": ["$User.User.phone_number_id", 0]}
+        }}
     ]
     async for doc in dyk_client.aaggregate(pipeline):
-        user = User(**doc["User"]["User"])
+        phone_number = doc["phone_number_id"]
         lang = LanguageCode(doc["dyk_lang"])
         message = LANG_ENTRIES[lang].template.replace("{message}", records[lang][doc["dyk_id"]])
 
-        phone_number = user.phone_number_id
         text_message = ByoebMessageContext(
             channel_type="whatsapp",
             message_category="did_you_know",
