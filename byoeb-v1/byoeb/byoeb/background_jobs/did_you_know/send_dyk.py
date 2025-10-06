@@ -1,5 +1,6 @@
 import asyncio
 import csv
+import json
 import os
 import random
 import uuid
@@ -10,25 +11,56 @@ from byoeb.constants.user_enums import LanguageCode, UserType
 from byoeb.services.channel.whatsapp import WhatsAppService
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageContext, MessageTypes
 from byoeb_core.models.byoeb.user import User
-from byoeb_core.databases.mongo_db.base import BaseDocumentCollection
+from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import StatusCode
 from datetime import datetime, timezone
+from pydantic import BaseModel, field_validator
 from typing import Dict, Iterable, List, Tuple
 
-COL_TO_LANG = {
-    # update this dictionary when more languages will be added to the CSV
-    "Did you know": LanguageCode.ENGLISH,
-    "Did you know - Hindi": LanguageCode.HINDI,
-}
 
-if os.getenv("APP_ENV") == "PROD":
-    USER_TYPES = [UserType.ASHA, UserType.OTHERS]
-else:
-    # in staging env, send DYKs to only test users
-    USER_TYPES = [UserType.OTHERS]
+class LangEntry(BaseModel):
+    language: LanguageCode
+    column: str  # name of the column in the facts sheet
+    template: str  # a template to decorate the message. {message} is the placeholder for the fact.
 
-dyks_sent_collection_name = app_config["databases"]["mongo_db"]["dyks_sent_collection"]
+    @field_validator("template", mode="before")
+    def join_template(cls, v):
+        return "\n".join(v) if isinstance(v, list) else v
 
-async def get_users(client: BaseDocumentCollection, langs: Iterable[LanguageCode], types: Iterable[UserType]):
+
+async def synchronize(records: Dict[LanguageCode, Dict[str, str]]) -> int:
+    """
+    Synchronize pending records with the local facts sheet (CSV file). The idea here is
+    our CSV file may have had certain languages deleted and certain DYK messages removed,
+    and our goal is to gracefully handle these situations.
+
+    A call to synchronize() discards such pending records. A subsequent queue() call then
+    effectively replaces these pending records.
+    """
+    dyk_client = await user_db_service._get_collection_client(dyks_sent_collection_name)
+
+    tasks = []
+    # delete pending ops with unknown language
+    langs_to_keep = [lang.value for lang in records.keys()]
+    tasks.append(dyk_client.adelete({
+        "status": "pending",
+        "dyk_lang": {"$nin": langs_to_keep}
+    }))
+
+    # delete pending ops with unknown DYK uuid
+    for lang, dyks in records.items():
+        tasks.append(dyk_client.adelete({
+            "status": "pending",
+            "dyk_lang": lang.value,
+            "dyk_id": {"$nin": list(dyks.keys())}
+        }))
+
+    updated = 0
+    for _, count in await asyncio.gather(*tasks):
+        updated += count
+    return updated
+
+
+async def pick_candidates(langs: Iterable[LanguageCode], types: Iterable[UserType]):
     """
     Does a buffered fetch operation on users collection and get their set of sent DYK ids.
     Collects only users who meet all the following criteria:
@@ -72,6 +104,7 @@ async def get_users(client: BaseDocumentCollection, langs: Iterable[LanguageCode
         {"$sort": {"User.user_id": 1}}
     ]
 
+    client = await user_db_service._get_collection_client(user_db_service.collection_name)
     async for doc in client.aaggregate(pipeline):
         yield (User(**doc["User"]), set(doc.get("sent_dyk_ids", [])))
 
@@ -98,30 +131,26 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[List[Tuple
             print("Cannot assign DYK to %s (they received all DYKs)" % phone_number)
     """
 
-    client = await user_db_service._get_collection_client(user_db_service.collection_name)
-
     lang_sets = {lang: set(messages.keys()) for lang, messages in records.items()}
     exhausted_ops = []
     queued_client_ops = []
     queued_ops = []
-    async for user, sent in get_users(client, records.keys(), USER_TYPES):
+    async for user, sent in pick_candidates(records.keys(), USER_TYPES):
         lang = LanguageCode(user.user_language)
         diff = lang_sets[lang] - sent  # deduplication
         if len(diff) == 0:
             # no facts remaining !
             exhausted_ops.append(user.phone_number_id)
             continue
-        r = random.Random(user.user_id)
-        uuid = r.choice(list(sorted(diff)))
-        fact = records[lang][uuid]
-        queued_client_ops.append(dict(
-            dyk_id=uuid,
-            dyk_message=fact,
-            user_id=user.user_id,
-            time=datetime.now(),
-            status="pending",
-            metadata={}
-        ))
+        uuid = random.Random(user.user_id).choice(list(sorted(diff)))
+        queued_client_ops.append({
+            "dyk_id": uuid,
+            "dyk_lang": lang.value,
+            "user_id": user.user_id,
+            "time": datetime.now(),
+            "status": "pending",
+            "metadata": {}
+        })
         queued_ops.append((user.phone_number_id, uuid))
 
     if len(queued_client_ops) > 0:
@@ -131,7 +160,7 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[List[Tuple
     return queued_ops, exhausted_ops
 
 
-async def dispatch(whatsapp_service: WhatsAppService) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str, str]]]:
+async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service: WhatsAppService) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str, str]]]:
     """
     Dispatches queued DYK messages to WhatsApp.
     Returns lists of successful and unsuccessful operations.
@@ -145,6 +174,10 @@ async def dispatch(whatsapp_service: WhatsAppService) -> Tuple[List[Tuple[str, s
             print("Failed to send DYK %s to %s due to: %s", (dyk_uuid, phone_number, error))
     """
 
+    ts = int(datetime.now(timezone.utc).timestamp())
+    success = []
+    failure = []
+
     dyk_client = await user_db_service._get_collection_client(dyks_sent_collection_name)
     pipeline = [
         {"$match": {"status": "pending"}},
@@ -157,24 +190,35 @@ async def dispatch(whatsapp_service: WhatsAppService) -> Tuple[List[Tuple[str, s
         {"$project": {
             "_id": 1,
             "dyk_id": 1,
-            "dyk_message": 1,
+            "dyk_lang": 1,
             "User": 1
         }},
         {"$set": {"User": {"$arrayElemAt": ["$User", 0]}}}
     ]
-
-    ts = int(datetime.now(timezone.utc).timestamp())
-    success = []
-    failure = []
     async for doc in dyk_client.aaggregate(pipeline):
         user = User(**doc["User"]["User"])
-        message = doc["dyk_message"]
+        lang = LanguageCode(doc["dyk_lang"])
+        message = LANG_ENTRIES[lang].template.replace("{message}", records[lang][doc["dyk_id"]])
 
         phone_number = user.phone_number_id
         text_message = ByoebMessageContext(
             channel_type="whatsapp",
             message_category="did_you_know",
-            user=user,
+            user=User(
+                user_id=f"did_you_know-{phone_number}",
+                user_name="Did You Know Bot",
+                user_location={},
+                user_language=lang.value,
+                user_type="bot",
+                phone_number_id=phone_number,
+                test_user=False,
+                experts={},
+                audience=[],
+                created_timestamp=ts,
+                activity_timestamp=ts,
+                last_conversations=[],
+                additional_info={}
+            ),
             message_context=MessageContext(
                 message_id=f"did-you-know-{phone_number}-{ts}",
                 message_type=MessageTypes.REGULAR_TEXT.value,
@@ -198,7 +242,7 @@ async def dispatch(whatsapp_service: WhatsAppService) -> Tuple[List[Tuple[str, s
         # TODO: we should probably batch `requests` here so we call send_requests() sparingly...
         responses, message_ids = await whatsapp_service.send_requests(requests)
         assert len(responses) == 1
-        if responses[0].response_status.error is not None:
+        if int(responses[0].response_status.status) != StatusCode.SUCCESS.value:
             failure.append((phone_number, doc["dyk_id"], responses[0].response_status.error))
             continue
 
@@ -212,14 +256,13 @@ async def dispatch(whatsapp_service: WhatsAppService) -> Tuple[List[Tuple[str, s
 
 
 async def main(records) -> None:
-    queued, exhausted = await queue(records)
-
-    print("=== Asha Saheli DYK Run Dump ===")
-    print("⚙️ Queued:", queued)
-    print("⚙️ Exhausted:", exhausted)
-
-    print()
     print("=== Asha Saheli DYK Run Stats ===")
+    synced = await synchronize(records)
+    print("🪄 Synced jobs:", synced)
+    print("❔ Number of pending messages that were discarded (because they no longer reference a DYK message).")
+
+    queued, exhausted = await queue(records)
+    print()
     print("📦 Queued jobs:", len(queued))
     print("❔ Number of messages that were added to the dispatch queue.")
 
@@ -229,7 +272,7 @@ async def main(records) -> None:
 
     whatsapp_service = WhatsAppService(channel_client_factory)
     try:
-        dispatch_success, dispatch_fail = await dispatch(whatsapp_service)
+        dispatch_success, dispatch_fail = await dispatch(records, whatsapp_service)
     finally:
         await channel_client_factory.close()
 
@@ -241,8 +284,20 @@ async def main(records) -> None:
     print("All done.")
 
 
-SOURCE_PATH = os.path.join("..", "..", "data", "asha_bot", "did_you_know", "dyk_v1.csv")
-SOURCE_PATH = os.path.abspath(SOURCE_PATH)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+config = json.load(open(os.path.join(current_dir, "bot_config.json")))
+_LANG_ENTRIES = [LangEntry(**e) for e in config["languages"]]
+LANG_ENTRIES = {e.language: e for e in _LANG_ENTRIES}
+
+if os.getenv("APP_ENV") == "PROD":
+    USER_TYPES = [UserType.ASHA, UserType.OTHERS]
+else:
+    # in staging env, send DYKs to only test users
+    USER_TYPES = [UserType.OTHERS]
+
+dyks_sent_collection_name = app_config["databases"]["mongo_db"]["dyks_sent_collection"]
+
+SOURCE_PATH = os.path.abspath(config["path"])
 
 if not os.path.exists(SOURCE_PATH):
     print("File not found: %s" % SOURCE_PATH, file=sys.stderr)
@@ -254,7 +309,7 @@ with open(SOURCE_PATH) as f:
 
     # fail fast - if these expected cols dont exist, python will bail early
     cols = next(reader)
-    lang_cols = {COL_TO_LANG[col]: cols.index(col) for col in COL_TO_LANG.keys()}
+    lang_cols = {lang.language: cols.index(lang.column) for lang in LANG_ENTRIES.values()}
     guid_col = cols.index("GUID")
 
     records = {lang: {} for lang in lang_cols.keys()}
