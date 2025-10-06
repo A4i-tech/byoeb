@@ -9,83 +9,131 @@ from byoeb.background_jobs.dependency_setup import user_db_service
 from byoeb.constants.user_enums import LanguageCode, UserType
 from byoeb_core.models.byoeb.user import User
 from byoeb_core.databases.mongo_db.base import BaseDocumentCollection
-from typing import Dict, Iterable
+from datetime import datetime
+from typing import Dict, Iterable, List, Tuple
 
 COL_TO_LANG = {
     # update this dictionary when more languages will be added to the CSV
     "Did you know": LanguageCode.ENGLISH,
     "Did you know - Hindi": LanguageCode.HINDI,
 }
-USER_TYPES = [UserType.ASHA, UserType.OTHERS]
+
+if os.getenv("APP_ENV") == "PROD":
+    USER_TYPES = [UserType.ASHA, UserType.OTHERS]
+else:
+    # in staging env, send DYKs to only test users
+    USER_TYPES = [UserType.OTHERS]
 
 dyks_sent_collection_name = app_config["databases"]["mongo_db"]["dyks_sent_collection"]
 
 async def get_users(client: BaseDocumentCollection, langs: Iterable[LanguageCode], types: Iterable[UserType]):
     """ Do a buffered fetch operation on users collection and get their set of sent DYK ids."""
     pipeline = [
-        {
-            "$match": {
-                "User.user_type": {"$in": [x.value for x in types]},
-                "User.user_language": {"$in": [x.value for x in langs]}
-            }
-        },
-        {
-            "$lookup": {
-                "from": dyks_sent_collection_name,
-                "localField": "User.user_id",
-                "foreignField": "user_id",
-                "as": "sent_dyks"
-            }
-        },
-        {
-            "$project": {
-                "User": 1,
-                "sent_dyk_ids": {
-                    "$map": {
-                        "input": "$sent_dyks",
-                        "as": "item",
-                        "in": "$$item.dyk_id"
-                    }
+        {"$match": {
+            "User.user_type": {"$in": [x.value for x in types]},
+            "User.user_language": {"$in": [x.value for x in langs]}
+        }},
+        {"$lookup": {
+            "from": dyks_sent_collection_name,
+            "localField": "User.user_id",
+            "foreignField": "user_id",
+            "as": "sent_dyks"
+        }},
+        {"$project": {
+            "User": 1,
+            "sent_dyk_ids": {
+                "$map": {
+                    "input": "$sent_dyks",
+                    "as": "item",
+                    "in": "$$item.dyk_id"
                 }
             }
-        },
-        {
-            "$sort": {"User.user_id": 1}
-        }
+        }},
+        {"$sort": {"User.user_id": 1}}
     ]
 
     async for doc in client.aaggregate(pipeline):
         yield (User(**doc["User"]), set(doc.get("sent_dyk_ids", [])))
 
 
-async def send_dyk(records: Dict[LanguageCode, Dict[str, str]]) -> None:
+async def dispatch(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[List[Tuple[str, str]], List[str]]:
     client = await user_db_service._get_collection_client(user_db_service.collection_name)
-    dyk_client = await user_db_service._get_collection_client(dyks_sent_collection_name)
 
     lang_sets = {lang: set(messages.keys()) for lang, messages in records.items()}
-    n_exhausted = 0
-    n_sent = 0
-    sent_ops = []
+    exhausted_ops = []
+    dispatch_client_ops = []
+    dispatch_ops = []
     async for user, sent in get_users(client, records.keys(), USER_TYPES):
         lang = LanguageCode(user.user_language)
         diff = lang_sets[lang] - sent  # deduplication
         if len(diff) == 0:
-            # user was sent all facts !
-            n_exhausted += 1
+            # no facts remaining !
+            exhausted_ops.append(user.phone_number_id)
             continue
         r = random.Random(user.user_id)
         uuid = r.choice(list(sorted(diff)))
         fact = records[lang][uuid]
+        dispatch_client_ops.append(dict(dyk_id=uuid, dyk_message=fact, user_id=user.user_id, time=datetime.now(), status="pending"))
+        dispatch_ops.append((user.phone_number_id, uuid))
 
-        print("%s[%s] gets fact: %s" % (user.user_id, lang.value, fact))
-        # TODO: send message to user on whatsapp
+    if len(dispatch_client_ops) > 0:
+        dyk_client = await user_db_service._get_collection_client(dyks_sent_collection_name)
+        await dyk_client.ainsert(dispatch_client_ops)
 
-        sent_ops.append({"dyk_id": uuid, "user_id": user.user_id})
-        n_sent += 1
+    return dispatch_ops, exhausted_ops
 
-    await dyk_client.ainsert(sent_ops)
-    print("n_exhausted =", n_exhausted)
-    print("n_sent =", n_sent)
+
+async def flush() -> int:
+    dyk_client = await user_db_service._get_collection_client(dyks_sent_collection_name)
+    pipeline = [
+        {"$match": {"status": "pending"}},
+        {"$lookup": {
+            "from": user_db_service.collection_name,
+            "localField": "user_id",
+            "foreignField": "User.user_id",
+            "as": "user_info"
+        }},
+        {"$unwind": "$user_info"},
+        {"$project": {
+            "_id": 1,
+            "dyk_message": 1,
+            "user_id": 1,
+            "phone_number_id": "$user_info.User.phone_number_id"
+        }}
+    ]
+
+    count = 0
+    async for doc in dyk_client.aaggregate(pipeline):
+        phone_number = doc["phone_number_id"]
+        message = doc["dyk_message"]
+
+        await dyk_client.aupdate({"_id": doc["_id"]}, {"$set": {"status": "completed"}})
+        count += 1
+
+    return count
+
+
+async def main(records) -> None:
+    dispatched, exhausted = await dispatch(records)
+
+    print("=== Asha Saheli DYK Run Dump ===")
+    print("⚙️ Dispatched:", dispatched)
+    print("⚙️ Exhausted:", exhausted)
+    print()
+
+    print("=== Asha Saheli DYK Run Stats ===")
+    print("📦 Dispatched jobs:", len(dispatched))
+    print("❔ Number of messages that were queued for sending to users.")
+    print()
+    print("💤 Exhausted jobs:", len(exhausted))
+    print("❔ Number of users who could not be sent a DYK message because they have received every DYK message.")
+
+    sent = await flush()
+    print()
+    print("💌 Sent jobs:", sent)
+    print("❔ Number of messages that were sent on WhatsApp (includes messages that were just dispatched).")
+    print()
+    print("All done.")
 
 
 SOURCE_PATH = os.path.join("..", "..", "data", "asha_bot", "did_you_know", "dyk_v1.csv")
@@ -113,4 +161,4 @@ with open(SOURCE_PATH) as f:
                 records[lang][id] = message
 
 if __name__ == "__main__":
-    asyncio.run(send_dyk(records))
+    asyncio.run(main(records))
