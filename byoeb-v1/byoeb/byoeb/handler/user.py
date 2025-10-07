@@ -200,18 +200,44 @@ class UsersHandler:
         	phone_number_ids.append(i["phone_number_id"])
         results = await user_svc.aget(
             phone_number_ids=phone_number_ids)
-        #print("start",results, "end")
-        response=results
+        print("start",results, "end")
+        response={}
+        for x in results:
+        	response[x["phone_number_id"]]=x
+
         for x in range(len(response)):
-        	data[x]["user_id"]=str(response[x]["user_id"])
-        	for i in response[x]:
-        		if i not in data[x]:
-        			data[x][i]=response[x][i]
-    					
+        	if data[x]["phone_number_id"] in response.keys():
+        		data[x]["user_id"]=str(response[data[x]["phone_number_id"]]["user_id"])
+        		for i in response[data[x]["phone_number_id"]]:
+        			if i not in data[x]:
+        	        	        	data[x][i]=response[data[x]["phone_number_id"]][i]
+        	else:
+        		byoeb_messages.append(
+                        user_utils.get_register_message(
+                            byoeb_user,
+                            ErrorMessage.PHONE_NUMBER_NOT_PRESENT.value
+                        )
+                    )
        
         for user_data in data:
             try:
                 byoeb_user = User(**user_data)
+                if byoeb_user.phone_number_id is None:
+                    byoeb_messages.append(
+                        user_utils.get_register_message(
+                            byoeb_user,
+                            ErrorMessage.PHONE_NUMBER_ID_REQUIRED.value
+                        )
+                    )
+                    continue
+                if len(results)==0:
+                    byoeb_messages.append(
+                        user_utils.get_register_message(
+                            byoeb_user,
+                            ErrorMessage.PHONE_NUMBER_NOT_PRESENT.value
+                        )
+                    )
+                    continue
 
                 # Validation: phone_number_id is mandatory
                 if byoeb_user.phone_number_id is None:
@@ -222,6 +248,7 @@ class UsersHandler:
                         )
                     )
                     continue
+                    
 
              
 
