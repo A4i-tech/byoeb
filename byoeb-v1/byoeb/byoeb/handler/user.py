@@ -73,6 +73,7 @@ class UsersHandler:
         user_svc = await self.get_or_create_user_service()
         byoeb_users = []
         byoeb_messages = []
+        
         for user in data:
             byoeb_user = User(**user)
             expert_numbers = user_utils.get_experts_numbers(byoeb_user.experts)
