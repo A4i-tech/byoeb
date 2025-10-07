@@ -309,3 +309,4 @@ class UserService(BaseUserService):
             {"$set": {"User": user.model_dump()}}
         )
         await self.__collection_client.aupdate(bulk_queries=[update_query])
+        print(user, update_query)

@@ -19,9 +19,25 @@ async def register_users(request: Request):
         status_code=response.status_code
     )
 
+#@user_apis_router.post("/update_users")
+#async def update_users():
+#    return JSONResponse(content={"message": "received"}, status_code=200)
 @user_apis_router.post("/update_users")
-async def update_users():
-    return JSONResponse(content={"message": "received"}, status_code=200)
+async def update_users(request: Request):
+    try:
+        body = await request.json()
+        response = await dependency_setup.users_handler.aupdate(body)
+        print("Response: ", response.message)
+        return JSONResponse(
+            content=response.message,
+            status_code=response.status_code
+        )
+    except Exception as e:
+        _logger.exception(f"Error in /update_users: {str(e)}")
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500
+        )
 
 @user_apis_router.delete("/delete_users")
 async def delete_users(request: Request):
