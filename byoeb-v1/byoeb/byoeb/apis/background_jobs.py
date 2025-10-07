@@ -32,7 +32,8 @@ container_name = "ashacontainer"
 
 background_jobs = [
     f"*/30 * * * * exec python3 {jobs_path}/consensus/respond_with_consensus.py; exit",
-    f"00 8-20 * * * exec python3 {jobs_path}/consensus/send_query_to_expert.py; exit"
+    f"00 8-20 * * * exec python3 {jobs_path}/consensus/send_query_to_expert.py; exit",
+    f"0 11 * * MON#2,MON#4 exec python3 {jobs_path}/did_you_know/send_dyk.py; exit"
 ]
 pids = []
 
