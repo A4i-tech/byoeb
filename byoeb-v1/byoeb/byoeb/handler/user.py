@@ -194,21 +194,20 @@ class UsersHandler:
         user_svc = await self.get_or_create_user_service()
         byoeb_messages = []
         updated_users = []
-        """import requests, json
-        API_URL = "http://0.0.0.0:8000/get_users"
-        phone_numbers=[]
-        for row in data:
-        	phone_numbers.append(row["phone_number_id"])
-        print(phone_numbers)
-        response = requests.get(
-	    API_URL,
-	    headers={"Content-Type": "application/json"},
-	    json=phone_numbers
-	)
-        if response.status_code != 200:
-        	print(f"Error: {response.status_code} - {response.text}")
-        	exit(1)
-        users = response.json() """ 
+        phone_number_ids=[]
+        for i in data:
+        	phone_number_ids.append(i["phone_number_id"])
+        results = await user_svc.aget(
+            phone_number_ids=phone_number_ids)
+        #print("start",results, "end")
+        response=results
+        for x in range(len(response)):
+        	data[x]["user_id"]=str(response[x]["user_id"])
+        	for i in response[x]:
+        		if i not in data[x]:
+        			data[x][i]=response[x][i]
+    					
+       
         for user_data in data:
             try:
                 byoeb_user = User(**user_data)
