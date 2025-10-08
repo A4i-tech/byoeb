@@ -136,9 +136,11 @@ class QueueConsumer:
                 await asyncio.sleep(0.5)
                 continue
             start_time = datetime.now()
+            successfully_processed_messages = []
             try:
+                # print("messages", messages)
                 self._logger.info(f"Received {len(messages)} messages")
-                successfully_processed_messages =  await message_consumer_svc.consume(message_content)
+                successfully_processed_messages =  await message_consumer_svc.consume(message_content) or []
                 self._logger.info(f"Successfully processed {len(successfully_processed_messages)} messages")
                 utils.log_to_text_file(f"Successfully processed {len(successfully_processed_messages)} messages")
                 processed_ids = {message.message_context.message_id for message in successfully_processed_messages}
@@ -147,6 +149,7 @@ class QueueConsumer:
                 self._logger.info(f"Deleted {len(remove_messages)} messages")
             except Exception as e:
                 self._logger.error(f"Error consuming messages: {e}")
+                successfully_processed_messages = []
             end_time = datetime.now()
             duration = (end_time - start_time).seconds
             try:
