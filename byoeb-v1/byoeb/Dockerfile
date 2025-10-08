@@ -27,4 +27,4 @@ RUN poetry install --no-root --no-interaction --no-ansi
 EXPOSE 8000
 
 # Command to run your FastAPI app
-CMD ["poetry", "run", "python3", "-m", "byoeb.chat_app.run:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["poetry", "run", "python3", "-m", "byoeb.chat_app.run", "--host", "0.0.0.0", "--port", "8000"]
