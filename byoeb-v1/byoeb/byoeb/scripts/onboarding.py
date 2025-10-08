@@ -39,7 +39,9 @@ def main():
     if response.status_code != 200:
 	    print(f"Error: {response.status_code} - {response.text}")
 	    exit(1)
-
+    else:
+    	    print("Successfully Registered")
+    	
     users = response.json()
     
     if args.update:
@@ -65,6 +67,8 @@ def main():
     	if response.status_code != 200:
     		print(f"Error: {response.status_code} - {response.text}")
     		exit(1)
+    	else:
+    		print("Successfully Updated")
 
     	users = response.json()
     	records = []
