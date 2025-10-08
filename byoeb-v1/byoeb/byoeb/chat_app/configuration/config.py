@@ -39,3 +39,7 @@ env_mongo_db_connection_string = os.getenv("MONGO_DB_CONNECTION_STRING")
 
 # Logger
 env_appinsights_connection_string = os.getenv("APPINSIGHTS_CONNECTION_STRING")
+
+# Azure Storage
+env_azure_storage_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+

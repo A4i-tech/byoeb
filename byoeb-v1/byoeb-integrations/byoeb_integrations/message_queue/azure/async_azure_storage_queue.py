@@ -36,8 +36,7 @@ class AsyncAzureStorageQueue(BaseQueue):
             )
         elif connection_string is not None:
             self.__queue_client = QueueClient.from_connection_string(
-                connection_string=connection_string,
-                queue_name=queue_name
+                connection_string, queue_name
             )
         else:
             raise ValueError("Either account url and credentials or connection_string must be provided")
