@@ -2,6 +2,7 @@ import json
 import byoeb.services.user.utils as user_utils
 from typing import List, Any, Dict
 from byoeb.services.user.user import UserService
+from byoeb.constants import ErrorMessage
 from byoeb_core.models.byoeb.response import ByoebResponseModel, ByoebStatusCodes
 from byoeb_core.models.byoeb.user import User 
 from byoeb.chat_app.configuration.config import app_config, bot_config
@@ -21,16 +22,19 @@ class UsersHandler:
         self.__user_collection = app_config["databases"]["mongo_db"]["user_collection"]
         self.__mongo_db = None
         self.__user_collection_client = None
-        self.__regular_user_type = bot_config["regular"]["user_type"]
-        self.__expert_user_types = bot_config["expert"].values()
-    
+        _regular = bot_config["regular"]["user_type"]
+        self.__regular_user_types = _regular if isinstance(_regular, list) else [_regular]
+        self.__expert_user_types = list(set(bot_config["expert"].values()))
+        self.__expert_user_types_set = set(self.__expert_user_types)
+
+    def __is_regular_user_type(self, user_type: str) -> bool:
+        return user_type in self.__regular_user_types
+
     def __validate_expert_user_type(
         self,
         expert_user_type: str
     ) -> bool:
-        if expert_user_type in self.__expert_user_types:
-            return True
-        return False
+        return expert_user_type in self.__expert_user_types_set
     
     def __validate_experts(
         self,
@@ -38,10 +42,10 @@ class UsersHandler:
     ):
         if experts is None:
             return True
-        keys = experts.keys()
-        for key in keys:
-            if key not in self.__expert_user_types:
+        for key in experts.keys():
+            if key not in self.__expert_user_types_set:
                 return False
+        return True
 
     async def get_collection_client(self) -> BaseDocumentCollection:
         if self.__user_collection_client is not None:
@@ -69,54 +73,67 @@ class UsersHandler:
         user_svc = await self.get_or_create_user_service()
         byoeb_users = []
         byoeb_messages = []
+        
         for user in data:
             byoeb_user = User(**user)
             expert_numbers = user_utils.get_experts_numbers(byoeb_user.experts)
-            if byoeb_user.phone_number_id is None:
-                message = "Phone number id must be provided"
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
+
+            required_fields = [
+                ("phone_number_id", ErrorMessage.PHONE_NUMBER_ID_REQUIRED.value),
+                ("user_language",   ErrorMessage.USER_LANGUAGE_REQUIRED.value),
+                ("user_type",       ErrorMessage.USER_TYPE_REQUIRED.value),
+            ]
+            missing_msg = next(
+                (msg for attr, msg in required_fields if getattr(byoeb_user, attr) is None),
+                None
+            )
+            if missing_msg:
+                byoeb_messages.append(user_utils.get_register_message(byoeb_user, missing_msg))
                 continue
-            if byoeb_user.user_language is None:
-                message = "User language must be provided"
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if byoeb_user.user_type is None:
-                message = "User type must be provided"
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if (byoeb_user.user_type != self.__regular_user_type 
-                and not self.__validate_expert_user_type(byoeb_user.user_type)):
-                message = f"""Invalid user type. Available user types are {self.__regular_user_type} and {list(self.__expert_user_types)}"""
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if (byoeb_user.user_type == self.__regular_user_type
-                and self.__validate_experts(byoeb_user.experts) is False):
-                message = f"""Invalid expert user type. Available expert user types are {list(self.__expert_user_types)}"""
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if (byoeb_user.user_type == self.__regular_user_type and len(byoeb_user.audience) != 0):
-                message = "Cannot have list of audience"
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if (byoeb_user.user_type == self.__regular_user_type
-                and expert_numbers is not None
-                and byoeb_user.phone_number_id in expert_numbers
-            ):
-                message = "Cannot be in their own list of experts"
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if (self.__validate_expert_user_type(byoeb_user.user_type) and len(expert_numbers) != 0):
-                message =  "Cannot have list of experts"
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            if (self.__validate_expert_user_type(byoeb_user.user_type)
-                and byoeb_user.audience is not None
-                and byoeb_user.phone_number_id in byoeb_user.audience
-            ):
-                message = "Cannot be in their own list of audience"
-                byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
-                continue
-            byoeb_users.append(byoeb_user)
+
+            is_regular = self.__is_regular_user_type(byoeb_user.user_type)
+            is_expert  = self.__validate_expert_user_type(byoeb_user.user_type)
+            audience     = byoeb_user.audience or []
+            experts_ok   = self.__validate_experts(byoeb_user.experts)
+
+            checks = [
+                (
+                    not is_regular and not is_expert,
+                    ErrorMessage.INVALID_USER_TYPE.value.format(
+                        regular_types=self.__regular_user_types,
+                        expert_types=self.__expert_user_types
+                    )
+                ),
+                (
+                    is_regular and not experts_ok,
+                    ErrorMessage.INVALID_EXPERT_TYPE.value.format(
+                        expert_types=self.__expert_user_types
+                    )
+                ),
+                (
+                    is_regular and len(audience) != 0,
+                    ErrorMessage.CANNOT_HAVE_AUDIENCE.value
+                ),
+                (
+                    is_regular and expert_numbers is not None and byoeb_user.phone_number_id in expert_numbers,
+                    ErrorMessage.CANNOT_BE_OWN_EXPERT.value
+                ),
+                (
+                    is_expert and len(expert_numbers or []) != 0,
+                    ErrorMessage.CANNOT_HAVE_EXPERTS.value
+                ),
+                (
+                    is_expert and byoeb_user.audience is not None and byoeb_user.phone_number_id in audience,
+                    ErrorMessage.CANNOT_BE_OWN_AUDIENCE.value
+                ),
+            ]
+            for condition, message in checks:
+                if condition:
+                    byoeb_messages.append(user_utils.get_register_message(byoeb_user, message))
+                    break
+            else:
+                # No check triggered → accept user
+                byoeb_users.append(byoeb_user)
 
         if len(byoeb_messages) > 0:
             return ByoebResponseModel(
@@ -136,7 +153,7 @@ class UsersHandler:
         if not isinstance(phone_number_ids, list):
             return ByoebResponseModel(
                 status_code=ByoebStatusCodes.BAD_REQUEST.value,
-                message="Provide list of phone number ids"
+                message=ErrorMessage.PHONE_NUMBER_IDS_LIST_REQUIRED.value
             )
         user_svc = await self.get_or_create_user_service()
         results = await user_svc.adelete(
@@ -147,11 +164,111 @@ class UsersHandler:
             message=results
         )
     
+   # async def aupdate(
+   #     self,
+   #     data: str
+   # ):
+   #     user_collection_client = await self.get_collection_client()
+   #     return ByoebResponseModel(
+   #         status_code=ByoebStatusCodes.OK.value,
+   #         message=results
+   #     )
     async def aupdate(
         self,
-        data: str
-    ):
-        user_collection_client = await self.get_collection_client()
+        data: list
+    ) -> ByoebResponseModel:
+        """
+        Update existing user records.
+
+        Args:
+            data (list): List of user dictionaries to update.
+
+        Returns:
+            ByoebResponseModel: Status and messages.
+        """
+        if not isinstance(data, list):
+            return ByoebResponseModel(
+                status_code=ByoebStatusCodes.BAD_REQUEST.value,
+                message="Input data must be a list of user objects."
+            )
+
+        user_svc = await self.get_or_create_user_service()
+        byoeb_messages = []
+        updated_users = []
+        phone_number_ids=[]
+        for i in data:
+        	phone_number_ids.append(i["phone_number_id"])
+        results = await user_svc.aget(
+            phone_number_ids=phone_number_ids)
+        print("start",results, "end")
+        response={}
+        for x in results:
+        	response[x["phone_number_id"]]=x
+
+        for x in range(len(response)):
+        	if data[x]["phone_number_id"] in response.keys():
+        		data[x]["user_id"]=str(response[data[x]["phone_number_id"]]["user_id"])
+        		for i in response[data[x]["phone_number_id"]]:
+        			if i not in data[x]:
+        	        	        	data[x][i]=response[data[x]["phone_number_id"]][i]
+        	else:
+        		byoeb_messages.append(
+                        user_utils.get_register_message(
+                            byoeb_user,
+                            ErrorMessage.PHONE_NUMBER_NOT_PRESENT.value
+                        )
+                    )
+       
+        for user_data in data:
+            try:
+                byoeb_user = User(**user_data)
+                if byoeb_user.phone_number_id is None:
+                    byoeb_messages.append(
+                        user_utils.get_register_message(
+                            byoeb_user,
+                            ErrorMessage.PHONE_NUMBER_ID_REQUIRED.value
+                        )
+                    )
+                    continue
+                if len(results)==0:
+                    byoeb_messages.append(
+                        user_utils.get_register_message(
+                            byoeb_user,
+                            ErrorMessage.PHONE_NUMBER_NOT_PRESENT.value
+                        )
+                    )
+                    continue
+
+                # Validation: phone_number_id is mandatory
+                if byoeb_user.phone_number_id is None:
+                    byoeb_messages.append(
+                        user_utils.get_register_message(
+                            byoeb_user,
+                            ErrorMessage.PHONE_NUMBER_ID_REQUIRED.value
+                        )
+                    )
+                    continue
+                await user_svc.aupdate(byoeb_user)
+                updated_users.append(byoeb_user.phone_number_id)
+
+            except Exception as e:
+                byoeb_messages.append({
+                    "phone_number_id": user_data.get("phone_number_id", None),
+                    "message": f"Error updating user: {str(e)}"
+                })
+
+        # Return aggregated response
+        if byoeb_messages:
+            return ByoebResponseModel(
+                status_code=ByoebStatusCodes.BAD_REQUEST.value,
+                message=byoeb_messages
+            )
+
+        return ByoebResponseModel(
+            status_code=ByoebStatusCodes.OK.value,
+            message=f"Successfully updated users: {updated_users}"
+        )
+
         
     async def aget(
         self,
@@ -160,7 +277,7 @@ class UsersHandler:
         if not isinstance(phone_number_ids, list):
             return ByoebResponseModel(
                 status_code=ByoebStatusCodes.BAD_REQUEST.value,
-                message="Provide list of phone number ids"
+                message=ErrorMessage.PHONE_NUMBER_IDS_LIST_REQUIRED.value
             )
         user_svc = await self.get_or_create_user_service()
         results = await user_svc.aget(
