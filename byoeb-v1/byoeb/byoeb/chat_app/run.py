@@ -65,7 +65,7 @@ app, mcp_app = create_apps()
 # Issue with multiple workers in FastAPI
 # https://github.com/encode/uvicorn/discussions/2450
 if __name__ == '__main__':
-    module_name = os.path.splitext(os.path.basename(__file__))[0]
+    module_name = "byoeb.chat_app.run"
     if os.getenv("APP_ENV") == "PROD":
         current_dir = os.path.dirname(os.path.abspath(__file__))
         log_config_path = os.path.join(current_dir, 'logging.yaml')
