@@ -44,13 +44,7 @@ def main():
     
     if args.update:
     	update_url=url.replace("register_users","update_users")
-    	for x in range(len(users_onboarded)):
-    		if users_onboarded[x]["phone_number_id"]==str(users[x]["phone_number_id"]):
-    			#print(x)
-    			users_onboarded[x]["user_id"]=str(users[x]["user_id"])
-    			for i in users[x]:
-    				if i not in users_onboarded[x]:
-    					users_onboarded[x][i]=users[x][i]
+    	
     	#print(users_onboarded)
     	update_response = requests.post(
     update_url,
