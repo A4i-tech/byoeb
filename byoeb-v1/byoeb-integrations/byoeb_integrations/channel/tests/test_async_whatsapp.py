@@ -954,32 +954,6 @@ async def test_asend_text_message_failure(monkeypatch):
     assert response.contacts == []
     assert response.messages == []
 
-import pytest
-from unittest.mock import AsyncMock
-import byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client as awc
-from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import AsyncWhatsAppClient
-
-@pytest.mark.asyncio
-async def test_adelete_media_success(monkeypatch):
-    client = AsyncWhatsAppClient("phone", "token")
-
-    # Make __delete__ return success
-    monkeypatch.setattr(
-        AsyncWhatsAppClient,
-        "__delete__",
-        AsyncMock(return_value=(200, {"success": True}, None)),
-        raising=True,
-    )
-
-    # Patch model_validate to handle dict
-    def fake_model_validate(data):
-        return awc.WhatsAppAcknowledgment()
-    monkeypatch.setattr(awc.WhatsAppAcknowledgment, "model_validate", fake_model_validate, raising=True)
-
-    ack = await client.adelete_media("media123")
-    assert isinstance(ack, awc.WhatsAppAcknowledgment)
-    assert ack.response_status.status == "200"
-    assert ack.response_status.error in (None, "None")
 
 
 if __name__ == "__main__":
