@@ -248,12 +248,6 @@ class UsersHandler:
                         )
                     )
                     continue
-                    
-
-             
-
-                
-
                 await user_svc.aupdate(byoeb_user)
                 updated_users.append(byoeb_user.phone_number_id)
 
