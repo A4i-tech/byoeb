@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 import json
 import argparse
-import requests
+import requests, ast
 import pandas as pd
 from datetime import datetime
 def main():
@@ -24,9 +24,17 @@ def main():
     phone_numbers=[]  
     for row in users_onboarded:
 	    row["phone_number_id"]=str(row["phone_number_id"])
+	    if "user_location" in row.keys():
+	    	row["user_location"]=ast.literal_eval(row["user_location"])
+	    	#print(row)
 	    phone_numbers.append(str(row["phone_number_id"]))
     response = requests.post(url, headers={"accept": "application/json"}, data=json.dumps(users_onboarded))
-    print(response)
+    #print(response, users_onboarded)
+    if response.status_code != 200:
+    	print(f"Error: {response.status_code} - {response.text}")
+    	exit(1)
+    else:
+    	print("Successfully registered")
     API_URL = url.replace("register_users","get_users")
 
     
@@ -40,7 +48,7 @@ def main():
 	    print(f"Error: {response.status_code} - {response.text}")
 	    exit(1)
     else:
-    	    print("Successfully Registered")
+    	    print("Successfully extracted")
     	
     users = response.json()
     
@@ -57,7 +65,7 @@ def main():
     data=json.dumps(users_onboarded)
 )
 
-    	print(update_response)
+    	#print(update_response)
     if args.sheet:
     	response = requests.get(
     API_URL,
