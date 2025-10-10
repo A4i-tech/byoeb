@@ -163,29 +163,10 @@ class UsersHandler:
             status_code=ByoebStatusCodes.OK.value,
             message=results
         )
-    
-   # async def aupdate(
-   #     self,
-   #     data: str
-   # ):
-   #     user_collection_client = await self.get_collection_client()
-   #     return ByoebResponseModel(
-   #         status_code=ByoebStatusCodes.OK.value,
-   #         message=results
-   #     )
     async def aupdate(
         self,
         data: list
     ) -> ByoebResponseModel:
-        """
-        Update existing user records.
-
-        Args:
-            data (list): List of user dictionaries to update.
-
-        Returns:
-            ByoebResponseModel: Status and messages.
-        """
         if not isinstance(data, list):
             return ByoebResponseModel(
                 status_code=ByoebStatusCodes.BAD_REQUEST.value,
@@ -256,7 +237,6 @@ class UsersHandler:
                     "phone_number_id": user_data.get("phone_number_id", None),
                     "message": f"Error updating user: {str(e)}"
                 })
-
         # Return aggregated response
         if byoeb_messages:
             return ByoebResponseModel(
@@ -267,9 +247,7 @@ class UsersHandler:
         return ByoebResponseModel(
             status_code=ByoebStatusCodes.OK.value,
             message=f"Successfully updated users: {updated_users}"
-        )
-
-        
+        )   
     async def aget(
         self,
         phone_number_ids: Any
