@@ -1,6 +1,7 @@
 import asyncio
 import csv
 import json
+import logging
 import os
 import random
 import uuid
@@ -259,42 +260,63 @@ async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service
 async def main(records) -> None:
     print("=== Asha Saheli DYK Run Stats ===")
     synced = await synchronize(records)
+
+    logger.info("🪄 Synced jobs: %d", synced)
     print("🪄 Synced jobs:", synced)
     print("❔ Number of pending messages that were discarded (because they no longer reference a DYK message).")
 
     queued, exhausted = await queue(records)
     print()
+    logger.info("📦 Queued jobs: %d", len(queued))
     print("📦 Queued jobs:", len(queued))
     print("❔ Number of messages that were added to the dispatch queue.")
 
     print()
+    logger.info("💤 Exhausted jobs: %d", len(exhausted))
     print("💤 Exhausted jobs:", len(exhausted))
     print("❔ Number of users who could not be sent a DYK message (because they have received every DYK message).")
 
     whatsapp_service = WhatsAppService(channel_client_factory)
     try:
-        dispatch_success, dispatch_fail = await dispatch(records, whatsapp_service)
+        retries = 0
+        while True:
+            if retries > 0:
+                logger.info("Retrying dispatch job... %d / %d", retries + 1, N_RETRIES)
+                print("Retrying dispatch job... %d / %d" % (retries + 1, N_RETRIES))
+            dispatch_success, dispatch_fail = await dispatch(records, whatsapp_service)
+            print()
+            logger.info("💌 Dispatched jobs: %d succeeded, %d failed", len(dispatch_success), len(dispatch_fail))
+            print("💌 Dispatched jobs:", len(dispatch_success), "succeeded,", len(dispatch_fail), "failed")
+            if retries == 0:
+                print("❔ Number of messages that were sent to WhatsApp (includes messages that were just queued).")
+            if len(dispatch_fail) == 0:
+                break
+            retries += 1
+            if retries == N_RETRIES:
+                print("Max retries exceeded. Exiting.")
+                break
+            await asyncio.sleep(2.5)
     finally:
         await channel_client_factory.close()
 
     print()
-    print("💌 Dispatched jobs:", len(dispatch_success), "succeeded,", len(dispatch_fail), "failed")
-    print("❔ Number of messages that were sent to WhatsApp (includes messages that were just queued).")
-
-    print()
     print("All done.")
 
+logger = logging.getLogger("send_dyk")
+logger.setLevel(logging.INFO)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 config = json.load(open(os.path.join(current_dir, "bot_config.json")))
 _LANG_ENTRIES = [LangEntry(**e) for e in config["languages"]]
 LANG_ENTRIES = {e.language: e for e in _LANG_ENTRIES}
+N_RETRIES = 5  # number of times to retry dispatch()ing to WhatsApp in the event of failure
 
 dyks_sent_collection_name = app_config["databases"]["mongo_db"]["dyks_sent_collection"]
 
 SOURCE_PATH = os.path.abspath(config["path"])
 
 if not os.path.exists(SOURCE_PATH):
+    logger.info("File no found: %s", SOURCE_PATH)
     print("File not found: %s" % SOURCE_PATH, file=sys.stderr)
     exit(1)
 
