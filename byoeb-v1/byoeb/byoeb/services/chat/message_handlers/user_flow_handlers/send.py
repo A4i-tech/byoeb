@@ -211,6 +211,14 @@ class ByoebUserSendResponse(Handler):
         print("byoeb_user_messages", byoeb_user_messages)
         print("[send] byoeb_user_messages_count=", len(byoeb_user_messages) if byoeb_user_messages else 0)
 
+        # Debug: Print user types for all messages
+        print("[send] DEBUG: All message user types:")
+        for i, msg in enumerate(messages):
+            if msg.user is not None:
+                print(f"[send] Message {i}: user_type={msg.user.user_type}, user_id={msg.user.user_id}")
+            else:
+                print(f"[send] Message {i}: user is None")
+
         if not byoeb_user_messages:
             print("[send] ERROR: No user messages found, cannot proceed")
             return [], None
