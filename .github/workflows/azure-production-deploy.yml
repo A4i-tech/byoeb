@@ -17,16 +17,10 @@ on:
           - 'No, cancel deployment'
         default: 'No, cancel deployment'
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
 jobs:
   validate-deployment:
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.confirm_deployment == 'Yes, deploy to production' }}
-    outputs:
-      image-tag: ${{ steps.get-image.outputs.image-tag }}
     steps:
       - name: Validate deployment confirmation
         run: |
@@ -37,7 +31,6 @@ jobs:
           echo "Deployment confirmed by user"
 
       - name: Get production image tag
-        id: get-image
         run: |
           if [ -n "${{ github.event.inputs.image_tag }}" ]; then
             IMAGE_TAG="${{ github.event.inputs.image_tag }}"
@@ -46,87 +39,26 @@ jobs:
             IMAGE_TAG="production"
             echo "Using default production image tag: $IMAGE_TAG"
           fi
-          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "Full image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG"
+          echo "Full image: ghcr.io/${{ github.repository }}:$IMAGE_TAG"
 
-  deploy-to-azure:
+  simulate-deployment:
     needs: validate-deployment
     runs-on: ubuntu-latest
-    env:
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-      AZURE_APP_SERVICE_NAME: ${{ secrets.AZURE_APP_SERVICE_NAME }}
-      AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          client-id: ${{ env.AZURE_CLIENT_ID }}
-          secret: ${{ env.AZURE_CLIENT_SECRET }}
-          tenant-id: ${{ env.AZURE_TENANT_ID }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Login to Azure Container Registry
+      - name: Simulate Azure Deployment
         run: |
-          az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
+          echo "Simulating deployment of ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag || 'production' }} to Azure App Service..."
+          echo "This is a test run. No actual Azure resources are being touched."
+          sleep 5 # Simulate deployment time
+          echo "Simulated deployment completed successfully!"
 
-      - name: Pull and tag production image
-        run: |
-          echo "Pulling production image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-deployment.outputs.image-tag }}"
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-deployment.outputs.image-tag }}
-          
-          echo "Tagging for Azure Container Registry"
-          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-deployment.outputs.image-tag }} \
-            ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.validate-deployment.outputs.image-tag }}
-
-      - name: Push to Azure Container Registry
-        run: |
-          echo "Pushing to Azure Container Registry"
-          docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.validate-deployment.outputs.image-tag }}
-
-      - name: Deploy to Azure App Service
-        run: |
-          echo "Deploying to Azure App Service: ${{ env.AZURE_APP_SERVICE_NAME }}"
-          az webapp config container set \
-            --name ${{ env.AZURE_APP_SERVICE_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --docker-custom-image-name ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.validate-deployment.outputs.image-tag }}
-
-      - name: Restart Azure App Service
-        run: |
-          echo "Restarting Azure App Service"
-          az webapp restart \
-            --name ${{ env.AZURE_APP_SERVICE_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
-
-      - name: Check deployment status
-        run: |
-          echo "Checking deployment status..."
-          az webapp show \
-            --name ${{ env.AZURE_APP_SERVICE_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "state" -o tsv
-
-  notify-deployment-success:
-    needs: [validate-deployment, deploy-to-azure]
+  notify-success:
+    needs: [validate-deployment, simulate-deployment]
     runs-on: ubuntu-latest
-    if: always() && needs.deploy-to-azure.result == 'success'
+    if: always() && needs.simulate-deployment.result == 'success'
     steps:
       - name: Send Success Notification to Teams
         run: |
-          # Create Teams adaptive card payload for production deployment success
           CARD_PAYLOAD=$(cat <<EOF
           {
             "@type": "MessageCard",
@@ -135,13 +67,12 @@ jobs:
             "summary": "Byoeb Production Deployment Successful",
             "sections": [{
               "activityTitle": "Byoeb Production Deployment Successful",
-              "activitySubtitle": "Production deployment to Azure completed successfully",
+              "activitySubtitle": "Production deployment to Azure completed successfully (simulated)",
               "facts": [
-                {"name": "Environment", "value": "Production"},
+                {"name": "Environment", "value": "Production (Simulated)"},
                 {"name": "Branch", "value": "${{ github.ref_name }}"},
                 {"name": "Commit", "value": "${{ github.sha }}"},
-                {"name": "Docker Image", "value": "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-deployment.outputs.image-tag }}"},
-                {"name": "Azure App Service", "value": "${{ env.AZURE_APP_SERVICE_NAME }}"},
+                {"name": "Docker Image", "value": "ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag || 'production' }}"},
                 {"name": "Deployed by", "value": "${{ github.actor }}"},
                 {"name": "Deployment Time", "value": "$(date -u)"}
               ],
@@ -150,45 +81,6 @@ jobs:
           }
           EOF
           )
-
-          # Send to Teams webhook
-          curl -X POST -H "Content-Type: application/json" \
-            -d "$CARD_PAYLOAD" \
-            "${{ secrets.TEAMS_WEBHOOK_URL }}"
-
-  notify-deployment-failure:
-    needs: [validate-deployment, deploy-to-azure]
-    runs-on: ubuntu-latest
-    if: always() && needs.deploy-to-azure.result == 'failure'
-    steps:
-      - name: Send Failure Notification to Teams
-        run: |
-          # Create Teams adaptive card payload for production deployment failure
-          CARD_PAYLOAD=$(cat <<EOF
-          {
-            "@type": "MessageCard",
-            "@context": "http://schema.org/extensions",
-            "themeColor": "FF0000",
-            "summary": "Byoeb Production Deployment Failed",
-            "sections": [{
-              "activityTitle": "Byoeb Production Deployment Failed",
-              "activitySubtitle": "Production deployment to Azure failed",
-              "facts": [
-                {"name": "Environment", "value": "Production"},
-                {"name": "Branch", "value": "${{ github.ref_name }}"},
-                {"name": "Commit", "value": "${{ github.sha }}"},
-                {"name": "Docker Image", "value": "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-deployment.outputs.image-tag }}"},
-                {"name": "Azure App Service", "value": "${{ env.AZURE_APP_SERVICE_NAME }}"},
-                {"name": "Failed by", "value": "${{ github.actor }}"},
-                {"name": "Workflow", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}
-              ],
-              "markdown": true
-            }]
-          }
-          EOF
-          )
-
-          # Send to Teams webhook
           curl -X POST -H "Content-Type: application/json" \
             -d "$CARD_PAYLOAD" \
             "${{ secrets.TEAMS_WEBHOOK_URL }}"
