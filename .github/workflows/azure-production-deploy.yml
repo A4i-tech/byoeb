@@ -31,10 +31,10 @@ jobs:
       - name: Validate deployment confirmation
         run: |
           if [ "${{ github.event.inputs.confirm_deployment }}" != "Yes, deploy to production" ]; then
-            echo "❌ Deployment cancelled by user"
+            echo "Deployment cancelled by user"
             exit 1
           fi
-          echo "✅ Deployment confirmed by user"
+          echo "Deployment confirmed by user"
 
       - name: Get production image tag
         id: get-image
@@ -132,9 +132,9 @@ jobs:
             "@type": "MessageCard",
             "@context": "http://schema.org/extensions",
             "themeColor": "00FF00",
-            "summary": "🚀 Byoeb Production Deployment Successful",
+            "summary": "Byoeb Production Deployment Successful",
             "sections": [{
-              "activityTitle": "🚀 Byoeb Production Deployment Successful",
+              "activityTitle": "Byoeb Production Deployment Successful",
               "activitySubtitle": "Production deployment to Azure completed successfully",
               "facts": [
                 {"name": "Environment", "value": "Production"},
@@ -154,7 +154,7 @@ jobs:
           # Send to Teams webhook
           curl -X POST -H "Content-Type: application/json" \
             -d "$CARD_PAYLOAD" \
-            "${{ env.TEAMS_WEBHOOK_URL }}"
+            "${{ secrets.TEAMS_WEBHOOK_URL }}"
 
   notify-deployment-failure:
     needs: [validate-deployment, deploy-to-azure]
@@ -169,9 +169,9 @@ jobs:
             "@type": "MessageCard",
             "@context": "http://schema.org/extensions",
             "themeColor": "FF0000",
-            "summary": "🚨 Byoeb Production Deployment Failed",
+            "summary": "Byoeb Production Deployment Failed",
             "sections": [{
-              "activityTitle": "🚨 Byoeb Production Deployment Failed",
+              "activityTitle": "Byoeb Production Deployment Failed",
               "activitySubtitle": "Production deployment to Azure failed",
               "facts": [
                 {"name": "Environment", "value": "Production"},
@@ -191,4 +191,4 @@ jobs:
           # Send to Teams webhook
           curl -X POST -H "Content-Type: application/json" \
             -d "$CARD_PAYLOAD" \
-            "${{ env.TEAMS_WEBHOOK_URL }}"
+            "${{ secrets.TEAMS_WEBHOOK_URL }}"

@@ -3,8 +3,13 @@ name: Test Azure Production Deploy
 on:
   workflow_dispatch:
     inputs:
-      test_mode:
-        description: 'Test mode (no actual deployment)'
+      image_tag:
+        description: 'Docker image tag to deploy (leave empty for latest production)'
+        required: false
+        type: string
+        default: 'production'
+      test_only:
+        description: 'Run in test mode (no actual deployment)'
         required: true
         type: choice
         options:
@@ -17,21 +22,107 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  test-deployment:
+  validate-and-test:
     runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.get-image.outputs.image-tag }}
+      test-mode: ${{ github.event.inputs.test_only == 'Yes, test only (safe)' }}
     steps:
-      - name: Test deployment (safe mode)
-        if: ${{ github.event.inputs.test_mode == 'Yes, test only (safe)' }}
+      - name: Validate test mode
         run: |
-          echo "🧪 TEST MODE - No actual deployment will happen"
-          echo "✅ Workflow is working correctly"
-          echo "📦 Would deploy image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:production"
-          echo "🔒 This is a safe test - no Azure resources affected"
+          if [ "${{ github.event.inputs.test_only }}" == "Yes, test only (safe)" ]; then
+            echo "Running in TEST ONLY mode. No actual deployment will occur."
+          else
+            echo "Running in REAL DEPLOYMENT mode. This will deploy to Azure production."
+          fi
 
-      - name: Real deployment
-        if: ${{ github.event.inputs.test_mode == 'No, real deployment' }}
+      - name: Get image tag for testing
+        id: get-image
         run: |
-          echo "🚀 REAL DEPLOYMENT MODE"
-          echo "⚠️ This would perform actual deployment to Azure"
-          echo "🔒 Currently disabled for safety"
-          echo "❌ Real deployment not implemented yet"
+          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+            echo "Using specified image tag for test: $IMAGE_TAG"
+          else
+            IMAGE_TAG="production"
+            echo "Using default production image tag for test: $IMAGE_TAG"
+          fi
+          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Full image for test: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG"
+
+  simulate-deployment:
+    needs: validate-and-test
+    runs-on: ubuntu-latest
+    if: ${{ needs.validate-and-test.outputs.test-mode == 'true' }}
+    steps:
+      - name: Simulate Azure Deployment
+        run: |
+          echo "Simulating deployment of ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-and-test.outputs.image-tag }} to Azure App Service..."
+          echo "This is a test run. No actual Azure resources are being touched."
+          sleep 5 # Simulate deployment time
+          echo "Simulated deployment completed successfully!"
+
+  notify-test-success:
+    needs: [validate-and-test, simulate-deployment]
+    runs-on: ubuntu-latest
+    if: always() && needs.simulate-deployment.result == 'success' && needs.validate-and-test.outputs.test-mode == 'true'
+    steps:
+      - name: Send Test Success Notification to Teams
+        run: |
+          CARD_PAYLOAD=$(cat <<EOF
+          {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "00FF00",
+            "summary": "Byoeb Production Deploy Test Successful",
+            "sections": [{
+              "activityTitle": "Byoeb Production Deploy Test Successful",
+              "activitySubtitle": "Manual deployment test to Azure completed successfully (no actual deploy)",
+              "facts": [
+                {"name": "Environment", "value": "Test Production"},
+                {"name": "Branch", "value": "${{ github.ref_name }}"},
+                {"name": "Commit", "value": "${{ github.sha }}"},
+                {"name": "Docker Image", "value": "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-and-test.outputs.image-tag }}"},
+                {"name": "Tested by", "value": "${{ github.actor }}"},
+                {"name": "Test Time", "value": "$(date -u)"}
+              ],
+              "markdown": true
+            }]
+          }
+          EOF
+          )
+          curl -X POST -H "Content-Type: application/json" \
+            -d "$CARD_PAYLOAD" \
+            "${{ secrets.TEAMS_WEBHOOK_URL }}"
+
+  notify-test-failure:
+    needs: [validate-and-test, simulate-deployment]
+    runs-on: ubuntu-latest
+    if: always() && needs.simulate-deployment.result == 'failure' && needs.validate-and-test.outputs.test-mode == 'true'
+    steps:
+      - name: Send Test Failure Notification to Teams
+        run: |
+          CARD_PAYLOAD=$(cat <<EOF
+          {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "FF0000",
+            "summary": "Byoeb Production Deploy Test Failed",
+            "sections": [{
+              "activityTitle": "Byoeb Production Deploy Test Failed",
+              "activitySubtitle": "Manual deployment test to Azure failed",
+              "facts": [
+                {"name": "Environment", "value": "Test Production"},
+                {"name": "Branch", "value": "${{ github.ref_name }}"},
+                {"name": "Commit", "value": "${{ github.sha }}"},
+                {"name": "Docker Image", "value": "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-and-test.outputs.image-tag }}"},
+                {"name": "Tested by", "value": "${{ github.actor }}"},
+                {"name": "Workflow", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}
+              ],
+              "markdown": true
+            }]
+          }
+          EOF
+          )
+          curl -X POST -H "Content-Type: application/json" \
+            -d "$CARD_PAYLOAD" \
+            "${{ secrets.TEAMS_WEBHOOK_URL }}"
