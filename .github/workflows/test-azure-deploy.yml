@@ -1,0 +1,37 @@
+name: Test Azure Production Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'Test mode (no actual deployment)'
+        required: true
+        type: choice
+        options:
+          - 'Yes, test only (safe)'
+          - 'No, real deployment'
+        default: 'Yes, test only (safe)'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test deployment (safe mode)
+        if: ${{ github.event.inputs.test_mode == 'Yes, test only (safe)' }}
+        run: |
+          echo "🧪 TEST MODE - No actual deployment will happen"
+          echo "✅ Workflow is working correctly"
+          echo "📦 Would deploy image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:production"
+          echo "🔒 This is a safe test - no Azure resources affected"
+
+      - name: Real deployment
+        if: ${{ github.event.inputs.test_mode == 'No, real deployment' }}
+        run: |
+          echo "🚀 REAL DEPLOYMENT MODE"
+          echo "⚠️ This would perform actual deployment to Azure"
+          echo "🔒 Currently disabled for safety"
+          echo "❌ Real deployment not implemented yet"
