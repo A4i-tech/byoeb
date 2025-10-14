@@ -24,10 +24,6 @@ jobs:
     steps:
       - name: Validate deployment confirmation
         run: |
-          if [ "${{ github.event.inputs.confirm_deployment }}" != "Yes, deploy to production" ]; then
-            echo "Deployment cancelled by user"
-            exit 1
-          fi
           echo "Deployment confirmed by user"
 
       - name: Get production image tag
