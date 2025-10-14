@@ -210,8 +210,7 @@ jobs:
                 {"name": "Environment", "value": "${{ env.ENVIRONMENT }}"},
                 {"name": "Branch", "value": "${{ github.ref_name }}"},
                 {"name": "Commit", "value": "${{ github.sha }}"},
-                {"name": "Staging Image", "value": "${{ needs.build.outputs.image-tag }}"},
-                {"name": "Production Image", "value": "${{ needs.build-production-image.outputs.production-image-tag || 'Not built' }}"},
+                {"name": "Image", "value": "${{ needs.build.outputs.image-tag }}"},
                 {"name": "Deployed by", "value": "${{ github.actor }}"}
               ],
               "markdown": true
