@@ -25,10 +25,12 @@ fastmcp = "^2.12.3"
 pytest = "^8.4.1"
 pytest-asyncio = "^1.1.0"
 pytest-cov = "^7.0.0"
+pytest-mock = "^3.15.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
 
 [tool.pytest.ini_options]
 minversion = "8.0"

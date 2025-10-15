@@ -66,7 +66,7 @@ def extract_fields(entry, user_info_dict):
         "status": status,
         "query_source": reply_context.get("reply_source_text"),
         "query_en": reply_additional_info.get("query_en"),
-        "rewritten_query": message_context.get("message_english_text"),
+        "rewritten_query": reply_context.get("reply_english_text"),
         "answer_english": message_context.get("message_english_text"),
         "answer_source": message_context.get("message_source_text"),
         "incoming_timestamp": incoming_ts,
