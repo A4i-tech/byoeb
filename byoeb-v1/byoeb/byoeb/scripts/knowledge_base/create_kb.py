@@ -553,8 +553,11 @@ def replace_abbreviations(text, abbrev_dict):
     # Sort by length of abbreviation to avoid partial matches
     for abbr in sorted(abbrev_dict, key=len, reverse=True):
         pattern = r'\b' + re.escape(abbr) + r'\b'
-        replacement = f"{abbr} ({abbrev_dict[abbr]})"
-        text = re.sub(pattern, replacement, text)
+        # Use a lambda function to preserve the original case
+        def replacement_func(match):
+            original_text = match.group(0)
+            return f"{original_text} ({abbrev_dict[abbr]})"
+        text = re.sub(pattern, replacement_func, text, flags=re.IGNORECASE)
     return text
 
 def parse_type1(content):   

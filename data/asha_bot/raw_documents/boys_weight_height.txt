@@ -1,5 +1,5 @@
 - For a boy of age 0 months ( 0 years and 0 months ), the ideal weight is 3.3 kg and ideal height is 49.9 cm.
-- For a boy of age 1 month ( 0 years and 1 month), the ideal weight is 4.5 kg and ideal height is 54.7 cm.
+- For a boy of age 1 month ( 0 years and 1 month ), the ideal weight is 4.5 kg and ideal height is 54.7 cm.
 - For a boy of age 2 months ( 0 years and 2 months ), the ideal weight is 5.6 kg and ideal height is 58.4 cm.
 - For a boy of age 3 months ( 0 years and 3 months ), the ideal weight is 6.4 kg and ideal height is 61.4 cm.
 - For a boy of age 4 months ( 0 years and 4 months ), the ideal weight is 7.0 kg and ideal height is 63.9 cm.
@@ -11,7 +11,7 @@
 - For a boy of age 10 months ( 0 years and 10 months ), the ideal weight is 9.2 kg and ideal height is 73.3 cm.
 - For a boy of age 11 months ( 0 years and 11 months ), the ideal weight is 9.4 kg and ideal height is 74.5 cm.
 - For a boy of age 12 months ( 1 year and 0 months ), the ideal weight is 9.6 kg and ideal height is 75.7 cm.
-- For a boy of age 13 months ( 1 year and 1 month), the ideal weight is 9.9 kg and ideal height is 76.9 cm.
+- For a boy of age 13 months ( 1 year and 1 month ), the ideal weight is 9.9 kg and ideal height is 76.9 cm.
 - For a boy of age 14 months ( 1 year and 2 months ), the ideal weight is 10.1 kg and ideal height is 78.0 cm.
 - For a boy of age 15 months ( 1 year and 3 months ), the ideal weight is 10.3 kg and ideal height is 79.1 cm.
 - For a boy of age 16 months ( 1 year and 4 months ), the ideal weight is 10.5 kg and ideal height is 80.2 cm.
@@ -23,7 +23,7 @@
 - For a boy of age 22 months ( 1 year and 10 months ), the ideal weight is 11.8 kg and ideal height is 86.0 cm.
 - For a boy of age 23 months ( 1 year and 11 months ), the ideal weight is 12.0 kg and ideal height is 86.9 cm.
 - For a boy of age 24 months ( 2 years and 0 months ), the ideal weight is 12.2 kg and ideal height is 87.1 cm.
-- For a boy of age 25 months ( 2 years and 1 month), the ideal weight is 12.4 kg and ideal height is 88.0 cm.
+- For a boy of age 25 months ( 2 years and 1 month ), the ideal weight is 12.4 kg and ideal height is 88.0 cm.
 - For a boy of age 26 months ( 2 years and 2 months ), the ideal weight is 12.5 kg and ideal height is 88.8 cm.
 - For a boy of age 27 months ( 2 years and 3 months ), the ideal weight is 12.7 kg and ideal height is 89.6 cm.
 - For a boy of age 28 months ( 2 years and 4 months ), the ideal weight is 12.9 kg and ideal height is 90.4 cm.
@@ -35,7 +35,7 @@
 - For a boy of age 34 months ( 2 years and 10 months ), the ideal weight is 14.0 kg and ideal height is 94.8 cm.
 - For a boy of age 35 months ( 2 years and 11 months ), the ideal weight is 14.2 kg and ideal height is 95.4 cm.
 - For a boy of age 36 months ( 3 years and 0 months ), the ideal weight is 14.3 kg and ideal height is 96.1 cm.
-- For a boy of age 37 months ( 3 years and 1 month), the ideal weight is 14.5 kg and ideal height is 96.7 cm.
+- For a boy of age 37 months ( 3 years and 1 month ), the ideal weight is 14.5 kg and ideal height is 96.7 cm.
 - For a boy of age 38 months ( 3 years and 2 months ), the ideal weight is 14.7 kg and ideal height is 97.4 cm.
 - For a boy of age 39 months ( 3 years and 3 months ), the ideal weight is 14.8 kg and ideal height is 98.0 cm.
 - For a boy of age 40 months ( 3 years and 4 months ), the ideal weight is 15.0 kg and ideal height is 98.6 cm.
@@ -47,7 +47,7 @@
 - For a boy of age 46 months ( 3 years and 10 months ), the ideal weight is 16.0 kg and ideal height is 102.2 cm.
 - For a boy of age 47 months ( 3 years and 11 months ), the ideal weight is 16.2 kg and ideal height is 102.8 cm.
 - For a boy of age 48 months ( 4 years and 0 months ), the ideal weight is 16.3 kg and ideal height is 103.3 cm.
-- For a boy of age 49 months ( 4 years and 1 month), the ideal weight is 16.5 kg and ideal height is 103.9 cm.
+- For a boy of age 49 months ( 4 years and 1 month ), the ideal weight is 16.5 kg and ideal height is 103.9 cm.
 - For a boy of age 50 months ( 4 years and 2 months ), the ideal weight is 16.7 kg and ideal height is 104.4 cm.
 - For a boy of age 51 months ( 4 years and 3 months ), the ideal weight is 16.8 kg and ideal height is 105.0 cm.
 - For a boy of age 52 months ( 4 years and 4 months ), the ideal weight is 17.0 kg and ideal height is 105.6 cm.
