@@ -55,5 +55,10 @@
                 "region": "swedencentral"
             }
         }
+    },
+    "app_logger": {
+        "azure": {
+            "logger_name": "khushi-baby-asha-logger"
+        }
     }
 }

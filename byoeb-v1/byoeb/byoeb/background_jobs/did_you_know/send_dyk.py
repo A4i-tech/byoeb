@@ -75,45 +75,19 @@ async def pick_candidates(langs: Iterable[LanguageCode]):
         match_stage["User.user_type"] = "asha"
     else:
         match_stage["User.test_user"] = True
-    pipeline = [
-        {"$match": match_stage},
-        {"$lookup": {
-            "from": dyks_sent_collection_name,
-            "let": {"uid": "$User.user_id"},
-            "pipeline": [
-                {"$match": {"$expr": {"$eq": ["$user_id", "$$uid"]}}},
-                {"$sort": {"time": -1}},
-                {"$group": {
-                    "_id": "$user_id",
-                    "latest_status": {"$first": "$status"},
-                    "all_dyk_ids": {"$addToSet": "$dyk_id"}
-                }}
-            ],
-            "as": "dyk_data"
-        }},
-        {"$unwind": {
-            "path": "$dyk_data",
-            "preserveNullAndEmptyArrays": True
-        }},
-        {"$match": {
-            "$or": [
-                {"dyk_data": {"$eq": None}},
-                {"dyk_data.latest_status": {"$ne": "pending"}}
-            ]
-        }},
-        {"$project": {
-            "User": 1,
-            "sent_dyk_ids": "$dyk_data.all_dyk_ids"
-        }},
-        {"$sort": {"User.user_id": 1}}
-    ]
 
-    client = await user_db_service._get_collection_client(user_db_service.collection_name)
-    async for doc in client.aaggregate(pipeline):
-        yield (User(**doc["User"]), set(doc.get("sent_dyk_ids", [])))
+    user_client = await user_db_service._get_collection_client(user_db_service.collection_name)
+    dyk_client = await user_db_service._get_collection_client(dyks_sent_collection_name)
+    for user in await user_client.afetch_all(match_stage):
+        uid = user["User"]["user_id"]
+        dyk_records = await dyk_client.afetch_all({"user_id": uid})
+        if dyk_records and any(r.get("status") == "pending" for r in dyk_records):
+            continue
+        sent_dyk_ids = set([r["dyk_id"] for r in dyk_records]) if dyk_records else set()
+        yield (User(**user["User"]), sent_dyk_ids)
 
 
-async def queue(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[List[Tuple[str, str]], List[str]]:
+async def queue(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[int, int]:
     """
     Takes a structured set of DYK records and randomly distributes them across the userbase, ensuring:
     - a user is sent DYK message in only their language
@@ -135,16 +109,19 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[List[Tuple
             print("Cannot assign DYK to %s (they received all DYKs)" % phone_number)
     """
 
+    n_queued = 0
+    n_exhausted = 0
     lang_sets = {lang: set(messages.keys()) for lang, messages in records.items()}
-    exhausted_ops = []
     queued_client_ops = []
-    queued_ops = []
     async for user, sent in pick_candidates(records.keys()):
         lang = LanguageCode(user.user_language)
         diff = lang_sets[lang] - sent  # deduplication
         if len(diff) == 0:
             # no facts remaining !
-            exhausted_ops.append(user.phone_number_id)
+            send_logger.warning("User %s is exhausted", user.user_id, extra={"dyk": {
+                "context": queue.__name__,
+                "user_id": user.user_id
+            }})
             continue
         uuid = random.Random(user.user_id).choice(list(sorted(diff)))
         queued_client_ops.append({
@@ -155,51 +132,46 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[List[Tuple
             "status": "pending",
             "metadata": {}
         })
-        queued_ops.append((user.phone_number_id, uuid))
+        send_logger.info("User %s is assigned DYK %s", user.user_id, uuid, extra={"dyk": {
+            "context": queue.__name__,
+            "dyk_id": str(uuid),
+            "user_id": user.user_id,
+        }})
+        n_queued += 1
 
     if len(queued_client_ops) > 0:
         dyk_client = await user_db_service._get_collection_client(dyks_sent_collection_name)
         await dyk_client.ainsert(queued_client_ops)
+    return n_queued, n_exhausted
 
-    return queued_ops, exhausted_ops
 
-
-async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service: WhatsAppService) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str, str]]]:
-    """
-    Dispatches queued DYK messages to WhatsApp.
-    Returns lists of successful and unsuccessful operations.
-
-    Example:
-        success, errors = await flush(whatsapp_service)
-        for phone_number, dyk_uuid in success:
-            print("Sent DYK %s to %s" % (dyk_uuid, phone_number))
-
-        for phone_number, dyk_uuid, error in errors:
-            print("Failed to send DYK %s to %s due to: %s", (dyk_uuid, phone_number, error))
-    """
+async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service: WhatsAppService) -> Tuple[int, int]:
+    """ Dispatches queued DYK messages to WhatsApp. Returns number of successful and unsuccessful operations. """
 
     ts = int(datetime.now(timezone.utc).timestamp())
-    success = []
-    failure = []
+    n_success = 0
+    n_failure = 0
 
     dyk_client = await user_db_service._get_collection_client(dyks_sent_collection_name)
-    pipeline = [
-        {"$match": {"status": "pending"}},
-        {"$lookup": {
-            "from": user_db_service.collection_name,
-            "localField": "user_id",
-            "foreignField": "User.user_id",
-            "as": "User"
-        }},
-        {"$project": {
-            "_id": 1,
-            "dyk_id": 1,
-            "dyk_lang": 1,
-            "phone_number_id": {"$arrayElemAt": ["$User.User.phone_number_id", 0]}
-        }}
-    ]
-    async for doc in dyk_client.aaggregate(pipeline):
-        phone_number = doc["phone_number_id"]
+    user_client = await user_db_service._get_collection_client(user_db_service.collection_name)
+
+    pending = await dyk_client.afetch_all({"status": "pending"})
+    # manual sort by dyk_id or time if needed (here user_id may not exist)
+    pending.sort(key=lambda d: str(d.get("dyk_id", "")))
+
+    for doc in pending:
+        uid = doc["user_id"]
+        user_doc = await user_client.afetch({"User.user_id": uid})
+        if not user_doc:
+            send_logger.error("User %s not found", uid, extra={"dyk": {
+                "context": dispatch.__name__,
+                "dyk_id": doc["dyk_id"],
+                "user_id": uid
+            }})
+            n_failure += 1
+            continue
+
+        phone_number = user_doc["User"]["phone_number_id"]
         lang = LanguageCode(doc["dyk_lang"])
         message = LANG_ENTRIES[lang].template.replace("{message}", records[lang][doc["dyk_id"]])
 
@@ -238,72 +210,101 @@ async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service
 
         requests = whatsapp_service.prepare_requests(text_message)
         if not requests:
-            failure.append((phone_number, doc["dyk_id"], "Failed to prepare a request message"))
+            send_logger.error("Failed to prepare a request message", extra={"dyk": {
+                "context": dispatch.__name__,
+                "dyk_id": doc["dyk_id"],
+                "user_id": uid,
+                "user_phone_number": phone_number
+            }})
+            n_failure += 1
             continue
 
         # TODO: we should probably batch `requests` here so we call send_requests() sparingly...
         responses, message_ids = await whatsapp_service.send_requests(requests)
         assert len(responses) == 1
         if int(responses[0].response_status.status) != StatusCode.SUCCESS.value:
-            failure.append((phone_number, doc["dyk_id"], responses[0].response_status.error))
+            send_logger.error(responses[0].response_status.error, extra={"dyk": {
+                "context": dispatch.__name__,
+                "dyk_id": doc["dyk_id"], 
+                "user_id": uid, 
+                "user_phone_number": phone_number, 
+                "whatsapp_response_code": responses[0].response_status.status
+            }})
+            n_failure += 1
             continue
 
-        success.append((phone_number, doc["dyk_id"]))
+        send_logger.info("Sent DYK %s to user %s", doc["dyk_id"], uid, extra={"dyk": {
+            "context": dispatch.__name__,
+            "dyk_id": doc["dyk_id"],
+            "user_id": uid,
+            "whatsapp_message_ids": json.dumps(message_ids)
+        }})
         await dyk_client.aupdate({"_id": doc["_id"]}, {"$set": {
             "status": "completed",
             "metadata.message_ids": message_ids
         }})
+        n_success += 1
 
-    return success, failure
+    return n_success, n_failure
 
 
 async def main(records) -> None:
-    print("=== Asha Saheli DYK Run Stats ===")
     synced = await synchronize(records)
 
-    logger.info("🪄 Synced jobs: %d", synced)
-    print("🪄 Synced jobs:", synced)
-    print("❔ Number of pending messages that were discarded (because they no longer reference a DYK message).")
+    # ❔ Number of pending messages that were discarded (because they no longer reference a DYK message).
+    run_logger.info("Synced jobs: %d", synced)
 
     queued, exhausted = await queue(records)
-    print()
-    logger.info("📦 Queued jobs: %d", len(queued))
-    print("📦 Queued jobs:", len(queued))
-    print("❔ Number of messages that were added to the dispatch queue.")
+    # ❔ Number of messages that were added to the dispatch queue.
+    run_logger.info("Queued jobs: %d", queued)
 
-    print()
-    logger.info("💤 Exhausted jobs: %d", len(exhausted))
-    print("💤 Exhausted jobs:", len(exhausted))
-    print("❔ Number of users who could not be sent a DYK message (because they have received every DYK message).")
+    # ❔ Number of users who could not be sent a DYK message (because they have received every DYK message).
+    run_logger.info("Exhausted jobs: %d", exhausted)
 
     whatsapp_service = WhatsAppService(channel_client_factory)
     try:
         retries = 0
         while True:
             if retries > 0:
-                logger.info("Retrying dispatch job... %d / %d", retries + 1, N_RETRIES)
-                print("Retrying dispatch job... %d / %d" % (retries + 1, N_RETRIES))
+                run_logger.warning("Retrying dispatch job... %d / %d", retries + 1, N_RETRIES)
             dispatch_success, dispatch_fail = await dispatch(records, whatsapp_service)
-            print()
-            logger.info("💌 Dispatched jobs: %d succeeded, %d failed", len(dispatch_success), len(dispatch_fail))
-            print("💌 Dispatched jobs:", len(dispatch_success), "succeeded,", len(dispatch_fail), "failed")
-            if retries == 0:
-                print("❔ Number of messages that were sent to WhatsApp (includes messages that were just queued).")
-            if len(dispatch_fail) == 0:
+
+            # ❔ Number of messages that were sent to WhatsApp (includes messages that were just queued).
+            run_logger.info("Dispatched jobs: %d succeeded, %d failed", dispatch_success, dispatch_fail)
+
+            if dispatch_fail == 0:
                 break
             retries += 1
             if retries == N_RETRIES:
-                print("Max retries exceeded. Exiting.")
+                run_logger.error("Max retries exceeded. Exiting.")
                 break
             await asyncio.sleep(2.5)
     finally:
         await channel_client_factory.close()
 
-    print()
-    print("All done.")
 
-logger = logging.getLogger("send_dyk")
-logger.setLevel(logging.INFO)
+class AppInsightsHandler(logging.Handler):
+    def emit(self, record):
+        if app_insights_logger is None:
+            return
+        details = {"details.level": record.levelname, "details.message": record.getMessage()}
+        for k, v in getattr(record, "dyk", {}).items():
+            details["details." + k] = v
+        app_insights_logger.add_log(record.name, **details)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s: %(message)s"))
+app_insights_handler = AppInsightsHandler()
+
+run_logger = logging.getLogger("dyk_run")
+run_logger.setLevel(logging.DEBUG)
+run_logger.addHandler(handler)
+run_logger.addHandler(app_insights_handler)
+
+send_logger = logging.getLogger("dyk_send")
+send_logger.setLevel(logging.DEBUG)
+send_logger.addHandler(handler)
+send_logger.addHandler(app_insights_handler)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 config = json.load(open(os.path.join(current_dir, "bot_config.json")))
@@ -316,8 +317,7 @@ dyks_sent_collection_name = app_config["databases"]["mongo_db"]["dyks_sent_colle
 SOURCE_PATH = os.path.abspath(config["path"])
 
 if not os.path.exists(SOURCE_PATH):
-    logger.info("File no found: %s", SOURCE_PATH)
-    print("File not found: %s" % SOURCE_PATH, file=sys.stderr)
+    run_logger.error("File no found: %s", SOURCE_PATH)
     exit(1)
 
 # parse and index facts sheet for quick lookup
