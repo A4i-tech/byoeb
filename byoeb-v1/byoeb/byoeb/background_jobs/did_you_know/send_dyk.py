@@ -227,7 +227,7 @@ async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service
                 "context": dispatch.__name__,
                 "dyk_id": doc["dyk_id"], 
                 "user_id": uid, 
-                "user_phone_number": phone_number, 
+                "user_phone_number": phone_number,
                 "whatsapp_response_code": responses[0].response_status.status
             }})
             n_failure += 1
@@ -237,6 +237,7 @@ async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service
             "context": dispatch.__name__,
             "dyk_id": doc["dyk_id"],
             "user_id": uid,
+            "user_phone_number": phone_number,
             "whatsapp_message_ids": json.dumps(message_ids)
         }})
         await dyk_client.aupdate({"_id": doc["_id"]}, {"$set": {
