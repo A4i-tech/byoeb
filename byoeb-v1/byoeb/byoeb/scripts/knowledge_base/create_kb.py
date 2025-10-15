@@ -543,7 +543,11 @@ abbreviations = {
     "SRH": "Sexual and Reproductive Health",
     "STIs": "Sexually Transmitted Infections",
     "VHSNC": "Village Health, Sanitation and Nutrition Committee",
-    "WIFS": "Weekly Iron Folic Acid Supplementation"
+    "WIFS": "Weekly Iron Folic Acid Supplementation",
+    "cs": "surgical delivery",
+    "c-section": "surgical delivery",
+    "ceaserean": "surgical delivery",
+    "Caesarean Section": "surgical delivery"
 }
 def replace_abbreviations(text, abbrev_dict):
     # Sort by length of abbreviation to avoid partial matches
