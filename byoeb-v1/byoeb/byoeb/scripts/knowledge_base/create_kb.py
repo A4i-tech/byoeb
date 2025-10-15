@@ -780,13 +780,24 @@ def uplodad_documents(documents: List[AzureSearchNode]):
     for i in tqdm(range(0, len(documents), batch_size)):
         batch_documents = documents[i:i + batch_size]
         # current_documents = [doc.model_dump(exclude_none=True, exclude_defaults=True) for doc in batch_documents]
-        with SearchIndexingBufferedSender(
-            endpoint="https://khushi-baby-asha-search.search.windows.net",
-            index_name="khushi-baby-asha-doc-index",
-            credential=DefaultAzureCredential(),
-            on_error=fails
-        ) as batch_client:
-            batch_client.upload_documents(documents=batch_documents)
+        # Use API key if available, otherwise fallback to default credentials
+        search_api_key = os.getenv("AZURE_SEARCH_API_KEY")
+        if search_api_key:
+            with SearchIndexingBufferedSender(
+                endpoint="https://khushi-baby-asha-search.search.windows.net",
+                index_name="khushi-baby-asha-doc-index",
+                api_key=search_api_key,
+                on_error=fails
+            ) as batch_client:
+                batch_client.upload_documents(documents=batch_documents)
+        else:
+            with SearchIndexingBufferedSender(
+                endpoint="https://khushi-baby-asha-search.search.windows.net",
+                index_name="khushi-baby-asha-doc-index",
+                credential=DefaultAzureCredential(),
+                on_error=fails
+            ) as batch_client:
+                batch_client.upload_documents(documents=batch_documents)
             
 async def main():
     faq_files, raw_files_without_faq, update_files = await aget_files_from_blob_store()

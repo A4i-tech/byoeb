@@ -23,3 +23,9 @@ load_dotenv(environment_path)
 # OpenAI
 env_openai_api_key = os.getenv("OPENAI_API_KEY")
 env_openai_org_id = os.getenv("OPENAI_ORG_ID")
+
+# Azure Storage
+env_azure_storage_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+
+# Azure Search (optional - for API key authentication)
+env_azure_search_api_key = os.getenv("AZURE_SEARCH_API_KEY")

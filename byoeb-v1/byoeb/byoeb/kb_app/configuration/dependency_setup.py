@@ -35,6 +35,7 @@ azure_openai_embed = AzureOpenAIEmbed(
     api_version=api_version
 )
 
+# Azure Blob Storage with fallback
 if env_config.env_azure_storage_connection_string:
     amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
         container_name=container_name,
@@ -49,9 +50,20 @@ else:
         credentials=DefaultAzureCredential()
     )
 
-vector_store = AzureVectorStore(
-    service_name=azure_search_service_name,
-    index_name=azure_search_doc_index_name,
-    embedding_function=azure_openai_embed.get_embedding_function(),
-    credential=default_credential
-)
+# Azure Vector Store with fallback
+if hasattr(env_config, 'env_azure_search_api_key') and env_config.env_azure_search_api_key:
+    # Use API key if available
+    vector_store = AzureVectorStore(
+        service_name=azure_search_service_name,
+        index_name=azure_search_doc_index_name,
+        embedding_function=azure_openai_embed.get_embedding_function(),
+        api_key=env_config.env_azure_search_api_key
+    )
+else:
+    # Fallback to default credentials
+    vector_store = AzureVectorStore(
+        service_name=azure_search_service_name,
+        index_name=azure_search_doc_index_name,
+        embedding_function=azure_openai_embed.get_embedding_function(),
+        credential=default_credential
+    )
