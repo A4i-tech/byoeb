@@ -120,7 +120,8 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[int, int]:
             # no facts remaining !
             send_logger.warning("User %s is exhausted", user.user_id, extra={"dyk": {
                 "context": queue.__name__,
-                "user_id": user.user_id
+                "user_id": user.user_id,
+                "user_phone_number": user.phone_number_id
             }})
             continue
         uuid = random.Random(user.user_id).choice(list(sorted(diff)))
@@ -136,6 +137,7 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[int, int]:
             "context": queue.__name__,
             "dyk_id": str(uuid),
             "user_id": user.user_id,
+            "user_phone_number": user.phone_number_id
         }})
         n_queued += 1
 
