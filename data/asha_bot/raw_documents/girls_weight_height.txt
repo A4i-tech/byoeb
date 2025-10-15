@@ -1,5 +1,5 @@
 - For a girl of age 0 months ( 0 years and 0 months ), the ideal weight is 3.2 and ideal height is 49.1 cm.
-- For a girl of age 1 month ( 0 years and 1 month), the ideal weight is 4.2 and ideal height is 53.7 cm.
+- For a girl of age 1 month ( 0 years and 1 month ), the ideal weight is 4.2 and ideal height is 53.7 cm.
 - For a girl of age 2 months ( 0 years and 2 months ), the ideal weight is 5.1 kg and ideal height is 57.1 cm.
 - For a girl of age 3 months ( 0 years and 3 months ), the ideal weight is 5.8 kg and ideal height is 59.8 cm.
 - For a girl of age 4 months ( 0 years and 4 months ), the ideal weight is 6.4 kg and ideal height is 62.1 cm.
@@ -11,7 +11,7 @@
 - For a girl of age 10 months ( 0 years and 10 months ), the ideal weight is 8.5 kg and ideal height is 71.5 cm.
 - For a girl of age 11 months ( 0 years and 11 months ), the ideal weight is 8.7 kg and ideal height is 72.8 cm.
 - For a girl of age 12 months ( 1 year and 0 months ), the ideal weight is 8.9 kg and ideal height is 74 cm.
-- For a girl of age 13 months ( 1 year and 1 month), the ideal weight is 9.2 kg and ideal height is 75.2 cm.
+- For a girl of age 13 months ( 1 year and 1 month ), the ideal weight is 9.2 kg and ideal height is 75.2 cm.
 - For a girl of age 14 months ( 1 year and 2 months ), the ideal weight is 9.4 kg and ideal height is 76.4 cm.
 - For a girl of age 15 months ( 1 year and 3 months ), the ideal weight is 9.6 kg and ideal height is 77.5 cm.
 - For a girl of age 16 months ( 1 year and 4 months ), the ideal weight is 9.8 kg and ideal height is 78.6 cm.
@@ -23,7 +23,7 @@
 - For a girl of age 22 months ( 1 year and 10 months ), the ideal weight is 11.1 kg and ideal height is 84.6 cm.
 - For a girl of age 23 months ( 1 year and 11 months ), the ideal weight is 11.3 kg and ideal height is 85.5 cm.
 - For a girl of age 24 months ( 2 years and 0 months ), the ideal weight is 11.5 kg and ideal height is 85.7 cm.
-- For a girl of age 25 months ( 2 years and 1 month), the ideal weight is 11.7 kg and ideal height is 86.6 cm.
+- For a girl of age 25 months ( 2 years and 1 month ), the ideal weight is 11.7 kg and ideal height is 86.6 cm.
 - For a girl of age 26 months ( 2 years and 2 months ), the ideal weight is 11.9 kg and ideal height is 87.4 cm.
 - For a girl of age 27 months ( 2 years and 3 months ), the ideal weight is 12.1 kg and ideal height is 88.3 cm.
 - For a girl of age 28 months ( 2 years and 4 months ), the ideal weight is 12.3 kg and ideal height is 89.1 cm.
@@ -35,7 +35,7 @@
 - For a girl of age 34 months ( 2 years and 10 months ), the ideal weight is 13.5 kg and ideal height is 93.6 cm.
 - For a girl of age 35 months ( 2 years and 11 months ), the ideal weight is 13.7 kg and ideal height is 94.4 cm.
 - For a girl of age 36 months ( 3 years and 0 months ), the ideal weight is 13.9 kg and ideal height is 95.1 cm.
-- For a girl of age 37 months ( 3 years and 1 month), the ideal weight is 14.0 kg and ideal height is 95.7 cm.
+- For a girl of age 37 months ( 3 years and 1 month ), the ideal weight is 14.0 kg and ideal height is 95.7 cm.
 - For a girl of age 38 months ( 3 years and 2 months ), the ideal weight is 14.2 kg and ideal height is 96.4 cm.
 - For a girl of age 39 months ( 3 years and 3 months ), the ideal weight is 14.4 kg and ideal height is 97.1 cm.
 - For a girl of age 40 months ( 3 years and 4 months ), the ideal weight is 14.6 kg and ideal height is 97.7 cm.
@@ -47,7 +47,7 @@
 - For a girl of age 46 months ( 3 years and 10 months ), the ideal weight is 15.7 kg and ideal height is 101.5 cm.
 - For a girl of age 47 months ( 3 years and 11 months ), the ideal weight is 15.9 kg and ideal height is 102.1 cm.
 - For a girl of age 48 months ( 4 years and 0 months ), the ideal weight is 16.1 kg and ideal height is 102.7 cm.
-- For a girl of age 49 months ( 4 years and 1 month), the ideal weight is 16.3 kg and ideal height is 103.3 cm.
+- For a girl of age 49 months ( 4 years and 1 month ), the ideal weight is 16.3 kg and ideal height is 103.3 cm.
 - For a girl of age 50 months ( 4 years and 2 months ), the ideal weight is 16.4 kg and ideal height is 103.9 cm.
 - For a girl of age 51 months ( 4 years and 3 months ), the ideal weight is 16.6 kg and ideal height is 104.5 cm.
 - For a girl of age 52 months ( 4 years and 4 months ), the ideal weight is 16.8 kg and ideal height is 105 cm.
