@@ -29,3 +29,6 @@ env_azure_storage_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING
 
 # Azure Search (optional - for API key authentication)
 env_azure_search_api_key = os.getenv("AZURE_SEARCH_API_KEY")
+
+# Azure Cognitive Services (optional - for API key authentication)
+env_azure_cognitive_key = os.getenv("AZURE_COGNITIVE_KEY")
