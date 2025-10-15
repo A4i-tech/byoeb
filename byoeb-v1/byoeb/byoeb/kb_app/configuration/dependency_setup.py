@@ -27,13 +27,25 @@ llm_client = AsyncLLamaIndexOpenAILLM(
     organization=env_config.env_openai_org_id
 )
 
-azure_openai_embed = AzureOpenAIEmbed(
-    model=model,
-    deployment_name=deployment_name,
-    azure_endpoint=aoai_endpoint,
-    token_provider=token_provider,
-    api_version=api_version
-)
+# Azure OpenAI Embed with fallback for token provider
+if env_config.env_azure_cognitive_key:
+    # Use API key if available
+    azure_openai_embed = AzureOpenAIEmbed(
+        model=model,
+        deployment_name=deployment_name,
+        azure_endpoint=aoai_endpoint,
+        api_key=env_config.env_azure_cognitive_key,
+        api_version=api_version
+    )
+else:
+    # Fallback to token provider with default credentials
+    azure_openai_embed = AzureOpenAIEmbed(
+        model=model,
+        deployment_name=deployment_name,
+        azure_endpoint=aoai_endpoint,
+        token_provider=token_provider,
+        api_version=api_version
+    )
 
 # Azure Blob Storage with fallback
 if env_config.env_azure_storage_connection_string:
@@ -51,7 +63,7 @@ else:
     )
 
 # Azure Vector Store with fallback
-if hasattr(env_config, 'env_azure_search_api_key') and env_config.env_azure_search_api_key:
+if env_config.env_azure_search_api_key:
     # Use API key if available
     vector_store = AzureVectorStore(
         service_name=azure_search_service_name,
