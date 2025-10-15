@@ -7,7 +7,7 @@ import random
 import uuid
 import sys
 from byoeb.background_jobs.config import app_config
-from byoeb.background_jobs.dependency_setup import channel_client_factory, user_db_service
+from byoeb.background_jobs.dependency_setup import app_insights_logger, channel_client_factory, user_db_service
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.services.channel.whatsapp import WhatsAppService
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageContext, MessageTypes
