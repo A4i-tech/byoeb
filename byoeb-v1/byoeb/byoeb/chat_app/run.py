@@ -32,7 +32,7 @@ def create_apps():
     app.include_router(user_apis_router)
     app.include_router(admin_apis_router)
 
-    mcp = FastMCP()
+    mcp = FastMCP(stateless_http=True)
     health_mcps_router(mcp)
     chat_mcps_router(mcp)
     user_mcps_router(mcp)
