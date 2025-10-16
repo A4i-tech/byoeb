@@ -16,7 +16,7 @@ def convert_pdf_to_txt(pdf_path, txt_path):
             text += page.extract_text()
 
     # Write the extracted text to the output text file
-    with open(txt_path, 'w') as txt_file:
+    with open(txt_path, 'w', encoding='utf-8') as txt_file:
         txt_file.write(text)
 
 pdf_folder_path = os.path.join(os.environ['APP_PATH'], os.environ['DATA_PATH'], 'raw_documents_pdf')
