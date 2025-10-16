@@ -2,17 +2,19 @@ import pytest
 import httpx
 import uuid
 import time
-
+import requests
+import json
+import re
 # Endpoint
 BASE_URL = "http://127.0.0.1:5000/receive"
 
 
-USER_WA_ID = "917567071072"  # Phone number to onboard
+USER_WA_ID = "919038069298"  # Phone number to onboard
 BOT_WA_ID = "183958451475612"
 
 # Payload templates for the 4-step onboarding flow
 ONBOARDING_PAYLOADS = [
-   {
+ {
     "object": "whatsapp_business_account",
     "entry": [
         {
@@ -28,15 +30,15 @@ ONBOARDING_PAYLOADS = [
                         "contacts": [
                             {
                                 "profile": {
-                                    "name": "Nikunj"
+                                    "name": "Lavisha"
                                 },
-                                "wa_id": "919929959548"
+                                "wa_id": "919929959948"
                             }
                         ],
                         "messages": [
                             {
-                                "from": "917567071072",
-                                "id": "wamid.HBgMOTE3NTY3MDcxMDcyFQIAEhgUM0EzNzYyNTE4REMxMjA2RjM4QABZA",
+                                "from": "919038069298",
+                                "id": "",
                                 "timestamp": "1758573528",
                                 "text": {
                                     "body": "hi"
@@ -52,14 +54,14 @@ ONBOARDING_PAYLOADS = [
     ]
 }
 ,
-   {
+{
   "object": "whatsapp_business_account",
   "entry": [
     {
       "id": "211506508713627",
       "changes": [
         {
-                        "value": {
+           "value": {
             "messaging_product": "whatsapp",
             "metadata": {
               "display_phone_number": "919001386867",
@@ -67,18 +69,20 @@ ONBOARDING_PAYLOADS = [
             },
             "contacts": [
               {
-                "profile": { "name": "Nikunj" },
-                "wa_id": "917567071072"
+                "profile": {
+                                    "name": "Lavisha"
+                                },
+                                "wa_id": "919929959948"
               }
             ],
             "messages": [
               {
-                "from": "917567071072",
-                "id": "wamid.USER_INTERACTIVE_REPLY_ID_ABCDEFGHIJKLMNOPQRSTUVWX",
+                "from": "919038069298",
+                "id": "",
                 "timestamp": "1758576570",
                 "context": {
                   "from": "183958451475612",
-                  "id": "wamid.HBgMOTE3NTY3MDcxMDcyFQIAERgSMzI2NUE2M0M4QzE4NzQwMTdGAA=="
+                  "id": ""
                 },
                 "type": "interactive",
                 "interactive": {
@@ -98,12 +102,13 @@ ONBOARDING_PAYLOADS = [
     }
   ]
 }
-,{
+,
+{
   "object": "whatsapp_business_account",
   "entry": [
     {
       "id": "211506508713627",
-"changes": [
+        "changes": [
         {
           "value": {
             "messaging_product": "whatsapp",
@@ -113,18 +118,18 @@ ONBOARDING_PAYLOADS = [
             },
             "contacts": [
               {
-                "profile": { "name": "Nikunj" },
-                "wa_id": "917567071072"
+                "profile": { "name": "Lavisha" },
+                "wa_id": "919038069298"
               }
             ],
             "messages": [
               {
-                "from": "917567071072",
-                "id": "wamid.USER_BUTTON_REPLY_ID_ABCDEFGHIJKLMNOPQRSTUVW",
+                "from": "919038069298",
+                "id": "",
                 "timestamp": "1758576682",
                 "context": {
                   "from": "183958451475612",
-                  "id": "wamid.HBgMOTE3NTY3MDcxMDcyFQIAERgSOTc5NUQ5MjI3MkJFQzIzODlBAA=="
+                  "id": ""
                 },
                 "type": "interactive",
                 "interactive": {
@@ -144,7 +149,7 @@ ONBOARDING_PAYLOADS = [
   ]
 }
 ,
-    {
+{
   "object": "whatsapp_business_account",
   "entry": [
     {
@@ -155,24 +160,22 @@ ONBOARDING_PAYLOADS = [
             "messaging_product": "whatsapp",
             "metadata": {
               "display_phone_number": "919001386867",
-
-
               "phone_number_id": "183958451475612"
             },
             "contacts": [
               {
-                "profile": { "name": "Nikunj" },
-                "wa_id": "917567071072"
+                "profile": { "name": "Lavisha" },
+                "wa_id": "919038069298"
               }
             ],
             "messages": [
               {
-                "from": "917567071072",
-                "id": "wamid.USER_CONSENT_REPLY_ID_ABCDEFGHIJKLMNOPQRSTUVW",
+                "from": "919038069298",
+                "id": "",
                 "timestamp": "1758577083",
                 "context": {
                   "from": "183958451475612",
-                  "id": "wamid.HBgMOTE3NTY3MDcxMDcyFQIAERgSOTQ5MkY3QjVGRUM3OEU0OUMwAA=="
+                  "id": ""
                 },
                 "type": "interactive",
                 "interactive": {
@@ -191,7 +194,6 @@ ONBOARDING_PAYLOADS = [
     }
   ]
 }
-
 ]
 
 def get_current_timestamp():
@@ -200,9 +202,48 @@ def get_current_timestamp():
 def generate_message_id():
     return f"wamid.{uuid.uuid4().hex}"
 
+# def extract_reply_pairs(log_text: str):
+#     reply_id_list=log_text.split("ReplyContext(")
+#     x=[]
+#     for i in reply_id_list:
+#         if "reply_id='" in i and "text='" in i:
+#             text=i.split("reply_id='",1)[1].split("'",1)[0]
+#             d=i.split("text='",1)[1].split("'",1)[0]
+#             x.append((text,d))
+#     return x
+
+# def extract_reply_pairs(log_text: str, msg_id: str):
+#     m_text="MessageContext(message_id='"+msg_id
+#     message_id_list=log_text.replace("\x00","").split(m_text)
+#     #reply_id_list=log_text.split("ReplyContext(")
+#     x=[]
+#     print("message_id_list:",message_id_list)
+#     for i in message_id_list:
+#         if "reply_id='" in i:
+#             text=i.split("reply_id='",1)[1].split("'",1)[0]
+#             t=i.split("text='",1)[1].split("'",1)[0]
+#             #d=i.split("message_id='",1)[1].split("'",1)[0]
+#             #x.append()
+
+#             return text
+def extract_reply_pairs(log_text: str):
+    #m_text="MessageContext(message_id='"+msg_id
+    message_id_list=log_text.split("[WhatsAppResponse")
+    #reply_id_list=log_text.split("ReplyContext(")
+    x=[]
+    #print("message_id_list:",message_id_list)
+    for i in message_id_list:
+        if "Message(id='" in i:
+            text=i.split("Message(id='",1)[1].split("'",1)[0]
+            #t=i.split("text='",1)[1].split("'",1)[0]
+            #d=i.split("message_id='",1)[1].split("'",1)[0]
+            #x.append()
+
+            return text
 @pytest.mark.asyncio
 async def test_whatsapp_onboarding_flow():
-    previous_bot_wamid = generate_message_id()
+    context_id = None
+    print("Starting onboarding flow test...")
 
     async with httpx.AsyncClient() as client:
         for step, payload_template in enumerate(ONBOARDING_PAYLOADS):
@@ -210,16 +251,46 @@ async def test_whatsapp_onboarding_flow():
             msg = payload["entry"][0]["changes"][0]["value"]["messages"][0]
             msg["id"] = generate_message_id()
             msg["timestamp"] = get_current_timestamp()
-            if "context" not in msg or msg.get("type") == "interactive":
-            	msg["context"] = {}
-            msg["context"]["id"] = previous_bot_wamid
+            #if "context" not in msg or msg.get("type") == "interactive":
+            #    msg["context"] = {}
+            if step > 0:
+                msg["context"]["id"] = context_id
+                print("context_id:",context_id)
+            print("-------------------------STEP",step+1,"-------------------------")
+            #print(payload)
+            
             response = await client.post(BASE_URL, json=payload)
-            assert response.status_code == 200, f"Step {step+1} failed with status {response.status_code}"
+            
+            print(f"Step {step+1} response: {response.json()}")
+            
+            # Assertions
+            # Print response for debugging
+            with open("../../../../output_byoeb.logs","r")as f:
+                logs=f.read()
+            with open("../../../../output_byoeb.logs","w")as f:
+                f.write(f"")
+            context_id=extract_reply_pairs(logs)
+            print("msg id:",msg["id"])
 
-            print(f"Step {step+1} completed. Response: {response.text}")
+            #print("\n*****************************\nreply_id_text:",reply_id_text)
+            print("\n*****************************\nLogs:",logs)
+            #context_id=extract_reply_pairs(logs,msg["id"])
+            #print("context_id:",context_id)
+            # for i,j in reply_id_text:
+            #     if step==0 and j.lower() in ["hi","hello","hey"]:
+            #         context_id=i
+            #     if step==1 and j.lower() in ["english"]:
+            #         context_id=i
+            #     if step==2 and j.lower() in ["others"]:
+            #         context_id=i
+            #     if step==3 and j.lower() in ["yes"]:
+            #         context_id=i
+            # Update bot message ID for next step
+            #previous_bot_wamid =  context_id
+            
+            assert response.status_code == 200, f"Step {step+1} failed"
+            #time.sleep(2)  # Simulate delay between messages
 
-        # Generate a new simulated bot wamid for the next step
-            previous_bot_wamid = generate_message_id()
 
 
 
