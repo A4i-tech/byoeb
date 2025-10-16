@@ -1,0 +1,1706 @@
+1 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+National  Sickle  Cell Anaemia  Elimination  Mission  
+ 
+ 
+User Manual  
+For 
+Sickle  Cell 
+Mobile  Application  
+ 
+ 
+Issue  Organization:  
+Ministry  of Health  and Family  Welfare  
+ 
+Version:  2.1.2 
+19th Dec,2024  
+ 
+App Developed  by 
+ 
+ 
+ 
+Health Projects Division  
+National  Informatics  Centre  
+Ministry of Electronics &  
+Information Technology  
+Government  of India  
+A-Block, CGO Complex,  
+Lodhi  Road,  New  Delhi – 110003  
+ 
+ 
+Note : No part of this publication may be reproduced in any form, in an elect ronic retrieval system or  
+otherwise,  without  the prior  written  permission  of NIC.
+2 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+ 
+ 
+ 
+ 
+Objective  
+ 
+The objective of ‘Sickle Cell’ mobile application is to facilitate beneficiary registration, entering test details ( for 
+test methods like solubility,  HPLC/Electrophoresis , Point of Care , CBC etc. ) for various haemoglobinopathies like 
+Thalassemia, Haemophilia and Other Variants apart from Sickle Cell Anaemia, captured in both online and offline 
+mode. Furthermore, the application has  been integrated with ABDM (Ayushman Bharat Digital Mission) 
+ecosystem. The application supports ABHA ID  based registry as well as ABHA ID creation using Aadhaar ID with 
+OTP or Fingerprint based or Face based  or Demo based Biometric  Authentication.  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 3 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+Table  of Contents  
+1. Introduction  ................................ ................................ ................................ .................. 4 
+2. Pre-requisites  ................................ ................................ ................................ ................ 5 
+3. Mobile  App Download ................................ ................................ ................................ .6 
+4.  Screens  ................................ ................................ ................................ ........................ 7 
+4.1. Login  ................................ ................................ ................................ ................... 7 
+4.2. MPIN  ................................ ................................ ................................ ................... 8 
+4.3. Home  ................................ ................................ ................................ ................... 9 
+4.3.1.  Unsync  Records…  ................................ ................................ ..................  10 
+4.4. Registration  ................................ ................................ ................................ .......11 
+4.4.1.  With AADHAAR  ID/VID ................................ ................................ .......13 
+4.4.1.1.  Using  OTP  ................................ ................................ ................... 14 
+4.4.1.2.  Using  Fingerprint  Bio Auth  ................................ ........................ 14 
+4.4.1.3.  Using  Face  Bio Auth  ................................ ................................ ..15 
+4.4.1.4.  Using Demo Auth  …………………………………………….. 16  
+4.4.2.  With ABHA  ID ................................ ................................ ........................ 16 
+4.4.3.  Offline/Manual  Entry  ................................ ................................ ............... 16 
+4.5. Screening  Tests  ................................ ................................ ................................ .17 
+4.5.1.  Test List ................................ ................................ ................................ ....17 
+4.5.2.  Test Details  ................................ ................................ ................................ 18 
+4.6. HPLC/Electrophoresis  Tests  ................................ ................................ ............. 19 
+4.6.1.  Confirmatory  Test List ................................ ................................ .............. 19 
+4.6.2.  Confirmatory  Test Details  ................................ ................................ ......... 20 
+4.7. View/Add  result  ................................ ................................ .............................. 21 
+4.8. Syncing ................................ ................................ ................................ ............. 24 
+4.9. Media Gallery ………………………………………………………………. 25  
+                    4.10.  Pull Master Data ….. ………………………………………………………. 26  
+4.11. Disease Management  ...……………………………………………………. 27  
+   4.11.1 . Patient Search  …………………………………………………………. 28  
+   4.11.2. Patient Profile  …………………………………………………………. 29  
+   4.11. 3. Medicine  ………………………………………………………………. 30  
+   4.11. 4. Lab Investigation ………………………...……………………………. 31 
+   4.11. 5. Blood Trans fusion .……………………………………………………. 32  
+   4.11. 6. Vaccination ..………………….. ………………………………………. 33  
+4.12. Medical  History…. ………………………………………………………… 34  
+5. Error  Conditions  ................................ ................................ ................................ .......... 35 
+6. Help…  ................................ ................................ ................................ ......................... 44 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 4 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+1. Introduction  
+Sickle  Cell:   
+ 
+Sickle Cell Disease (SCD) is a group of blood disorders  typically inherited from a person's  
+parents.  It results in an abnorm ality in the oxygen -carrying protein hemoglobin  found  in red 
+blood cells.  This leads to a rigid, sickle -like shape under certain circumstances. A number of  
+health  problems   may develop,   like attacks  of pain, anemia, swelling   in the hands  and 
+feet, bacterial  infections  and stroke.  Long -term pain may develop as people  get older.  
+ 
+National  Sickle  Cell Anaemia  Elimination Mission : 
+To address this serious issue of Sickle Cell Anaemia, other haemoglobinopathies  and to prevent 
+morbidity, mortality and  reduce prevalence rate,  ‘National Sickle Cell  Anaemia Elimination  
+Mission’ has been proposed  and is being  launched  in 17 states  and UTs where  this disease  is 
+most  common.  
+Under  this programme, NIC  has developed  following  software:  
+ Web  Application/portal  
+ Common  API to migrate  state existing  data 
+ Mobile  Application  
+Administrative  Information  
+App  Name  Sickle  Cell 
+Department  National  Health  Mission,  Ministry  of Health  and Family  
+Welfare,  GoI 
+Sector  Health  
+Category  G2G  
+Coverage  All Government  Health  Facilities  in India  
+Developer  National  Informatics  Centre  
+Technical  Details  
+Back -end Office  Application  https://sickle.nhm.gov.in/sickle2.0/  
+Platform  Android  
+Size  15 MB 
+Language  English  
+Last  Update  19-December -202 4 
+User  Authentication  Required,  through  Mobile  number  and OTP  of associated  Health  
+Facility  In-charge  
+Auto  Alerts  Yes,  through  SMS  and in app 
+Special  Permissions  Camera  
+Internet  Requirement  Required.  But app will work  offline  also  after  successful  login  
+while  connected.  
+Associated Parent website  
+URL  https://sickle.nhm.gov.in/sickle2.0/  
+ 
+ 
+ 5 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+2. Pre-requisites:  
+1. Before downloading the mobile app, the Health Facility In -charge must get her/his  
+mobile  number  registered  through  concerned  District  User  / State  User  / State  Admin.  
+Health facility user will be able to login only if her/his mobile number is registered.  
+Mobile number registration is mandatory as the facility user will received OTP on the  
+registered  mobile  number.  
+ 
+2. Installation  of RD Service  for Finger  Print  Biometric  from  Play Store  is mandatory.  
+Example  :- 
+ Morpho  SCL RDService  application  for MORPHO  Biometric  Fingerprint  sensors.  
+ Mantra  RD Services  application  for MANTRA  MFS100  Biometric 
+Fingerprint  sensors.  
+ Mantra  L1 RDServices  application  
+https://play.google.com/store/apps/details?id=com.mantra.mfs110.rdservice  
+for MFS110 L1  RDServices  Biometric Fingerprint  sensors.  
+ 
+3. It is mandatory for user to download AadhaarFaceRd from Play Store for Face  
+Authentication.  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 6 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+ 
+ 
+3. Mobile  App Download:  
+ 
+ 
+ 
+The user  can download  and install  the app from  Google Play -store for 
+Android and Appstore from iOS.  
+ 
+Once downloaded the user is suggested to go through the  
+Privacy  Policy,  link given  on login  page  before  using  the app.  At 
+present, the app is available both for  android and iOS.  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+7 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+4. Screens:  
+4.1 Login  
+ 
+ 
+  
+ 
+In order  to Login  into the Application,  user has 
+to enter  her/his  mobile  no. and  captcha  and 
+then click  on 'Proceed  to verify ' button.  
+Internet  is required  to Sign In.  
+Next,  user will be asked  for OTP  received  on 
+the registered  mobile  number.  User  will have  
+to enter OTP and then click on 'Proceed to  
+verify'  button.  Internet  is required  to proceed.  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+8 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+4.2 MPIN  
+ 
+ 
+ 
+Next, user has to generate the MPIN which  
+will be used to enter into the app next time  
+onwards.  
+Now  user will be redirected  to Home  Screen.  
+Internet connection is not mandatory to set  
+the MPIN.   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+9 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+4.3 Home  
+ 
+ 
+ 
+Internet  connection  is not mandatory  to access  
+Home.  
+ 
+This app contains  following  features:  
+ Registration:  To record  the screened  
+person’s  details.  
+ Test Reports: To record the 
+Screening  and Confirmatory  test of 
+beneficiary.  
+ View/Add Result: To check and edit  
+the test details of  the beneficiary.  
+ Syncing: To Sync offline (local  
+database)  data with the server’s  data.  
+ Media Gallery:  To download the 
+Videos, Links, PDFs etc.  
+ Note:  Notifications are rendering 
+direct from the server.  
+ Master Data:  Master based 
+Subtypes, Total Registrations done 
+by Health Facility, State and District 
+LGD data can be  configurable by 
+clicking the arrow on t he top right 
+corner of the Home Page.  
+ Disease Management:  To record 
+the details of M edications, Lab 
+Investigations, Blood Transfusions, 
+and V accinations of the disease d 
+patients.  
+ Medical History: To review the 
+Medicine s, Lab Investigations, 
+Blood Transfus ions, and 
+Vaccinations a dministered to 
+thediseased patients in the past, 
+based on their visit history.   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+10 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+ 
+ 
+4.3.1 Unsync  Records  
+ 
+ 
+By clicking on banner user able to see the records  
+which are not synced with the server. So User can  
+Sync,  Edit the Delete  the existing  record.   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+11 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+Relevance  of registration  through  ABHA  ID: 
+ 
+ABHA number is a 14 digit number that will uniquely identify you as a participant in India’s  
+digital  health  care ecosystem.  
+It is important to standardize the process of identification of an individual across health care  
+providers, to ensure that the created medical records are issued to the right individual or accessed  
+by a Health Information User through appropriate consent. The ABHA Number will be used fo r 
+the purposes of  uniquely  identifying  persons and  authenticating them.  
+Thus,  the registration  records  created  in mobile  app through  ABHA  will be able to link 
+themselves  with health  records created  in other  integrated  programmes.  
+ 
+Hence,  the facility  user is recommended  to register the  screened  people  through  ABHA  ID. 
+ 
+Note : * ABHA is now mandatory for patient registration *  
+ 
+ 
+4.4 Registration  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 12 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+ 
+ 
+Registration  of the screened  person  can be done  
+through  following ways:  
+ Through  ABHA  ID 
+ Proceed  without ABHA  
+Other  fields  in Registration:  
+ Name  
+ Gender  
+ Marital  Status  
+ Father/Husband  Name  
+ Blood  Group  
+ DOB  
+ Address  
+ Mobile  Number  
+ Category  
+ Registration  Date  
+ Save  & Test 
+o Saves  screened  person’s  details.  
+o To record  test details  immediately  
+following  registration.  
+ 
+ Save  
+o Saves  screened  person’s  details.  
+o User  needs  to open  ‘Screening  Test 
+Details’  to add  test details  later.  
+ 
+Note :  
+ Registration can be done online as well as  
+offline. In offline mode user can fill details 
+manually  and register  themselves  without  
+ABHA  and AADHAR  ID. 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+13 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+4.4.1 With  Aadhaar/VID  (Create  ABHA)  
+ 
+ 
+ 
+Have ABHA  Number  
+ 
+ 
+ No 
+ If not then you can: 
+ Create  ABHA  through  AADHAAR  
+no. or VID.  
+ Proceed without ABHA and  
+entering  the details  manually  
+ Internet  Connection  is mandatory.  
+Note : The screened person is required to carry AADHAAR  ID for 
+creation  of ABHA ID.  
+ 
+ 
+ 
+ 
+ 
+To create  ABHA  ID, following  options  are available:  
+ Through  Aadhaar ID  
+ Through  Virtual  ID 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+14 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+ 
+To create the ABHA ID through Aadhaar  
+ID/Virtual ID the  user is recommended to  use any 
+of these  options  in the order  given below:  
+ Through  OTP  verification  
+ Through Finger Print Authentication : 
+Can be used   if the screened person’s 
+mobile number is not seeded  with her/his  
+Aadhaar  ID. 
+ Through Face Authentication: In 
+absence of  Aadhaar  seeded  mobile  
+number  and STQC  certified  Biometric 
+device, the user is advised to use this  
+option.  
+  
+ 
+ 
+     
+ 
+ 
+ 
+Mobile  no. asked,  will be used to send the  ABHA 
+creation  message.  
+  
+ 
+ 
+ 
+ 
+ 
+4.4.1.1  Using  OTP  
+ 
+Through  OTP  Verification  
+ AADHAR  OTP  will be received  on AADHAAR  registered  mobile  no. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+15 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+ The RD Service  of the Biometric  device  used needs  to be installed  from  Play Store.  
+ 
+Note : 
+1. State  NHM  procure  any STQC  certified  Biometric  Device  from  market.  
+2. Each  device  provider should have  RD Service  available  on Android Play  Store.  
+3. Before  placing  the order,  state  NHM  official  may link the device with  Sickle mobile  
+app. 
+4. Finger authentication not available in iOS due to unavailability of  Finger  Rd services 
+on AppStore . 4.4.1.2  Using  Fingerprint  Bio Auth  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+4.4.1.3  Using  Face  Bio Auth  
+ 
+ 
+  
+Through Face Authentication:  
+ 
+• To access this feature the user needs to download 
+AadhaarFaceRd from Play Store.  
+ 
+https://play.google.com/store/apps/details?id=in.gov.uidai.facerd  
+ 
+The user is requested to follow the instructions shown in RD 
+service Application to capture her \his image successfully.  
+ 
+Note :  
+• USB debugging should be off while capturing the image.  
+• Face authentication not available in iOS due to 
+unavailability of  FaceAdharRd in respective of Rd services on 
+AppStore, the option of Face Auth has not been provided in iOS 
+at present.   
+ 
+ 
+ 
+16 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+Device  Specifications:  
+ 
+  
+Feature  New  Procurement  
+Android  API version  
+ 
+RAM  
+ 
+Disk  Space  
+ 
+Display  Size 
+ 
+Connectivity  
+ 
+Camera  Resolution  
+ 
+Camera  Types  
+ 
+Non-Rooted  OS (Google  Play Store  Compatible)  Android  9 (SDK  34) or greater  
+ 
+4+ GB 
+ 
+64 GB (Minimum  500MB  free disk space)  
+ 
+8 inches  or greater  
+ 
+Internet  Connectivity  required  
+ 
+5MP or greater  
+ 
+ Integrated  Rear  and Front  camera  
+ 
+Yes 
+ 
+ 
+4.4.1.4  Using Demo Auth  
+ 
+Through Demo  Authentication:  
+Screened person can create ABHA through 
+Demo Auth for this s creened person have to 
+fill their details as follows:  
+ Name  
+ Gender  
+ Date of Birth  
+ State  
+ District  
+ 
+ 
+ 
+ 
+17 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  4.4.2 With  ABHA  ID 
+ 
+ 
+ 
+Have ABHA  Number  
+ 
+ Yes 
+ If have  then enter  ABHA  
+Number  using  the following 
+options  similar  to ABHA  
+ID creation.  
+ Through  OTP  verification  
+ Through Finger Print  
+Authentication : Can be 
+used if  the screened  
+person’s  mobile  number  is 
+not seeded  with her/his  
+Aadhaar  ID. 
+ Through Face 
+Authentication:  In 
+absence of Aadhaar seeded  
+mobile  number  and STQC  
+certified Biometric device, 
+the user is advised  to use 
+this option.  
+ Internet  Connection  is 
+mandatory.  
+ 
+ 
+Note : The screened  person  is required  to know  
+ABHA  ID. 
+ 
+ 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+18 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)      4.4.3 Offline/Manual Entry  
+ 
+ 
+ 
+To enter all registration details manually including the person’s  
+image  (by clicking  camera  icon).  The user can opt this by  selecting  
+Not Create ABHA option  or if she/he  is offline.  
+ 
+19 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+4.5.1 Screening  Test  List 
+ 
+ 
+ 
+ Displays the list of people  
+registered and screening  
+test details  are not 
+entered.  
+ Can be accessed  offline.  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ By sliding the record  User is able to  
+delete  the record  but First  the record  
+will sync with the server then it will  
+be deleted.  
+ 
+ 
+ 
+ 
+ 
+20 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+4.5.2 Screening  Test  Details  
+ 
+ 
+Disease  Type  : Sickle  Cell 
+ 
+• Test Method  : Solubility Test  
+ 
+• Date  of Sample  Collection  
+ 
+• Date  of Result  
+ 
+• Solubility  Test Result  
+ 
+ 
+Disease  Type  : Thalassemia  
+ 
+ Type  of Test 
+ Date  of Sample  Collection  
+ Date  of Result  
+ Result  
+ Result  Subtype  
+  
+ 
+Disease  Type  : Haemophilia  
+ Date  of Sample  Collection  
+ Date  of Result  
+ Result  
+ 
+Details  can be saved  offline.  
+ 
+ 
+Note : No Screening of beneficiary can be done after 
+Confirmatory.   
+ 
+ 
+ 
+ 
+ 
+ 
+21 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+4.6.1 Confirmatory  Test  List 
+ 
+ 
+ 
+• Displays  the list of people  whose  
+solubility tests were found positive but  
+the results  of HPLC/Electrophoresis  tests  
+are not entered.  
+• Can be accessed  offline.  
+ 
+  Note :  
+    
+1. Provision to enter confirmatory test details      
+directly with or without completing screening 
+test details . 
+ 
+2. POC to come under confirmatory test and not 
+under Screening Test.  
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+22 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  4.6.2 Confirmatory  Test  Details  
+ 
+Disease Type : Sickle Cell  
+1. Solubility Test  
+ Date of Sample Collection  
+ Date of Result  
+ Solubility Test Result  
+2. Point of Care Test  
+ Vendor Name  
+ Result  
+ Result Sub Type  
+Disease Type : Thalassemia  
+ 
+ Type of Test  
+ Date of Sample Collection  
+ Date of Result  
+ Result  
+ Result Subtype  
+  Disease Type : Other Variants  
+ 
+ Type of Test  
+ Date of Sample Collection  
+ Date of Result  
+ Result  
+ Result Subtype  
+ 
+Details can be saved offline.   
+ 
+ 
+ 
+ 
+23 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+4.7 View/Add  Result  
+ 
+ 
+ 
+ 
+ ABHA seeding provision is given for the  
+records registered previously without  
+ABHA.  
+ 
+ Repeated tests( screening and  
+confirmatory) can be recorded for any  
+registered  person if  required.  
+ 
+ 
+. 
+Note  :  
+ Internet  is required.  
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+24 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+You can record the status of card 
+distribution and Hydroxyurea.  
+ 
+Note  :  
+ The Hydroxyurea option is available 
+only for diseased patients and can be 
+updated once . 
+ 
+ 
+By selecting  the Disease  type User  is able to 
+check  if the  Test details are  present  or not.  
+ 
+ If Present  then By pressing  View  Test 
+Details  button she/he will see the test 
+details  of the  corresponding  disease.  
+ 
+ 
+ 
+ 
+ 
+ 
+ If not Present then By pressing Enter 
+Test Details  button she/he can fill and 
+submit  the test details  of the 
+corresponding  disease.   
+ 
+ 
+ 
+25 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ABHA and Photo can be updated  with beneficiary’s 
+profile in registration record through View/Add 
+result.  
+ 
+ 
+Photo can be updated through Click and Upload 
+image  or by seed ABHA  option (recommended).  
+ 
+ABHA can be seeded by clicking on seed ABHA  
+option.   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+26 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  4.8 Syncing  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+4.9  Media Gallery  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+  
+• To sync the offline  registration  and test details  to 
+server.  
+• Internet  is required  to sync the data. 
+ 
+ 
+Note : 
+ The users are requested not to uninstall the app in any  
+case, if mandatory to uninstall then before uninstalling  
+they must sync all local data with server to ensure that  
+no data gets lost.  
+ 
+ 
+Beneficiary can download the PDFs, Links and 
+Videos from Media Gallery.   
+ 
+27 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  4.10 PULL  MASTER  DATA  
+ 
+Options to download through “Pull Master 
+data” and offline LGD data option  has been 
+provided in the Pull Master data option.   
+ 
+ 
+ 
+4.11 Disease Management  
+ 
+ 
+ 
+ 
+Disease Management includes the 
+following sub -modules: Medicine, 
+Lab Investigation, Blood 
+Transfusion, and Vaccination.  
+ 
+The Visit Number of beneficiary 
+and the total treatment  count, which 
+represents the number of treatments 
+provided by the HF user, are also 
+recorded.  
+ 
+ 
+ 
+     
+         
+28 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+4.11.1. Patient Search  
+ 
+ 
+ 
+Patient search is open to all HFs if  
+performed using Sickle ID, 
+ABHA ID, Mobile Number or 
+searching can be done by fetching 
+the list of beneficiaries reg istered 
+at the user's health  facility (HF).  
+ 
+Note : Only patients with test 
+reports indicating disease will 
+appear on the list.  
+ 
+ 
+  
+        
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+29 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+ 
+4.11.2. Patient Profile  
+ 
+ 
+ 
+The patient profile will display 
+details such as Sickle ID, Patient 
+Name, ABHA ID, Registration Date, 
+Last Visit On, Age, Mobile Number, 
+and Blood Group . 
+ 
+Users can update a patient's Age, 
+Mobile Number, and Blood Group  
+only once.  
+ 
+Note :  After pressing the Confirm 
+button, you can update the Age, 
+Blood Group, and Mobile Number . 
+Additionally, you will be able to 
+enter details for Medicine, Lab 
+Investigations, Blood Transfusions, 
+and Vaccinations . 
+ 
+  
+            
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+30 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  4.11.3 . Medicine  
+ 
+ 
+ 
+In medicine, we record the drug name  
+along with its SNOMED -CT code, 
+prescribed quantity, dispensed 
+quantity, prescription date, 
+dispensation date , and the name of the 
+center  where the medicine was 
+prescribed and dispensed.  
+ 
+Note :  
+ The quantity dispensed can not 
+be more than the quantity 
+prescribed.  
+ By default quantity prescribed 
+is equal to quantity dispensed , 
+may be modified as required.  
+ Minimum date of 
+Date(Prescribed)  will be the 
+result date of 
+Screening/Confirmatory test 
+entered during benef iciary 
+screening process.  
+ Date(Dispensed)  cannot be 
+before Date(Prescribed) .  
+ Drug name once taken for a 
+visit will not show for that visit 
+of the beneficiary.  
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+31 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  4.11. 4. Lab Ivestigation  
+ 
+ 
+In Lab Investigation, we record the Test 
+Name along with its SNOMED -CT 
+code, Sample Collection Date, Result 
+Date, and the Result  (currently 
+categorized as Normal or Abnormal 
+using SNOMED -CT codes). 
+Additionally, we capture the Center 
+Name (default: User’s H ealth Facility 
+Name). 
+ 
+Note :  
+ Minimum date Date  of Sample 
+Collection  of will be the result 
+date of Screening/Confirmatory 
+test entered during beneficiary 
+screening process.  
+ Date  of Result  cannot be before 
+Date  of Sample Collection .  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+32 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  4.11. 5. Blood Transfusion  
+ 
+ 
+In Blood Transfusion , we record the 
+Date of Blood T ransfusion along with 
+that, we capture the Center  Name  
+(default: User’s H ealth Facility Name). 
+ 
+Note : 
+ Minimum date of Blood 
+Transfusion  will be the result 
+date of Screening/Confirmatory 
+test entered during beneficiary 
+screening process.  
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+33 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  4.11. 6. Vaccination  
+ 
+ 
+In vaccination , we record the Vaccine  
+Name  along with its SNOMED -CT 
+Code, Vaccination D ate and the Dose. 
+Additionally, we capture the Center  
+Name  (default: User’s H ealth Facility 
+Name). 
+ 
+ 
+Note : 
+ Minimum date of vaccination  
+will be the result date of 
+Screening/Confirmatory  test 
+entered during beneficiary 
+screening process . 
+ The Date of Next Vaccination  
+is suggested based on the 
+vaccine name and dose selected 
+to assist with entry.  
+ If the  Last Dose is selected  is 
+selected for a specific vaccine, 
+the next vaccine date will not 
+be displayed.  
+ The Date of Next Vaccination  
+is an optional field.   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+34 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+ 
+   4.12 Medical History  
+ 
+ 
+Patient search is open to all HFs  
+can be performed  using Sickle ID 
+or ABHA ID, which retrieves a 
+visit-wise list of  that patient . 
+ 
+The user ca n view and monitor the 
+list of Medicines , Lab 
+Investigation, Blood Transfusion, 
+Vaccines  added during a par ticular 
+visit by the health facility (HF) 
+user.  
+  
+                                                                            
+            
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+35 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  5. Error  Conditions  
+ 
+5.1 Syncing  error  
+ 
+ 
+While Syncing the data user get this error to  
+resolve this error user have to click on show  
+button and then she/he will be able to edit the  
+data.  
+ 
+Following  are the reasons  of this error:  
+ Mobile  number  already  registered  with 
+5 records.  
+ 
+ Duplicate  Record  entered.  
+ 
+5.2 Handshake Exception  
+ 
+ 
+While Login getting this error means your 
+android version is lower than 7 and Sickle 
+cell a pplication  not running on version lower 
+than 7.   
+ 
+ 
+ 
+5.3 Developer Mode  error  
+36 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+ 
+The application won’t work when the developer 
+option is ON.   
+ 
+ 
+ 
+ 
+ 
+5.4 Mobile  number  not exist  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+On Login user get this error and for resolving the  
+user must get her/his mobile number registered  
+through her/his district user, state user or state  
+admin.  
+ 
+37 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  5.5 Invalid Token  
+ 
+ 
+ 
+When any Facility user login to another mobile and then try to 
+use the app in old phone then she/he will get this error. Anyone 
+can use this app in one mobile at a time.   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+5.6 Kindly Pull The LGD Masters . 
+ 
+ 
+The alert suggests that the user has not downloaded 
+the LGD  data  i.e. state,  district,  blocks etc. .  
+To fix this, the user may click ok and download the 
+LGD  data from master download option .  
+ 
+ 
+ 
+38 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+5.7 Registration  details  and Test  Details  already  present.  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+5.8  Developer Mode and Emulators  
+ 
+ 
+When the developer mode option is enab le on the 
+User’s mobile then she/he will get this alert. For the 
+security purpose the user is n ot allow ed to use the 
+application in devel oper mode.   
+ 
+ 
+ 
+ 
+If his/her Registration details and Test Details  
+already  present.   
+ 
+39 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  5.9  Test Details Blank Fields Error . 
+ 
+When user do not finds any field then she/he have 
+to click on the down arrow of Home screen and pull 
+the ‘Test details form fields’ . 
+    
+ 
+5.10 Demo Auth Profile Photo no Exists.  
+ 
+The user gets this error if the profile data of 
+beneficiary is not available with ABDM . The user is 
+then prompted to capture profile and enter other details 
+manually.  
+ 
+ 
+ 
+40 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  
+ 
+ 
+ 
+5.11 Registration  details  already  exists.  Test  details  needs  to enter.  
+ 
+ 
+ 
+If his/her  Registration  details  already  present  
+but the Test details  of his/her  not present.   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+5.12  ABHA  Creation/Verification  using  fingerprint  Bio Auth  
+ 
+ 41 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  If the user is getting the given alert, then user  
+should disconnect the Biometric device, quit  
+the app, followed by enabling the OTG  
+connection if disabled and reconnecting the  
+device and restarting the app. The user is also  
+suggested  to repeat  the steps  after restarting  the 
+mobile if the above steps don’t resolve the  
+issue.  
+ 
+ 
+ 
+ 
+At this point the user has to enable the OTG  
+connection  from  your system's  settings.  
+ 
+42 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  Rd Service  not installed,  please  install from  
+Play Store.  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+5.13  ABHA  Creation/Verification  using  Face  Bio Auth  
+ 
+ 
+43 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  
+Please  focus  towards  the camera  
+ 
+Please  improve  lighting  and hold still  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+44 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)  The user should Hold Still and continue blink  
+while  capture.  
+ 
+Please download theAadharFaceRd Service  
+from  Play Store.  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+45 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   To raise  an issue,  the user is  requested  to visit https://sickle.nhm.gov.in/sickle2.0/home  
+and clickon  Raise Ticket  Image  on the footer.  
+ The user will land on iTMS  web application, where  the user can click  on Raise  Ticket  
+option  on top right  corner.  
+ On clicking  the Raise  Ticket, The user can  give the mobile  number  followed  by OTP  
+verification.  
+ Click  on Action  Radio  Button  and click  Raise  Ticket.  
+ Select  Mobile  App in Module,  select  Sub Module  and Form, enter  issue,  attach  supporting  
+file and submit.  Please  disable  the USB  debugging  in Mobile  
+Settings  while  capturing  image.  
+ 
+ 
+ 
+6. Help  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+46 | P a g e  
+ 
+NIC( 19 Dec 2024  User  Manual)                                                                                                              NHM,  MoHFW,  GoI(Sickle  Cell)   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 

@@ -2,8 +2,6 @@ import os
 import re
 import shutil
 import sys
-__import__("pysqlite3")
-sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 
 import chromadb
 import json
@@ -30,7 +28,7 @@ class KnowledgeBase:
             model_name="text-embedding-3-large"
         )
         
-        self.llm_prompts = json.load(open(os.path.join(os.environ["APP_PATH"], os.environ["DATA_PATH"], "llm_prompt.json")))
+        self.llm_prompts = json.load(open(os.path.join(os.environ["APP_PATH"], os.environ["DATA_PATH"], "llm_prompt.json"), encoding='utf-8'))
 
         self.client = chromadb.PersistentClient(
             path=self.persist_directory, settings=Settings(anonymized_telemetry=False)
