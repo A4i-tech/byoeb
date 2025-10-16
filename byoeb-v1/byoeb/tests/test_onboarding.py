@@ -228,16 +228,24 @@ def generate_message_id():
 #             return text
 def extract_reply_pairs(log_text: str):
     #m_text="MessageContext(message_id='"+msg_id
-    message_id_list=log_text.split("[WhatsAppResponse")
+
+    message_id_list1=log_text.split("[WhatsAppResponse")
+    message_id_list2=log_text.split("ByoebMessageContext")
     #reply_id_list=log_text.split("ReplyContext(")
-    x=[]
+    text=""
     #print("message_id_list:",message_id_list)
-    for i in message_id_list:
-        if "Message(id='" in i:
+    for i in message_id_list1:
+        if "Message(id=" in i:
             text=i.split("Message(id='",1)[1].split("'",1)[0]
+            #text=i.split("reply_id='",1)[1].split("'",1)[0]
             #t=i.split("text='",1)[1].split("'",1)[0]
             #d=i.split("message_id='",1)[1].split("'",1)[0]
             #x.append()
+            return text
+    if text is None or text=="":
+        for i in message_id_list2:
+            if "message_id=" in i:  
+                text=i.split("message_id='",1)[1].split("'",1)[0]
 
             return text
 @pytest.mark.asyncio
