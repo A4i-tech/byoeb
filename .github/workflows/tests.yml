@@ -1,10 +1,6 @@
 name: CI - Tests & Quality Checks
 
 on:
-  push:
-    branches: [ a4i/main, a4i/main-CD-1 ]
-  pull_request:
-    branches: [ a4i/main, a4i/main-CD-1 ]
   workflow_call:
     inputs:
       environment:
