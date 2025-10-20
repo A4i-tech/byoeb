@@ -168,12 +168,12 @@ async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service
         uid = doc["user_id"]
         user_doc = await user_client.afetch({"User.user_id": uid})
         if not user_doc:
-            send_logger.error("User %s not found", uid, extra={"dyk": {
+            send_logger.warning("User %s not found", uid, extra={"dyk": {
                 "context": dispatch.__name__,
                 "dyk_id": doc["dyk_id"],
                 "user_id": uid
             }})
-            n_failure += 1
+            await dyk_client.aupdate({"_id": doc["_id"]}, {"$set": {"status": "aborted"}})
             continue
 
         phone_number = user_doc["User"]["phone_number_id"]
