@@ -8,7 +8,7 @@ import random
 import uuid
 import sys
 from byoeb.background_jobs.config import app_config
-from byoeb.background_jobs.did_you_know.config import bot_config
+from byoeb.background_jobs.did_you_know.config import bot_config, current_dir
 from byoeb.background_jobs.dependency_setup import app_insights_logger, channel_client_factory, user_db_service
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.services.channel.whatsapp import WhatsAppService
@@ -22,7 +22,6 @@ from typing import Dict, Iterable, Tuple
 
 class LangEntry(BaseModel):
     language: LanguageCode
-    column: str  # name of the column in the facts sheet
     template: str  # a template to decorate the message. {message} is the placeholder for the fact.
 
     @field_validator("template", mode="before")
@@ -318,7 +317,7 @@ N_RETRIES = 5  # number of times to retry dispatch()ing to WhatsApp in the event
 
 dyks_sent_collection_name = app_config["databases"]["mongo_db"]["dyks_sent_collection"]
 
-SOURCE_PATH = Path(bot_config["path"]).resolve()
+SOURCE_PATH = (current_dir / str(bot_config["path"])).resolve()
 if not SOURCE_PATH.exists():
     run_logger.error("File no found: %s", SOURCE_PATH)
     exit(1)
@@ -329,7 +328,7 @@ with SOURCE_PATH.open() as f:
 
     # fail fast - if these expected cols dont exist, python will bail early
     cols = next(reader)
-    lang_cols = {lang.language: cols.index(lang.column) for lang in LANG_ENTRIES.values()}
+    lang_cols = {lang.language: cols.index(lang.language.value) for lang in LANG_ENTRIES.values()}
     guid_col = cols.index("GUID")
 
     records = {lang: {} for lang in lang_cols.keys()}
