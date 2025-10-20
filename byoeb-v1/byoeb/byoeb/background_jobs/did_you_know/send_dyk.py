@@ -3,10 +3,12 @@ import csv
 import json
 import logging
 import os
+from pathlib import Path
 import random
 import uuid
 import sys
 from byoeb.background_jobs.config import app_config
+from byoeb.background_jobs.did_you_know.config import bot_config
 from byoeb.background_jobs.dependency_setup import app_insights_logger, channel_client_factory, user_db_service
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.services.channel.whatsapp import WhatsAppService
@@ -15,7 +17,7 @@ from byoeb_core.models.byoeb.user import User
 from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import StatusCode
 from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, Tuple
 
 
 class LangEntry(BaseModel):
@@ -310,22 +312,19 @@ send_logger.setLevel(logging.DEBUG)
 send_logger.addHandler(handler)
 send_logger.addHandler(app_insights_handler)
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-config = json.load(open(os.path.join(current_dir, "bot_config.json")))
-_LANG_ENTRIES = [LangEntry(**e) for e in config["languages"]]
+_LANG_ENTRIES = [LangEntry(**e) for e in bot_config["languages"]]
 LANG_ENTRIES = {e.language: e for e in _LANG_ENTRIES}
 N_RETRIES = 5  # number of times to retry dispatch()ing to WhatsApp in the event of failure
 
 dyks_sent_collection_name = app_config["databases"]["mongo_db"]["dyks_sent_collection"]
 
-SOURCE_PATH = os.path.abspath(config["path"])
-
-if not os.path.exists(SOURCE_PATH):
+SOURCE_PATH = Path(bot_config["path"]).resolve()
+if not SOURCE_PATH.exists():
     run_logger.error("File no found: %s", SOURCE_PATH)
     exit(1)
 
 # parse and index facts sheet for quick lookup
-with open(SOURCE_PATH) as f:
+with SOURCE_PATH.open() as f:
     reader = csv.reader(f)
 
     # fail fast - if these expected cols dont exist, python will bail early
