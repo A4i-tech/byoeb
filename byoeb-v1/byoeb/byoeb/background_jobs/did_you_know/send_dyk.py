@@ -331,11 +331,17 @@ with SOURCE_PATH.open() as f:
     lang_cols = {lang.language: cols.index(lang.language.value) for lang in LANG_ENTRIES.values()}
     guid_col = cols.index("GUID")
 
+    expected_cols = {"GUID", *[l.language.value for l in LANG_ENTRIES.values()]}
+    unexpected_cols = [c for c in cols if c not in expected_cols]
+    if len(unexpected_cols) > 0:
+        run_logger.error("Unexpected columns encountered in %s: %s", SOURCE_PATH.name, ", ".join(unexpected_cols))
+        exit(1)
+
     records = {lang: {} for lang in lang_cols.keys()}
-    for col in reader:
-        id = str(uuid.UUID(col[guid_col]))  # validate uuids, bail early if in invalid format
-        for lang, idx in lang_cols.items():
-            message = col[idx].strip()
+    for row in reader:
+        id = str(uuid.UUID(row[guid_col]))  # validate uuids, bail early if in invalid format
+        for lang, lang_col in lang_cols.items():
+            message = row[lang_col].strip()
             if len(message) > 0:
                 records[lang][id] = message
 
