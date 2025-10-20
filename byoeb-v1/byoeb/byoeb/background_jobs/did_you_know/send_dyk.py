@@ -335,7 +335,7 @@ with open(SOURCE_PATH) as f:
 
     records = {lang: {} for lang in lang_cols.keys()}
     for col in reader:
-        id = str(uuid.UUID(col[2]))  # validate uuids, bail early if in invalid format
+        id = str(uuid.UUID(col[guid_col]))  # validate uuids, bail early if in invalid format
         for lang, idx in lang_cols.items():
             message = col[idx].strip()
             if len(message) > 0:
