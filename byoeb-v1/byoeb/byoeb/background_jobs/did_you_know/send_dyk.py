@@ -123,6 +123,7 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[int, int]:
                 "user_id": user.user_id,
                 "user_phone_number": user.phone_number_id
             }})
+            n_exhausted += 1
             continue
         uuid = random.Random(user.user_id).choice(list(sorted(diff)))
         queued_client_ops.append({
