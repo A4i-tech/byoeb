@@ -102,12 +102,8 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]], user_types: List[st
             }
         }
 
-        dispatched, exhausted = await dispatch(records)
-        for phone_number, dyk_uuid in dispatched:
-            print("Assigned DYK %s to %s", (dyk_uuid, phone_number))
-
-        for phone_number in exhausted:
-            print("Cannot assign DYK to %s (they received all DYKs)" % phone_number)
+        queued, exhausted = await queue(records, [])
+        print("Queued %d ops, exhausted %d ops", queued, exhausted)
     """
 
     n_queued = 0
