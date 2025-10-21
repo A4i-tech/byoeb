@@ -311,7 +311,12 @@ with SOURCE_PATH.open() as f:
 
     # fail fast - if these expected cols dont exist, python will bail early
     cols = next(reader)
-    lang_cols = {lang.language: cols.index(lang.language.value) for lang in LANG_ENTRIES.values()}
+    lang_cols = {}
+    for lang in LANG_ENTRIES.values():
+        col = lang.language.value
+        if col not in cols: raise ValueError(f'Column "{col}" does not exist in {SOURCE_PATH.name} - did you forget to create a column for "{col}"?')
+        lang_cols[lang.language] = cols.index(col)
+
     guid_col = cols.index("GUID")
 
     expected_cols = {"GUID", *[l.language.value for l in LANG_ENTRIES.values()]}
