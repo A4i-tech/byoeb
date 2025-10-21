@@ -1,6 +1,7 @@
 import re
 import hashlib
 import httpx
+import os
 from typing import List, Dict, Any
 from datetime import datetime, timezone
 from byoeb.chat_app.configuration.config import bot_config
@@ -23,12 +24,28 @@ conversations: Dict[str, List[Dict[str, str]]] = {}
 
 service_name = "khushi-baby-asha-search"
 doc_index_name = "khushi-baby-asha-doc-index-3"
-vector_store = AzureVectorStore(
-    service_name=service_name,
-    index_name=doc_index_name,
-    embedding_function=embedding_fn,
-    credential=DefaultAzureCredential()  # Assuming credential is set in the environment or elsewhere
-)
+
+# Use API key authentication instead of DefaultAzureCredential
+from azure.core.credentials import AzureKeyCredential
+azure_search_api_key = os.getenv("AZURE_SEARCH_API_KEY")
+
+if azure_search_api_key:
+    print("[INFO] Using AzureKeyCredential (API key from environment).")
+    vector_store = AzureVectorStore(
+        service_name=service_name,
+        index_name=doc_index_name,
+        embedding_function=embedding_fn,
+        credential=AzureKeyCredential(azure_search_api_key)
+    )
+else:
+    print("[INFO] Using DefaultAzureCredential (no API key found).")
+    vector_store = AzureVectorStore(
+        service_name=service_name,
+        index_name=doc_index_name,
+        embedding_function=embedding_fn,
+        credential=DefaultAzureCredential()
+    )
+
 def update_conversations(user_id, question, answer, history_length):
     """
     Update the conversation history for a user.
@@ -92,8 +109,17 @@ async def llm_translation_and_query_rewritting(system_prompt, question, conversa
     llm_response, response_text = await llm_translate_and_rewrite_client.agenerate_response(augmented_prompts)
     tokens = llm_translate_and_rewrite_client.get_response_tokens(llm_response)
     query_en, query_en_addcontext, query_type  = parse_xml_with_regex(response_text)
+
+    # Fallback parsing if XML format fails
     if query_en is None or query_en_addcontext is None or query_type is None:
-        raise Exception("LLM response is not in expected format")
+        print(f"Warning: LLM response not in expected XML format. Response: {response_text}")
+        # Use fallback values
+        query_en = question  # Use original question as English translation
+        query_en_addcontext = question  # Use original question as context
+        query_type = "Clinical"  # Default query type
+
+        print(f"Using fallback values - query_en: {query_en}, query_type: {query_type}")
+
     return query_en, query_en_addcontext, query_type, tokens
 
 async def get_embedding(text):
@@ -117,6 +143,11 @@ async def get_embedding(text):
         
 async def aretrieve_top_k_chunks(query_text, k, search_type, embedding_type = "text-embedding-3-large", select=None):
     print(f"Retrieving top {k} chunks for query: {query_text} with search type: {search_type} and embedding type: {embedding_type}")
+
+    # Map similarity to valid search types
+    if search_type == "similarity":
+        search_type = "hybrid"  # Use hybrid search for similarity
+
     if embedding_type == "text-embedding-3-large":
         retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
             query_text,
@@ -213,8 +244,16 @@ async def agenerate_answer(
     llm_response, response_text = await llm_client.agenerate_response(augmented_prompts)
     tokens = llm_client.get_response_tokens(llm_response)
     response_en, response_source = parse_response_xml(response_text)
+
+    # Fallback parsing if XML format fails
     if response_en is None or query_type is None:
-        raise ValueError("Parsing failed, response or query_type is None.")
+        print(f"Warning: Answer generation XML parsing failed. Response: {response_text}")
+        # Use fallback values
+        response_en = response_text if response_text else "I don't have enough information to answer this question."
+        response_source = "fallback"
+
+        print(f"Using fallback answer: {response_en}")
+
     return response_en, response_source, tokens
 
 async def process_message(input: QueryInput) -> QueryOutput:
