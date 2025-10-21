@@ -182,21 +182,7 @@ async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service
         text_message = ByoebMessageContext(
             channel_type="whatsapp",
             message_category="did_you_know",
-            user=User(
-                user_id=f"did_you_know-{phone_number}",
-                user_name="Did You Know Bot",
-                user_location={},
-                user_language=lang.value,
-                user_type="bot",
-                phone_number_id=phone_number,
-                test_user=False,
-                experts={},
-                audience=[],
-                created_timestamp=ts,
-                activity_timestamp=ts,
-                last_conversations=[],
-                additional_info={}
-            ),
+            user=User(**user_doc["User"]),
             message_context=MessageContext(
                 message_id=f"did-you-know-{doc['_id']}",
                 message_type=MessageTypes.REGULAR_TEXT.value,
