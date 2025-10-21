@@ -198,7 +198,7 @@ async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service
                 additional_info={}
             ),
             message_context=MessageContext(
-                message_id=f"did-you-know-{phone_number}-{ts}",
+                message_id=f"did-you-know-{doc['_id']}",
                 message_type=MessageTypes.REGULAR_TEXT.value,
                 message_source_text=message,
                 message_english_text=message,
