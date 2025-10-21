@@ -32,9 +32,9 @@ container_name = "ashacontainer"
 
 # Linux/Production server commands (using exec with poetry)
 background_jobs = [
-    f"*/30 * * * * exec cd /app && poetry run python {jobs_path}/consensus/respond_with_consensus.py; exit",
-    f"00 8-20 * * * exec cd /app && poetry run python {jobs_path}/consensus/send_query_to_expert.py; exit",
-    f"*/1 * * * * exec cd /app && poetry run python {jobs_path}/message_leaderboard/leaderboard.py; exit",
+    f"*/30 * * * * cd /app && exec poetry run python byoeb/background_jobs/consensus/respond_with_consensus.py",
+    f"00 8-20 * * * cd /app && exec poetry run python byoeb/background_jobs/consensus/send_query_to_expert.py",
+    f"*/1 * * * * cd /app && exec poetry run python byoeb/background_jobs/message_leaderboard/leaderboard.py",
 ]
 
 # Windows/Local development commands (active for testing)
