@@ -2,8 +2,6 @@ import asyncio
 import csv
 import json
 import logging
-import os
-from pathlib import Path
 import random
 import uuid
 import sys
@@ -17,7 +15,7 @@ from byoeb_core.models.byoeb.user import User
 from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import StatusCode
 from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
-from typing import Dict, Iterable, Tuple
+from typing import Dict, Iterable, List, Tuple
 
 
 class LangEntry(BaseModel):
@@ -62,7 +60,7 @@ async def synchronize(records: Dict[LanguageCode, Dict[str, str]]) -> int:
     return updated
 
 
-async def pick_candidates(langs: Iterable[LanguageCode]):
+async def pick_candidates(langs: Iterable[LanguageCode], user_types: List[str]):
     """
     Does a buffered fetch operation on users collection and get their set of sent DYK ids.
     Collects only users who meet all the following criteria:
@@ -72,9 +70,11 @@ async def pick_candidates(langs: Iterable[LanguageCode]):
     - the user has no 'pending' DYKs
     """
     match_stage = {"User.user_language": {"$in": [x.value for x in langs]}}
-    if os.getenv("APP_ENV") == "PROD":
-        match_stage["User.user_type"] = "asha"
+    if len(user_types) > 0:
+        match_stage["User.user_type"] = {"$in": user_types}
+        match_stage["User.test_user"] = False
     else:
+        run_logger.debug(f"{pick_candidates.__name__}: user_types list is empty - selecting test users instead")
         match_stage["User.test_user"] = True
 
     user_client = await user_db_service._get_collection_client(user_db_service.collection_name)
@@ -88,7 +88,7 @@ async def pick_candidates(langs: Iterable[LanguageCode]):
         yield (User(**user["User"]), sent_dyk_ids)
 
 
-async def queue(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[int, int]:
+async def queue(records: Dict[LanguageCode, Dict[str, str]], user_types: List[str]) -> Tuple[int, int]:
     """
     Takes a structured set of DYK records and randomly distributes them across the userbase, ensuring:
     - a user is sent DYK message in only their language
@@ -114,7 +114,7 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]]) -> Tuple[int, int]:
     n_exhausted = 0
     lang_sets = {lang: set(messages.keys()) for lang, messages in records.items()}
     queued_client_ops = []
-    async for user, sent in pick_candidates(records.keys()):
+    async for user, sent in pick_candidates(records.keys(), user_types):
         lang = LanguageCode(user.user_language)
         diff = lang_sets[lang] - sent  # deduplication
         if len(diff) == 0:
@@ -239,13 +239,13 @@ async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service
     return n_success, n_failure
 
 
-async def main(records) -> None:
+async def main(records, user_types: List[str]) -> None:
     synced = await synchronize(records)
 
     # ❔ Number of pending messages that were discarded (because they no longer reference a DYK message).
     run_logger.info("Synced jobs: %d", synced)
 
-    queued, exhausted = await queue(records)
+    queued, exhausted = await queue(records, user_types)
     # ❔ Number of messages that were added to the dispatch queue.
     run_logger.info("Queued jobs: %d", queued)
 
@@ -297,6 +297,7 @@ send_logger.setLevel(logging.DEBUG)
 send_logger.addHandler(handler)
 send_logger.addHandler(app_insights_handler)
 
+user_types_to_send = bot_config["user_types_to_send"]
 _LANG_ENTRIES = [LangEntry(**e) for e in bot_config["languages"]]
 LANG_ENTRIES = {e.language: e for e in _LANG_ENTRIES}
 N_RETRIES = 5  # number of times to retry dispatch()ing to WhatsApp in the event of failure
@@ -332,4 +333,4 @@ with SOURCE_PATH.open() as f:
                 records[lang][id] = message
 
 if __name__ == "__main__":
-    asyncio.run(main(records))
+    asyncio.run(main(records, user_types_to_send))

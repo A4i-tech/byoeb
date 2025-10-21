@@ -1,5 +1,6 @@
 {
     "path": "dyk.csv",
+    "user_types_to_send": ["asha"],
     "languages": [
         {
             "language": "en",
