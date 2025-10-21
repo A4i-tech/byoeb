@@ -2,50 +2,102 @@ import pandas as pd
 import requests
 import json
 import argparse
-
+import requests, ast
+import pandas as pd
+from datetime import datetime
 def main():
     parser = argparse.ArgumentParser(description="Upload users from Excel files.")
-    parser.add_argument("--files", nargs="+", required=True, help="List of Excel file paths.")
-    parser.add_argument("--locations", nargs="+", required=True, help="List of user locations (same order as files).")
-    parser.add_argument("--types", nargs="+", required=True, help="List of user types (same order as files).")
-    parser.add_argument("--languages", nargs="+", required=True, help="List of user languages (same order as files).")
+    parser.add_argument("--file", required=True, help="List of Excel file paths.")
     parser.add_argument("--url", default="http://0.0.0.0:8000/register_users", help="API endpoint URL")
-
+    parser.add_argument(
+    "--update",
+    action="store_true",
+    help="If set, update users using the API endpoint")
+    parser.add_argument("--sheet")
+    
     args = parser.parse_args()
 
-    file_paths = args.files
-    locations = args.locations
-    user_types = args.types
-    languages = args.languages
+    file_path = args.file
     url = args.url
+    df = pd.read_excel(file_path, header=0)
+    users_onboarded = df.to_dict(orient="records") 
+    phone_numbers=[]  
+    for row in users_onboarded:
+	    row["phone_number_id"]=str(row["phone_number_id"])
+	    if "user_location" in row.keys():
+	    	row["user_location"]=ast.literal_eval(row["user_location"])
+	    	#print(row)
+	    phone_numbers.append(str(row["phone_number_id"]))
+    response = requests.post(url, headers={"accept": "application/json"}, data=json.dumps(users_onboarded))
+    #print(response, users_onboarded)
+    if response.status_code != 200:
+    	print(f"Error: {response.status_code} - {response.text}")
+    	exit(1)
+    else:
+    	print("Successfully registered")
+    API_URL = url.replace("register_users","get_users")
 
-    if not (len(file_paths) == len(locations) == len(user_types) == len(languages)):
-        raise ValueError("Number of files, locations, types, and languages must all be the same.")
+    
+    response = requests.get(
+    API_URL,
+    headers={"Content-Type": "application/json"},
+    json=phone_numbers
+)
+	#add items from users to user_onboarded such that we don't overwrite imp exisistin information
+    if response.status_code != 200:
+	    print(f"Error: {response.status_code} - {response.text}")
+	    exit(1)
+    else:
+    	    print("Successfully extracted")
+    	
+    users = response.json()
+    
+    if args.update:
+    	update_url=url.replace("register_users","update_users")
+    	
+    	#print(users_onboarded)
+    	update_response = requests.post(
+    update_url,
+    headers={
+        "accept": "application/json",
+        "Content-Type": "application/json"
+    },
+    data=json.dumps(users_onboarded)
+)
 
-    all_responses = []
+    	#print(update_response)
+    if args.sheet:
+    	response = requests.get(
+    API_URL,
+    headers={"Content-Type": "application/json"},
+    json=phone_numbers
+)
+    	if response.status_code != 200:
+    		print(f"Error: {response.status_code} - {response.text}")
+    		exit(1)
+    	else:
+    		print("Successfully Updated")
 
-    for i, file_path in enumerate(file_paths):
-        df = pd.read_excel(file_path, header=None)
-        sheet_data = df[0].dropna().astype(str).tolist()
-        phone_numbers = [int(x) for x in sheet_data if len(x) == 10 and x.isdigit()]
-
-        users_onboarded = []
-        for phone in phone_numbers:
-            users_onboarded.append({
-                "user_location": {"district": locations[i]},
-                "user_language": languages[i],
-                "user_type": user_types[i],
-                "phone_number_id": "91" + str(phone)
-            })
-
-        response = requests.post(url, headers={"accept": "application/json"}, data=json.dumps(users_onboarded))
-        all_responses.append((file_path, response.status_code, response.text))
-
-
-    with open("users_response.txt", "w", encoding="utf-8") as f:
-        for file_path, status, text in all_responses:
-            f.write(f"File: {file_path}\nStatus Code: {status}\nResponse: {text}\n\n")
+    	users = response.json()
+    	records = []
+    	for user_data in users:
+    		record = {
+		"user_id": user_data.get("user_id"),
+		"user_name": user_data.get("user_name"),
+		"phone": user_data.get("phone_number_id"),
+		"location": user_data.get("user_location"),
+		"user_type": user_data.get("user_type"),
+		"test_user": str(user_data.get("test_user")),
+		"onboarding_date": datetime.fromtimestamp(int(user_data.get("created_timestamp", 0))).date()
+		if user_data.get("created_timestamp") else None,
+		"language":user_data.get("user_language")
+	    }
+    		records.append(record)
+    	df = pd.DataFrame(records)
+    	df.to_excel(args.sheet, index=False)
+ 
 
 if __name__ == "__main__":
     main()
+ 
 
