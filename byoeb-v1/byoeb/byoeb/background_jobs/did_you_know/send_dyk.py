@@ -122,18 +122,18 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]], user_types: List[st
             }})
             n_exhausted += 1
             continue
-        uuid = random.Random(user.user_id).choice(list(sorted(diff)))
+        dyk_id = random.Random(user.user_id).choice(list(sorted(diff)))
         queued_client_ops.append({
-            "dyk_id": uuid,
+            "dyk_id": dyk_id,
             "dyk_lang": lang.value,
             "user_id": user.user_id,
             "time": datetime.now(),
             "status": "pending",
             "metadata": {}
         })
-        send_logger.info("User %s is assigned DYK %s", user.user_id, uuid, extra={"dyk": {
+        send_logger.info("User %s is assigned DYK %s", user.user_id, dyk_id, extra={"dyk": {
             "context": queue.__name__,
-            "dyk_id": str(uuid),
+            "dyk_id": str(dyk_id),
             "user_id": user.user_id,
             "user_phone_number": user.phone_number_id
         }})
