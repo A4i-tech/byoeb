@@ -21,8 +21,7 @@
             "provider_type": "azure_cosmos_mongo_db",
             "database_name": "ashadb",
             "user_collection": "ashausers",
-            "message_collection": "ashamessages",
-            "dyks_sent_collection": "ashadyks"
+            "message_collection": "ashamessages"
         }
     },
     "llms": {
@@ -54,11 +53,6 @@
                 "resource_id": "/subscriptions/fa06c841-cd7a-4855-b39b-70621812fff3/resourceGroups/khushi_baby_asha/providers/Microsoft.CognitiveServices/accounts/khushi-baby-asha-text-to-text",
                 "region": "swedencentral"
             }
-        }
-    },
-    "app_logger": {
-        "azure": {
-            "logger_name": "khushi-baby-asha-logger"
         }
     }
 }
