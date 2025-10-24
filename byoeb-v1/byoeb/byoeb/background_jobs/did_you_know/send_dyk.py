@@ -5,18 +5,24 @@ import logging
 import random
 import uuid
 import sys
-from byoeb.background_jobs.config import app_config
 from byoeb.background_jobs.did_you_know.config import bot_config, current_dir
-from byoeb.background_jobs.dependency_setup import app_insights_logger, channel_client_factory, user_db_service
+from byoeb.background_jobs.dependency_setup import app_insights_logger, channel_client_factory
+from byoeb.models.dyk import DykFactSheet, DykRecord
+from byoeb.repositories.dyk_repository import DykRepository
+from byoeb.repositories.user_repository import UserRepository
+from byoeb.utils.utils import chunked
 from byoeb.constants.user_enums import LanguageCode
+from byoeb.repositories.repository_factory import get_repository_factory
 from byoeb.services.channel.whatsapp import WhatsAppService
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageContext, MessageTypes
 from byoeb_core.models.byoeb.user import User
 from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import StatusCode
 from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
-from typing import Dict, Iterable, List, Tuple
+from typing import AsyncIterator, Iterable, List, Optional, Set, Tuple, TypeAlias
 
+
+DykBatch: TypeAlias = Iterable[Tuple[User, Set[str]]]
 
 class LangEntry(BaseModel):
     language: LanguageCode
@@ -27,40 +33,7 @@ class LangEntry(BaseModel):
         return "\n".join(v) if isinstance(v, list) else v
 
 
-async def synchronize(records: Dict[LanguageCode, Dict[str, str]]) -> int:
-    """
-    Synchronize pending records with the local facts sheet (CSV file). The idea here is
-    our CSV file may have had certain languages deleted and certain DYK messages removed,
-    and our goal is to gracefully handle these situations.
-
-    A call to synchronize() discards such pending records. A subsequent queue() call then
-    effectively replaces these pending records.
-    """
-    dyk_client = await user_db_service._get_collection_client(dyks_sent_collection_name)
-
-    tasks = []
-    # delete pending ops with unknown language
-    langs_to_keep = [lang.value for lang in records.keys()]
-    tasks.append(dyk_client.adelete({
-        "status": "pending",
-        "dyk_lang": {"$nin": langs_to_keep}
-    }))
-
-    # delete pending ops with unknown DYK uuid
-    for lang, dyks in records.items():
-        tasks.append(dyk_client.adelete({
-            "status": "pending",
-            "dyk_lang": lang.value,
-            "dyk_id": {"$nin": list(dyks.keys())}
-        }))
-
-    updated = 0
-    for _, count in await asyncio.gather(*tasks):
-        updated += count
-    return updated
-
-
-async def pick_candidates(langs: Iterable[LanguageCode], user_types: List[str]):
+async def pick_candidates(dyk_repo: DykRepository, user_repo: UserRepository, langs: Iterable[LanguageCode], user_types: List[str], batch_size: int) -> AsyncIterator[DykBatch]:
     """
     Does a buffered fetch operation on users collection and get their set of sent DYK ids.
     Collects only users who meet all the following criteria:
@@ -69,26 +42,22 @@ async def pick_candidates(langs: Iterable[LanguageCode], user_types: List[str]):
     - the user has a language available in `langs`
     - the user has no 'pending' DYKs
     """
-    match_stage = {"User.user_language": {"$in": [x.value for x in langs]}}
     if len(user_types) > 0:
-        match_stage["User.user_type"] = {"$in": user_types}
-        match_stage["User.test_user"] = False
+        potential_candidates = await user_repo.find_users_by_types(user_types)
     else:
         run_logger.debug(f"{pick_candidates.__name__}: user_types list is empty - selecting test users instead")
-        match_stage["User.test_user"] = True
+        potential_candidates = await user_repo.find_test_users()
+    
+    filtern_user_ids = set(record.user_id for record in await dyk_repo.find_pending_of_langs(langs))
+    users = map(lambda x: User(**x["User"]), potential_candidates)
+    users = filter(lambda x: x.user_id not in filtern_user_ids, users)
 
-    user_client = await user_db_service._get_collection_client(user_db_service.collection_name)
-    dyk_client = await user_db_service._get_collection_client(dyks_sent_collection_name)
-    for user in await user_client.afetch_all(match_stage):
-        uid = user["User"]["user_id"]
-        dyk_records = await dyk_client.afetch_all({"user_id": uid})
-        if dyk_records and any(r.get("status") == "pending" for r in dyk_records):
-            continue
-        sent_dyk_ids = set([r["dyk_id"] for r in dyk_records]) if dyk_records else set()
-        yield (User(**user["User"]), sent_dyk_ids)
+    for chunk in chunked(users, batch_size):
+        dyk_id_sets = await dyk_repo.find_sent_dyk_ids([str(u.user_id) for u in chunk])
+        yield zip(chunk, dyk_id_sets)
 
 
-async def queue(records: Dict[LanguageCode, Dict[str, str]], user_types: List[str]) -> Tuple[int, int]:
+async def queue(dyk_repo: DykRepository, sheet: DykFactSheet, candidates: DykBatch) -> Tuple[str, int, int]:
     """
     Takes a structured set of DYK records and randomly distributes them across the userbase, ensuring:
     - a user is sent DYK message in only their language
@@ -102,15 +71,16 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]], user_types: List[st
             }
         }
 
-        queued, exhausted = await queue(records, [])
+        batch_id, queued, exhausted = await queue(records, [])
         print("Queued %d ops, exhausted %d ops", queued, exhausted)
     """
 
+    batch_id = uuid.uuid4().hex
     n_queued = 0
     n_exhausted = 0
-    lang_sets = {lang: set(messages.keys()) for lang, messages in records.items()}
+    lang_sets = {lang: set(messages.keys()) for lang, messages in sheet.items()}
     queued_client_ops = []
-    async for user, sent in pick_candidates(records.keys(), user_types):
+    for user, sent in candidates:
         lang = LanguageCode(user.user_language)
         diff = lang_sets[lang] - sent  # deduplication
         if len(diff) == 0:
@@ -123,144 +93,164 @@ async def queue(records: Dict[LanguageCode, Dict[str, str]], user_types: List[st
             n_exhausted += 1
             continue
         dyk_id = random.Random(user.user_id).choice(list(sorted(diff)))
-        queued_client_ops.append({
-            "dyk_id": dyk_id,
-            "dyk_lang": lang.value,
-            "user_id": user.user_id,
-            "time": datetime.now(),
-            "status": "pending",
-            "metadata": {}
-        })
-        send_logger.info("User %s is assigned DYK %s", user.user_id, dyk_id, extra={"dyk": {
+        queued_client_ops.append(DykRecord(
+            dyk_id=uuid.UUID(dyk_id),
+            dyk_lang=lang,
+            user_id=str(user.user_id),
+            time=datetime.now(),
+            status="pending",
+            batch_id=batch_id
+        ))
+        send_logger.info("[batch-%s] User %s is assigned DYK %s", batch_id, user.user_id, dyk_id, extra={"dyk": {
             "context": queue.__name__,
             "dyk_id": str(dyk_id),
             "user_id": user.user_id,
+            "batch_id": batch_id,
             "user_phone_number": user.phone_number_id
         }})
         n_queued += 1
 
     if len(queued_client_ops) > 0:
-        dyk_client = await user_db_service._get_collection_client(dyks_sent_collection_name)
-        await dyk_client.ainsert(queued_client_ops)
-    return n_queued, n_exhausted
+        await dyk_repo.insert(queued_client_ops)
+    return batch_id, n_queued, n_exhausted
 
 
-async def dispatch(records: Dict[LanguageCode, Dict[str, str]], whatsapp_service: WhatsAppService) -> Tuple[int, int]:
+async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: DykFactSheet, whatsapp_service: WhatsAppService, batch_id: str) -> Tuple[int, int]:
     """ Dispatches queued DYK messages to WhatsApp. Returns number of successful and unsuccessful operations. """
+
+    pending = await dyk_repo.find_pending_of_batches(sheet.keys(), [batch_id])
+    users: dict[str, Optional[User]] = {p.user_id: None for p in pending}
+    for user in await user_repo.find_users_by_ids(list(users.keys())):
+        user = User(**user["User"])
+        users[str(user.user_id)] = user
 
     ts = int(datetime.now(timezone.utc).timestamp())
     n_success = 0
     n_failure = 0
 
-    dyk_client = await user_db_service._get_collection_client(dyks_sent_collection_name)
-    user_client = await user_db_service._get_collection_client(user_db_service.collection_name)
+    aborted = []
+    completed = []
+    try:
+        for record in pending:
+            user = users[record.user_id]
+            if not user:
+                send_logger.warning("User %s not found", record.user_id, extra={"dyk": {
+                    "context": dispatch.__name__,
+                    "dyk_id": record.dyk_id,
+                    "user_id": record.user_id,
+                    "batch_id": batch_id
+                }})
+                aborted.append(record._id)
+                continue
 
-    pending = await dyk_client.afetch_all({"status": "pending"})
-    # manual sort by dyk_id or time if needed (here user_id may not exist)
-    pending.sort(key=lambda d: str(d.get("dyk_id", "")))
+            phone_number = user.phone_number_id
+            message = LANG_ENTRIES[record.dyk_lang].template.replace("{message}", sheet[record.dyk_lang][str(record.dyk_id)])
 
-    for doc in pending:
-        uid = doc["user_id"]
-        user_doc = await user_client.afetch({"User.user_id": uid})
-        if not user_doc:
-            send_logger.warning("User %s not found", uid, extra={"dyk": {
+            text_message = ByoebMessageContext(
+                channel_type="whatsapp",
+                message_category="did_you_know",
+                user=user,
+                message_context=MessageContext(
+                    message_id=f"did-you-know-{record._id}",
+                    message_type=MessageTypes.REGULAR_TEXT.value,
+                    message_source_text=message,
+                    message_english_text=message,
+                    media_info=None,
+                    additional_info={},
+                ),
+                reply_context=None,
+                cross_conversation_id=None,
+                cross_conversation_context=None,
+                incoming_timestamp=ts,
+                outgoing_timestamp=ts
+            )
+
+            requests = whatsapp_service.prepare_requests(text_message)
+            if not requests:
+                send_logger.error("Failed to prepare a request message", extra={"dyk": {
+                    "context": dispatch.__name__,
+                    "dyk_id": record.dyk_id,
+                    "user_id": record.user_id,
+                    "batch_id": batch_id,
+                    "user_phone_number": phone_number
+                }})
+                n_failure += 1
+                continue
+
+            # TODO: we should probably batch `requests` here so we call send_requests() sparingly...
+            responses, message_ids = await whatsapp_service.send_requests(requests)
+            assert len(responses) == 1
+            if int(responses[0].response_status.status) != StatusCode.SUCCESS.value:
+                send_logger.error(responses[0].response_status.error, extra={"dyk": {
+                    "context": dispatch.__name__,
+                    "dyk_id": record.dyk_id,
+                    "user_id": record.user_id,
+                    "batch_id": batch_id,
+                    "user_phone_number": phone_number,
+                    "whatsapp_response_code": responses[0].response_status.status
+                }})
+                n_failure += 1
+                continue
+
+            send_logger.info("Sent DYK %s to user %s", record.dyk_id, record.user_id, extra={"dyk": {
                 "context": dispatch.__name__,
-                "dyk_id": doc["dyk_id"],
-                "user_id": uid
-            }})
-            await dyk_client.aupdate({"_id": doc["_id"]}, {"$set": {"status": "aborted"}})
-            continue
-
-        phone_number = user_doc["User"]["phone_number_id"]
-        lang = LanguageCode(doc["dyk_lang"])
-        message = LANG_ENTRIES[lang].template.replace("{message}", records[lang][doc["dyk_id"]])
-
-        text_message = ByoebMessageContext(
-            channel_type="whatsapp",
-            message_category="did_you_know",
-            user=User(**user_doc["User"]),
-            message_context=MessageContext(
-                message_id=f"did-you-know-{doc['_id']}",
-                message_type=MessageTypes.REGULAR_TEXT.value,
-                message_source_text=message,
-                message_english_text=message,
-                media_info=None,
-                additional_info={},
-            ),
-            reply_context=None,
-            cross_conversation_id=None,
-            cross_conversation_context=None,
-            incoming_timestamp=ts,
-            outgoing_timestamp=ts
-        )
-
-        requests = whatsapp_service.prepare_requests(text_message)
-        if not requests:
-            send_logger.error("Failed to prepare a request message", extra={"dyk": {
-                "context": dispatch.__name__,
-                "dyk_id": doc["dyk_id"],
-                "user_id": uid,
-                "user_phone_number": phone_number
-            }})
-            n_failure += 1
-            continue
-
-        # TODO: we should probably batch `requests` here so we call send_requests() sparingly...
-        responses, message_ids = await whatsapp_service.send_requests(requests)
-        assert len(responses) == 1
-        if int(responses[0].response_status.status) != StatusCode.SUCCESS.value:
-            send_logger.error(responses[0].response_status.error, extra={"dyk": {
-                "context": dispatch.__name__,
-                "dyk_id": doc["dyk_id"], 
-                "user_id": uid, 
+                "dyk_id": record.dyk_id,
+                "user_id": record.user_id,
+                "batch_id": batch_id,
                 "user_phone_number": phone_number,
-                "whatsapp_response_code": responses[0].response_status.status
+                "whatsapp_message_ids": json.dumps(message_ids)
             }})
-            n_failure += 1
-            continue
-
-        send_logger.info("Sent DYK %s to user %s", doc["dyk_id"], uid, extra={"dyk": {
-            "context": dispatch.__name__,
-            "dyk_id": doc["dyk_id"],
-            "user_id": uid,
-            "user_phone_number": phone_number,
-            "whatsapp_message_ids": json.dumps(message_ids)
-        }})
-        await dyk_client.aupdate({"_id": doc["_id"]}, {"$set": {
-            "status": "completed",
-            "metadata.message_ids": message_ids
-        }})
-        n_success += 1
-
+            completed.append(record._id)
+            n_success += 1
+    finally:
+        await dyk_repo.update_status(aborted, "aborted")
+        await dyk_repo.update_status(completed, "completed")
     return n_success, n_failure
 
 
-async def main(records, user_types: List[str]) -> None:
-    synced = await synchronize(records)
+async def main(sheet: DykFactSheet, user_types: List[str], batch_size: int) -> None:
+    async def batch_process_and_log(batch: DykBatch):
+        batch_id, queued, exhausted = await queue(dyk_repo, sheet, batch)
+        run_logger.info("[batch-%s] Queued jobs: %d", batch_id, queued, extra={"dyk": {"batch_id": batch_id}})  # messages that were added to the dispatch queue
+        run_logger.info("[batch-%s] Exhausted jobs: %d", batch_id, exhausted, extra={"dyk": {"batch_id": batch_id}})  # users who could not be sent a DYK message (because they have received every DYK message)
 
-    # ❔ Number of pending messages that were discarded (because they no longer reference a DYK message).
-    run_logger.info("Synced jobs: %d", synced)
+    async def batch_dispatch_and_log(service: WhatsAppService, batch_id: str):
+        dispatch_success, dispatch_fail = await dispatch(dyk_repo, user_repo, sheet, service, batch_id)
+        run_logger.info("[batch-%s] %d succeeded, %d failed", batch_id, dispatch_success, dispatch_fail, extra={"dyk": {"batch_id": batch_id}})
+        return batch_id, dispatch_success, dispatch_fail
 
-    queued, exhausted = await queue(records, user_types)
-    # ❔ Number of messages that were added to the dispatch queue.
-    run_logger.info("Queued jobs: %d", queued)
-
-    # ❔ Number of users who could not be sent a DYK message (because they have received every DYK message).
-    run_logger.info("Exhausted jobs: %d", exhausted)
-
-    whatsapp_service = WhatsAppService(channel_client_factory)
     try:
+        factory = await get_repository_factory()
+        dyk_repo = await factory.get_dyk_repository()
+        user_repo = await factory.get_user_repository()
+
+        # sync (...with runtime. delete pending records with unknown langs, unknown dyk ids)
+        synced = await dyk_repo.synchronize({k: list(v.keys()) for k, v in sheet.items()})
+        run_logger.info("Synced jobs: %d", synced)  # pending messages that were discarded (because they no longer reference a DYK message)
+
+        # schedule (pick candidates in batches and assign them dyk ids)
+        batcher = pick_candidates(dyk_repo, user_repo, sheet.keys(), user_types, batch_size)
+        await asyncio.gather(*[batch_process_and_log(batch) async for batch in batcher])
+
+        # dispatch (...to whatsapp. pick a batch of candidates and send them their assigned dyks)
+        whatsapp_service = WhatsAppService(channel_client_factory)
+        batch_ids = await dyk_repo.find_pending_batch_ids()
         retries = 0
         while True:
             if retries > 0:
                 run_logger.warning("Retrying dispatch job... %d / %d", retries + 1, N_RETRIES)
-            dispatch_success, dispatch_fail = await dispatch(records, whatsapp_service)
 
-            # ❔ Number of messages that were sent to WhatsApp (includes messages that were just queued).
-            run_logger.info("Dispatched jobs: %d succeeded, %d failed", dispatch_success, dispatch_fail)
+            failed_batches = []
+            tasks = [asyncio.create_task(batch_dispatch_and_log(whatsapp_service, bid)) for bid in batch_ids]
+            for coro in asyncio.as_completed(tasks):
+                batch_id, success, fail = await coro
+                run_logger.info("[batch-%s] Dispatched jobs: %d succeeded, %d failed", batch_id, success, fail, extra={"dyk": {"batch_id": batch_id}})  # messages that were sent to WhatsApp (includes messages that were just queued)
+                if fail > 0:
+                    failed_batches.append(batch_id)
 
-            if dispatch_fail == 0:
+            if len(failed_batches) == 0:
                 break
+            batch_ids = failed_batches
             retries += 1
             if retries == N_RETRIES:
                 run_logger.error("Max retries exceeded. Exiting.")
@@ -298,8 +288,6 @@ _LANG_ENTRIES = [LangEntry(**e) for e in bot_config["languages"]]
 LANG_ENTRIES = {e.language: e for e in _LANG_ENTRIES}
 N_RETRIES = 5  # number of times to retry dispatch()ing to WhatsApp in the event of failure
 
-dyks_sent_collection_name = app_config["databases"]["mongo_db"]["dyks_sent_collection"]
-
 SOURCE_PATH = (current_dir / str(bot_config["path"])).resolve()
 if not SOURCE_PATH.exists():
     run_logger.error("File no found: %s", SOURCE_PATH)
@@ -325,13 +313,13 @@ with SOURCE_PATH.open() as f:
         run_logger.error("Unexpected columns encountered in %s: %s", SOURCE_PATH.name, ", ".join(unexpected_cols))
         exit(1)
 
-    records = {lang: {} for lang in lang_cols.keys()}
+    sheet: DykFactSheet = {lang: {} for lang in lang_cols.keys()}
     for row in reader:
         id = str(uuid.UUID(row[guid_col]))  # validate uuids, bail early if in invalid format
         for lang, lang_col in lang_cols.items():
             message = row[lang_col].strip()
             if len(message) > 0:
-                records[lang][id] = message
+                sheet[lang][id] = message
 
 if __name__ == "__main__":
-    asyncio.run(main(records, user_types_to_send))
+    asyncio.run(main(sheet, user_types_to_send, 256))
