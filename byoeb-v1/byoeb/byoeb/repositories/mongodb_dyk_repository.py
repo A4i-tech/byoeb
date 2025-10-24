@@ -1,6 +1,8 @@
 import asyncio
 import json
 from typing import Dict, Iterable, List, Set
+
+from bson import ObjectId
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.models.dyk import DykRecord
 from byoeb.repositories.dyk_repository import DykRepository
@@ -39,7 +41,7 @@ class MongoDykRepository(DykRepository):
 
     async def find_pending_of_langs(self, langs: Iterable[LanguageCode]) -> List[DykRecord]:
         results = await self._collection.afetch_all({"status": "pending", "dyk_lang": {"$in": [x.value for x in langs]}})
-        return [DykRecord.model_validate(result) for result in results]
+        return [DykRecord.model_validate({"id": str(result.pop("_id")), **result}) for result in results]
 
     async def find_pending_of_batches(self, langs: Iterable[LanguageCode], batch_ids: List[str]) -> List[DykRecord]:
         results = await self._collection.afetch_all({
@@ -47,7 +49,7 @@ class MongoDykRepository(DykRepository):
             "dyk_lang": {"$in": [x.value for x in langs]},
             "batch_id": {"$in": batch_ids}
         })
-        return [DykRecord.model_validate(result) for result in results]
+        return [DykRecord.model_validate({"id": str(result.pop("_id")), **result}) for result in results]
 
     async def find_pending_batch_ids(self) -> List[str]:
         results = await self._collection.aaggregate([
@@ -64,10 +66,10 @@ class MongoDykRepository(DykRepository):
         return [result_map[uid] for uid in user_ids]
     
     async def insert(self, records: List[DykRecord]) -> List[str]:
-        ids, _ = await self._collection.ainsert([json.loads(record.model_dump_json()) for record in records])
+        ids, _ = await self._collection.ainsert([json.loads(record.model_dump_json(exclude={"id"})) for record in records])
         if len(ids) != len(records):
             raise AssertionError("Failed to insert records (expected %d, got %d)" % (len(records), len(ids)))
         return ids
     
     async def update_status(self, ids: List[str], status: str):
-        await self._collection.aupdate({"_id": {"$in": ids}}, {"$set": {"status": status}})
+        await self._collection.aupdate({"_id": {"$in": [ObjectId(id) for id in ids]}}, {"$set": {"status": status}})
