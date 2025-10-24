@@ -18,9 +18,10 @@ from byoeb_integrations.media_storage.azure.async_azure_blob_storage import Asyn
 # APScheduler imports for proper cron job scheduling
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.jobstores.memory import MemoryJobStore
+from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+import pymongo
 
 REGISTER_API_NAME = 'background_api'
 
@@ -64,9 +65,24 @@ JOB_CONFIGURATIONS = [
     }
 ]
 
-# Initialize the scheduler
+# MongoDB connection configuration using existing project setup
+from byoeb.chat_app.configuration.config import env_mongo_db_connection_string
+
+MONGODB_URL = env_mongo_db_connection_string
+MONGODB_DATABASE = 'byoeb_scheduler'
+MONGODB_COLLECTION = 'jobs'
+
+# Initialize MongoDB client and job store
+mongodb_client = pymongo.MongoClient(MONGODB_URL)
+mongodb_jobstore = MongoDBJobStore(
+    database=MONGODB_DATABASE,
+    collection=MONGODB_COLLECTION,
+    client=mongodb_client
+)
+
+# Initialize the scheduler with MongoDB job store
 scheduler = AsyncIOScheduler(
-    jobstores={'default': MemoryJobStore()},
+    jobstores={'default': mongodb_jobstore},
     executors={'default': AsyncIOExecutor()},
     job_defaults={'coalesce': False, 'max_instances': 1}
 )
