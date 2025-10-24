@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 class BaseDocumentDatabase(ABC):
 
@@ -87,7 +87,23 @@ class BaseDocumentCollection(ABC):
         **kwargs
     ) -> Any:
         pass
-    
+
+    @abstractmethod
+    def aggregate(
+        self,
+        pipeline: List[Dict[str, Any]],
+        **kwargs
+    ) -> Any:
+        pass
+
+    @abstractmethod
+    async def aaggregate(
+        self,
+        pipeline: List[Dict[str, Any]],
+        **kwargs
+    ) -> list:
+        pass
+
     @abstractmethod
     def update(
         self,
