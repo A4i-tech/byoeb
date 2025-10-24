@@ -94,6 +94,7 @@ async def queue(dyk_repo: DykRepository, sheet: DykFactSheet, candidates: DykBat
             continue
         dyk_id = random.choice(list(diff))
         queued_client_ops.append(DykRecord(
+            id="",
             dyk_id=uuid.UUID(dyk_id),
             dyk_lang=lang,
             user_id=str(user.user_id),
@@ -136,11 +137,11 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
             if not user:
                 send_logger.warning("User %s not found", record.user_id, extra={"dyk": {
                     "context": dispatch.__name__,
-                    "dyk_id": record.dyk_id,
+                    "dyk_id": str(record.dyk_id),
                     "user_id": record.user_id,
                     "batch_id": batch_id
                 }})
-                aborted.append(record._id)
+                aborted.append(record.id)
                 continue
 
             phone_number = user.phone_number_id
@@ -151,7 +152,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
                 message_category="did_you_know",
                 user=user,
                 message_context=MessageContext(
-                    message_id=f"did-you-know-{record._id}",
+                    message_id=f"did-you-know-{record.id}",
                     message_type=MessageTypes.REGULAR_TEXT.value,
                     message_source_text=message,
                     message_english_text=message,
@@ -169,7 +170,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
             if not requests:
                 send_logger.error("Failed to prepare a request message", extra={"dyk": {
                     "context": dispatch.__name__,
-                    "dyk_id": record.dyk_id,
+                    "dyk_id": str(record.dyk_id),
                     "user_id": record.user_id,
                     "batch_id": batch_id,
                     "user_phone_number": phone_number
@@ -183,7 +184,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
             if int(responses[0].response_status.status) != StatusCode.SUCCESS.value:
                 send_logger.error(responses[0].response_status.error, extra={"dyk": {
                     "context": dispatch.__name__,
-                    "dyk_id": record.dyk_id,
+                    "dyk_id": str(record.dyk_id),
                     "user_id": record.user_id,
                     "batch_id": batch_id,
                     "user_phone_number": phone_number,
@@ -194,13 +195,13 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
 
             send_logger.info("Sent DYK %s to user %s", record.dyk_id, record.user_id, extra={"dyk": {
                 "context": dispatch.__name__,
-                "dyk_id": record.dyk_id,
+                "dyk_id": str(record.dyk_id),
                 "user_id": record.user_id,
                 "batch_id": batch_id,
                 "user_phone_number": phone_number,
                 "whatsapp_message_ids": json.dumps(message_ids)
             }})
-            completed.append(record._id)
+            completed.append(record.id)
             n_success += 1
     finally:
         await dyk_repo.update_status(aborted, "aborted")
