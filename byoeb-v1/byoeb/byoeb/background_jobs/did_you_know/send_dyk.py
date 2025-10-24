@@ -209,16 +209,6 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
 
 
 async def main(sheet: DykFactSheet, user_types: List[str], batch_size: int) -> None:
-    async def batch_process_and_log(batch: DykBatch):
-        batch_id, queued, exhausted = await queue(dyk_repo, sheet, batch)
-        run_logger.info("[batch-%s] Queued jobs: %d", batch_id, queued, extra={"dyk": {"batch_id": batch_id}})  # messages that were added to the dispatch queue
-        run_logger.info("[batch-%s] Exhausted jobs: %d", batch_id, exhausted, extra={"dyk": {"batch_id": batch_id}})  # users who could not be sent a DYK message (because they have received every DYK message)
-
-    async def batch_dispatch_and_log(service: WhatsAppService, batch_id: str):
-        dispatch_success, dispatch_fail = await dispatch(dyk_repo, user_repo, sheet, service, batch_id)
-        run_logger.info("[batch-%s] %d succeeded, %d failed", batch_id, dispatch_success, dispatch_fail, extra={"dyk": {"batch_id": batch_id}})
-        return batch_id, dispatch_success, dispatch_fail
-
     try:
         factory = await get_repository_factory()
         dyk_repo = await factory.get_dyk_repository()
@@ -229,8 +219,10 @@ async def main(sheet: DykFactSheet, user_types: List[str], batch_size: int) -> N
         run_logger.info("Synced jobs: %d", synced)  # pending messages that were discarded (because they no longer reference a DYK message)
 
         # schedule (pick candidates in batches and assign them dyk ids)
-        batcher = pick_candidates(dyk_repo, user_repo, sheet.keys(), user_types, batch_size)
-        await asyncio.gather(*[batch_process_and_log(batch) async for batch in batcher])
+        async for batch in pick_candidates(dyk_repo, user_repo, sheet.keys(), user_types, batch_size):
+            batch_id, queued, exhausted = await queue(dyk_repo, sheet, batch)
+            run_logger.info("[batch-%s] Queued jobs: %d", batch_id, queued, extra={"dyk": {"batch_id": batch_id}})  # messages that were added to the dispatch queue
+            run_logger.info("[batch-%s] Exhausted jobs: %d", batch_id, exhausted, extra={"dyk": {"batch_id": batch_id}})  # users who could not be sent a DYK message (because they have received every DYK message)
 
         # dispatch (...to whatsapp. pick a batch of candidates and send them their assigned dyks)
         whatsapp_service = WhatsAppService(channel_client_factory)
@@ -241,9 +233,8 @@ async def main(sheet: DykFactSheet, user_types: List[str], batch_size: int) -> N
                 run_logger.warning("Retrying dispatch job... %d / %d", retries + 1, N_RETRIES)
 
             failed_batches = []
-            tasks = [asyncio.create_task(batch_dispatch_and_log(whatsapp_service, bid)) for bid in batch_ids]
-            for coro in asyncio.as_completed(tasks):
-                batch_id, success, fail = await coro
+            for batch_id in batch_ids:
+                success, fail = await dispatch(dyk_repo, user_repo, sheet, whatsapp_service, batch_id)
                 run_logger.info("[batch-%s] Dispatched jobs: %d succeeded, %d failed", batch_id, success, fail, extra={"dyk": {"batch_id": batch_id}})  # messages that were sent to WhatsApp (includes messages that were just queued)
                 if fail > 0:
                     failed_batches.append(batch_id)
