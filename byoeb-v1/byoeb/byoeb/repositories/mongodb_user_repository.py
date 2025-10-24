@@ -85,6 +85,9 @@ class MongoUserRepository(UserRepository, BaseRepository):
         filter_dict = {"User.user_location.district": district}
         return await self.find_all(filter_dict)
 
+    async def find_test_users(self) -> List[Dict[str, Any]]:
+        return await self.find_all({"User.test_user": True})
+
     async def find_asha_and_test_users(self) -> List[Dict[str, Any]]:
         """Find all ASHA workers and test users."""
         filter_dict = {
