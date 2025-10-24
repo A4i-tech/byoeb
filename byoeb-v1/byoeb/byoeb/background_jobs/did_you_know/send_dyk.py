@@ -92,7 +92,7 @@ async def queue(dyk_repo: DykRepository, sheet: DykFactSheet, candidates: DykBat
             }})
             n_exhausted += 1
             continue
-        dyk_id = random.Random(user.user_id).choice(list(sorted(diff)))
+        dyk_id = random.choice(list(diff))
         queued_client_ops.append(DykRecord(
             dyk_id=uuid.UUID(dyk_id),
             dyk_lang=lang,
