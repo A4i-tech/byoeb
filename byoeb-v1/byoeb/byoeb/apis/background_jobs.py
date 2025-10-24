@@ -21,7 +21,6 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
-import atexit
 
 REGISTER_API_NAME = 'background_api'
 
@@ -119,18 +118,12 @@ def setup_scheduled_jobs():
     for job_config in JOB_CONFIGURATIONS:
         if job_config["enabled"]:
             try:
-                # Parse cron expression
-                cron_parts = job_config["cron"].split()
-
-                # Add job to scheduler
+                # Use CronTrigger.from_crontab with timezone support
                 scheduler.add_job(
                     execute_job_function,
-                    CronTrigger(
-                        minute=cron_parts[0],
-                        hour=cron_parts[1],
-                        day=cron_parts[2],
-                        month=cron_parts[3],
-                        day_of_week=cron_parts[4]
+                    CronTrigger.from_crontab(
+                        job_config["cron"],
+                        timezone=pytz.UTC
                     ),
                     args=[job_config["module"], job_config["function"]],
                     id=job_config["id"],
@@ -159,9 +152,6 @@ def start_scheduler():
     if not scheduler.running:
         scheduler.start()
         _logger.info("Background job scheduler started")
-
-        # Register cleanup function
-        atexit.register(lambda: scheduler.shutdown())
 
 def stop_scheduler():
     """Stop the scheduler"""
@@ -235,47 +225,7 @@ def stop_scheduler():
 #     #     filename="data.xlsx",
 #     # )
 
-@background_apis_router.post("/start")
-async def start_scheduler_endpoint(request: Request):
-    """Start the background job scheduler"""
-    try:
-        setup_scheduled_jobs()
-        start_scheduler()
-
-        return JSONResponse(
-            content={
-                "message": "Background job scheduler started successfully",
-                "jobs": list(job_status.keys()),
-                "status": "running"
-            },
-            status_code=200
-        )
-    except Exception as e:
-        _logger.error(f"Failed to start scheduler: {str(e)}")
-        return JSONResponse(
-            content={"error": str(e)},
-            status_code=500
-        )
-
-@background_apis_router.post("/stop")
-async def stop_scheduler_endpoint(request: Request):
-    """Stop the background job scheduler"""
-    try:
-        stop_scheduler()
-
-        return JSONResponse(
-            content={
-                "message": "Background job scheduler stopped successfully",
-                "status": "stopped"
-            },
-            status_code=200
-        )
-    except Exception as e:
-        _logger.error(f"Failed to stop scheduler: {str(e)}")
-        return JSONResponse(
-            content={"error": str(e)},
-            status_code=500
-        )
+# Manual start/stop endpoints removed - scheduler is now managed by FastAPI lifecycle
 
 @background_apis_router.get("/status")
 async def get_scheduler_status(request: Request):
