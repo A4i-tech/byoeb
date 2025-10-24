@@ -87,6 +87,17 @@ If `flask run` is giving error, instead use `python3 app.py`.
 - Every response to the user query needs to be verified (and if needed, edited) by the expert.
 - The output response depends on the GPT model used (specify appropriate key details in `keys.env`), and the `USER_PROMPT` specified in `config.yaml`.
 
+# License
+
+This project is licensed under the following terms:
+
+- **Code**: All source code in this repository is licensed under the [MIT License](LICENSE-CODE)
+- **Assets**: All non-code assets (datasets, documentation, media) are licensed under the [Creative Commons Attribution 4.0 International License](LICENSE)
+
+For more information about these licenses, please refer to:
+- [MIT License](https://opensource.org/license/MIT)
+- [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+
 # Contributing
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
