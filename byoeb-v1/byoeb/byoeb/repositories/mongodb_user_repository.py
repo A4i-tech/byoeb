@@ -24,12 +24,12 @@ class MongoUserRepository(UserRepository, BaseRepository):
                       sort: Optional[List[tuple]] = None,
                       limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Find multiple users with optional filtering, projection, sorting, and limiting."""
-        return await self._collection.afetch_all(
-            filter_dict or {},
-            projection=projection,
-            sort=sort,
-            limit=limit
-        )
+        params = {k: v for k, v in {
+            "projection": projection,
+            "sort": sort,
+            "limit": limit
+        }.items() if v is not None}
+        return await self._collection.afetch_all(filter_dict or {}, **params)
 
     async def count(self, filter_dict: Optional[Dict[str, Any]] = None) -> int:
         """Count users matching the filter criteria."""
