@@ -7,7 +7,7 @@ from pydantic import BaseModel
 DykFactSheet: TypeAlias = Dict[LanguageCode, Dict[str, str]]  # {lang: {id: fact}}
 
 class DykRecord(BaseModel):
-    _id: str = uuid.uuid4().hex
+    id: str
     user_id: str
     dyk_id: uuid.UUID
     dyk_lang: LanguageCode
