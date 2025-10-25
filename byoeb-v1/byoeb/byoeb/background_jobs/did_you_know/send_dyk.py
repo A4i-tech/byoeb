@@ -314,4 +314,4 @@ with SOURCE_PATH.open() as f:
                 sheet[lang][id] = message
 
 if __name__ == "__main__":
-    asyncio.run(main(sheet, user_types_to_send, 256))
+    asyncio.run(main(sheet, user_types_to_send, 2048))
