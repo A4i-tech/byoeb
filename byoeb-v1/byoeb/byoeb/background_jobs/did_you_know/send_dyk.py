@@ -282,8 +282,8 @@ N_RETRIES = 5  # number of times to retry dispatch()ing to WhatsApp in the event
 
 SOURCE_PATH = (current_dir / str(bot_config["path"])).resolve()
 if not SOURCE_PATH.exists():
-    run_logger.error("File no found: %s", SOURCE_PATH)
-    exit(1)
+    run_logger.error("File not found: %s", SOURCE_PATH)  # we still need this so app insights logs it
+    raise FileNotFoundError("File not found: %s" % SOURCE_PATH)
 
 # parse and index facts sheet for quick lookup
 with SOURCE_PATH.open() as f:
@@ -303,7 +303,7 @@ with SOURCE_PATH.open() as f:
     unexpected_cols = [c for c in cols if c not in expected_cols]
     if len(unexpected_cols) > 0:
         run_logger.error("Unexpected columns encountered in %s: %s", SOURCE_PATH.name, ", ".join(unexpected_cols))
-        exit(1)
+        raise ValueError("Unexpected columns encountered in %s: %s" % (SOURCE_PATH.name, ", ".join(unexpected_cols)))
 
     sheet: DykFactSheet = {lang: {} for lang in lang_cols.keys()}
     for row in reader:
