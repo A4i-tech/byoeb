@@ -205,7 +205,7 @@ def test_whatsapp_onboarding_flow():
     print("Starting onboarding flow test...")
     x=0
     m_id=[]
-    delete_url = BASE_URL.replace("receive","delete_user")
+    delete_url = BASE_URL.replace("receive","delete_users")
     headers = {
     "accept": "application/json",
     "Content-Type": "application/json"
