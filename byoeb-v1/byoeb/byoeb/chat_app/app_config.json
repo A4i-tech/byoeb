@@ -37,7 +37,8 @@
             "provider_type": "azure_cosmos_mongo_db",
             "database_name": "ashadb",
             "user_collection": "ashausers",
-            "message_collection": "ashamessages"
+            "message_collection": "ashamessages",
+            "jobs_collection": "ashajobs"
         }
     },
     "embeddings": {

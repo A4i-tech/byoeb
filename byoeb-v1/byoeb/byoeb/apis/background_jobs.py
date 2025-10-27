@@ -15,6 +15,11 @@ from fastapi.responses import StreamingResponse
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
 from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
 
+# Import job functions at module level - this ensures they exist and will catch ImportErrors early
+from byoeb.background_jobs.consensus.respond_with_consensus import main as respond_with_consensus
+from byoeb.background_jobs.consensus.send_query_to_expert import main as send_query_to_expert
+from byoeb.background_jobs.message_leaderboard.leaderboard import main as message_leaderboard
+
 # APScheduler imports for proper cron job scheduling
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -37,40 +42,38 @@ file_path = "asha_data.xlsx"
 account_url = "https://khushibabyashastorage.blob.core.windows.net"
 container_name = "ashacontainer"
 
-# Job configuration with proper cron expressions and function imports
+# Job configuration with proper cron expressions and function references
+# ModuleNotFoundError / ImportError catches this early
 JOB_CONFIGURATIONS = [
     {
         "id": "consensus_responder",
         "name": "Respond with Consensus",
         "cron": "*/30 * * * *",  # Every 30 minutes
-        "function": "main",
-        "module": "byoeb.background_jobs.consensus.respond_with_consensus",
+        "function": respond_with_consensus,
         "enabled": True
     },
     {
         "id": "expert_query_sender",
         "name": "Send Query to Expert",
         "cron": "0 8-20 * * *",  # Every hour from 8 AM to 8 PM
-        "function": "main",
-        "module": "byoeb.background_jobs.consensus.send_query_to_expert",
+        "function": send_query_to_expert,
         "enabled": True
     },
     {
         "id": "message_leaderboard",
         "name": "Message Leaderboard",
         "cron": "0 12 * * FRI",  # 12 PM every Friday
-        "function": "main",
-        "module": "byoeb.background_jobs.message_leaderboard.leaderboard",
+        "function": message_leaderboard,
         "enabled": True
     }
 ]
 
 # MongoDB connection configuration using existing project setup
-from byoeb.chat_app.configuration.config import env_mongo_db_connection_string
+from byoeb.chat_app.configuration.config import env_mongo_db_connection_string, app_config
 
 MONGODB_URL = env_mongo_db_connection_string
-MONGODB_DATABASE = 'byoeb_scheduler'
-MONGODB_COLLECTION = 'jobs'
+MONGODB_DATABASE = app_config["databases"]["mongo_db"]["database_name"]
+MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
 
 # Initialize MongoDB client and job store
 mongodb_client = pymongo.MongoClient(MONGODB_URL)
@@ -110,23 +113,19 @@ def job_listener(event):
 # Add event listeners
 scheduler.add_listener(job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
 
-async def execute_job_function(module_path: str, function_name: str):
-    """Execute a job function by importing and calling it"""
+async def execute_job_function(job_function):
+    """Execute a job function directly"""
     try:
-        # Import the module
-        module = __import__(module_path, fromlist=[function_name])
-        function = getattr(module, function_name)
-
         # Check if function is async
-        if asyncio.iscoroutinefunction(function):
-            await function()
+        if asyncio.iscoroutinefunction(job_function):
+            await job_function()
         else:
-            function()
+            job_function()
 
-        _logger.info(f"Successfully executed {function_name} from {module_path}")
+        _logger.info(f"Successfully executed job function {job_function.__name__}")
 
     except Exception as e:
-        _logger.error(f"Failed to execute {function_name} from {module_path}: {str(e)}")
+        _logger.error(f"Failed to execute job function {job_function.__name__}: {str(e)}")
         raise
 
 def setup_scheduled_jobs():
@@ -141,7 +140,7 @@ def setup_scheduled_jobs():
                         job_config["cron"],
                         timezone=pytz.UTC
                     ),
-                    args=[job_config["module"], job_config["function"]],
+                    args=[job_config["function"]],
                     id=job_config["id"],
                     name=job_config["name"],
                     replace_existing=True
@@ -308,7 +307,7 @@ async def run_job_manually(request: Request, job_id: str):
             )
 
         # Execute the job function
-        await execute_job_function(job_config["module"], job_config["function"])
+        await execute_job_function(job_config["function"])
 
         return JSONResponse(
             content={
