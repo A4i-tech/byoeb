@@ -116,5 +116,5 @@ jobs:
             RECIEVE_URL: ${{ secrets.RECIEVE_ENDPOINT }}
             USER_NAME: ${{ secrets.USERNAME }}
             PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER }}
-        run: poetry run pytest -s /byoeb/byoeb-v1/byoeb/tests/test_onboarding.py
+        run: poetry run pytest -s /byoeb-v1/byoeb/tests/test_onboarding.py
 
