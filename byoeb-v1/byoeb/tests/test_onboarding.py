@@ -6,9 +6,11 @@ import requests
 import json
 import re
 from urllib.parse import quote
-
+import os
 # Endpoint
-BASE_URL = "http://127.0.0.1:5000/receive"
+BASE_URL = os.getenv("RECIEVE_URL")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
+USER_NAME = os.getenv("USER_NAME")
 ONBOARDING_PAYLOADS = [
  {
     "object": "whatsapp_business_account",
@@ -26,14 +28,14 @@ ONBOARDING_PAYLOADS = [
                         "contacts": [
                             {
                                 "profile": {
-                                    "name": "Lavisha"
+                                    "name": USER_NAME
                                 },
-                                "wa_id": "919038069298"
+                                "wa_id": PHONE_NUMBER_ID
                             }
                         ],
                         "messages": [
                             {
-                                "from": "919038069298",
+                                "from": PHONE_NUMBER_ID,
                                 "id": "",
                                 "timestamp": "1758573528",
                                 "text": {
@@ -66,14 +68,14 @@ ONBOARDING_PAYLOADS = [
             "contacts": [
               {
                 "profile": {
-                                    "name": "Lavisha"
+                                    "name": USER_NAME
                                 },
-                                "wa_id": "919038069298"
+                                "wa_id": PHONE_NUMBER_ID
               }
             ],
             "messages": [
               {
-                "from": "919038069298",
+                "from": PHONE_NUMBER_ID,
                 "id": "",
                 "timestamp": "1758576570",
                 "context": {
@@ -114,13 +116,13 @@ ONBOARDING_PAYLOADS = [
             },
             "contacts": [
               {
-                "profile": { "name": "Lavisha" },
-                "wa_id": "919038069298"
+                "profile": { "name": USER_NAME },
+                "wa_id": PHONE_NUMBER_ID
               }
             ],
             "messages": [
               {
-                "from": "919038069298",
+                "from": PHONE_NUMBER_ID,
                 "id": "",
                 "timestamp": "1758576682",
                 "context": {
@@ -160,13 +162,13 @@ ONBOARDING_PAYLOADS = [
             },
             "contacts": [
               {
-                "profile": { "name": "Lavisha" },
-                "wa_id": "919038069298"
+                "profile": { "name": USER_NAME },
+                "wa_id": PHONE_NUMBER_ID
               }
             ],
             "messages": [
               {
-                "from": "919038069298",
+                "from": PHONE_NUMBER_ID,
                 "id": "",
                 "timestamp": "1758577083",
                 "context": {
@@ -211,46 +213,27 @@ async def test_whatsapp_onboarding_flow():
             msg = payload["entry"][0]["changes"][0]["value"]["messages"][0]
             msg["id"] = generate_message_id()
             msg["timestamp"] = get_current_timestamp()
-            #if "context" not in msg or msg.get("type") == "interactive":
-            #    msg["context"] = {}
             m_id.append(msg["id"])
             if step > 0:
                 msg["context"]["id"] = context_id
                 c_id.append(context_id)
                 print("context_id:",context_id)
             print("-------------------------STEP",step+1,"-------------------------")
-            #print(payload)
             response = requests.post(BASE_URL, json=payload)
-            url = "http://127.0.0.1:5000/get_bot_messages?timestamp=%22%22"
+            url = BASE_URL.replace("receive","get_bot_messages?timestamp=%22%22")
             print("paylod: ",payload)
             bot_message = requests.get(url)
             bot_message=bot_message.json()
-            ts_flag=1
-            # max_timestamp=bot_message[0]["outgoing_timestamp"]
-            # #print(bot_message[0])
-            # for i in bot_message:
-            #     if ts_flag==0:
-            #         max_timestamp=i["outgoing_timestamp"]
 
-            #     if max_timestamp==None:
-            #         ts_flag=0
-            #         continue
-            #         #max_timestamp=i["outgoing_timestamp"]
-            #     if i["outgoing_timestamp"]!=None and int(str(i["outgoing_timestamp"]))>=int(str(max_timestamp)):
-            #         max_timestamp=i["outgoing_timestamp"]
-            # print("max_timestamp:",max_timestamp)
-            #print("bot_message:",bot_message[0:5])
-            
             valid_timestamps = [ int(str(m["outgoing_timestamp"])) for m in bot_message if m.get("outgoing_timestamp") not in (None, "None", "")]
-            #print("valid_timestamps :", valid_timestamps)
             max_timestamp=max(valid_timestamps) if valid_timestamps else 0
             print("max_timestamp:",max_timestamp, "msg timestamp:", msg['timestamp'])
           
                   
             print("Waiting for bot response...")
-            if step!=3:
-              while max_timestamp<int(msg['timestamp']):
-                  time.sleep(4)
+            if step!=len(ONBOARDING_PAYLOADS)-1:
+              while max_timestamp<int(msg['timestamp']) and int(time.time())-int(msg['timestamp'])<60:
+                  time.sleep(2)
                   print("Checking for new bot messages...")
                   bot_message = requests.get(url)
                   bot_message=bot_message.json()
@@ -275,12 +258,6 @@ async def test_whatsapp_onboarding_flow():
                       break
               print(f"Step {step+1} response: {response.json()}")
               assert response.status_code == 200, f"Step {step+1} failed"
-            #time.sleep(2)  # Simulate delay between messages
 
-
-
-
-# and int(i["outgoing_timestamp"])>=int(msg['timestamp'])
-         
 
 
