@@ -212,7 +212,7 @@ def test_whatsapp_onboarding_flow():
     }
     data = [str(PHONE_NUMBER_ID)]  # same as your -d payload
 
-    response = requests.delete(url, headers=headers, data=json.dumps(data))
+    response = requests.delete(delete_url, headers=headers, data=json.dumps(data))
 
     c_id=[]
     for step, payload_template in enumerate(ONBOARDING_PAYLOADS):
