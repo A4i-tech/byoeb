@@ -200,15 +200,13 @@ def get_current_timestamp():
 def generate_message_id():
     return f"wamid.{uuid.uuid4().hex}"
 
-@pytest.mark.asyncio
-async def test_whatsapp_onboarding_flow():
+def test_whatsapp_onboarding_flow():
     context_id = None
     print("Starting onboarding flow test...")
     x=0
     m_id=[]
     c_id=[]
-    async with httpx.AsyncClient() as client:
-        for step, payload_template in enumerate(ONBOARDING_PAYLOADS):
+    for step, payload_template in enumerate(ONBOARDING_PAYLOADS):
             payload = payload_template.copy()
             msg = payload["entry"][0]["changes"][0]["value"]["messages"][0]
             msg["id"] = generate_message_id()
