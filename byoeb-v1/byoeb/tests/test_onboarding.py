@@ -205,6 +205,15 @@ def test_whatsapp_onboarding_flow():
     print("Starting onboarding flow test...")
     x=0
     m_id=[]
+    delete_url = BASE_URL.replace("receive","delete_user")
+    headers = {
+    "accept": "application/json",
+    "Content-Type": "application/json"
+    }
+    data = [str(PHONE_NUMBER_ID)]  # same as your -d payload
+
+    response = requests.delete(url, headers=headers, data=json.dumps(data))
+
     c_id=[]
     for step, payload_template in enumerate(ONBOARDING_PAYLOADS):
             payload = payload_template.copy()
