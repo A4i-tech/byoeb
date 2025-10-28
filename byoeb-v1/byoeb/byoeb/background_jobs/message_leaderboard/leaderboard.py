@@ -5,42 +5,22 @@ from typing import Dict, Any, List, Optional
 import pandas as pd
 
 from byoeb.background_jobs.config import app_config
-from byoeb.chat_app.configuration import dependency_setup
-from byoeb.services.leaderboard import LeaderboardService
+from byoeb.background_jobs import dependency_setup
 from byoeb.services.leaderboard.time_window_strategies import TimeWindowFactory
-from byoeb.services.user import UserService
-from byoeb.services.message import MessageService
 
 IST = ZoneInfo("Asia/Kolkata")
 
-# Service instances
-_leaderboard_service: Optional[LeaderboardService] = None
-_user_service: Optional[UserService] = None
-_message_service: Optional[MessageService] = None
+async def get_leaderboard_service():
+    """Get leaderboard service instance from dependency injection."""
+    return dependency_setup.leaderboard_service
 
-async def get_leaderboard_service() -> LeaderboardService:
-    """Get or create leaderboard service instance."""
-    global _leaderboard_service
-    if _leaderboard_service is None:
-        user_service = await get_user_service()
-        message_service = await get_message_service()
-        _leaderboard_service = LeaderboardService(user_service, message_service)
-    return _leaderboard_service
+async def get_user_service():
+    """Get user service instance from dependency injection."""
+    return dependency_setup.user_service
 
-async def get_user_service() -> UserService:
-    """Get or create user service instance."""
-    global _user_service
-    if _user_service is None:
-        _user_service = UserService()
-    return _user_service
-
-async def get_message_service() -> MessageService:
-    """Get or create message service instance."""
-    global _message_service
-    if _message_service is None:
-        user_service = await get_user_service()
-        _message_service = MessageService(user_service)
-    return _message_service
+async def get_message_service():
+    """Get message service instance from dependency injection."""
+    return dependency_setup.message_service
 
 async def fetch_phone_numbers_for_asha_and_test_users() -> List[str]:
     """
@@ -63,8 +43,8 @@ async def build_district_leaderboard_last_week_ist(message_categories: Optional[
     Returns:
         pd.DataFrame: Sorted leaderboard with district statistics
     """
-    leaderboard_service = await get_leaderboard_service()
-    return await leaderboard_service.build_district_leaderboard_last_week_ist(message_categories, processing_batch_size)
+    # Use the strategy pattern instead of hardcoding to week
+    return await build_district_leaderboard_with_strategy('week', message_categories, processing_batch_size)
 
 async def build_district_leaderboard_with_strategy(
     strategy_type: str,

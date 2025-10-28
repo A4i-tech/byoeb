@@ -166,14 +166,11 @@ class TimeWindowFactory:
         """
         Create a time window strategy based on the specified type.
 
-        All strategies now use CustomTimeWindowStrategy for flexibility.
-        Default days_back values: week=7, month=30, year=365, custom=7
-
         Args:
             strategy_type: Type of strategy ('week', 'month', 'year', 'custom')
             **kwargs: Additional arguments for strategy creation
-                - days_back (int): Number of days to look back (optional, has defaults)
-                - name (str): Custom name for the strategy (optional, has defaults)
+                - days_back (int): Number of days to look back (for custom strategy)
+                - name (str): Custom name for the strategy (for custom strategy)
 
         Returns:
             TimeWindowStrategy: The created strategy instance
@@ -184,17 +181,11 @@ class TimeWindowFactory:
         strategy_type = strategy_type.lower()
 
         if strategy_type == 'week':
-            days_back = kwargs.get('days_back', 7)
-            name = kwargs.get('name', 'Week')
-            return CustomTimeWindowStrategy(days_back, name)
+            return WeekTimeWindowStrategy()
         elif strategy_type == 'month':
-            days_back = kwargs.get('days_back', 30)
-            name = kwargs.get('name', 'Month')
-            return CustomTimeWindowStrategy(days_back, name)
+            return MonthTimeWindowStrategy()
         elif strategy_type == 'year':
-            days_back = kwargs.get('days_back', 365)
-            name = kwargs.get('name', 'Year')
-            return CustomTimeWindowStrategy(days_back, name)
+            return YearTimeWindowStrategy()
         elif strategy_type == 'custom':
             days_back = kwargs.get('days_back', 7)
             name = kwargs.get('name', 'Custom')

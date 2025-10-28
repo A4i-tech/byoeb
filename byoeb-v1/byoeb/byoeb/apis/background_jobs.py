@@ -21,12 +21,8 @@ from byoeb.background_jobs.consensus.send_query_to_expert import main as send_qu
 from byoeb.background_jobs.message_leaderboard.leaderboard import main as message_leaderboard
 
 # APScheduler imports for proper cron job scheduling
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.jobstores.mongodb import MongoDBJobStore
-from apscheduler.executors.asyncio import AsyncIOExecutor
-from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
-import pymongo
+from byoeb.background_jobs import dependency_setup as bg_dependencies
 
 REGISTER_API_NAME = 'background_api'
 
@@ -68,50 +64,9 @@ JOB_CONFIGURATIONS = [
     }
 ]
 
-# MongoDB connection configuration using existing project setup
-from byoeb.chat_app.configuration.config import env_mongo_db_connection_string, app_config
+scheduler = bg_dependencies.scheduler
 
-MONGODB_URL = env_mongo_db_connection_string
-MONGODB_DATABASE = app_config["databases"]["mongo_db"]["database_name"]
-MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
-
-# Initialize MongoDB client and job store
-mongodb_client = pymongo.MongoClient(MONGODB_URL)
-mongodb_jobstore = MongoDBJobStore(
-    database=MONGODB_DATABASE,
-    collection=MONGODB_COLLECTION,
-    client=mongodb_client
-)
-
-# Initialize the scheduler with MongoDB job store
-scheduler = AsyncIOScheduler(
-    jobstores={'default': mongodb_jobstore},
-    executors={'default': AsyncIOExecutor()},
-    job_defaults={'coalesce': False, 'max_instances': 1}
-)
-
-# Job status tracking
-job_status = {}
-
-def job_listener(event):
-    """Handle job execution events"""
-    if event.exception:
-        _logger.error(f"Job {event.job_id} failed: {event.exception}")
-        job_status[event.job_id] = {
-            "status": "failed",
-            "last_run": datetime.now().isoformat(),
-            "error": str(event.exception)
-        }
-    else:
-        _logger.info(f"Job {event.job_id} executed successfully")
-        job_status[event.job_id] = {
-            "status": "completed",
-            "last_run": datetime.now().isoformat(),
-            "error": None
-        }
-
-# Add event listeners
-scheduler.add_listener(job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+job_status = bg_dependencies.job_status
 
 async def execute_job_function(job_function):
     """Execute a job function directly"""

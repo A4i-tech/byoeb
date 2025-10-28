@@ -23,7 +23,8 @@ from byoeb_core.models.byoeb.message_context import (
     MessageTypes
 )
 from byoeb.services.channel.whatsapp import WhatsAppService
-from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
+from byoeb.services.user import UserService
+from byoeb.services.message import MessageService
 from byoeb_core.models.byoeb.user import User
 from datetime import datetime, timezone
 from byoeb_core.convertor.audio_convertor import wav_to_ogg_opus_bytes
@@ -217,8 +218,8 @@ def create_user(
     
 async def handle_unknown_user(
     messages: List[ByoebMessageContext],
-    message_db_service: MessageMongoDBService,
-    user_db_service: UserMongoDBService,
+    message_db_service: MessageService,
+    user_db_service: UserService,
     channel_factory: ChannelClientFactory,
 ):
     print("handle_unknown_user")
