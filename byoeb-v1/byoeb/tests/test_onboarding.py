@@ -191,6 +191,43 @@ ONBOARDING_PAYLOADS = [
       ]
     }
   ]
+},
+{
+    "object": "whatsapp_business_account",
+    "entry": [
+        {
+            "id": "211506508713627",
+            "changes": [
+                {
+                    "value": {
+                        "messaging_product": "whatsapp",
+                        "metadata": {
+                            "display_phone_number": "919001386867",
+                            "phone_number_id": "183958451475612"
+                        },
+                       "contacts": [
+              {
+                "profile": { "name": USER_NAME },
+                "wa_id": PHONE_NUMBER_ID
+              }
+            ],
+            "messages": [
+              {
+                "from": PHONE_NUMBER_ID,
+                                "id": "",
+                                "timestamp": "",
+                                "text": {
+                                    "body": "What is a antra injection?"
+                                },
+                                "type": "text"
+                            }
+                        ]
+                    },
+                    "field": "messages"
+                }
+            ]
+        }
+    ]
 }
 ]
 
@@ -210,9 +247,10 @@ def test_whatsapp_onboarding_flow():
     "accept": "application/json",
     "Content-Type": "application/json"
     }
-    data = [str(PHONE_NUMBER_ID)]  # same as your -d payload
+    data = [PHONE_NUMBER_ID] 
 
     response = requests.delete(delete_url, headers=headers, data=json.dumps(data))
+    print("Delete user response:", response.status_code, response.text)
 
     c_id=[]
     for step, payload_template in enumerate(ONBOARDING_PAYLOADS):
@@ -221,13 +259,13 @@ def test_whatsapp_onboarding_flow():
             msg["id"] = generate_message_id()
             msg["timestamp"] = get_current_timestamp()
             m_id.append(msg["id"])
-            if step > 0:
+            if step > 0 and step!=4:
                 msg["context"]["id"] = context_id
                 c_id.append(context_id)
                 print("context_id:",context_id)
             print("-------------------------STEP",step+1,"-------------------------")
             response = requests.post(BASE_URL, json=payload)
-            url = BASE_URL.replace("receive","get_bot_messages?timestamp=%22%22")
+            url = BASE_URL.replace("receive","get_bot_messages?timestamp=")+str(msg["timestamp"])
             print("paylod: ",payload)
             bot_message = requests.get(url)
             bot_message=bot_message.json()
@@ -237,10 +275,11 @@ def test_whatsapp_onboarding_flow():
             print("max_timestamp:",max_timestamp, "msg timestamp:", msg['timestamp'])
           
                   
-            print("Waiting for bot response...")
-            if step!=len(ONBOARDING_PAYLOADS)-1:
-              while max_timestamp<int(msg['timestamp']) and int(time.time())-int(msg['timestamp'])<60:
-                  time.sleep(2)
+            if step<len(ONBOARDING_PAYLOADS)-2:
+              print("Waiting for bot response...")
+
+              while max_timestamp<int(msg['timestamp']):
+                  time.sleep(5)
                   print("Checking for new bot messages...")
                   bot_message = requests.get(url)
                   bot_message=bot_message.json()
@@ -249,20 +288,24 @@ def test_whatsapp_onboarding_flow():
                   print("max_timestamp in while:",max_timestamp)
               print("Bot response received.")
               for i in bot_message:
-                  if "language" in i["message_context"]["message_source_text"] and step==0 and i["outgoing_timestamp"]!=None and  int(str(i["outgoing_timestamp"]))>int(msg['timestamp']):   
-                      context_id=i["message_context"]["message_id"]
-                      print(i)
-                      break 
-                  elif "Who are you" in i["message_context"]["message_source_text"] and step==1 and i["outgoing_timestamp"]!=None and int(str(i["outgoing_timestamp"]))>int(msg['timestamp']):
-                      context_id=i["message_context"]["message_id"]
-                      print(i)
-                      break
-                  elif "Researchers" in i["message_context"]["message_source_text"] and step==2 and i["outgoing_timestamp"]!=None and int(str(i["outgoing_timestamp"]))>int(msg['timestamp']):
-                      context_id=i["message_context"]["message_id"]
-                      print(i)
-                      break
-                  elif step==3:
-                      break
+                  if i["reply_context"]["reply_id"]==msg["id"] and i["outgoing_timestamp"]!=None and  int(str(i["outgoing_timestamp"]))>int(msg['timestamp']):
+                    if "language" in i["message_context"]["message_source_text"] and step==0:   
+                        context_id=i["message_context"]["message_id"]
+                        #print(i)
+                        break 
+                    elif "Who are you" in i["message_context"]["message_source_text"] and step==1:
+                        context_id=i["message_context"]["message_id"]
+                        #print(i)
+                        break
+                    elif "Researchers" in i["message_context"]["message_source_text"] and step==2:
+                        context_id=i["message_context"]["message_id"]
+                        #print(i)
+                        break
+                    elif step==4 and "pregnancy" in i["message_context"]["message_source_text"]:
+                        context_id=i["message_context"]["message_id"]
+                        #print(i)
+                        break
+                
               print(f"Step {step+1} response: {response.json()}")
               assert response.status_code == 200, f"Step {step+1} failed"
 
