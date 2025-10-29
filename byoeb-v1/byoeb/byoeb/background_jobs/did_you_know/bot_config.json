@@ -1,0 +1,21 @@
+{
+    "path": "../../data/asha_bot/did_you_know/dyk_v1.csv",
+    "languages": [
+        {
+            "language": "en",
+            "column": "Did you know",
+            "template": [
+                "💡 *Did you know?*",
+                "{message}"
+            ]
+        },
+        {
+            "language": "hi",
+            "column": "Did you know - Hindi",
+            "template": [
+                "💡 *क्या आपको पता है?*",
+                "{message}"
+            ]
+        }
+    ]
+}
