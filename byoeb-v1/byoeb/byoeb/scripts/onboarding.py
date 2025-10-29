@@ -7,21 +7,25 @@ import pandas as pd
 from datetime import datetime
 def main():
     parser = argparse.ArgumentParser(description="Upload users from Excel files.")
-    parser.add_argument("--file", required=True, help="List of Excel file paths.")
+    parser.add_argument("--file", required=True, help="Input Excel file path.")
     parser.add_argument("--url", default="http://0.0.0.0:8000/register_users", help="API endpoint URL")
     parser.add_argument(
     "--update",
     action="store_true",
     help="If set, update users using the API endpoint")
-    parser.add_argument("--sheet")
+    parser.add_argument("--sheet", help="output sheet name")
     
     args = parser.parse_args()
 
     file_path = args.file
     url = args.url
     df = pd.read_excel(file_path, header=0)
+    df["phone_number_id"] =  df["phone_number_id"].apply(lambda x: int("91"+str(x)) if not str(x).startswith('91') else x)
+
+	    
     users_onboarded = df.to_dict(orient="records") 
     phone_numbers=[]  
+    
     for row in users_onboarded:
 	    row["phone_number_id"]=str(row["phone_number_id"])
 	    if "user_location" in row.keys():
