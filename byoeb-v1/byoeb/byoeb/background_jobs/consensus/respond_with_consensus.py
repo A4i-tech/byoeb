@@ -6,8 +6,8 @@ import threading
 import datetime
 from byoeb.services.chat import constants
 from byoeb.services.chat import utils as chat_utils
-from byoeb.services.user import UserService
-from byoeb.services.message import MessageService
+from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
+from byoeb.services.databases.mongo_db.user_db import UserMongoDBService
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
@@ -46,7 +46,7 @@ def consensus_timeout(
 
 async def create_user_db_queries(
     message: ByoebMessageContext,
-    user_db_service: UserService,
+    user_db_service: UserMongoDBService,
     user_id: str,
     consensus_en_response: str
 ):
@@ -69,7 +69,7 @@ async def create_user_db_queries(
 def create_message_db_queries(
     has_consensus: bool,
     message: ByoebMessageContext,
-    message_db_service: MessageService,
+    message_db_service: MessageMongoDBService,
     consensus_response: Optional[str] = None,
     consensus_en_response: Optional[str] = None,
 ):
@@ -174,8 +174,8 @@ async def agenerate_consensus_response(
 
 async def process_consensus_responses(
     message: ByoebMessageContext,
-    message_db_service: MessageService,
-    user_db_service: UserService,
+    message_db_service: MessageMongoDBService,
+    user_db_service: UserMongoDBService,
     whatsapp_service: WhatsAppService
 ):
     consensus_info_list = message.message_context.additional_info.get(constants.CONSENSUS, None)
@@ -215,8 +215,8 @@ async def process_consensus_responses(
     
 
 async def process_queries_consensus(
-    message_db_service: MessageService,
-    user_db_service: UserService,
+    message_db_service: MessageMongoDBService,
+    user_db_service: UserMongoDBService,
     whatsapp_service: WhatsAppService
 ):
     waiting_status = constants.WAITING
@@ -235,12 +235,12 @@ async def main():
     from byoeb.background_jobs.dependency_setup import (
         channel_client_factory,
         message_db_service,
-        user_service
+        user_db_service
     )
     print(threading.get_ident())
     print("PID:", os.getpid())
     whatsapp_service = WhatsAppService(channel_client_factory)
-    await process_queries_consensus(message_db_service, user_service, whatsapp_service)
+    await process_queries_consensus(message_db_service, user_db_service, whatsapp_service)
     await channel_client_factory.close()
 
 if __name__ == "__main__":

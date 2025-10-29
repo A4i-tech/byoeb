@@ -2,7 +2,7 @@ import time
 import pandas as pd
 from datetime import datetime
 from byoeb.background_jobs.config import app_config
-from byoeb.background_jobs.dependency_setup import user_service
+from byoeb.background_jobs.dependency_setup import user_db_service
 from byoeb.factory import MongoDBFactory
 
 SINGLETON = "singleton"
@@ -16,7 +16,7 @@ async def get_user_infos(batch, user_info_dict):
         user_id = user.get("user_id")
         if user_id and user_id not in user_info_dict:
             user_ids.add(user_id)
-    user_info_list = await user_service.get_users(list(user_ids))
+    user_info_list = await user_db_service.get_users(list(user_ids))
 
     # Update the passed-in dictionary instead of overwriting it
     user_info_dict.update({user.user_id: user for user in user_info_list})

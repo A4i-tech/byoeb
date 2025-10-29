@@ -9,8 +9,7 @@ from opentelemetry.trace import Status, StatusCode
 from byoeb_core.message_queue.base import BaseQueue
 from byoeb.factory import ChannelClientFactory
 from byoeb.services.chat.message_consumer import MessageConsmerService
-from byoeb.services.user import UserService
-from byoeb.services.message import MessageService
+from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from byoeb_integrations.message_queue.azure.async_azure_storage_queue import AsyncAzureStorageQueue
 from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
 
@@ -23,8 +22,8 @@ class QueueConsumer:
         account_url: str,
         queue_name: str,
         config: dict,
-        user_db_service: UserService,
-        message_db_service: MessageService,
+        user_db_service: UserMongoDBService,
+        message_db_service: MessageMongoDBService,
         channel_client_factory: ChannelClientFactory,
         consuemr_type: str = None
     ):

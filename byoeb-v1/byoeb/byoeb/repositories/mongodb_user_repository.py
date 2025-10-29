@@ -3,23 +3,15 @@ MongoDB implementation of UserRepository.
 """
 from typing import List, Dict, Any, Optional
 from byoeb.repositories.user_repository import UserRepository
-from byoeb.services.databases.mongo_db.base import BaseMongoDBService
+from byoeb.repositories.base_repository import BaseRepository
 from byoeb_core.databases.mongo_db.base import BaseDocumentCollection
 from byoeb.chat_app.configuration.config import app_config
 
 
-class MongoUserRepository(UserRepository, BaseMongoDBService):
+class MongoUserRepository(UserRepository, BaseRepository):
     """MongoDB implementation of UserRepository."""
 
-    def __init__(self, collection_client: BaseDocumentCollection, config=None, mongo_db_factory=None):
-        # Initialize BaseMongoDBService if config and factory are provided
-        if config and mongo_db_factory:
-            super().__init__(config, mongo_db_factory)
-        else:
-            # For backward compatibility when used without MongoDB setup
-            self._config = None
-            self._mongo_db_factory = None
-
+    def __init__(self, collection_client: BaseDocumentCollection):
         self._collection = collection_client
         self._collection_name = app_config["databases"]["mongo_db"]["user_collection"]
 

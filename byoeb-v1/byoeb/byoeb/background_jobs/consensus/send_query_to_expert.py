@@ -4,8 +4,8 @@ import sys
 import threading
 from byoeb.services.chat import constants
 from byoeb.services.chat import utils as chat_utils
-from byoeb.services.user import UserService
-from byoeb.services.message import MessageService
+from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
+from byoeb.services.databases.mongo_db.user_db import UserMongoDBService
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
@@ -81,7 +81,7 @@ def create_user_db_queries(cross_convs: List[ByoebMessageContext]):
 def create_message_db_queries(
     cross_convs: List[ByoebMessageContext],
     user_message: ByoebMessageContext,
-    message_db_service: MessageService,
+    message_db_service: MessageMongoDBService,
 ):
     message_db_create_queries = {
         constants.CREATE: message_db_service.message_create_queries(cross_convs),
@@ -89,7 +89,7 @@ def create_message_db_queries(
     }
     return message_db_create_queries
 
-async def is_active_user(user_db_service: UserService, user_id: str):
+async def is_active_user(user_db_service: UserMongoDBService, user_id: str):
     user_timestamp, cached = await user_db_service.get_user_activity_timestamp(user_id)
     last_active_duration_seconds = chat_utils.get_last_active_duration_seconds(user_timestamp)
     print("Cached", cached)
@@ -108,8 +108,8 @@ async def send_pending_query_to_expert(
     whatsapp_service: WhatsAppService,
     message: ByoebMessageContext,
     experts: List[User],
-    user_db_service: UserService,
-    message_db_service: MessageService
+    user_db_service: UserMongoDBService,
+    message_db_service: MessageMongoDBService
 ):
     consensus_info = message.message_context.additional_info.get(CONSENSUS, None)
     consensus_list = []
@@ -156,8 +156,8 @@ async def send_pending_query_to_expert(
     
 
 async def send_pending_queries_to_expert(
-    user_db_service: UserService,
-    message_db_service: MessageService,
+    user_db_service: UserMongoDBService,
+    message_db_service: MessageMongoDBService,
     whatsapp_service: WhatsAppService
 ):
     waiting_status = constants.WAITING
@@ -180,13 +180,13 @@ async def send_pending_queries_to_expert(
 async def main():
     from byoeb.background_jobs.dependency_setup import (
         channel_client_factory,
-        user_service,
-        message_service
+        user_db_service,
+        message_db_service
     )
     print(threading.get_ident())
     print("PID:", os.getpid())
     whatsapp_service = WhatsAppService(channel_client_factory)
-    await send_pending_queries_to_expert(user_service, message_service, whatsapp_service)
+    await send_pending_queries_to_expert(user_db_service, message_db_service, whatsapp_service)
     await channel_client_factory.close()
 
 if __name__ == "__main__":

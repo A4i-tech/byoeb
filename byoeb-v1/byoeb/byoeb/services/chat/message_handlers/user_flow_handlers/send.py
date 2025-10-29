@@ -9,8 +9,7 @@ from byoeb.services.chat import mocks
 from typing import Any, Dict, List
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageTypes
 from byoeb.services.channel.base import BaseChannelService, MessageReaction
-from byoeb.services.user import UserService
-from byoeb.services.message import MessageService
+from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.services.channel.base import MessageReaction
 from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
@@ -21,8 +20,8 @@ class ByoebUserSendResponse(Handler):
 
     def __init__(
         self,
-        user_db_service: UserService,
-        message_db_service: MessageService,
+        user_db_service: UserMongoDBService,
+        message_db_service: MessageMongoDBService,
     ):
         self._user_db_service = user_db_service
         self._message_db_service = message_db_service

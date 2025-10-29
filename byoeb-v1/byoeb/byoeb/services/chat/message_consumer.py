@@ -13,8 +13,7 @@ from byoeb.factory import ChannelClientFactory
 from byoeb.chat_app.configuration.config import bot_config
 from byoeb_core.models.byoeb.user import User
 from byoeb_core.models.byoeb.message_context import ReplyContext
-from byoeb.services.user import UserService
-from byoeb.services.message import MessageService
+from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
 from byoeb.services.user.onboarding import handle_unknown_user
@@ -30,8 +29,8 @@ class MessageConsmerService:
     def __init__(
         self,
         config,
-        user_db_service: UserService,
-        message_db_service: MessageService,
+        user_db_service: UserMongoDBService,
+        message_db_service: MessageMongoDBService,
         channel_client_factory: ChannelClientFactory
     ):
         self._config = config

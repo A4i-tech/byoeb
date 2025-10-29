@@ -9,14 +9,14 @@ from byoeb_core.models.byoeb.message_status import ByoebMessageStatus
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb_core.message_queue.base import BaseQueue
 from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
-from byoeb.services.message import MessageService
+from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
 
 class MessageProducerService:
     def __init__(
         self,
         config,
         queue_client: BaseQueue,
-        message_db_service: MessageService
+        message_db_service: MessageMongoDBService
     ):
         self._logger = logging.getLogger(self.__class__.__name__)
         self._config = config
