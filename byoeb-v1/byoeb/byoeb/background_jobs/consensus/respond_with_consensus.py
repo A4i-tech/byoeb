@@ -20,7 +20,8 @@ from byoeb_core.models.byoeb.message_context import (
     ReplyContext,
     MessageTypes
 )
-from byoeb.background_jobs.config import bot_config, app_config
+from byoeb.background_jobs.consensus.config import bot_config
+from byoeb.chat_app.configuration.config import app_config
 from byoeb.models.message_category import MessageCategory
 from byoeb.models.consensus import Consensus
 from byoeb.background_jobs.consensus.consensus_prompt import consensus_prompt
@@ -90,7 +91,7 @@ async def create_user_message(
     message: ByoebMessageContext,
     response: str,
 ) -> ByoebMessageContext:
-    from byoeb.background_jobs.dependency_setup import speech_translator
+    from byoeb.chat_app.configuration.dependency_setup import speech_translator
     
     user_language = message.user.user_language
     translated_audio_message = await speech_translator.atext_to_speech(
@@ -141,7 +142,7 @@ async def agenerate_consensus_response(
         pattern = r"<(.*?)>(.*?)</\1>"
         matches = re.findall(pattern, text, re.DOTALL)
         return {key: value.strip() for key, value in matches}
-    from byoeb.background_jobs.dependency_setup import text_translator, llm_client
+    from byoeb.chat_app.configuration.dependency_setup import text_translator, llm_client
     print("Query", query)
     print("Responses", responses)
     prompt = [
@@ -232,7 +233,7 @@ async def process_queries_consensus(
             await process_consensus_responses(message, message_db_service, user_db_service, whatsapp_service)
 
 async def main():
-    from byoeb.background_jobs.dependency_setup import (
+    from byoeb.chat_app.configuration.dependency_setup import (
         channel_client_factory,
         message_db_service,
         user_db_service

@@ -26,7 +26,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 
 # Import scheduler from dependency_setup
-from byoeb.background_jobs.dependency_setup import scheduler, get_scheduler, start_scheduler, stop_scheduler
+from byoeb.chat_app.configuration.dependency_setup import scheduler, get_scheduler, start_scheduler, stop_scheduler
 
 REGISTER_API_NAME = 'background_api'
 

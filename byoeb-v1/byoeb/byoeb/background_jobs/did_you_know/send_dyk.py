@@ -6,7 +6,7 @@ import random
 import uuid
 import sys
 from byoeb.background_jobs.did_you_know.config import bot_config, current_dir
-from byoeb.background_jobs.dependency_setup import app_insights_logger, channel_client_factory
+from byoeb.chat_app.configuration.dependency_setup import app_insights_logger, channel_client_factory
 from byoeb.models.dyk import DykFactSheet, DykRecord
 from byoeb.repositories.dyk_repository import DykRepository
 from byoeb.repositories.user_repository import UserRepository

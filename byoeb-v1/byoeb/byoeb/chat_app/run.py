@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
         text_translator
     )
     from byoeb.apis.background_jobs import setup_scheduled_jobs
-    from byoeb.background_jobs.dependency_setup import start_scheduler, stop_scheduler
+    from byoeb.chat_app.configuration.dependency_setup import start_scheduler, stop_scheduler
 
     await message_consumer.initialize()
     asyncio.create_task(message_consumer.listen())
