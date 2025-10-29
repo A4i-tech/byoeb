@@ -30,10 +30,19 @@ file_path = "asha_data.xlsx"
 account_url = "https://khushibabyashastorage.blob.core.windows.net"
 container_name = "ashacontainer"
 
+# Linux/Production server commands (using exec)
 background_jobs = [
     f"*/30 * * * * exec python3 {jobs_path}/consensus/respond_with_consensus.py; exit",
-    f"00 8-20 * * * exec python3 {jobs_path}/consensus/send_query_to_expert.py; exit"
+    f"00 8-20 * * * exec python3 {jobs_path}/consensus/send_query_to_expert.py; exit",
+    f"0 12 * * FRI exec python3 {jobs_path}/message_leaderboard/leaderboard.py; exit",
 ]
+
+# Windows/Local development commands (active for testing)
+# background_jobs = [
+#     f"*/30 * * * * cd {os.path.dirname(os.path.abspath(__file__))}/.. && poetry run python {jobs_path}/consensus/respond_with_consensus.py",
+#     f"00 8-20 * * * cd {os.path.dirname(os.path.abspath(__file__))}/.. && poetry run python {jobs_path}/consensus/send_query_to_expert.py",
+#     f"*/1 * * * * cd {os.path.dirname(os.path.abspath(__file__))}/.. && poetry run python {jobs_path}/message_leaderboard/leaderboard.py",  # Every 2 minutes for testing
+# ]
 pids = []
 
 # @background_apis_router.get("/asha_logs", response_class=HTMLResponse)
@@ -116,10 +125,9 @@ async def schedule(request: Request):
     
     # Get the current time in IST
     now = datetime.now(pytz.timezone("Asia/Kolkata"))
-    print("Current time: ", now)
-    # Round the time to the nearest half hour
-    minutes = (now.minute // 5) * 5
-    rounded_now = now.replace(minute=minutes, second=0, microsecond=0)
+    # Round the time to the nearest minute for more precise scheduling
+    rounded_now = now.replace(second=0, microsecond=0)
+
     for background_job in background_jobs:
         # Parse the cron schedule
         parts = background_job.strip().split()
@@ -129,17 +137,15 @@ async def schedule(request: Request):
         iter = croniter(cron_expression, now)
         prev_time = iter.get_prev(datetime)
 
-        print("Command: ", command)
-        print("Previous execution time: ", prev_time)
-
-        # Check if the job should run at the current time
-        if (rounded_now - prev_time).total_seconds() < 60:
-            print("Running command: ", command)
+        # Check if the job should run at the current time (within 2 minutes for 2-minute cron)
+        if (rounded_now - prev_time).total_seconds() < 120:
+            _logger.info(f"Running scheduled job: {command}")
             process = subprocess.Popen(command, shell=True, start_new_session=True)
             pids.append({
                 "pid": process.pid,
                 "command": command,
             })
+            _logger.info(f"Started process with PID: {process.pid}")
 
     return JSONResponse(
         content=pids,
