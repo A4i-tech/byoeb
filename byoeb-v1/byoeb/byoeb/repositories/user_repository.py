@@ -33,6 +33,11 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
+    async def find_test_users(self) -> List[Dict[str, Any]]:
+        """Find all ASHA workers and test users."""
+        pass
+
+    @abstractmethod
     async def find_asha_and_test_users(self) -> List[Dict[str, Any]]:
         """Find all ASHA workers and test users."""
         pass

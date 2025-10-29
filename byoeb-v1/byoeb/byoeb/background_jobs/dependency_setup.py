@@ -141,3 +141,15 @@ llm_client = AsyncLLamaIndexOpenAILLM(
     api_version=app_config["llms"]["openai"]["api_version"],
     organization=env_config.env_openai_org_id
 )
+
+from byoeb.application_logger.azure_app_insights import AzureAppInsightsLogger
+app_insights_logger = None
+if env_config.env_appinsights_connection_string:
+    print("✅ App Insights connection string set. Enabling Azure logging.")
+    app_insights_logger = AzureAppInsightsLogger(
+        logger_name=app_config["app_logger"]["azure"]["logger_name"],
+        connection_string=env_config.env_appinsights_connection_string,
+        instrumentations=["fastapi", "urllib3"]
+    )
+else:
+    print("⚠️ App Insights connection string not set. Skipping Azure logging.")

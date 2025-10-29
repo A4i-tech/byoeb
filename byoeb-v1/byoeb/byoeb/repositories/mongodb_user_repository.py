@@ -32,12 +32,12 @@ class MongoUserRepository(UserRepository, BaseMongoDBService):
                       sort: Optional[List[tuple]] = None,
                       limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Find multiple users with optional filtering, projection, sorting, and limiting."""
-        return await self._collection.afetch_all(
-            filter_dict or {},
-            projection=projection,
-            sort=sort,
-            limit=limit
-        )
+        params = {k: v for k, v in {
+            "projection": projection,
+            "sort": sort,
+            "limit": limit
+        }.items() if v is not None}
+        return await self._collection.afetch_all(filter_dict or {}, **params)
 
     async def count(self, filter_dict: Optional[Dict[str, Any]] = None) -> int:
         """Count users matching the filter criteria."""
@@ -92,6 +92,9 @@ class MongoUserRepository(UserRepository, BaseMongoDBService):
         """Find users by district."""
         filter_dict = {"User.user_location.district": district}
         return await self.find_all(filter_dict)
+
+    async def find_test_users(self) -> List[Dict[str, Any]]:
+        return await self.find_all({"User.test_user": True})
 
     async def find_asha_and_test_users(self) -> List[Dict[str, Any]]:
         """Find all ASHA workers and test users."""

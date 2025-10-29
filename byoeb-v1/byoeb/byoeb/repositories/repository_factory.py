@@ -2,6 +2,8 @@
 Factory for creating repository instances.
 """
 from typing import Optional
+from byoeb.repositories.dyk_repository import DykRepository
+from byoeb.repositories.mongodb_dyk_repository import MongoDykRepository
 from byoeb.repositories.message_repository import MessageRepository
 from byoeb.repositories.user_repository import UserRepository
 from byoeb.repositories.mongodb_message_repository import MongoMessageRepository
@@ -19,8 +21,19 @@ class RepositoryFactory:
 
     def __init__(self, mongo_factory: MongoDBFactory):
         self._mongo_factory = mongo_factory
+        self._dyk_repository: Optional[DykRepository] = None
         self._message_repository: Optional[MessageRepository] = None
         self._user_repository: Optional[UserRepository] = None
+
+    async def get_dyk_repository(self) -> DykRepository:
+        """Get or create DYK repository instance."""
+        if self._dyk_repository is None:
+            mongo_db = await self._mongo_factory.get(app_config["app"]["db_provider"])
+            user_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["dyk_collection"])
+            # Wrap with AsyncAzureCosmosMongoDBCollection like existing services
+            wrapped_collection = AsyncAzureCosmosMongoDBCollection(collection=user_collection)
+            self._dyk_repository = MongoDykRepository(wrapped_collection)
+        return self._dyk_repository
 
     async def get_message_repository(self) -> MessageRepository:
         """Get or create message repository instance."""
@@ -44,6 +57,7 @@ class RepositoryFactory:
 
     async def reset_repositories(self):
         """Reset repository instances (useful for testing)."""
+        self._dyk_repository = None
         self._message_repository = None
         self._user_repository = None
 

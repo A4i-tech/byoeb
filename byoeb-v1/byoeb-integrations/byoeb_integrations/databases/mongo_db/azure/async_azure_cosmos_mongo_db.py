@@ -201,8 +201,8 @@ class AsyncAzureCosmosMongoDBCollection(BaseDocumentCollection):
             raise ValueError("Collection is not present or deleted. Please create a new collection")
         cursor = None
         if query is None:
-            cursor = self.__collection.find()
-        cursor = self.__collection.find(query)
+            cursor = self.__collection.find(**kwargs)
+        cursor = self.__collection.find(query, **kwargs)
         documents = await cursor.to_list(length=None)
         return documents
     
@@ -215,12 +215,31 @@ class AsyncAzureCosmosMongoDBCollection(BaseDocumentCollection):
             raise ValueError("Collection is not present or deleted. Please create a new collection")
         cursor = None
         if query is None:
-            cursor = self.__collection.find({}, {"_id": 1})
-        cursor = self.__collection.find(query, {"_id": 1})
+            cursor = self.__collection.find({}, {"_id": 1}, **kwargs)
+        cursor = self.__collection.find(query, {"_id": 1}, **kwargs)
         ids = await cursor.to_list(length=None)
         ids = [str(id["_id"]) for id in ids]
         return ids
-    
+
+    def aggregate(
+        self,
+        pipeline: List[Dict[str, Any]],
+        **kwargs
+    ) -> Any:
+        if self.__collection is None:
+            raise ValueError("Collection is not present or deleted. Please create a new collection")
+        return self.__collection.aggregate(pipeline, **kwargs)
+
+    async def aaggregate(
+        self,
+        pipeline: List[Dict[str, Any]],
+        **kwargs
+    ) -> list:
+        if self.__collection is None:
+            raise ValueError("Collection is not present or deleted. Please create a new collection")
+        cursor = self.__collection.aggregate(pipeline, **kwargs)
+        return await cursor.to_list(length=None)
+
     def update(
         self,
         query: Dict[str, Any], 
