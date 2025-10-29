@@ -22,12 +22,11 @@ from byoeb.background_jobs.message_leaderboard.leaderboard import main as messag
 from byoeb.background_jobs.did_you_know.send_dyk import run as send_dyk
 
 # APScheduler imports for proper cron job scheduling
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.jobstores.mongodb import MongoDBJobStore
-from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
-import pymongo
+
+# Import scheduler from dependency_setup
+from byoeb.background_jobs.dependency_setup import scheduler, get_scheduler, start_scheduler, stop_scheduler
 
 REGISTER_API_NAME = 'background_api'
 
@@ -75,28 +74,6 @@ JOB_CONFIGURATIONS = [
         "enabled": True
     }
 ]
-
-# MongoDB connection configuration using existing project setup
-from byoeb.chat_app.configuration.config import env_mongo_db_connection_string, app_config
-
-MONGODB_URL = env_mongo_db_connection_string
-MONGODB_DATABASE = app_config["databases"]["mongo_db"]["database_name"]
-MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
-
-# Initialize MongoDB client and job store
-mongodb_client = pymongo.MongoClient(MONGODB_URL)
-mongodb_jobstore = MongoDBJobStore(
-    database=MONGODB_DATABASE,
-    collection=MONGODB_COLLECTION,
-    client=mongodb_client
-)
-
-# Initialize the scheduler with MongoDB job store
-scheduler = AsyncIOScheduler(
-    jobstores={'default': mongodb_jobstore},
-    executors={'default': AsyncIOExecutor()},
-    job_defaults={'coalesce': False, 'max_instances': 1}
-)
 
 # Job status tracking
 job_status = {}
@@ -172,17 +149,8 @@ def setup_scheduled_jobs():
                     "error": str(e)
                 }
 
-def start_scheduler():
-    """Start the scheduler"""
-    if not scheduler.running:
-        scheduler.start()
-        _logger.info("Background job scheduler started")
-
-def stop_scheduler():
-    """Stop the scheduler"""
-    if scheduler.running:
-        scheduler.shutdown()
-        _logger.info("Background job scheduler stopped")
+# Scheduler start/stop functions are now imported from dependency_setup
+# Use start_scheduler() and stop_scheduler() from dependency_setup
 
 # @background_apis_router.get("/asha_logs", response_class=HTMLResponse)
 # async def form_get(request: Request):

@@ -19,14 +19,43 @@ mongo_db_factory = MongoDBFactory(
     scope=SINGLETON
 )
 
-user_db_service = UserMongoDBService(
+from byoeb.services.leaderboard import LeaderboardService
+from typing import Optional
+
+# Initialize MongoDB services
+_user_db_service = UserMongoDBService(
     config=app_config,
     mongo_db_factory=mongo_db_factory
 )
-message_db_service = MessageMongoDBService(
+_message_db_service = MessageMongoDBService(
     config=app_config,
-    mongo_db_factory=mongo_db_factory
+    mongo_db_factory=mongo_db_factory,
+    user_db_service=_user_db_service  # Pass user_db_service for leaderboard functionality
 )
+
+# Service instances for leaderboard (lazy initialization)
+_leaderboard_service: Optional[LeaderboardService] = None
+
+async def get_user_service() -> UserMongoDBService:
+    """Get user MongoDB service instance."""
+    return _user_db_service
+
+async def get_message_service() -> MessageMongoDBService:
+    """Get message MongoDB service instance."""
+    return _message_db_service
+
+async def get_leaderboard_service() -> LeaderboardService:
+    """Get or create leaderboard service instance."""
+    global _leaderboard_service
+    if _leaderboard_service is None:
+        user_service = await get_user_service()
+        message_service = await get_message_service()
+        _leaderboard_service = LeaderboardService(user_service, message_service)
+    return _leaderboard_service
+
+# Keep backward compatibility - expose these as module-level variables
+user_db_service = _user_db_service
+message_db_service = _message_db_service
 
 # Text translator
 from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
@@ -101,3 +130,48 @@ if env_config.env_appinsights_connection_string:
     )
 else:
     print("⚠️ App Insights connection string not set. Skipping Azure logging.")
+
+# Scheduler configuration
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.jobstores.mongodb import MongoDBJobStore
+from apscheduler.executors.asyncio import AsyncIOExecutor
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+import pymongo
+from byoeb.chat_app.configuration.config import env_mongo_db_connection_string
+
+# MongoDB connection configuration for scheduler job store
+MONGODB_URL = env_mongo_db_connection_string
+MONGODB_DATABASE = app_config["databases"]["mongo_db"]["database_name"]
+MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
+
+# Initialize MongoDB client and job store
+mongodb_client = pymongo.MongoClient(MONGODB_URL)
+mongodb_jobstore = MongoDBJobStore(
+    database=MONGODB_DATABASE,
+    collection=MONGODB_COLLECTION,
+    client=mongodb_client
+)
+
+# Initialize the scheduler with MongoDB job store
+scheduler = AsyncIOScheduler(
+    jobstores={'default': mongodb_jobstore},
+    executors={'default': AsyncIOExecutor()},
+    job_defaults={'coalesce': False, 'max_instances': 1}
+)
+
+def get_scheduler() -> AsyncIOScheduler:
+    """Get the scheduler instance."""
+    return scheduler
+
+def start_scheduler():
+    """Start the scheduler."""
+    if not scheduler.running:
+        scheduler.start()
+        print("✅ Background job scheduler started")
+
+def stop_scheduler():
+    """Stop the scheduler."""
+    if scheduler.running:
+        scheduler.shutdown()
+        print("✅ Background job scheduler stopped")
