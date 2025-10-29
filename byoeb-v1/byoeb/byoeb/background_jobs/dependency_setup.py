@@ -4,7 +4,9 @@ from byoeb.factory import (
 )
 import byoeb.background_jobs.config as env_config
 from byoeb.background_jobs.config import app_config
-from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
+from byoeb.services.user import UserService
+from byoeb.services.message import MessageService
+from byoeb.services.leaderboard import LeaderboardService
 
 
 
@@ -19,14 +21,64 @@ mongo_db_factory = MongoDBFactory(
     scope=SINGLETON
 )
 
-user_db_service = UserMongoDBService(
-    config=app_config,
-    mongo_db_factory=mongo_db_factory
+# Service layer instances
+user_service = UserService(config=app_config, mongo_db_factory=mongo_db_factory)
+message_service = MessageService(user_service, config=app_config, mongo_db_factory=mongo_db_factory)
+leaderboard_service = LeaderboardService(user_service, message_service)
+
+# Scheduler (APScheduler) configuration centralised here per review comment
+import pytz
+import pymongo
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.executors.asyncio import AsyncIOExecutor
+from apscheduler.jobstores.mongodb import MongoDBJobStore
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+from datetime import datetime
+import logging
+
+# MongoDB connection configuration for job store
+from byoeb.chat_app.configuration.config import env_mongo_db_connection_string as _env_mongo_db_connection_string
+
+_logger = logging.getLogger("background_scheduler")
+
+MONGODB_URL = _env_mongo_db_connection_string
+MONGODB_DATABASE = app_config["databases"]["mongo_db"]["database_name"]
+MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
+
+_mongodb_client = pymongo.MongoClient(MONGODB_URL)
+_mongodb_jobstore = MongoDBJobStore(
+    database=MONGODB_DATABASE,
+    collection=MONGODB_COLLECTION,
+    client=_mongodb_client
 )
-message_db_service = MessageMongoDBService(
-    config=app_config,
-    mongo_db_factory=mongo_db_factory
+
+# Exported scheduler instance
+scheduler = AsyncIOScheduler(
+    jobstores={'default': _mongodb_jobstore},
+    executors={'default': AsyncIOExecutor()},
+    job_defaults={'coalesce': False, 'max_instances': 1}
 )
+
+# Job status tracking and listeners
+job_status: dict = {}
+
+def _job_listener(event):
+    if event.exception:
+        _logger.error(f"Job {event.job_id} failed: {event.exception}")
+        job_status[event.job_id] = {
+            "status": "failed",
+            "last_run": datetime.now().isoformat(),
+            "error": str(event.exception)
+        }
+    else:
+        _logger.info(f"Job {event.job_id} executed successfully")
+        job_status[event.job_id] = {
+            "status": "completed",
+            "last_run": datetime.now().isoformat(),
+            "error": None
+        }
+
+scheduler.add_listener(_job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
 
 # Text translator
 from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator

@@ -1,13 +1,12 @@
 import logging
 import os
-import subprocess
+import asyncio
 import pytz
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from io import BytesIO
 from azure.identity import DefaultAzureCredential
 from datetime import datetime
 from fastapi import APIRouter, Request
-from croniter import croniter
 from fastapi.responses import JSONResponse
 from fastapi import Form, Request
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
@@ -15,6 +14,15 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import StreamingResponse
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
 from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
+
+# Import job functions at module level - this ensures they exist and will catch ImportErrors early
+from byoeb.background_jobs.consensus.respond_with_consensus import main as respond_with_consensus
+from byoeb.background_jobs.consensus.send_query_to_expert import main as send_query_to_expert
+from byoeb.background_jobs.message_leaderboard.leaderboard import main as message_leaderboard
+
+# APScheduler imports for proper cron job scheduling
+from apscheduler.triggers.cron import CronTrigger
+from byoeb.background_jobs import dependency_setup as bg_dependencies
 
 REGISTER_API_NAME = 'background_api'
 
@@ -30,20 +38,96 @@ file_path = "asha_data.xlsx"
 account_url = "https://khushibabyashastorage.blob.core.windows.net"
 container_name = "ashacontainer"
 
-# Linux/Production server commands (using exec)
-background_jobs = [
-    f"*/30 * * * * exec python3 {jobs_path}/consensus/respond_with_consensus.py; exit",
-    f"00 8-20 * * * exec python3 {jobs_path}/consensus/send_query_to_expert.py; exit",
-    f"0 12 * * FRI exec python3 {jobs_path}/message_leaderboard/leaderboard.py; exit",
+# Job configuration with proper cron expressions and function references
+# ModuleNotFoundError / ImportError catches this early
+JOB_CONFIGURATIONS = [
+    {
+        "id": "consensus_responder",
+        "name": "Respond with Consensus",
+        "cron": "*/30 * * * *",  # Every 30 minutes
+        "function": respond_with_consensus,
+        "enabled": True
+    },
+    {
+        "id": "expert_query_sender",
+        "name": "Send Query to Expert",
+        "cron": "0 8-20 * * *",  # Every hour from 8 AM to 8 PM
+        "function": send_query_to_expert,
+        "enabled": True
+    },
+    {
+        "id": "message_leaderboard",
+        "name": "Message Leaderboard",
+        "cron": "0 12 * * FRI",  # 12 PM every Friday
+        "function": message_leaderboard,
+        "enabled": True
+    }
 ]
 
-# Windows/Local development commands (active for testing)
-# background_jobs = [
-#     f"*/30 * * * * cd {os.path.dirname(os.path.abspath(__file__))}/.. && poetry run python {jobs_path}/consensus/respond_with_consensus.py",
-#     f"00 8-20 * * * cd {os.path.dirname(os.path.abspath(__file__))}/.. && poetry run python {jobs_path}/consensus/send_query_to_expert.py",
-#     f"*/1 * * * * cd {os.path.dirname(os.path.abspath(__file__))}/.. && poetry run python {jobs_path}/message_leaderboard/leaderboard.py",  # Every 2 minutes for testing
-# ]
-pids = []
+scheduler = bg_dependencies.scheduler
+
+job_status = bg_dependencies.job_status
+
+async def execute_job_function(job_function):
+    """Execute a job function directly"""
+    try:
+        # Check if function is async
+        if asyncio.iscoroutinefunction(job_function):
+            await job_function()
+        else:
+            job_function()
+
+        _logger.info(f"Successfully executed job function {job_function.__name__}")
+
+    except Exception as e:
+        _logger.error(f"Failed to execute job function {job_function.__name__}: {str(e)}")
+        raise
+
+def setup_scheduled_jobs():
+    """Setup all scheduled jobs"""
+    for job_config in JOB_CONFIGURATIONS:
+        if job_config["enabled"]:
+            try:
+                # Use CronTrigger.from_crontab with timezone support
+                scheduler.add_job(
+                    execute_job_function,
+                    CronTrigger.from_crontab(
+                        job_config["cron"],
+                        timezone=pytz.UTC
+                    ),
+                    args=[job_config["function"]],
+                    id=job_config["id"],
+                    name=job_config["name"],
+                    replace_existing=True
+                )
+
+                job_status[job_config["id"]] = {
+                    "status": "scheduled",
+                    "last_run": None,
+                    "error": None
+                }
+
+                _logger.info(f"Added job: {job_config['name']} with schedule: {job_config['cron']}")
+
+            except Exception as e:
+                _logger.error(f"Failed to setup job {job_config['id']}: {str(e)}")
+                job_status[job_config["id"]] = {
+                    "status": "error",
+                    "last_run": None,
+                    "error": str(e)
+                }
+
+def start_scheduler():
+    """Start the scheduler"""
+    if not scheduler.running:
+        scheduler.start()
+        _logger.info("Background job scheduler started")
+
+def stop_scheduler():
+    """Stop the scheduler"""
+    if scheduler.running:
+        scheduler.shutdown()
+        _logger.info("Background job scheduler stopped")
 
 # @background_apis_router.get("/asha_logs", response_class=HTMLResponse)
 # async def form_get(request: Request):
@@ -111,43 +195,136 @@ pids = []
 #     #     filename="data.xlsx",
 #     # )
 
-@background_apis_router.post("/schedule")
-async def schedule(request: Request):
+# Manual start/stop endpoints removed - scheduler is now managed by FastAPI lifecycle
 
-    for pid in pids:
-        try:
-            os.kill(pid["pid"], 0)
-        except OSError:
-            _logger.info(f"Process {pid['pid']} is not running")
-        else:
-            _logger.info(f"Process {pid['pid']} is running")
-        pids.remove(pid)
-    
-    # Get the current time in IST
-    now = datetime.now(pytz.timezone("Asia/Kolkata"))
-    # Round the time to the nearest minute for more precise scheduling
-    rounded_now = now.replace(second=0, microsecond=0)
+@background_apis_router.get("/status")
+async def get_scheduler_status(request: Request):
+    """Get the status of all scheduled jobs with next run times"""
+    try:
+        # Get detailed job information including next run times
+        detailed_jobs = {}
 
-    for background_job in background_jobs:
-        # Parse the cron schedule
-        parts = background_job.strip().split()
-        cron_expression = " ".join(parts[:5])
-        command = " ".join(parts[5:])
-        
-        iter = croniter(cron_expression, now)
-        prev_time = iter.get_prev(datetime)
+        for job_id, status_info in job_status.items():
+            job_info = status_info.copy()
 
-        # Check if the job should run at the current time (within 2 minutes for 2-minute cron)
-        if (rounded_now - prev_time).total_seconds() < 120:
-            _logger.info(f"Running scheduled job: {command}")
-            process = subprocess.Popen(command, shell=True, start_new_session=True)
-            pids.append({
-                "pid": process.pid,
-                "command": command,
-            })
-            _logger.info(f"Started process with PID: {process.pid}")
+            # Get the job from scheduler to get next run time
+            try:
+                job = scheduler.get_job(job_id)
+                if job:
+                    next_run_time = job.next_run_time
+                    job_info["next_run"] = next_run_time.isoformat() if next_run_time else None
+                    job_info["job_exists"] = True
+                else:
+                    job_info["next_run"] = None
+                    job_info["job_exists"] = False
+            except Exception as e:
+                _logger.warning(f"Could not get job info for {job_id}: {str(e)}")
+                job_info["next_run"] = None
+                job_info["job_exists"] = False
+                job_info["error"] = str(e)
 
-    return JSONResponse(
-        content=pids,
-        status_code=202
+            detailed_jobs[job_id] = job_info
+
+        # Get scheduler information
+        scheduler_info = {
+            "running": scheduler.running,
+            "state": "running" if scheduler.running else "stopped",
+            "timezone": str(scheduler.timezone) if hasattr(scheduler, 'timezone') else "UTC"
+        }
+
+        return JSONResponse(
+            content={
+                "scheduler": scheduler_info,
+                "jobs": detailed_jobs,
+                "total_jobs": len(detailed_jobs),
+                "timestamp": datetime.now().isoformat()
+            },
+            status_code=200
+        )
+    except Exception as e:
+        _logger.error(f"Failed to get scheduler status: {str(e)}")
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500
+        )
+
+@background_apis_router.post("/run/{job_id}")
+async def run_job_manually(request: Request, job_id: str):
+    """Manually trigger a specific job"""
+    try:
+        # Find the job configuration
+        job_config = next((job for job in JOB_CONFIGURATIONS if job["id"] == job_id), None)
+
+        if not job_config:
+            return JSONResponse(
+                content={"error": f"Job {job_id} not found"},
+                status_code=404
+            )
+
+        # Execute the job function
+        await execute_job_function(job_config["function"])
+
+        return JSONResponse(
+            content={
+                "message": f"Job {job_id} executed successfully",
+                "job_id": job_id
+            },
+            status_code=200
+        )
+
+    except Exception as e:
+        _logger.error(f"Failed to run job {job_id}: {str(e)}")
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500
+        )
+
+@background_apis_router.get("/jobs")
+async def list_jobs(request: Request):
+    """List all configured jobs with next run times"""
+    try:
+        jobs_info = []
+        for job_config in JOB_CONFIGURATIONS:
+            job_id = job_config["id"]
+            status_info = job_status.get(job_id, {"status": "not_scheduled"})
+
+            # Get next run time from scheduler
+            next_run = None
+            job_exists = False
+            try:
+                job = scheduler.get_job(job_id)
+                if job:
+                    next_run_time = job.next_run_time
+                    next_run = next_run_time.isoformat() if next_run_time else None
+                    job_exists = True
+            except Exception as e:
+                _logger.warning(f"Could not get next run time for {job_id}: {str(e)}")
+
+            job_info = {
+                "id": job_id,
+                "name": job_config["name"],
+                "cron": job_config["cron"],
+                "enabled": job_config["enabled"],
+                "status": status_info.get("status", "not_scheduled"),
+                "last_run": status_info.get("last_run"),
+                "next_run": next_run,
+                "job_exists": job_exists,
+                "error": status_info.get("error")
+            }
+            jobs_info.append(job_info)
+
+        return JSONResponse(
+            content={
+                "jobs": jobs_info,
+                "total": len(jobs_info),
+                "scheduler_running": scheduler.running,
+                "timestamp": datetime.now().isoformat()
+            },
+            status_code=200
+        )
+    except Exception as e:
+        _logger.error(f"Failed to list jobs: {str(e)}")
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500
     )

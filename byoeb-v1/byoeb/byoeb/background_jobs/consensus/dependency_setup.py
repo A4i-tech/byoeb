@@ -4,7 +4,8 @@ from byoeb.factory import (
 )
 import byoeb.background_jobs.consensus.config as env_config
 from byoeb.background_jobs.consensus.config import app_config
-from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
+from byoeb.services.user import UserService
+from byoeb.services.message import MessageService
 
 
 
@@ -19,11 +20,12 @@ mongo_db_factory = MongoDBFactory(
     scope=SINGLETON
 )
 
-user_db_service = UserMongoDBService(
+user_db_service = UserService(
     config=app_config,
     mongo_db_factory=mongo_db_factory
 )
-message_db_service = MessageMongoDBService(
+message_db_service = MessageService(
+    user_service=None,  # Will be set later
     config=app_config,
     mongo_db_factory=mongo_db_factory
 )

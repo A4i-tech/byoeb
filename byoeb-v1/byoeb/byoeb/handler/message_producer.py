@@ -1,7 +1,7 @@
 import logging
 import traceback
 import byoeb_integrations.channel.whatsapp.validate_message as wa_validator
-from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
+from byoeb.services.message import MessageService
 from typing import Any
 from byoeb.factory import QueueProducerFactory
 from byoeb.services.chat.message_producer import MessageProducerService
@@ -12,7 +12,7 @@ class QueueProducerHandler:
         self,
         config,
         queue_producer_factory: QueueProducerFactory,
-        message_db_service: MessageMongoDBService
+        message_db_service: MessageService
     ):
         self._logger = logging.getLogger(self.__class__.__name__)
         self._config = config

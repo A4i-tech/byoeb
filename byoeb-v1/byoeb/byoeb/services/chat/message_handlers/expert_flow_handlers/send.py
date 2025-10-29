@@ -4,7 +4,8 @@ from typing import List, Dict, Any
 from byoeb.chat_app.configuration.config import app_config
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageTypes
 from byoeb.services.channel.base import BaseChannelService, MessageReaction
-from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
+from byoeb.services.user import UserService
+from byoeb.services.message import MessageService
 from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.services.channel.base import MessageReaction
 
@@ -12,8 +13,8 @@ class ByoebExpertSendResponse(Handler):
     __reaction_enabled: bool = app_config["channel"]["reaction"]["enabled"]
     def __init__(
         self,
-        user_db_service: UserMongoDBService,
-        message_db_service: MessageMongoDBService,
+        user_db_service: UserService,
+        message_db_service: MessageService,
     ):
         self._user_db_service = user_db_service
         self._message_db_service = message_db_service
