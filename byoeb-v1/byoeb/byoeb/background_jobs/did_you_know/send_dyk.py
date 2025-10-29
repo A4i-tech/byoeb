@@ -286,7 +286,7 @@ if not SOURCE_PATH.exists():
     raise FileNotFoundError("File not found: %s" % SOURCE_PATH)
 
 # parse and index facts sheet for quick lookup
-with SOURCE_PATH.open() as f:
+with SOURCE_PATH.open(encoding="utf-8") as f:
     reader = csv.reader(f)
 
     # fail fast - if these expected cols dont exist, python will bail early
@@ -312,6 +312,11 @@ with SOURCE_PATH.open() as f:
             message = row[lang_col].strip()
             if len(message) > 0:
                 sheet[lang][id] = message
+
+# Wrapper function for scheduler to call without arguments
+async def run():
+    """Wrapper function that loads config and calls main() - used by scheduler"""
+    await main(sheet, user_types_to_send, 2048)
 
 if __name__ == "__main__":
     asyncio.run(main(sheet, user_types_to_send, 2048))

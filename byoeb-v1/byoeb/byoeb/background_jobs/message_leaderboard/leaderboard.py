@@ -146,17 +146,17 @@ async def main():
     message_service = await get_message_service()
 
     # TEST MODE: Send only to your test phone number (COMMENTED OUT)
-    # test_phone_number = "917567071072"
-    # print(f"🧪 TEST MODE: Sending only to {test_phone_number}")
-    # results = await message_service.send_bulk_messages([test_phone_number], message_text, debug_mode=False, test_mode=False)
+    test_phone_number = "917567071072"
+    print(f"🧪 TEST MODE: Sending only to {test_phone_number}")
+    results = await message_service.send_bulk_messages([test_phone_number], message_text, debug_mode=False, test_mode=False)
 
     # DEMO MODE: Print payloads to console without sending
     # print(f"🖥️ DEMO MODE: Printing payloads for {len(phone_numbers)} users (no actual sending)")
     # results = await message_service.send_bulk_messages(phone_numbers, message_text, debug_mode=True)
 
     # PRODUCTION MODE: Send to all users (actual sending) (COMMENTED OUT)
-    print(f"🚀 PRODUCTION MODE: Sending to {len(phone_numbers)} users")
-    results = await message_service.send_bulk_messages(phone_numbers, message_text, debug_mode=False, test_mode=False)
+    # print(f"🚀 PRODUCTION MODE: Sending to {len(phone_numbers)} users")
+    # results = await message_service.send_bulk_messages(phone_numbers, message_text, debug_mode=False, test_mode=False)
 
     print(f"Processed {len(results)} messages via service layer")
 

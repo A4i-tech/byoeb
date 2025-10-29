@@ -19,6 +19,7 @@ from byoeb_integrations.media_storage.azure.async_azure_blob_storage import Asyn
 from byoeb.background_jobs.consensus.respond_with_consensus import main as respond_with_consensus
 from byoeb.background_jobs.consensus.send_query_to_expert import main as send_query_to_expert
 from byoeb.background_jobs.message_leaderboard.leaderboard import main as message_leaderboard
+from byoeb.background_jobs.did_you_know.send_dyk import run as send_dyk
 
 # APScheduler imports for proper cron job scheduling
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -62,8 +63,15 @@ JOB_CONFIGURATIONS = [
     {
         "id": "message_leaderboard",
         "name": "Message Leaderboard",
-        "cron": "0 12 * * FRI",  # 12 PM every Friday
+        "cron": "*/1 * * * *",   # every minute
         "function": message_leaderboard,
+        "enabled": True
+    },
+        {
+        "id": "send_dyk",
+        "name": "Send DYK",
+        "cron": "*/1 * * * *",
+        "function": send_dyk,
         "enabled": True
     }
 ]
@@ -145,6 +153,8 @@ def setup_scheduled_jobs():
                     name=job_config["name"],
                     replace_existing=True
                 )
+
+                # scheduler.reschedule_job(job_config["id"], CronTrigger.from_crontab("*/1 * * * *", timezone=pytz.UTC))
 
                 job_status[job_config["id"]] = {
                     "status": "scheduled",
