@@ -79,7 +79,13 @@ jobs:
         working-directory: .
 
       - name: Run MongoDB tests
-        run: poetry run pytest
+        env:
+            RECIEVE_URL: ${{ secrets.RECIEVE_ENDPOINT }}
+            USER_NAME: ${{ secrets.USERNAME }}
+            PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER }}
+        run: |
+            echo $RECIEVE_URL
+            poetry run pytest
 
       - name: Install deps (byoeb)
         working-directory: ./byoeb-v1/byoeb
@@ -87,6 +93,10 @@ jobs:
 
       - name: Run tests (byoeb)
         working-directory: ./byoeb-v1/byoeb
+        env:
+            RECIEVE_URL: ${{ secrets.RECIEVE_ENDPOINT }}
+            USER_NAME: ${{ secrets.USERNAME }}
+            PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER }}
         run: poetry run pytest
 
       - name: Upload HTML coverage (byoeb)
@@ -101,3 +111,11 @@ jobs:
         with:
           name: coverage-html
           path: ./byoeb-v1/byoeb-integrations/htmlcov
+      - name: Onboarding workflow test
+        working-directory: ./byoeb-v1/byoeb/tests/
+        env:
+            RECIEVE_URL: ${{ secrets.RECIEVE_ENDPOINT }}
+            USER_NAME: ${{ secrets.USERNAME }}
+            PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER }}
+        run:  poetry run pytest -s test_onboarding.py
+
