@@ -250,6 +250,7 @@ def test_whatsapp_onboarding_flow():
     data = [PHONE_NUMBER_ID] 
 
     response = requests.delete(delete_url, headers=headers, data=json.dumps(data))
+    response.raise_for_status()
     print("Delete user response:", response.status_code, response.text)
 
     c_id=[]
@@ -309,5 +310,15 @@ def test_whatsapp_onboarding_flow():
               print(f"Step {step+1} response: {response.json()}")
               assert response.status_code == 200, f"Step {step+1} failed"
 
+    get_url = BASE_URL.replace("receive","get_users")
+    headers = {
+    "accept": "application/json",
+    "Content-Type": "application/json"
+    }
+    data = [PHONE_NUMBER_ID] 
+    response = requests.get(get_url, headers=headers, data=json.dumps(data))
+    response.raise_for_status()
+    message = response.json()
+    assert len(message) == 1
 
 

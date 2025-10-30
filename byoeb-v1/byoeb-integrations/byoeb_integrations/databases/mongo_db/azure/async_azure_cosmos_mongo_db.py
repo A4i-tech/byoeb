@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import certifi
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection,AsyncIOMotorDatabase
 from byoeb_core.databases.mongo_db.base import BaseDocumentDatabase, BaseDocumentCollection
@@ -167,6 +167,27 @@ class AsyncAzureCosmosMongoDBCollection(BaseDocumentCollection):
         if result is None:
             return [], None
         return result.inserted_ids, None
+
+    async def acount(
+        self,
+        query: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> int:
+        if self.__collection is None:
+            raise ValueError("Collection is not present or deleted. Please create a new collection")
+        filter_query = query or {}
+        return await self.__collection.count_documents(filter_query, **kwargs)
+
+    async def ainsert_one(
+        self,
+        document: Dict[str, Any],
+        **kwargs
+    ) -> Optional[str]:
+        if self.__collection is None:
+            raise ValueError("Collection is not present or deleted. Please create a new collection")
+        result = await self.__collection.insert_one(document, **kwargs)
+        inserted_id = result.inserted_id
+        return str(inserted_id) if inserted_id is not None else None
         
     
     def fetch(
@@ -184,6 +205,16 @@ class AsyncAzureCosmosMongoDBCollection(BaseDocumentCollection):
         if self.__collection is None:
             raise ValueError("Collection is not present or deleted. Please create a new collection")
         return await self.__collection.find_one(query)
+
+    async def afetch_one(
+        self,
+        query: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> Any:
+        if self.__collection is None:
+            raise ValueError("Collection is not present or deleted. Please create a new collection")
+        filter_query = query or {}
+        return await self.__collection.find_one(filter_query, **kwargs)
     
     def fetch_all(
         self,
@@ -266,6 +297,28 @@ class AsyncAzureCosmosMongoDBCollection(BaseDocumentCollection):
             return result, result.modified_count
         result = await self.__collection.update_many(query, update_data)
         return result, result.modified_count
+
+    async def aupdate_one(
+        self,
+        query: Dict[str, Any],
+        update_data: Dict[str, Any],
+        **kwargs
+    ) -> bool:
+        if self.__collection is None:
+            raise ValueError("Collection is not present or deleted. Please create a new collection")
+        result = await self.__collection.update_one(query, update_data, **kwargs)
+        return result.modified_count > 0
+
+    async def aupdate_many(
+        self,
+        query: Dict[str, Any],
+        update_data: Dict[str, Any],
+        **kwargs
+    ) -> int:
+        if self.__collection is None:
+            raise ValueError("Collection is not present or deleted. Please create a new collection")
+        result = await self.__collection.update_many(query, update_data, **kwargs)
+        return result.modified_count
     
     def delete(
         self, 
@@ -291,6 +344,26 @@ class AsyncAzureCosmosMongoDBCollection(BaseDocumentCollection):
             return result, result.deleted_count
         result = await self.__collection.delete_many(query)
         return result, result.deleted_count
+
+    async def adelete_one(
+        self,
+        query: Dict[str, Any],
+        **kwargs
+    ) -> bool:
+        if self.__collection is None:
+            raise ValueError("Collection is not present or deleted. Please create a new collection")
+        result = await self.__collection.delete_one(query, **kwargs)
+        return result.deleted_count > 0
+
+    async def adelete_many(
+        self,
+        query: Dict[str, Any],
+        **kwargs
+    ) -> int:
+        if self.__collection is None:
+            raise ValueError("Collection is not present or deleted. Please create a new collection")
+        result = await self.__collection.delete_many(query, **kwargs)
+        return result.deleted_count
     
     def delete_collection(self) -> Any:
         raise NotImplementedError
