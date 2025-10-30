@@ -1,9 +1,9 @@
 import os
 import re
+from typing import Iterable, List, TypeVar
 from byoeb.constants.onboarding_text import ONBOARD_WELCOME_MESSAGE_DICT
 from byoeb.constants.user_enums import LanguageCode
 from urllib.parse import unquote
-from pathlib import Path
 from fastmcp.server.dependencies import get_http_request
 
 def get_git_root_path():
@@ -64,3 +64,9 @@ def is_onboard(
     text = unquote(text)  # "%20%" -> " "
     text = text.lower().replace("-", " ")  # "onboard-asha" -> "onboard asha"
     return any(phrase in text for phrase in ONBOARD_WELCOME_MESSAGE_DICT[lang])  # Check if any phrase exists in text
+
+T = TypeVar("T")
+def chunked(seq: Iterable[T], size: int) -> Iterable[List[T]]:
+    seq = list(seq)
+    for i in range(0, len(seq), size):
+        yield seq[i:i + size]

@@ -50,10 +50,22 @@ async def lifespan(app: FastAPI):
         queue_producer_factory,
         text_translator
     )
+    from byoeb.apis.background_jobs import setup_scheduled_jobs
+    from byoeb.chat_app.configuration.dependency_setup import start_scheduler, stop_scheduler
+
     await message_consumer.initialize()
     asyncio.create_task(message_consumer.listen())
+
+    setup_scheduled_jobs()
+    start_scheduler()
+    logger.info("Background job scheduler started during application startup")
+
     async with mcp_app.lifespan(app):
         yield
+
+    stop_scheduler()
+    logger.info("Background job scheduler stopped during application shutdown")
+
     await channel_client_factory.close()
     await message_consumer.close()
     await queue_producer_factory.close()

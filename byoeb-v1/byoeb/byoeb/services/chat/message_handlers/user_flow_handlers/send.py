@@ -208,7 +208,7 @@ class ByoebUserSendResponse(Handler):
         read_receipt_messages = chat_utils.get_read_receipt_byoeb_messages(messages)
         print("[send] read_receipt_messages_count=", len(read_receipt_messages) if read_receipt_messages else 0)
         byoeb_user_messages = chat_utils.get_user_byoeb_messages(messages)
-        print("byoeb_user_messages", byoeb_user_messages)
+        # print("byoeb_user_messages", byoeb_user_messages)
         print("[send] byoeb_user_messages_count=", len(byoeb_user_messages) if byoeb_user_messages else 0)
 
         # Debug: Print user types for all messages

@@ -7,8 +7,7 @@ from byoeb_core.models.byoeb.response import ByoebResponseModel, ByoebStatusCode
 from byoeb_core.models.byoeb.user import User 
 from byoeb.chat_app.configuration.config import app_config, bot_config
 from byoeb.factory import MongoDBFactory
-from byoeb_core.databases.mongo_db.base import BaseDocumentCollection
-from byoeb_integrations.databases.mongo_db.azure.async_azure_cosmos_mongo_db import AsyncAzureCosmosMongoDB, AsyncAzureCosmosMongoDBCollection
+from byoeb.repositories.repository_factory import RepositoryFactory
 
 class UsersHandler:
     _user_service = None
@@ -47,23 +46,15 @@ class UsersHandler:
                 return False
         return True
 
-    async def get_collection_client(self) -> BaseDocumentCollection:
-        if self.__user_collection_client is not None:
-            return self.__user_collection_client
-        self.__mongo_db = await self.__mongo_db_facory.get(self.__db_provider)
-        if isinstance(self.__mongo_db, AsyncAzureCosmosMongoDB):
-            self.__user_collection_client = AsyncAzureCosmosMongoDBCollection(
-                collection=self.__mongo_db.get_collection(self.__user_collection)
-            )
-        return self.__user_collection_client
+    async def get_user_repository(self):
+        repository_factory = RepositoryFactory(self.__mongo_db_facory)
+        return await repository_factory.get_user_repository()
     
     async def get_or_create_user_service(self) -> UserService:
         if self._user_service is not None:
             return self._user_service
-        self._user_service = UserService(
-            collection_client=await self.get_collection_client(),
-            bot_config=bot_config
-        )
+        user_repository = await self.get_user_repository()
+        self._user_service = UserService(user_repository=user_repository, bot_config=bot_config)
         return self._user_service
     
     async def aregister(
