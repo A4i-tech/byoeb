@@ -414,26 +414,26 @@ class MessageMongoDBService(BaseMongoDBService):
         return results
 
     async def get_bot_messages_by_ids(self, bot_message_ids: List[str]) -> List[ByoebMessageContext]:
-        """Fetch multiple bot messages from the database."""
-        message_collection_client = await self._get_collection_client(self.collection_name)
-        messages_obj = await message_collection_client.afetch_all({"_id": {"$in": bot_message_ids}})
+        """Fetch multiple bot messages from the database via repository."""
+        repository_factory = await self._get_repository_factory()
+        message_repository = await repository_factory.get_message_repository()
+        messages_obj = await message_repository.find_all({"_id": {"$in": bot_message_ids}})
         return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
     
     async def get_bot_messages_by_status(self, status: str) -> List[ByoebMessageContext]:
-        """Fetch bot messages with the given status."""
-        message_collection_client = await self._get_collection_client(self.collection_name)
-        messages_obj = await message_collection_client.afetch_all({"message_data.message_context.additional_info.status": status})
+        """Fetch bot messages with the given status via repository."""
+        repository_factory = await self._get_repository_factory()
+        message_repository = await repository_factory.get_message_repository()
+        messages_obj = await message_repository.find_all({"message_data.message_context.additional_info.status": status})
         return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
 
     async def get_latest_bot_messages_by_timestamp(self, timestamp: str):
-        """Fetch bot messages with timestamps greater than the given timestamp."""
-        message_collection_client = await self._get_collection_client(self.collection_name)
-        messages_obj = sorted(
-            await message_collection_client.afetch_all({"timestamp": {"$gt": timestamp}}),
-            key=lambda msg: msg["timestamp"],
-            reverse=True  # Sorting in descending order
-        )
-        return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
+        """Fetch bot messages with timestamps greater than the given timestamp; preserve prior in-Python sort behavior."""
+        repository_factory = await self._get_repository_factory()
+        message_repository = await repository_factory.get_message_repository()
+        messages_obj = await message_repository.find_all({"timestamp": {"$gt": timestamp}})
+        messages_obj_sorted = sorted(messages_obj, key=lambda msg: msg.get("timestamp"), reverse=True)
+        return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj_sorted]
 
     def correction_update_query(
         self,
@@ -594,15 +594,16 @@ class MessageMongoDBService(BaseMongoDBService):
         return new_message_queries
     
     async def execute_queries(self, queries: Dict[str, Any]):
-        """Execute message database queries."""
+        """Execute message database queries via repository (insert_many, bulk_update)."""
         if not queries:
             return
 
-        message_client = await self._get_collection_client(self.collection_name)
+        repository_factory = await self._get_repository_factory()
+        message_repository = await repository_factory.get_message_repository()
         if queries.get("create"):
-            await message_client.ainsert(queries["create"])
+            await message_repository.insert_many(queries["create"])
         if queries.get("update"):
-            await message_client.aupdate(bulk_queries=queries["update"])
+            await message_repository.bulk_update(queries["update"])
 
     async def delete_message_collection(self):
         """Delete the message collection."""

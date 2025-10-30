@@ -30,12 +30,10 @@ class BaseMongoDBService:
 
     async def _get_repository_factory(self) -> 'RepositoryFactory':
         """
-        Get or create repository factory instance.
-        Provides repository-based data access pattern support.
-        This method consolidates repository access functionality into BaseMongoDBService,
-        allowing all services to use repository-based invocations through a single class.
+        Get or create repository factory instance using the same MongoDBFactory
+        already configured for this service, ensuring a single shared client.
         """
         if self._repository_factory is None:
-            from byoeb.repositories.repository_factory import get_repository_factory as global_get_repository_factory
-            self._repository_factory = await global_get_repository_factory()
+            from byoeb.repositories.repository_factory import RepositoryFactory
+            self._repository_factory = RepositoryFactory(self._mongo_db_factory)
         return self._repository_factory

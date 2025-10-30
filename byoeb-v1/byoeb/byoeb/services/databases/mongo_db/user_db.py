@@ -92,8 +92,9 @@ class UserMongoDBService(BaseMongoDBService):
                 activity_timestamp = user.created_timestamp 
             return activity_timestamp, True
 
-        user_collection_client = await self._get_collection_client(self.collection_name)
-        user_obj = await user_collection_client.afetch({"_id": user_id})
+        repository_factory = await self._get_repository_factory()
+        user_repository = await repository_factory.get_user_repository()
+        user_obj = await user_repository.find_by_id(user_id)
 
         if user_obj is None:
             return None
@@ -107,18 +108,20 @@ class UserMongoDBService(BaseMongoDBService):
         return activity_timestamp, False
 
     async def get_users(self, user_ids: List[str]) -> List[User]:
-        """Fetch multiple users from the database."""
-        user_collection_client = await self._get_collection_client(self.collection_name)
-        users_obj = await user_collection_client.afetch_all({"_id": {"$in": user_ids}})
+        """Fetch multiple users from the database using repository."""
+        repository_factory = await self._get_repository_factory()
+        user_repository = await repository_factory.get_user_repository()
+        users_obj = await user_repository.find_all({"_id": {"$in": user_ids}})
         try:
             return [User(**user_obj["User"]) for user_obj in users_obj]
-        except Exception as e:
+        except Exception:
             return []
     
     async def get_users_by_type(self, user_type: str) -> List[User]:
-        """Fetch users by type."""
-        user_collection_client = await self._get_collection_client(self.collection_name)
-        users_obj = await user_collection_client.afetch_all({"User.user_type": user_type})
+        """Fetch users by type using repository."""
+        repository_factory = await self._get_repository_factory()
+        user_repository = await repository_factory.get_user_repository()
+        users_obj = await user_repository.find_users_by_type(user_type)
         return [User(**user_obj["User"]) for user_obj in users_obj]
     
     def user_activity_update_query(self, user: User, qa: Dict[str, Any] = None, skip_timestamp: bool = False):
@@ -173,12 +176,13 @@ class UserMongoDBService(BaseMongoDBService):
         return new_user_queries
     
     async def execute_queries(self, queries: Dict[str, Any]):
-        """Execute user database queries."""
+        """Execute user database queries via repository (insert_many, bulk_update)."""
         if not queries:
             return
 
-        user_client = await self._get_collection_client(self.collection_name)
+        repository_factory = await self._get_repository_factory()
+        user_repository = await repository_factory.get_user_repository()
         if queries.get("create"):
-            await user_client.ainsert(queries["create"])
+            await user_repository.insert_many(queries["create"])
         if queries.get("update"):
-            await user_client.aupdate(bulk_queries=queries["update"])
+            await user_repository.bulk_update(queries["update"])

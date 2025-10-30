@@ -1,7 +1,7 @@
 """
 MongoDB implementation of UserRepository.
 """
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from byoeb.repositories.user_repository import UserRepository
 from byoeb.repositories.base_repository import BaseRepository
 from byoeb_core.databases.mongo_db.base import BaseDocumentCollection
@@ -41,7 +41,7 @@ class MongoUserRepository(UserRepository, BaseRepository):
 
     async def insert_many(self, documents: List[Dict[str, Any]]) -> List[str]:
         """Insert multiple users and return their IDs."""
-        return await self._collection.ainsert_many(documents)
+        return await self._collection.ainsert(documents)
 
     async def update_one(self, filter_dict: Dict[str, Any], 
                         update_dict: Dict[str, Any]) -> bool:
@@ -60,6 +60,10 @@ class MongoUserRepository(UserRepository, BaseRepository):
     async def delete_many(self, filter_dict: Dict[str, Any]) -> int:
         """Delete multiple users matching the filter criteria."""
         return await self._collection.adelete_many(filter_dict)
+
+    async def bulk_update(self, bulk_queries: List[Tuple[Dict[str, Any], Dict[str, Any]]]) -> int:
+        """Execute heterogeneous user update queries in bulk."""
+        return await self._collection.aupdate(bulk_queries=bulk_queries)
 
     async def find_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Find a user by their ID."""
