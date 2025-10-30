@@ -91,6 +91,8 @@ async def queue(dyk_repo: DykRepository, sheet: DykFactSheet, candidates: DykBat
     queued_client_ops = []
     for user, sent in candidates:
         lang = LanguageCode(user.user_language)
+        if not lang in lang_sets:
+            continue
         diff = lang_sets[lang] - sent  # deduplication
         if len(diff) == 0:
             # no facts remaining !
