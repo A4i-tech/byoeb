@@ -62,14 +62,14 @@ JOB_CONFIGURATIONS = [
     {
         "id": "message_leaderboard",
         "name": "Message Leaderboard",
-        "cron": "*/1 * * * *",   # every minute
+        "cron": "0 12 * * 5",   # 12 PM every Friday
         "function": message_leaderboard,
         "enabled": True
     },
         {
         "id": "send_dyk",
         "name": "Send DYK",
-        "cron": "*/1 * * * *",
+        "cron": "0 11 * * MON#2,MON#4",
         "function": send_dyk,
         "enabled": True
     }
@@ -123,15 +123,13 @@ def setup_scheduled_jobs():
                     execute_job_function,
                     CronTrigger.from_crontab(
                         job_config["cron"],
-                        timezone=pytz.UTC
+                        timezone=pytz.timezone("Asia/Kolkata")
                     ),
                     args=[job_config["function"]],
                     id=job_config["id"],
                     name=job_config["name"],
                     replace_existing=True
                 )
-
-                # scheduler.reschedule_job(job_config["id"], CronTrigger.from_crontab("*/1 * * * *", timezone=pytz.UTC))
 
                 job_status[job_config["id"]] = {
                     "status": "scheduled",
