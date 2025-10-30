@@ -9,7 +9,7 @@ readme = "README.md"
 python = "^3.10"
 fastapi = "^0.115.5"
 aiocache = "0.12.3"
-byoeb-integrations = {git = "https://github.com/A4i-tech/byoeb.git", branch = "feat/bg_jobs_1", subdirectory = "byoeb-v1/byoeb-integrations"}
+byoeb-integrations = {path = "../byoeb-integrations"}
 azure-monitor-opentelemetry = "1.6.7"
 azure-monitor-events-extension = "0.1.0"
 notebook = "7.3.3"
