@@ -96,8 +96,22 @@ user_db_service = UserMongoDBService(
 )
 message_db_service = MessageMongoDBService(
     config=app_config,
-    mongo_db_factory=mongo_db_factory
+    mongo_db_factory=mongo_db_factory,
+    user_db_service=user_db_service  # Pass user_db_service for leaderboard functionality
 )
+
+# Leaderboard service functions
+from byoeb.services.leaderboard import LeaderboardService
+from typing import Optional
+
+_leaderboard_service: Optional[LeaderboardService] = None
+
+async def get_leaderboard_service() -> LeaderboardService:
+    """Get or create leaderboard service instance."""
+    global _leaderboard_service
+    if _leaderboard_service is None:
+        _leaderboard_service = LeaderboardService(user_db_service, message_db_service)
+    return _leaderboard_service
 
 # message queue
 queue_producer_factory = QueueProducerFactory(
@@ -337,3 +351,48 @@ elif account_url:
 else:
     media_storage = None
     print("⚠️ Azure Blob Storage not configured. Media storage disabled.")
+
+# Scheduler configuration
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.jobstores.mongodb import MongoDBJobStore
+from apscheduler.executors.asyncio import AsyncIOExecutor
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+import pymongo
+from byoeb.chat_app.configuration.config import env_mongo_db_connection_string
+
+# MongoDB connection configuration for scheduler job store
+MONGODB_URL = env_mongo_db_connection_string
+MONGODB_DATABASE = app_config["databases"]["mongo_db"]["database_name"]
+MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
+
+# Initialize MongoDB client and job store
+mongodb_client = pymongo.MongoClient(MONGODB_URL)
+mongodb_jobstore = MongoDBJobStore(
+    database=MONGODB_DATABASE,
+    collection=MONGODB_COLLECTION,
+    client=mongodb_client
+)
+
+# Initialize the scheduler with MongoDB job store
+scheduler = AsyncIOScheduler(
+    jobstores={'default': mongodb_jobstore},
+    executors={'default': AsyncIOExecutor()},
+    job_defaults={'coalesce': False, 'max_instances': 1}
+)
+
+def get_scheduler() -> AsyncIOScheduler:
+    """Get the scheduler instance."""
+    return scheduler
+
+def start_scheduler():
+    """Start the scheduler."""
+    if not scheduler.running:
+        scheduler.start()
+        print("✅ Background job scheduler started")
+
+def stop_scheduler():
+    """Stop the scheduler."""
+    if scheduler.running:
+        scheduler.shutdown()
+        print("✅ Background job scheduler stopped")

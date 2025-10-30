@@ -18,7 +18,8 @@ from byoeb_core.models.byoeb.message_context import (
     ReplyContext,
     MessageTypes
 )
-from byoeb.background_jobs.config import bot_config, app_config
+from byoeb.background_jobs.consensus.config import bot_config
+from byoeb.chat_app.configuration.config import app_config
 from byoeb.models.message_category import MessageCategory
 from byoeb.models.consensus import Consensus
 
@@ -178,7 +179,7 @@ async def send_pending_queries_to_expert(
         )
 
 async def main():
-    from byoeb.background_jobs.dependency_setup import (
+    from byoeb.chat_app.configuration.dependency_setup import (
         channel_client_factory,
         user_db_service,
         message_db_service

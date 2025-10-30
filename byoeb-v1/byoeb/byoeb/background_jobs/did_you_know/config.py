@@ -7,8 +7,4 @@ current_dir = Path(__file__).resolve().parent
 bot_config_path = current_dir / "bot_config.json"
 bot_config = json.loads(bot_config_path.read_text(encoding="utf-8"))
 
-# Import app_config from centralized location
-from byoeb.chat_app.configuration.config import app_config
-
 # Note: keys.env is loaded by chat_app.configuration.config, no need to load here
-

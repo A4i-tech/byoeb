@@ -2,9 +2,9 @@ name: CI - MongoDB Tests
 
 on:
   push:
-    branches: [ a4i/main ]
+    branches: [ a4i/main, staging ]
   pull_request:
-    branches: [ a4i/main ]
+    branches: [ a4i/main, staging ]
 
 jobs:
   tests:
@@ -79,7 +79,13 @@ jobs:
         working-directory: .
 
       - name: Run MongoDB tests
-        run: poetry run pytest
+        env:
+            RECIEVE_URL: ${{ secrets.RECIEVE_ENDPOINT }}
+            USER_NAME: ${{ secrets.USERNAME }}
+            PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER }}
+        run: |
+            echo $RECIEVE_URL
+            poetry run pytest
 
       - name: Install deps (byoeb)
         working-directory: ./byoeb-v1/byoeb
@@ -87,6 +93,10 @@ jobs:
 
       - name: Run tests (byoeb)
         working-directory: ./byoeb-v1/byoeb
+        env:
+            RECIEVE_URL: ${{ secrets.RECIEVE_ENDPOINT }}
+            USER_NAME: ${{ secrets.USERNAME }}
+            PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER }}
         run: poetry run pytest
 
       - name: Upload HTML coverage (byoeb)
