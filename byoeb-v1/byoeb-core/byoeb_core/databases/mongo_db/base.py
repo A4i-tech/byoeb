@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 class BaseDocumentDatabase(ABC):
 
@@ -47,6 +47,22 @@ class BaseDocumentCollection(ABC):
         **kwargs
     ) -> Any:
         pass
+
+    @abstractmethod
+    async def acount(
+        self,
+        query: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> int:
+        pass
+
+    @abstractmethod
+    async def ainsert_one(
+        self,
+        document: Dict[str, Any],
+        **kwargs
+    ) -> Any:
+        pass
     
     @abstractmethod
     def fetch(
@@ -60,6 +76,14 @@ class BaseDocumentCollection(ABC):
     async def afetch(
         self,
         query: Dict[str, Any],
+        **kwargs
+    ) -> Any:
+        pass
+
+    @abstractmethod
+    async def afetch_one(
+        self,
+        query: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> Any:
         pass
@@ -123,6 +147,24 @@ class BaseDocumentCollection(ABC):
         pass
 
     @abstractmethod
+    async def aupdate_one(
+        self,
+        query: Dict[str, Any],
+        update_data: Dict[str, Any],
+        **kwargs
+    ) -> Any:
+        pass
+
+    @abstractmethod
+    async def aupdate_many(
+        self,
+        query: Dict[str, Any],
+        update_data: Dict[str, Any],
+        **kwargs
+    ) -> Any:
+        pass
+
+    @abstractmethod
     def delete(
         self,
         query: Dict[str, Any],
@@ -132,6 +174,22 @@ class BaseDocumentCollection(ABC):
 
     @abstractmethod
     async def adelete(
+        self,
+        query: Dict[str, Any],
+        **kwargs
+    ) -> Any:
+        pass
+
+    @abstractmethod
+    async def adelete_one(
+        self,
+        query: Dict[str, Any],
+        **kwargs
+    ) -> Any:
+        pass
+
+    @abstractmethod
+    async def adelete_many(
         self,
         query: Dict[str, Any],
         **kwargs
