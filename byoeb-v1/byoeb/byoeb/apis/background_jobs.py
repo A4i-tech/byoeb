@@ -69,7 +69,7 @@ JOB_CONFIGURATIONS = [
         {
         "id": "send_dyk",
         "name": "Send DYK",
-        "cron": "0 11 * * MON#2,MON#4",
+        "cron": "0 11 * * WED#2,WED#4",
         "function": send_dyk,
         "enabled": True
     }
