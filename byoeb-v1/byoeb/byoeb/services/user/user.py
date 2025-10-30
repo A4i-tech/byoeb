@@ -252,7 +252,7 @@ class UserService(BaseUserService):
             )
             byoeb_users.append(new_user)
         json_data_users = self.__prepare_user_insert_data(byoeb_users)
-        inserted_ids = await self.__user_repository.insert_many(json_data_users)
+        inserted_ids, _ = await self.__user_repository.insert_many(json_data_users)
         print(inserted_ids)
         ids = list(set(ids + inserted_ids))
         messages, update_queries, delete_queries = await self.__get_post_insert_users_queries(ids, byoeb_users)
