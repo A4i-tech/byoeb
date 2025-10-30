@@ -2,9 +2,9 @@ name: CI - MongoDB Tests
 
 on:
   push:
-    branches: [ a4i/main ]
+    branches: [ a4i/main, staging ]
   pull_request:
-    branches: [ a4i/main ]
+    branches: [ a4i/main, staging ]
 
 jobs:
   tests:
