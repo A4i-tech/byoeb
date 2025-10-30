@@ -6,6 +6,7 @@ from byoeb.repositories.user_repository import UserRepository
 from byoeb.repositories.base_repository import BaseRepository
 from byoeb_core.databases.mongo_db.base import BaseDocumentCollection
 from byoeb.chat_app.configuration.config import app_config
+import os
 
 
 class MongoUserRepository(UserRepository, BaseRepository):
@@ -82,6 +83,16 @@ class MongoUserRepository(UserRepository, BaseRepository):
     async def find_users_by_types(self, user_types: List[str]) -> List[Dict[str, Any]]:
         """Find users by multiple types."""
         filter_dict = {"User.user_type": {"$in": user_types}}
+        return await self.find_all(filter_dict)
+
+    async def find_test_users_by_types(self, user_types: List[str]) -> List[Dict[str, Any]]:
+        """Find users by types; when TEST_USERS_ONLY=true restrict to test users only, else return all users of those types."""
+        test_only = os.getenv("TEST_USERS_ONLY", "false").lower() == "true"
+        filter_dict: Dict[str, Any] = {
+            "User.user_type": {"$in": user_types}
+        }
+        if test_only:
+            filter_dict["User.test_user"] = True
         return await self.find_all(filter_dict)
 
     async def find_users_by_district(self, district: str) -> List[Dict[str, Any]]:

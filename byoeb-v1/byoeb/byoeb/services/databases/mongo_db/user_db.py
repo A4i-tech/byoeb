@@ -5,6 +5,7 @@ from byoeb_core.models.byoeb.user import User
 from byoeb.factory import MongoDBFactory
 from typing import List, Dict, Any
 from byoeb.services.databases.mongo_db.base import BaseMongoDBService
+import os
 
 class UserMongoDBService(BaseMongoDBService):
     """Service class for user-related MongoDB operations."""
@@ -26,17 +27,17 @@ class UserMongoDBService(BaseMongoDBService):
         repository_factory = await self._get_repository_factory()
         user_repository = await repository_factory.get_user_repository()
 
-        # Use repository method to find ASHA and test users
-        asha_and_test_users = await user_repository.find_asha_and_test_users()
+        # Delegate selection logic (including TEST_USERS_ONLY handling) to repository
+        # users = await user_repository.find_test_users_by_types(["others", "asha"]) # all users for future reference
+        users = await user_repository.find_test_users_by_types(["others"]) # only others users for now
 
-        # Extract phone numbers from the results
-        collected_phone_numbers = []
-        for user_document in asha_and_test_users:
+        numbers: List[str] = []
+        for user_document in users:
             phone_number = user_document.get("User", {}).get("phone_number_id")
             if phone_number:
-                collected_phone_numbers.append(phone_number)
+                numbers.append(phone_number)
+        return numbers
 
-        return collected_phone_numbers
 
     async def hydrate_users(
         self, 

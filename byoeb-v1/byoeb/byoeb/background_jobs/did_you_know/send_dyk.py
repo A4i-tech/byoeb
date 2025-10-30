@@ -20,6 +20,7 @@ from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import Statu
 from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
 from typing import AsyncIterator, Iterable, List, Optional, Set, Tuple, TypeAlias
+import os
 
 
 DykBatch: TypeAlias = Iterable[Tuple[User, Set[str]]]
@@ -42,11 +43,19 @@ async def pick_candidates(dyk_repo: DykRepository, user_repo: UserRepository, la
     - the user has a language available in `langs`
     - the user has no 'pending' DYKs
     """
+    select_test_only = os.getenv("TEST_USERS_ONLY", "false").lower() == "true"
     if len(user_types) > 0:
-        potential_candidates = await user_repo.find_users_by_types(user_types)
+        if select_test_only and hasattr(user_repo, "find_test_users_by_types"):
+            potential_candidates = await user_repo.find_test_users_by_types(user_types)
+        else:
+            potential_candidates = await user_repo.find_users_by_types(user_types)
     else:
-        run_logger.debug(f"{pick_candidates.__name__}: user_types list is empty - selecting test users instead")
-        potential_candidates = await user_repo.find_test_users()
+        if select_test_only:
+            run_logger.debug(f"{pick_candidates.__name__}: TEST_USERS_ONLY enabled - selecting test users")
+            potential_candidates = await user_repo.find_test_users()
+        else:
+            run_logger.debug(f"{pick_candidates.__name__}: no user_types provided - selecting all users")
+            potential_candidates = await user_repo.find_all({})
     
     filtern_user_ids = set(record.user_id for record in await dyk_repo.find_pending_of_langs(langs))
     users = map(lambda x: User(**x["User"]), potential_candidates)

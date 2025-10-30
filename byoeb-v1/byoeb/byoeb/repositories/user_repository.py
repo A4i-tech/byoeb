@@ -28,6 +28,11 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
+    async def find_test_users_by_types(self, user_types: List[str]) -> List[Dict[str, Any]]:
+        """Find users by multiple types, restricted to test users only."""
+        pass
+
+    @abstractmethod
     async def find_users_by_district(self, district: str) -> List[Dict[str, Any]]:
         """Find users by district."""
         pass
