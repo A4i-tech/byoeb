@@ -1,8 +1,8 @@
 import time
 import pandas as pd
 from datetime import datetime
-from byoeb.background_jobs.config import app_config
-from byoeb.background_jobs.dependency_setup import user_db_service
+from byoeb.chat_app.configuration.config import app_config
+from byoeb.chat_app.configuration.dependency_setup import user_db_service
 from byoeb.factory import MongoDBFactory
 
 SINGLETON = "singleton"

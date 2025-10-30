@@ -6,14 +6,13 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 from collections import Counter, defaultdict
 
-from byoeb.services.user.user_service import UserService
-from byoeb.services.message.message_service import MessageService
+from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from .time_window_strategies import TimeWindowStrategy, TimeWindowFactory
 
 class LeaderboardService:
     """Service class for leaderboard-related operations."""
 
-    def __init__(self, user_service: UserService, message_service: MessageService, time_window_strategy: Optional[TimeWindowStrategy] = None):
+    def __init__(self, user_service: UserMongoDBService, message_service: MessageMongoDBService, time_window_strategy: Optional[TimeWindowStrategy] = None):
         self._user_service = user_service
         self._message_service = message_service
         self._time_window_strategy = time_window_strategy or TimeWindowFactory.create_strategy('week')

@@ -4,7 +4,7 @@ Example usage of the Repository Pattern in the BYOEB project.
 from typing import List, Dict, Any
 from byoeb.repositories import RepositoryFactory, MessageRepository, UserRepository
 from byoeb.factory import MongoDBFactory
-from byoeb.background_jobs.config import app_config
+from byoeb.chat_app.configuration.config import app_config
 
 
 async def example_usage():

@@ -221,7 +221,7 @@ async def test_leaderboard_skips_unknown_district(monkeypatch):
         # district is "unknown" -> should be skipped
         return [SimpleNamespace(user_id="u1", user_location={"district": "unknown"})]
     monkeypatch.setattr(
-        "byoeb.background_jobs.dependency_setup.user_db_service.get_users",
+        "byoeb.chat_app.configuration.dependency_setup.user_db_service.get_users",
         fake_users
     )
 
@@ -251,7 +251,7 @@ async def test_leaderboard_ignores_out_of_window(monkeypatch):
     async def fake_users(uids):
         return [SimpleNamespace(user_id="u1", user_location={"district": "Jaipur"})]
     monkeypatch.setattr(
-        "byoeb.background_jobs.dependency_setup.user_db_service.get_users",
+        "byoeb.chat_app.configuration.dependency_setup.user_db_service.get_users",
         fake_users
     )
 
@@ -291,13 +291,16 @@ async def test_leaderboard_with_categories(mocker):
 
 @pytest.mark.asyncio
 async def test_send_bulk_messages_success(mocker):
-    # Test the service layer method instead of the deprecated function
-    from byoeb.services.message.message_service import MessageService
-    from byoeb.services.user.user_service import UserService
+    # Test the service layer method using MessageMongoDBService
+    from byoeb.services.databases.mongo_db import MessageMongoDBService
 
-    # Mock the services
-    mock_user_service = mocker.AsyncMock(spec=UserService)
-    message_service = MessageService(mock_user_service)
+    # Mock the service
+    message_service = mocker.MagicMock(spec=MessageMongoDBService)
+    message_service.send_bulk_messages = mocker.AsyncMock(return_value=[{
+        "phone": "9199999999",
+        "status": "debug_mode",
+        "message": "Payload printed (not sent)"
+    }])
 
     # Test the service layer method
     results = await message_service.send_bulk_messages(["9199999999"], "Test Message", debug_mode=True)
@@ -309,13 +312,16 @@ async def test_send_bulk_messages_success(mocker):
 
 @pytest.mark.asyncio
 async def test_send_bulk_messages_failure(mocker):
-    # Test the service layer method instead of the deprecated function
-    from byoeb.services.message.message_service import MessageService
-    from byoeb.services.user.user_service import UserService
+    # Test the service layer method using MessageMongoDBService
+    from byoeb.services.databases.mongo_db import MessageMongoDBService
 
-    # Mock the services
-    mock_user_service = mocker.AsyncMock(spec=UserService)
-    message_service = MessageService(mock_user_service)
+    # Mock the service
+    message_service = mocker.MagicMock(spec=MessageMongoDBService)
+    message_service.send_bulk_messages = mocker.AsyncMock(return_value=[{
+        "phone": "9199999999",
+        "status": "debug_mode",
+        "message": "Payload printed (not sent)"
+    }])
 
     # Test the service layer method
     results = await message_service.send_bulk_messages(["9199999999"], "Test Message", debug_mode=True)
@@ -331,6 +337,6 @@ async def test_main_function_runs(mocker):
     # Mock the message service to prevent actual message sending during tests
     mock_message_service = mocker.MagicMock()
     mock_message_service.send_bulk_messages = mocker.AsyncMock(return_value=[{"phone": "test", "status": "mocked"}])
-    mocker.patch("byoeb.background_jobs.message_leaderboard.leaderboard.get_message_service", return_value=mock_message_service)
+    mocker.patch("byoeb.background_jobs.message_leaderboard.leaderboard.message_db_service", mock_message_service)
 
     await leaderboard.main()

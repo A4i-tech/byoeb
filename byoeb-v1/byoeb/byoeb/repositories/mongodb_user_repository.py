@@ -1,11 +1,12 @@
 """
 MongoDB implementation of UserRepository.
 """
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from byoeb.repositories.user_repository import UserRepository
 from byoeb.repositories.base_repository import BaseRepository
 from byoeb_core.databases.mongo_db.base import BaseDocumentCollection
 from byoeb.chat_app.configuration.config import app_config
+import os
 
 
 class MongoUserRepository(UserRepository, BaseRepository):
@@ -24,12 +25,12 @@ class MongoUserRepository(UserRepository, BaseRepository):
                       sort: Optional[List[tuple]] = None,
                       limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Find multiple users with optional filtering, projection, sorting, and limiting."""
-        return await self._collection.afetch_all(
-            filter_dict or {},
-            projection=projection,
-            sort=sort,
-            limit=limit
-        )
+        params = {k: v for k, v in {
+            "projection": projection,
+            "sort": sort,
+            "limit": limit
+        }.items() if v is not None}
+        return await self._collection.afetch_all(filter_dict or {}, **params)
 
     async def count(self, filter_dict: Optional[Dict[str, Any]] = None) -> int:
         """Count users matching the filter criteria."""
@@ -41,7 +42,7 @@ class MongoUserRepository(UserRepository, BaseRepository):
 
     async def insert_many(self, documents: List[Dict[str, Any]]) -> List[str]:
         """Insert multiple users and return their IDs."""
-        return await self._collection.ainsert_many(documents)
+        return await self._collection.ainsert(documents)
 
     async def update_one(self, filter_dict: Dict[str, Any], 
                         update_dict: Dict[str, Any]) -> bool:
@@ -60,6 +61,10 @@ class MongoUserRepository(UserRepository, BaseRepository):
     async def delete_many(self, filter_dict: Dict[str, Any]) -> int:
         """Delete multiple users matching the filter criteria."""
         return await self._collection.adelete_many(filter_dict)
+
+    async def bulk_update(self, bulk_queries: List[Tuple[Dict[str, Any], Dict[str, Any]]]) -> int:
+        """Execute heterogeneous user update queries in bulk."""
+        return await self._collection.aupdate(bulk_queries=bulk_queries)
 
     async def find_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Find a user by their ID."""
@@ -80,10 +85,23 @@ class MongoUserRepository(UserRepository, BaseRepository):
         filter_dict = {"User.user_type": {"$in": user_types}}
         return await self.find_all(filter_dict)
 
+    async def find_test_users_by_types(self, user_types: List[str]) -> List[Dict[str, Any]]:
+        """Find users by types; when TEST_USERS_ONLY=true restrict to test users only, else return all users of those types."""
+        test_only = os.getenv("TEST_USERS_ONLY", "false").lower() == "true"
+        filter_dict: Dict[str, Any] = {
+            "User.user_type": {"$in": user_types}
+        }
+        if test_only:
+            filter_dict["User.test_user"] = True
+        return await self.find_all(filter_dict)
+
     async def find_users_by_district(self, district: str) -> List[Dict[str, Any]]:
         """Find users by district."""
         filter_dict = {"User.user_location.district": district}
         return await self.find_all(filter_dict)
+
+    async def find_test_users(self) -> List[Dict[str, Any]]:
+        return await self.find_all({"User.test_user": True})
 
     async def find_asha_and_test_users(self) -> List[Dict[str, Any]]:
         """Find all ASHA workers and test users."""

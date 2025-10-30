@@ -2,7 +2,7 @@
 Base repository interface for abstracting data access patterns.
 """
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
 
@@ -57,4 +57,9 @@ class BaseRepository(ABC):
     @abstractmethod
     async def delete_many(self, filter_dict: Dict[str, Any]) -> int:
         """Delete multiple documents matching the filter criteria."""
+        pass
+
+    @abstractmethod
+    async def bulk_update(self, bulk_queries: List[Tuple[Dict[str, Any], Dict[str, Any]]]) -> int:
+        """Execute multiple heterogeneous update operations as a bulk update."""
         pass

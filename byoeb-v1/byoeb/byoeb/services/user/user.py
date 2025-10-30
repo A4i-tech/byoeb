@@ -5,15 +5,15 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 from byoeb_core.models.byoeb.user import User
 from byoeb.services.user.base import BaseUserService
-from byoeb_core.databases.mongo_db.base import BaseDocumentCollection
+from byoeb.repositories.user_repository import UserRepository
 
 class UserService(BaseUserService):
     def __init__(
         self,
-        collection_client: BaseDocumentCollection,
+        user_repository: UserRepository,
         bot_config
     ):
-        self.__collection_client = collection_client
+        self.__user_repository = user_repository
         self.__regular_user_type = bot_config["regular"]["user_type"]
         self.__expert_user_types = bot_config["expert"].values()
 
@@ -216,7 +216,7 @@ class UserService(BaseUserService):
         user_ids: List[str],
     ) -> List[User]:
         query = {"_id": {"$in": user_ids}}
-        documents = await self.__collection_client.afetch_all(query)
+        documents = await self.__user_repository.find_all(query)
         print(f"Documents: {documents}")
         users_data: List[User] = []
         for document in documents:
@@ -230,7 +230,7 @@ class UserService(BaseUserService):
     ) -> str:
         byoeb_users: List[User] = []
         byoeb_messages = []
-        ids = await self.__collection_client.afetch_ids()
+        ids = await self.__get_all_user_ids()
         for user in users:
             user_id = hashlib.md5(user.phone_number_id.encode()).hexdigest()
             if user_id in ids:
@@ -252,16 +252,19 @@ class UserService(BaseUserService):
             )
             byoeb_users.append(new_user)
         json_data_users = self.__prepare_user_insert_data(byoeb_users)
-        inserted_ids, _ = await self.__collection_client.ainsert(json_data_users)
+        inserted_ids = await self.__user_repository.insert_many(json_data_users)
         print(inserted_ids)
         ids = list(set(ids + inserted_ids))
         messages, update_queries, delete_queries = await self.__get_post_insert_users_queries(ids, byoeb_users)
-        await self.__collection_client.aupdate(bulk_queries=update_queries)
-        await self.__collection_client.adelete(bulk_queries=delete_queries)
+        if update_queries:
+            await self.__user_repository.bulk_update(update_queries)
+        if delete_queries:
+            await self.__user_repository.delete_many({"_id": {"$in": [q["_id"] for q in delete_queries]}})
         affected_keys, add_relations = user_utils.get_relations_update(ids, byoeb_users)
         affected_users = await self.__get_users_data(affected_keys)
         update_queries = self.__get_add_relation_update_queries_for_affected_users(affected_users, add_relations)
-        await self.__collection_client.aupdate(bulk_queries=update_queries)
+        if update_queries:
+            await self.__user_repository.bulk_update(update_queries)
         byoeb_messages.extend(messages)
         return byoeb_messages
     
@@ -269,17 +272,18 @@ class UserService(BaseUserService):
         self,
         phone_number_ids: List[str]
     ) -> str:
-        ids = await self.__collection_client.afetch_ids()
+        ids = await self.__get_all_user_ids()
         delete_ids = user_utils.get_user_ids_from_phone_number_ids(phone_number_ids)
         missing_ids, valid_delete_ids = user_utils.get_missing_and_present_ids(ids, delete_ids)
         users_data = await self.__get_users_data(valid_delete_ids)
-        delete_queries = [{"_id": id} for id in valid_delete_ids]
-        await self.__collection_client.adelete(bulk_queries=delete_queries)
+        if valid_delete_ids:
+            await self.__user_repository.delete_many({"_id": {"$in": valid_delete_ids}})
         left_ids = list(set(ids) - set(valid_delete_ids))
         affected_keys, delete_relations = user_utils.get_relations_update(left_ids, users_data)
         affected_users_data = await self.__get_users_data(affected_keys)
         update_queries = self.__get_remove_relation_update_queries_for_affected_users(affected_users_data, delete_relations)
-        await self.__collection_client.aupdate(bulk_queries=update_queries)
+        if update_queries:
+            await self.__user_repository.bulk_update(update_queries)
         return user_utils.get_delete_messages(phone_number_ids, missing_ids)
 
     async def aget(
@@ -308,4 +312,8 @@ class UserService(BaseUserService):
             {"_id": user.user_id},
             {"$set": {"User": user.model_dump()}}
         )
-        await self.__collection_client.aupdate(bulk_queries=[update_query])
+        await self.__user_repository.bulk_update([update_query])
+
+    async def __get_all_user_ids(self) -> List[str]:
+        documents = await self.__user_repository.find_all({}, projection={"_id": 1})
+        return [doc["_id"] for doc in documents]

@@ -4,43 +4,11 @@ from zoneinfo import ZoneInfo
 from typing import Dict, Any, List, Optional
 import pandas as pd
 
-from byoeb.background_jobs.config import app_config
-from byoeb.chat_app.configuration import dependency_setup
-from byoeb.services.leaderboard import LeaderboardService
+from byoeb.chat_app.configuration.config import app_config
+from byoeb.chat_app.configuration.dependency_setup import get_leaderboard_service, user_db_service, message_db_service
 from byoeb.services.leaderboard.time_window_strategies import TimeWindowFactory
-from byoeb.services.user import UserService
-from byoeb.services.message import MessageService
 
 IST = ZoneInfo("Asia/Kolkata")
-
-# Service instances
-_leaderboard_service: Optional[LeaderboardService] = None
-_user_service: Optional[UserService] = None
-_message_service: Optional[MessageService] = None
-
-async def get_leaderboard_service() -> LeaderboardService:
-    """Get or create leaderboard service instance."""
-    global _leaderboard_service
-    if _leaderboard_service is None:
-        user_service = await get_user_service()
-        message_service = await get_message_service()
-        _leaderboard_service = LeaderboardService(user_service, message_service)
-    return _leaderboard_service
-
-async def get_user_service() -> UserService:
-    """Get or create user service instance."""
-    global _user_service
-    if _user_service is None:
-        _user_service = UserService()
-    return _user_service
-
-async def get_message_service() -> MessageService:
-    """Get or create message service instance."""
-    global _message_service
-    if _message_service is None:
-        user_service = await get_user_service()
-        _message_service = MessageService(user_service)
-    return _message_service
 
 async def fetch_phone_numbers_for_asha_and_test_users() -> List[str]:
     """
@@ -49,8 +17,9 @@ async def fetch_phone_numbers_for_asha_and_test_users() -> List[str]:
     Returns:
         List[str]: Phone numbers of ASHA workers and test users
     """
-    user_service = await get_user_service()
-    return await user_service.fetch_phone_numbers_for_asha_and_test_users()
+    # Selection (all vs test-only) is controlled inside the service function
+    # Use service layer; service internally respects TEST_USERS_ONLY env flag
+    return await user_db_service.fetch_phone_numbers_for_asha_and_test_users()
 
 async def build_district_leaderboard_last_week_ist(message_categories: Optional[List[str]] = None, processing_batch_size: int = 1000) -> pd.DataFrame:
     """
@@ -64,7 +33,9 @@ async def build_district_leaderboard_last_week_ist(message_categories: Optional[
         pd.DataFrame: Sorted leaderboard with district statistics
     """
     leaderboard_service = await get_leaderboard_service()
-    return await leaderboard_service.build_district_leaderboard_last_week_ist(message_categories, processing_batch_size)
+    # Use week strategy explicitly - addressing review comment #5
+    week_strategy = TimeWindowFactory.create_strategy('week')
+    return await leaderboard_service.build_district_leaderboard(message_categories, processing_batch_size, week_strategy)
 
 async def build_district_leaderboard_with_strategy(
     strategy_type: str,
@@ -142,21 +113,18 @@ async def main():
     print(f"Total recipients found: {len(phone_numbers)}")
     print(f"Message to send: {message_text}")
 
-    # Send messages using service layer
-    message_service = await get_message_service()
-
     # TEST MODE: Send only to your test phone number (COMMENTED OUT)
     # test_phone_number = "917567071072"
     # print(f"🧪 TEST MODE: Sending only to {test_phone_number}")
-    # results = await message_service.send_bulk_messages([test_phone_number], message_text, debug_mode=False, test_mode=False)
+    # results = await message_db_service.send_bulk_messages([test_phone_number], message_text, debug_mode=False, test_mode=False)
 
     # DEMO MODE: Print payloads to console without sending
     # print(f"🖥️ DEMO MODE: Printing payloads for {len(phone_numbers)} users (no actual sending)")
-    # results = await message_service.send_bulk_messages(phone_numbers, message_text, debug_mode=True)
+    # results = await message_db_service.send_bulk_messages(phone_numbers, message_text, debug_mode=True)
 
     # PRODUCTION MODE: Send to all users (actual sending) (COMMENTED OUT)
     print(f"🚀 PRODUCTION MODE: Sending to {len(phone_numbers)} users")
-    results = await message_service.send_bulk_messages(phone_numbers, message_text, debug_mode=False, test_mode=False)
+    results = await message_db_service.send_bulk_messages(phone_numbers, message_text, debug_mode=False, test_mode=False)
 
     print(f"Processed {len(results)} messages via service layer")
 

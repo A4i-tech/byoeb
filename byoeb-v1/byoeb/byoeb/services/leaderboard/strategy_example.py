@@ -4,7 +4,8 @@ Example usage of the Strategy Pattern for time window calculations in leaderboar
 import asyncio
 from byoeb.services.leaderboard.time_window_strategies import TimeWindowFactory
 from byoeb.services.leaderboard.leaderboard_service import LeaderboardService
-from byoeb.services.user.user_service import UserService
+from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
+from byoeb.chat_app.configuration.dependency_setup import user_db_service, message_db_service
 
 async def demonstrate_strategy_pattern():
     """Demonstrate different time window strategies for leaderboard generation."""
@@ -13,8 +14,7 @@ async def demonstrate_strategy_pattern():
     print("=" * 50)
 
     # Create services
-    user_service = UserService()
-    leaderboard_service = LeaderboardService(user_service)
+    leaderboard_service = LeaderboardService(user_db_service, message_db_service)
 
     # Show available strategies
     print(f"📋 Available strategies: {leaderboard_service.get_available_strategies()}")
