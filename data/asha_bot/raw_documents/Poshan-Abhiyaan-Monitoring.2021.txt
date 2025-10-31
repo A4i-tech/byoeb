@@ -3,10 +3,14 @@ POSHAN ABHIYAAN IN PANDEMIC TIMES
 Designed b y
  JULY 21POSHAN ABHIYAANPRESERVING PROGRESS ON 
 NUTRITION IN INDIA:
-IN PANDEMIC TIMESPRESERVING PROGRESS ON 
+IN PANDEMIC TIMES
+
+PRESERVING PROGRESS ON 
 NUTRITION IN INDIA:
 POSHAN ABHIYAAN
-IN PANDEMIC TIMESAUTHORS: This Report is prepared by a team at WCD Division, NITI Aayog (under 
+IN PANDEMIC TIMES
+
+AUTHORS: This Report is prepared by a team at WCD Division, NITI Aayog (under 
 guidance of Dr. Vinod K. Paul, Member (Health), led by Dr. Rakesh Sarwal, Additional 
 Secretary (Health & Nutrition), Dr. Neena Bhatia (Senior Specialist), Dr. Supreet Kaur 
 (Senior Consultant), Mr. Kumar Supravin (Senior Consultant), Ms. Prepsa Saini (Consultant) 
@@ -17,177 +21,8 @@ Avula (Research Fellow), Phuong Hong Nguyen (Senior Research Fellow), Monika Wal
 Analyst), Shivani Kachwaha (Research Analyst), Anita Christopher (Research Analyst).
 NITI Aayog acknowledges the contributions of the Ministry of Women and Child 
 Development and Ministry of Health and Family Welfare and all State Governments for 
-sharing the updated information to prepare the report.Contents
-List of Figures v
-List of Tables vii
-List of Boxes vii
-Abbreviations ix
-Executive Summary 1
-Introduction 1
-Methodology 2
-Findings 2
-Key recommendations 5
-1. Introduction 7
-1.1 Overview of POSHAN Abhiyaan 7
-1.2 Objectives of POSHAN Abhiyaan IV Progress Report 11
-2. Methodology 13
-2.1 Progress tracking framework 13
-2.2 Data collection from states 14
-2.3 Data collection from line Ministries 15
-2.4 Data collection from development partners 15
-2.5 Data analysis 15
-2.6 Limitations 20
-3. What progress have we made to date? 21
-3.1  What progress have States made on delivering POSHAN Abhiyaan? 21
-3.2 Conclusion and Way Forward 40
-4. Jan Andolan and Multi-Sectoral Interventions 43
-4.1 Background 43
-iii
-Poshan Abhiyaan Monitoring
-4.2 Jan Andolan 43
-4.3 Multi-sectoral involvement 48
-4.4 Conclusion and Way Forward 54
-5. Delivering POSHAN Abhiyaan Interventions during a Pandemic:  
-How are States doing? 57
-5.1 Women and child development services 57
-5.2 Maternal and Child Health Services 69
-5.3  Multi-sectoral involvement and policy action during COVID-19 88
-5.4 Conclusion and Way Forward 92
-6. Conclusions and Recommendations 95
-7. Key Takeaways from POSHAN Abhiyaan 99
-Lesson 1:  POSHAN Abhiyaan has helped to bring a strong focus on improving 
-nutrition outcomes during the first 1,000 days. 99
-Lesson 2:  POSHAN Abhiyaan has enabled a Nation-wide Jan Andolan  
-catalysing nutrition related behaviour change at scale for positive  
-impact on feeding and health care practices 101
-Lesson 3:  POSHAN Abhiyaan demonstrated that the processes for  
-Inter-sectoral convergence are effectively operationalized through  
-in place institutional mechanisms at multiple levels 102
-Lesson 4:  POSHAN Abhiyaan showed that Technology can be leveraged for  
-real time monitoring of large scale health and nutrition programmes 103
-Lesson 5:  POSHAN Abhiyaan supported the resilience of health and  
-nutrition systems during COVID-19 pandemic 104
-Reflection on POSHAN Abhiyaan based on early results available for 22 states  
-from NFHS-5 105
-8. References 107
-9. Annexures 109
-Annexure 1a:  State template-Women and Child Development 109
-Annexure 1b:  State Template-Health 115
-Annexure 2:  Rubric 119
-Annexure 3:  State score dashboard overall 125
-Annexure 4:  POSHAN Abhiyaan II Monitoring Report: Data Collection Form  
-for MOWCD 134
-Annexure 5:  Concordance check between State Template Indicators and  
-MPR/HMIS Data 164
-Annexure 6:  Top and bottom performing States/UTs based on Indicators  
-used in Rubric 165
-iv
-Poshan Abhiyaan Monitoring
-ContentsList of Figures
-List of Figures
-Figure 1: Overall Implementation Status of POSHAN Abhiyaan at the  
-National-Level in 2020 3
-Figure 2: Pillars of POSHAN Abhiyaan 8
-Figure 3: Targets of POSHAN Abhiyaan 9
-Figure 4: Critical components for examining the progress to date on rolling  
-out POSHAN Abhiyaan in the WCD and Health departments 16
-Figure 5: Overall implementation status of POSHAN Abhiyaan* at the  
-national-level in 2020 22
-Figure 6: State-wise scores for Government and Institutional Mechanism 23
-Figure 7: State-wise comparison of the Percentage Funds utilized up to  
-FY 2018-19 and FY 2017-18 and up to FY 2019-20 25
-Figure 8: Constitution of committees: Comparison between 2019 and 2020 25
-Figure 9: Percentage of districts that have developed and submitted CAP  
-for FY 2019-20 compared to FY 2020-21 at the national level 26
-Figure 10: State-wise scores for strategy and planning 27
-Figure 11: State-wise scores for Inputs for service delivery and capacity:  
-Women and Child Development Department 29
-Figure 12: Distribution of supplies to districts: Comparison between 2019  
-and 2020 30
-Figure 13: Percentage of CDPOs trained on ICDS Dashboard/Mobile Phones: 
-Comparison between 2019 and 2020 32
-Figure 14: State-wise scores for inputs for service delivery essentials:  
-Health Department 33
-Figure 15: Percentage of functional health facilities: Comparison between  
-2019 and 2020 35
-Figure 16: Percentage of ANM positions filled: Comparison between 2019  
-and 2020 35
-Figure 17: State-wise scores for programme activities and intervention  
-coverage – Women and Child Development Department 36
-Figure 18: State-wise scores for Programme activities and intervention  
-coverage- Health Department 39
-Figure 19: Poshan Maah performance by participation across India, 2020 45
-Figure 20: Poshan Maah performance by participation: Comparison between  
-2019 and 2020 45
-Figure 21: Themes covered under POSHAN Maah, 2020 46
-v
-Poshan Abhiyaan Monitoring
-Figure 22: Policy guidance for implementation platforms and interventions  
-across life stages 58
-Figure 23: Changes in supplementary nutrition as per MPR data, October  
-2019 to December 2020 60
-Figure 24: Disruption and restoration of supplementary nutrition among  
-children 6 months to 6 years of age during the COVID-19  
-pandemic, MPR data, October 2019 to December 2020 61
-Figure 25: Disruption and restoration of supplementary nutrition among  
-pregnant and lactating women during pandemic, MPR data,  
-October 2019 to December 2020 62
-Figure 26: Policy guidance for interventions during pregnancy, postnatal  
-and early childhood period 71
-Figure 27: Changes in number of pregnant women received full course of  
-180 IFA tablets, 4 or more ANC check-ups from October 2019 to 
-December 2020 72
-Figure 28: Disruption and restoration of number of pregnant women who  
-received 180+ IFA tablets, HMIS Data, October 2019-December 2020 73
-Figure 29: Disruption and restoration of number of pregnant women who  
-received four or more ANC visits, HMIS Data, October 2019-  
-December 2020 75
-Figure 30: Changes in the number of institutional deliveries conducted and  
-the number of women receiving the first post-partum check-up  
-between 48 hours and 14 days from October 2019 to December 2020 76
-Figure 31: Disruption and restoration of number of institutional deliveries  
-conducted (including C-section), HMIS Data October 2019-  
-December 2020 77
-Figure 32: Disruption and restoration of number of women who received  
-postpartum check-ups between 48 hours and 14 days, HMIS Data,  
-October 2019-December 2020 79
-Figure 33: Changes in number of children who received fully immunized (9-11 
-months), 6 HBNC visits (newborns), and health check-up (severely 
-underweighted children 0-5 years) from October 2019 to December  
-2020. 80
-Figure 34: Disruption and restoration of number of children (9-11 months) fully 
-immunised, HMIS Data, October 2019-December 2020 81
-Figure 35: Disruption and restoration of number of newborns who received  
-6 HBNC visits after institutional delivery, HMIS Data October 
-2019-December 2020 83
-Figure 36: Disruption and restoration of number of severely underweighted  
-children (0-5 years) who received health check-ups, HMIS Data,  
-October 2019- December 2020 84
-vi
-Poshan Abhiyaan Monitoring
-List of FiguresList of Tables
-List of Tables
-List of BoxesTable 1:  Progress and implementation score themes for WCD and Health 
-Departments 14
-Table 2:  Categorisation of States 18
-Table 3:  Service disruption and restoration definition and formulae 19
-Table 4:  Utilization of funds: Comparison between FY 2017-18 to 2018-19  
-and FY 2017-18 to FY 2019-20 24
-Table 5:  Key activities performed during Poshan Maah by Line Ministries 47
-Table 6:  Summary of ICDS programme delivery innovations in the context  
-of COVID-19, as reported by State Governments 63
-Table 7:  Summary of health programme delivery innovations in the context  
-of COVID-19, as reported by State Governments 85
-Box 1: Brief outline of the first three POSHAN Abhiyaan progress reports 10
-Box 2:  Steps to generate the progress and implementation score 17
-Box 3:  Improving the micronutrient profile of the ICDS beneficiaries 54
-Box 4:  Study to assess the THR production and distribution across  
-12 districts in Jharkhand and Rajasthan 67
-Box 5:  Frontline health workers enable restoration of health and nutrition service 
-delivery after early COVID-19 lockdown: Findings from a  
-seven-state observational study 68
-vii
-Poshan Abhiyaan Monitoring
+sharing the updated information to prepare the report.
+
 Abbreviations
 A&T — Alive and Thrive
 AMB — Anaemia Mukt Bharat
@@ -216,8 +51,9 @@ DWCD — Department of Women and Child Development
 DPO — Development Project Officer 
 DWS — Drinking Water and Sanitation
 EIBF — Early Initiation of Breastfeeding
-ix
 Poshan Abhiyaan Monitoring
+
+
 FLW — Frontline Workers
 FSSAI — Food Safety and Standards Authority of India
 H&FW — Health & Family Welfare
@@ -259,9 +95,10 @@ NCoE-SAM — National Centre of Excellence for Management of SAM
 NDD — National Deworming Day 
 NFHS — National Family Health Survey
 NGO — Non-Governmental Organisation
-x
 Poshan Abhiyaan Monitoring
-AbbreviationsNHM — National Health Mission
+Abbreviations
+
+NHM — National Health Mission
 NRC — Nutritional Rehabilitation Centre 
 NREGA — National Rural Employment Guarantee Assurance 
 NRLM — National Rural Livelihood Mission 
@@ -299,38 +136,9 @@ VHSND — Village Health Sanitation Nutrition Day
 WCD — Women and Child Development
 WFP — World Food Programme
 Abbreviations
-xi
 Poshan Abhiyaan Monitoring
-XXX
-X
-INTRODUCTION
-In 2018, the Government of India launched its flagship programme, the POSHAN (Prime 
-Minister’s Overarching Scheme for Holistic Nourishment) Abhiyaan, to draw national 
-attention to and take action against malnutrition, in a mission-mode.
-POSHAN Abhiyaan is the Government of India’s flagship programme to improve nutritional 
-outcomes for children, pregnant women and lactating mothers, and adolescents. The 
-Abhiyaan is a multi-ministerial convergence mission with the vision to accelerate India’s 
-progress on malnutrition, in a time bound manner with fixed target. Specifically, the 
-mission attempts to (1) deliver a high impact package of interventions in the first 1,000 
-days of a child’s life; (2) strengthen the delivery of these interventions through technology 
-and management; (3) improve the capacity of frontline workers (FLWs); (4) facilitate 
-cross-sectoral convergence to address the multi-dimensional nature of malnutrition; and 
-(5) enhance behaviour change and community mobilization.
-Although progress towards improving nutrition outcomes, such as stunting, wasting, 
-anaemia and low birth weight (LBW), requires a long-term commitment, changes in 
-critical implementation elements, programme coverage and household behaviours to 
-accelerate  nutritional improvements can be achieved in shorter timeframes.
-This fourth progress report on POSHAN Abhiyaan (1) assesses the progress of POSHAN 
-Abhiyaan implementation (2) analyses the impact of the COVID-19 pandemic on nutrition 
-and health services; and (3) provides insights on service delivery restorations and 
-adaptations and other related needs across India. This report presents key recommendations 
-to deepen India’s efforts to tackle malnutrition, especially in the context of COVID-19. 
-Lastly, the report highlights five key lessons learned by the implementation of POSHAN 
-Abhiyaan over the last three years, including following the onset of the coronavirus 
-pandemic.Executive 
-Summary
-1
-Poshan Abhiyaan Monitoring
+
+
 METHODOLOGY
 Various data sources were used to generate the findings in this report. NITI Aayog collected 
 information from State and Union Territories (UTs) using two questionnaires to assess 
@@ -367,9 +175,9 @@ for states and UTs were tabulated based on their performance in governance, stra
 and planning, availability of inputs, and coverage of key programme activities under 
 Women and Child Development (WCD) and Health. Figure 1 highlights the performance 
 of states and UTs based on these scores.
-2
 Poshan Abhiyaan Monitoring
-Executive Summary0102030405060708090100
+Executive Summary
+
 Maharas htra
 Andhra Prades h
 Gujarat
@@ -434,8 +242,9 @@ and 77% children),and Jammu and Kashmir (49% pregnant women, 51% lactating women
 and 54% children). In addition, the percentage of under-five children weighed at AWCs 
 is still low in many States and UTs.
 Executive Summary
-3
 Poshan Abhiyaan Monitoring
+
+
 There are also prevailing gaps in programme activities conducted by health departments. 
 While the coverage of indicators like early initiation of breastfeeding (EIBF), 180 days 
 of iron and folic acid (IFA) received by pregnant women and tetanus toxoid (TT2)/
@@ -478,9 +287,10 @@ to actively engaging supply- and demand-side stakeholders. Second, POSHAN Abhiya
 created a nationwide Jan Andolan  to influence behaviour change, and has galvanized 
 active participation of all stakeholders. Third, POSHAN Abhiyaan has demonstrated that 
 intersectoral convergence is possible through in-place institutional mechanisms, and has 
-4
 Poshan Abhiyaan Monitoring
-Executive Summaryprovided various health and nutrition services across the same beneficiaries. Fourth, the 
+Executive Summary
+
+provided various health and nutrition services across the same beneficiaries. Fourth, the 
 Abhiyaan has demonstrated that technology can be leveraged for real-time monitoring 
 of large-scale health and nutrition programmes. Fifth, the Abhiyaan has highlighted the 
 resilience of health and nutrition systems during the COVID-19 pandemic.
@@ -521,8 +331,9 @@ complementary feeding.
  ÂConvergence-related efforts will need maximum effort in the coming years – 
 targeting and focusing all efforts to be sharply goal-focused – we must achieve 
 Executive Summary
-5
 Poshan Abhiyaan Monitoring
+
+
 the stated goal of household convergence of key programmes, especially those 
 addressing the determinants that have seen slow movement or have been 
 affected sharply in 2020.
@@ -560,153 +371,9 @@ and key determinants of malnutrition such as sanitation coverage shows that resu
 attainable. This report provides directions for every State to embrace the mission fully, 
 address their specific systems and population-level challenges, and contribute to helping 
 India achieve national and global targets for malnutrition.
-6
 Poshan Abhiyaan Monitoring
-Executive SummaryIntroduction
-1
-1.1 OVERVIEW OF POSHAN ABHIYAAN
-Launched by the Prime Minister on International Women’s Day on March 8, 2018 in 
-Jhunjhunu, Rajasthan, POSHAN (the Prime Minister’s Overarching Scheme for Holistic 
-Nutrition) Abhiyaan aims to prioritize addressing malnutrition in India. Malnutrition can 
-have life-long, irreversible impacts, currently affecting one in every three children and 
-half of all women in India.1
-POSHAN Abhiyaan (previously called the National Nutrition Mission) is the Government 
-of India’s flagship programme to improve nutritional outcomes for children, pregnant 
-women and lactating mothers. It is a multi-ministerial convergence mission, which aims 
-to eliminate malnutrition in India by 2022.
-Recognizing that malnutrition levels in India are high, POSHAN Abhiyaan attempts to 
-deliver the following features to fight against malnutrition:
-1. A high impact package of interventions, focusing on (but not limited to) the first 
-1,000 days of a child’s life
-2. Strengthening the delivery of a high impact package of interventions through:
- ÂRemodelling nutrition monitoring by leveraging technology and management 
-through the Integrated Child Development Services Common Application 
-Software (ICDS-CAS) (now POSHAN Tracker Tool);
- ÂImproving capacities of frontline workers through the incremental learning 
-approach (ILA) mechanism;
- ÂEmphasising convergent actions among the frontline workforce.
-3. A focus on cross-sectoral convergence to emphasise the multi-dimensional nature 
-of malnutrition, mapping of various schemes contributing towards addressing 
-malnutrition.
-1  Global Nutrition Report, 2018
-7
-Poshan Abhiyaan Monitoring
- ÂConvergence committees at the state, district and block levels will support 
-decentralized and convergent planning and implementation, supported by flexi-
-pool and innovation funds to encourage contextualised solutions.
-4. Ramping up behaviour change communication and community mobilisation through 
-Jan Andolan , a national nutrition behaviour change campaign that uses community-
-based events, mass media and other approaches.
-The Abhiyaan focuses on strengthening policy implementation (at the Central- and 
-State-levels) to improve targeting (identification of high burden Districts), enhance 
-multi-sectoral convergence, develop innovative service delivery models and rejuvenate 
-counselling and community-based monitoring. In addition, the mission acknowledges the 
-need for robust convergence mechanisms and coordination to help multiple government 
-schemes and programmes reach women and children during the first 1,000 days of life. 
-The programme also aims to ensure service delivery of key interventions supported by the 
-use of technology and behavioural change. Figure 2 depicts the key pillars of POSHAN 
-Abhiyaan that have been proposed to facilitate the objective of the mission.
-Figure 2: Pillars of POSHAN Abhiyaan
-POSHAN Abhiyaan was first rolled out in 315 priority (high burden) Districts as part of 
-Phase I (2017-18), 267 Districts as part of Phase II (2018-19), and in the remaining 136 
-Districts as part of Phase III (2019-20). The Abhiyaan has specific targets to be achieved 
-across different parameters over the next few years (Figure 3).
-POSHAN Abhiyaan is a scheme under ICDS umbrella which converge with other programs 
-and service delivering nutrition interventions during the first 1000-days period. These 
-include take-home rations (THR) from Anganwadi Centres (AWC); anaemia prevention 
-and control under the Anaemia Mukt Bharat (AMB) programme; antenatal care (ANC) 
-services; dietary counselling on the Village Health Sanitation and Nutrition Day (VHSND); 
-and schemes such as Pradhan Mantri Surakshit Matrutva Abhiyaan (PMSMA) and 
-Pradhan Mantri Matrtya Vandana Yojana (PMMVY) that provide quality antenatal check-
-ups. Schemes like Janani Suraksha Yojana (JSY) are promoting institutional deliveries 
-through cash transfers, and free services for delivery and early neonatal care are available 
-through the Janani Shishu Suraksha Karyakram (JSSK) scheme, which supports mothers 
-in establishing appropriate breastfeeding and nutrition practices.
-8
-Poshan Abhiyaan Monitoring
-Introduction-•Target: ↓ by 6 percentage points  
-@ 2 percentage points per annumPrevent and reduce underweight in 
-children (0 6 years)•Target: ↓ by 6 percentage points 
-@ 2 percentage points per annumPrevent and reduce stunting in 
-children (0-6 years)
-•Target: ↓ by 9 percentage points 
-@ 3 percentage points per annumReduce the prevalence of anaemia 
-among children (6-59 months)
-•Target: ↓ by 9 percentage points 
-@ 3 percentage points per annumReduce the prevalence of anaemia 
-among women and adolescent girls 
-15-49 years
-•Target: ↓ by 6 percentage points  
-@ 2 percentage points per annumReduce low birth weight (LBW)
-Figure 3: Targets of POSHAN Abhiyaan
-Baseline–NFHS 4 (2015-16)
-POSHAN Abhiyaan aims to ensure that every child under 6 years of age, every pregnant 
-and lactating woman, and adolescent girl has access to quality services to address 
-malnutrition across the continuum of care. This requires a cost-effective, integrated and 
-sustainable approach that successfully prevents malnutrition and provides care to those 
-who are malnourished. To achieve this, it is important to strengthen the pillars of the 
-Abhiyaan in a targeted manner.
-Considering the importance of pillars of POSHAN Abhiyaan, the bi-annual POSHAN 
-Abhiyaan progress reports have been designed to capture the mission’s progress on 
-convergence, training and capacity building, ICDS-CAS, innovations and implementation 
-of programme activities conducted by the Women and Child Development (WCD) 
-and Health Departments. The first  POSHAN Abhiyaan Progress Report evaluated the 
-preparedness of the States/UTs with regards to the mission, the second  report evaluated 
-the implementation of the pillars, whereas the third report provided the status of field-
-level roll-out. Building upon the first three reports, this fourth report assesses the 
-implementation of the key inputs and services. Box 1 outlines the objective and content 
-of the previous reports.
-Introduction
-9
-Poshan Abhiyaan Monitoring
-BOX 1: BRIEF OUTLINE OF THE FIRST THREE POSHAN 
-ABHIYAAN PROGRESS REPORTS
-i. POSHAN Abhiyaan’s First Progress Report, submitted in December 2018, 
-evaluated the preparedness of States and UTs for POSHAN Abhiyaan. The 
-report focused on understanding which systems were in place for the work to 
-be carried out from March 2018.
-Data were obtained from WCD Departments for all States and UTs (except for 
-West Bengal and Odisha). A preparedness score was assigned to each State 
-and UT considering the information and data shared. The entire dataset was 
-organized into three categories:
- ÂGovernance and institutional mechanism
- ÂStrategy and planning
- ÂService delivery essentials
-The State-level preparedness scores helped States identify gaps and inform where 
-to direct their resources to improve the parameters where they were lagging to 
-combat malnutrition. This detailed analysis, presented in the first progress report 
-of POSHAN Abhiyaan, helped States and UTs establish an overarching view and 
-examine the factors leading onto the effective implementation of the Abhiyaan.
-ii. POSHAN Abhiyaan’s Second Progress Report, submitted in September 2019, 
-focused on implementation of parameters covering WCD schemes and Health 
-interventions at the State- and UT-levels ( except West Bengal and Odisha ) and 
-therefore, inputs/data have been considered from both State WCD and Health 
-Departments. The entire dataset was organized into four categories:
- ÂGovernance and institutional mechanism
- ÂStrategy and planning
- ÂService delivery and capacities
- ÂProgramme activities and intervention coverage
-iii. POSHAN Abhiyaan’s Third Progress Report, submitted in July 2020, took stock 
-of the roll-out status in the field and implementation challenges encountered at 
-various levels using secondary data from the National Family and Health Survey 
-(NHFS-4) and Comprehensive National Nutrition Survey (CNNS). A modelling 
-analysis was conducted using the Lived Saved Tool (LiST) to predict the 
-trends in decline of stunting, wasting and anaemia, and assess how POSHAN 
-Abhiyaan can scale up coverage of key interventions to accelerate the decline 
-in malnutrition.
-10
-Poshan Abhiyaan Monitoring
-Introduction1.2 OBJECTIVES OF POSHAN ABHIYAAN IV PROGRESS REPORT
-This report outlines India’s progress on the POSHAN Abhiyaan, focusing on preserving 
-nutrition progress during the COVID-19 pandemic. The objectives of this report include:
-1. Examine the progress to date on rolling out all POSHAN Abhiyaan interventions 
-using relevant data;
-2. Discuss the importance of preserving progress on the nutrition agenda in the 
-context of the COVID-19 pandemic; and
-3. Recommend key actions to accelerate progress towards India’s nutrition goals.
-Introduction
-11
-Poshan Abhiyaan Monitoring
+Executive Summary
+
 2Methodology
 This chapter elaborates on the information collected and the methodology for analysing 
 data. We examined the progress of States and UTs on implementing POSHAN Abhiyaan 
@@ -734,8 +401,9 @@ changes in determinants and outcomes that are relevant to the programme roll-out
 The team also outlined which kinds of data to use to track progress on different parts 
 of the monitoring framework, focusing on population-level surveys to track progress on 
 2  Menon et al. 2020
-13
 Poshan Abhiyaan Monitoring
+
+
 outcomes and determinants, and using both population-based surveys and administrative 
 data to track progress on intervention coverage.
 This report covers the period January to December 2020, which mostly coincides with 
@@ -777,15 +445,15 @@ Groups
 Strategy and Planning Developed and submitted 
 convergence action plan 
 (CAP)
-14
 Poshan Abhiyaan Monitoring
-MethodologyTheme WCD Department Health Department
+Methodology
+
+Theme WCD Department Health Department
 Inputs for Service Delivery & 
 Capacities HR
  Supplies
  Training and Capacity 
 BuildingInfrastructure
-HR
 Programme activities and 
 intervention coverage Programme activities- 
 ICDSProgramme activities
@@ -818,8 +486,9 @@ Computation of State/UT scores
 A score was computed and assigned to States and UTs to assess their progress on the 
 implementation of POSHAN Abhiyaan.
 Methodology
-15
 Poshan Abhiyaan Monitoring
+
+
 The progress score is comprised of two sub-scores: one for the WCD Department and 
 one for the Health Department, both of which have a maximum possible score of 50. 
 Overall, the maximum possible progress score was 100.
@@ -838,9 +507,10 @@ credit was assigned according to predetermined ranges. Once the weights were ass
 scores were computed for each theme. Finally, all the theme scores were summed to 
 compute the overall progress score. Annexure 2 provides the details of the rubric/scoring 
 framework. Box 2 elaborates on the process for generating the score.
-16
 Poshan Abhiyaan Monitoring
-MethodologyBOX 2: STEPS TO GENERATE THE PROGRESS AND 
+Methodology
+
+BOX 2: STEPS TO GENERATE THE PROGRESS AND 
 IMPLEMENTATION SCORE
 STEP 1. Developing an assessment tool for States/UTs:  NITI Aayog prepared two 
 implementation assessment questionnaires (one for Health and one for WCD), 
@@ -881,8 +551,9 @@ provide any updates on their responses to the assessment questionnaire and revie
 the scores. Only data that were validated by States/UTs were used to compute the 
 scores.
 Methodology
-17
 Poshan Abhiyaan Monitoring
+
+
 STEP 7. Concordance checks with MPR and HMIS data: The data on some of the 
 program activities conducted by DWCD and Department of Health were comparable 
 to MPR data of ICDS (MoWCD) and HMIS data (MoHFW). If data from State/UT 
@@ -920,9 +591,10 @@ percentage change formula.
 ICDS Monthly Progress Report (MPR)
 AWWs prepare the MPR data based on their service registers, which include the details 
 of service delivery. The centre-level data are compiled and aggregated to the sector-, 
-18
 Poshan Abhiyaan Monitoring
-Methodologyblock-, district- and state-levels and become part of the monitoring information system 
+Methodology
+
+block-, district- and state-levels and become part of the monitoring information system 
 for the ICDS programme. We examined the coverage of supplementary nutrition during 
 the pandemic using MPR data between October 2019 and December 2020.
 We used State/UT-wise quarterly data for five quarters i.e., from October-December 2019 
@@ -957,8 +629,9 @@ received 4 or more ANC check-ups ; 3) Number of institutional deliveries conduct
 (including C-Sections); 4) Women receiving 1st post-partum checkup between 48 hours 
 and 14 days; 5) Number of newborns received 6 home-based newborn care (HBNC) 
 Methodology
-19
 Poshan Abhiyaan Monitoring
+
+
 visits after institutional delivery; 6) Number of children aged between 9 and 11 months 
 who received full immunisation; 7) Number of severely underweight children provided 
 health check-up (0-5 years). The number of beneficiaries for a quarter were calculated 
@@ -993,9 +666,10 @@ Lastly, although the WCD and Health templates were designed to collect a compreh
 set of information on various topics, responses to questions that were integral to the 
 scoring framework/rubric were prioritized during the data collection and validation 
 process with States/UTs.
-20
 Poshan Abhiyaan Monitoring
-Methodology3What progress 
+Methodology
+
+3What progress 
 have we made 
 to date?
 This chapter examines progress on delivering POSHAN Abhiyaan and on nutrition in India 
@@ -1023,8 +697,9 @@ In terms of overall implementation in States and UTs (Figure 5), Maharashtra, An
 Pradesh and Gujarat had the highest achievements, followed by Tamil Nadu, Madhya 
 Pradesh, and Himachal Pradesh. Twelve out of 19 large States had an implementation 
 score of over 70%. Among the eight small States, Sikkim was the highest performer in 
-21
 Poshan Abhiyaan Monitoring
+
+
 overall implementation (more than 75%), followed by Meghalaya, Tripura and Goa. Dadar 
 and Nagar Haveli and Daman and Diu, Chandigarh, and Andaman and Nicobar Islands 
 were ranked the top three UTs, which scored over 70%. Since some States and UTs have 
@@ -1047,9 +722,10 @@ Fund utilization is an essential component of POSHAN Abhiyaan, which is an inter
 initiate effective implementation. Another crucial institutional mechanism is a convergent 
 approach to ensure targeted approach to reduce malnutrition. MoWCD recognized the 
 need for actions of multiple agencies to address malnutrition, and therefore strong 
-22
 Poshan Abhiyaan Monitoring
-What progress have we made to date?convergence of services on-the-ground was emphasised in the guidelines for POSHAN 
+What progress have we made to date?
+
+convergence of services on-the-ground was emphasised in the guidelines for POSHAN 
 Abhiyaan. It is of utmost importance to ensure that different inter-related schemes move 
 from their silos to a unified and convergent action. For this, convergence committees 
 were envisaged at the State-, District-, and Block-levels, including State Resource Group 
@@ -1075,8 +751,9 @@ Figure 6: State-wise scores for Government and Institutional Mechanism
 Maximum score: 12
 Based on State Template Data
 What progress have we made to date?
-23
 Poshan Abhiyaan Monitoring
+
+
 Insights from National- and State-level key findings on the two subthemes of governance 
 and institutional mechanisms are as follows:
 a. Fund Utilization by States/UTs
@@ -1112,9 +789,10 @@ An evaluation of centrally-sponsored schemes conducted by DMEO, NITI Aayog shows
 that fund utilization is high on community-based events and IEC materials, but low for 
 procurement of devices.3
 3 Development Monitoring and Evaluation Office (DEMO), NITI Aayog, 2020
-24
 Poshan Abhiyaan Monitoring
-What progress have we made to date?Figure 7: State-wise comparison of the Percentage Funds utilized up to FY 2018-19 and FY 
+What progress have we made to date?
+
+Figure 7: State-wise comparison of the Percentage Funds utilized up to FY 2018-19 and FY 
 2017-18 and up to FY 2019-20
 Note: Ladakh was excluded because Jammu Kashmir gave a proportion of their central funds to Ladakh after 
 the UT was formed. Due to this, no separate Central Funds were allocated to this Union Territory.
@@ -1131,8 +809,9 @@ To calculate the national estimate, mean of States/UT available in both rounds w
 and Ladakh from 2020 national estimate to keep States & UTs common).
 For estimating cumulative % for D&N & D&D for the year 2019, mean of both UTs has been calculated & used.
 What progress have we made to date?
-25
 Poshan Abhiyaan Monitoring
+
+
 State-level key findings
 Most States/UTs had constituted DRGs, BRGs and CAP committees. It is to be noted 
 that DRGs were formed in all districts in all States/UTs except for Delhi, Puducherry, 
@@ -1164,9 +843,10 @@ To calculate the national estimate, mean of States/UT available in both rounds w
 Odisha and Ladakh from 2020 national estimate to keep States & UTs common).
 For estimating cumulative % for D&N & D&D for the year 2019, mean of both UTs has been calculated & 
 used.
-26
 Poshan Abhiyaan Monitoring
-What progress have we made to date?State-level key findings
+What progress have we made to date?
+
+State-level key findings
 Although the overall number of States that had developed and submitted CAP has 
 improved, certain States and UTs have very few districts that have submitted CAP. 
 Additionally, the field surveys conducted in 13 States/UTs indicates that, although majority 
@@ -1193,8 +873,9 @@ number of districts is very low in Andaman and Nicobar Island and Puducherry.
 Annexure 6-B lists the States and UTs where all districts have developed and submitted 
 CAP for FY 2020-21.
 What progress have we made to date?
-27
 Poshan Abhiyaan Monitoring
+
+
 3.1.1.3 Inputs for service delivery & capacity
 The categories covered under this theme included human resources, infrastructure, 
 supplies, training, and capacity building. Annexure 2 provides a detailed list of indicators 
@@ -1231,9 +912,10 @@ information was not available for Arunachal Pradesh and Manipur.
 scored the maximum score (23), followed by Andaman & Nicobar (22), whereas 
 Puducherry scored only 7 points. Complete information was not available for 
 Ladakh.
-28
 Poshan Abhiyaan Monitoring
-What progress have we made to date?Figure 11: State-wise scores for Inputs for service delivery and capacity: Women 
+What progress have we made to date?
+
+Figure 11: State-wise scores for Inputs for service delivery and capacity: Women 
 and Child Development Department
 Max score: 23
 Based on State Template Data
@@ -1259,8 +941,9 @@ Himachal Pradesh, Kerala, Madhya Pradesh, Rajasthan, Telangana, Uttarakhand),
 Lakshadweep) had filled 100% of the positions. While 9 States/UTs had less 
 than 25% positions filled (Annexure 6-C).
 What progress have we made to date?
-29
 Poshan Abhiyaan Monitoring
+
+
 States/UTs—namely Punjab (0%), Goa (0%), Tripura (0%), Puducherry (0%), Odisha (33% 
 of Joint Project Coordinator; 0% of Consultants and Project Associates), Uttar Pradesh 
 (29% of Joint Project Coordinator; 0% of Consultants and Project Associates), Arunachal 
@@ -1290,49 +973,9 @@ Punjab and Odisha had not distributed any mobile phones. Supplies were lowest
 in Odisha (0% supplies) and Uttar Pradesh (31% mobile phones; 38% infant 
 weighing scales; 39% adult weighing scales; 0% infantometers and stadiometers 
 were distributed).
-30
 Poshan Abhiyaan Monitoring
-What progress have we made to date? ÂSmall States:  4 States (Meghalaya, Mizoram, Nagaland and Tripura) distributed 
-100% of mobile phones, and 4 States (Goa, Meghalaya, Mizoram and Nagaland) 
-had distributed 100% of growth monitoring devices. Supplies were lowest in 
-Arunachal Pradesh (0% mobile phones, infant weighing scale, and adult weighing 
-scale; 2% infantometers; 2% stadiometers were distributed) and Manipur (21% 
-mobile phones; and 0% growth monitoring devices).
- ÂUnion Territories:  5 UTs (Andaman & Nicobar Island, Chandigarh, Dadar & Nagar 
-Haveli and Daman & Diu, Delhi and Ladakh) had distributed 100% of mobile 
-phones, and all UTs had distributed all growth monitoring devices.
-Annexure 6-C lists the States/UTs with highest and lowest distribution of supplies to the 
-districts.
-c. Training and Capacity Building
-State-level key findings:
- ÂTraining on e-ILA: 7 Large States (Andhra Pradesh, Gujarat, Madhya Pradesh, 
-Odisha, Rajasthan, Tamil Nadu and Uttar Pradesh), 3 Small States (Meghalaya, 
-Sikkim and Tripura), and 4 UTs (Andaman & Nicobar Island, Chandigarh, Dadar 
-& Nagar Haveli and Daman & Diu, Jammu & Kashmir) had trained 100% LS, while 
-5 large States (Gujarat, Madhya Pradesh, Odisha, Tamil Nadu, Uttar Pradesh), 1 
-small State (Sikkim), and 4 UTs (Andaman & Nicobar Island, Chandigarh, Dadar 
-& Nagar Haveli and Daman & Diu, Jammu & Kashmir) had trained 100% AWW. 
-In 15 States/UTs, no LS had completed training. Similarly, in 15 States/UTs, no 
-AWWs had completed training.
- ÂTraining on Dashboard/Mobile phones: 5 Large States (Andhra Pradesh, Bihar, 
-Gujarat, Kerala, Tamil Nadu), 3 Small States (Nagaland, Sikkim, Tripura), and 5 
-UTs (Andaman & Nicobar Island, Chandigarh, Dadar & Nagar Haveli and Daman 
-& Diu, Delhi, Lakshadweep) had trained 100% CDPOs, while 6 large States, 3 
-small States, and 4 UTs had trained 100% LS. In 9 States/UTs, no CDPOs had 
-completed training. Similarly, in 8 States/UTs, no LS had completed training.
-Complete information on training was not available for Madhya Pradesh, Odisha, Punjab, 
-Arunachal Pradesh and Manipur.
-Only a few States/UTs had trained adequate staff, while there are States/UTs like Assam, 
-Haryana, and Karnataka where no staff had been trained on e-ILA and Dashboard/mobile 
-phones (Annexure 6-C). According to interviews held with State Officials under ICDS, 
-gaps in training continue to exist due to low basic educational background and comfort 
-levels in using technology among AWWs, especially among older AWWs3.
-The percentage of CDPOs trained on ICDS Dashboard/Mobile nearly doubled, from 30% 
-in 2019 to 59% in 2020 (Figure 13). Complete information for Manipur, Madhya Pradesh, 
-Odisha, Punjab and Arunachal Pradesh was not available.
 What progress have we made to date?
-31
-Poshan Abhiyaan Monitoring
+
 Figure 13: Percentage of CDPOs trained on ICDS Dashboard/Mobile Phones: Comparison 
 between 2019 and 2020
 Note:
@@ -1365,9 +1008,10 @@ staff training on e-ILA modules across several States. There is an urgent need t
 the reasons for such gaps in training and address them.
 4 Women and Child Development Dashboard, MOWCD, https:/ /wcd.dashboard.nic.in/ (accessed on 27 May 
 2021)
-32
 Poshan Abhiyaan Monitoring
-What progress have we made to date?Departments of Health and Family Welfare
+What progress have we made to date?
+
+Departments of Health and Family Welfare
 To examine health-related service delivery and capacity, infrastructure and HR domains 
 were assessed. Information was available for all States and UTs except Mizoram.
 The percentage of sanctioned health facilities, including functional sub-centres, community 
@@ -1393,8 +1037,9 @@ Figure 14: State-wise scores for inputs for service delivery essentials: Health 
 Maximum score: 12
 Based on State Template Data
 What progress have we made to date?
-33
 Poshan Abhiyaan Monitoring
+
+
 Insights from National- and State-level key findings on the two subthemes of inputs for 
 service delivery for Health are as follows:
 a. Infrastructure
@@ -1429,9 +1074,10 @@ Additionally, the percentage of functional sub-centres increased slightly, from 
 from 97% in 2019 to 95% in 2020 (Figure 15). The number of sanctioned CHCs have 
 increased for many States and UTs in 2020, which contributed to an overall reduction in 
 the percentage of functional CHCs in 2020 compared with the previous year.
-34
 Poshan Abhiyaan Monitoring
-What progress have we made to date?Figure 15: Percentage of functional health facilities: Comparison between 2019 and 2020
+What progress have we made to date?
+
+Figure 15: Percentage of functional health facilities: Comparison between 2019 and 2020
 Note:
 To calculate the national estimate, mean of States/UT available in both rounds was computed (excluded 
 Odisha and Ladakh from 2020 national estimate to keep States & UTs common).
@@ -1459,8 +1105,9 @@ for Mizoram were not available. Tripura (56%) had filled less than 75% of ANM
 positions. Information on ANM positions filled was not available for Mizoram.
  ÂUnion Territories:  All UTs have filled more than 75% of the ANM positions.
 What progress have we made to date?
-35
 Poshan Abhiyaan Monitoring
+
+
 States like Himachal Pradesh, Uttar Pradesh, Tripura and Bihar had the least ANM 
 positions filled (Annexure 6-D). Therefore, there is an urgent need to close the gap in 
 ANM vacancies in these States, as they are a critical work force for delivering a range of 
@@ -1491,9 +1138,10 @@ scored only 7.
 Figure 17: State-wise scores for programme activities and intervention coverage – 
 Women and Child Development Department
 Maximum Score: 12  Based on State Template Data
-36
 Poshan Abhiyaan Monitoring
-What progress have we made to date?State-level key findings:
+What progress have we made to date?
+
+State-level key findings:
  ÂLarge States: 7 States (Gujarat, Jharkhand, Kerala, Maharashtra, Odisha, Rajasthan, 
 Tamil Nadu) had distributed THR to 100% pregnant women registered at AWC, 5 
 States (Jharkhand, Kerala, Maharashtra, Odisha and Tamil Nadu) had distributed 
@@ -1535,8 +1183,9 @@ issues or are a result of demand-side challenges. For growth monitoring, States 
 review if there are gaps in staff training on measuring children, availability of supplies or 
 in community awareness to avail the service, and identify appropriate solutions.
 What progress have we made to date?
-37
 Poshan Abhiyaan Monitoring
+
+
 Departments of Health and Family Welfare
 Using data on immediate determinants, coverage of ANC, postnatal care, and early 
 childhood interventions, and supplies from the State Health Departments, 14 indicators 
@@ -1577,38 +1226,9 @@ State-level key findings:
  ÂAmong all 34 States and UTs, 27 had more than 75% of newborns who were 
 breastfed within one hour, whereas Rajasthan, Ladakh and Puducherry had less 
 than 25%.
-38
 Poshan Abhiyaan Monitoring
-What progress have we made to date? ÂOnly 17 States and UTs had more than 75% of children 12-23 months of age who 
-were fully immunised, while 11 states and UTs had less than 25% children who 
-were fully immunised.
- ÂIn terms of children 6-59 months of age provided at least 8-10 doses of IFA 
-syrup, only Himachal Pradesh, Sikkim, and Puducherry covered more than 75% 
-of children while as high as 23 States and UTs had less than 25% coverage.
- ÂOnly 13 states and UTs had more than 75% of pregnant women registered for 
-ANC in the first trimester. 19 States had more than 75% of pregnant women who 
-had 4 or more ANC visits. Punjab, Nagaland and Tripura had less than 25% of 
-pregnant women attending 4 or more ANC visits.
- Â23 States and UTs had more than 75% of pregnant women who were given 180 
-IFA tablets, while Punjab and Tripura had less than 25% coverage of IFA for 
-pregnant women. On the other hand, 12 States and UTs had more than 75% of 
-lactating women who were giving 180 IFA tablets, while 9 States and UTs had 
-less than 25% coverage of IFA for lactating women.
-Figure 18: State-wise scores for Programme activities and intervention coverage- 
-Health Department
-Maximum score: 38
- ÂThe percentage of children who were given weekly IFA tablets is low: only 6 
-States and UTs had covered more than 75% of children, and coverage is less 
-than 25% in 12 States and UTs.
- ÂIn terms of percentage of pregnant women given TT2/Boosters, 21 states had 
-more than 75% coverage of TT2/Boosters, yet Punjab and Tripura had less than 
-25% of pregnant women who were given TT2/boosters.
- ÂThe percentage of pregnant women who were given 1 Albendazole tablet after 
-first trimester is low, as only 5 States and UTs had more than 75% coverage, 
-while 10 States and UTs had less than 25% coverage.
 What progress have we made to date?
-39
-Poshan Abhiyaan Monitoring
+
  Â16 States and UTs had more than 75% of children (0-59 months) diarrhoea cases 
 treated with ORS, while there were 5 States and UTs that treated less than 25% 
 child diarrhoea cases with ORS.
@@ -1646,53 +1266,9 @@ capacity building and convergence).
 Overall, there is mixed progress among States across multiple indicators on establishing 
 mechanisms to implement POSHAN Abhiyaan, reinforcing the need to bridge gaps in 
 many areas. The key findings and subsequent recommendations are as follows:
-40
 Poshan Abhiyaan Monitoring
-What progress have we made to date? ÂOverall, fund utilization is low, with less than 50% of funds utilised in 23 States 
-and UTs. Thus, there is an immediate need to accelerate its use through channels 
-like recruiting human resources, procurement of devices and conducting CBEs 
-and IEC.
- ÂThe constitution of district and block-level convergence action plan committees 
-is not uniform across all States and UTs. This has implications for preparation 
-of convergence action plans, which is the roadmap for achieving convergence. 
-As empirical evidence suggests that implementing interventions across sectors 
-simultaneously reduce stunting5; therefore, formation of CAPs is of utmost 
-importance.
- ÂMany States and UTs have also submitted CAP to CPMU, but there is a need 
-to focus on operationalizing the plans in a way that the interventions across 
-sectors reaches same beneficiaries. Outcome-oriented convergence on ground 
-can also be facilitated by training the field level staff on sharing information and 
-data among themselves.
- ÂState scores varied across the service delivery indicators including on HR, 
-infrastructure, supplies, training and capacity building. To continue progress 
-on POSHAN Abhiyaan, attention to state-specific challenges pertaining to 
-insufficient human resources, supplies and infrastructure is required.
- ÂTo close the gaps on procurement of smartphones, the Anganwadi Workers 
-(AWWs) can be incentivized for data entry on online application or providing 
-monthly allowance for rental/usage for using their own devices, as an alternative.
- ÂIn addition, there are large gaps in staff training on e-ILA modules across several 
-States, due to low attendance at training, unavailability of training materials, lack 
-of trainers, and low educational background of AWWs2. Therefore States/UTs 
-need to address these challenges.
- ÂAmong the many ICDS services, priority areas for capacity building include 
-strengthening the quality of growth monitoring and home-based counselling.
- ÂStates and UTs had covered many beneficiaries for THR, yet gaps exist. Therefore, 
-there is a need to assess whether the gaps in THR pertain to supply chain issues 
-or demand-side challenges. To address supply-side challenges, de-centralized 
-model and decentralized self-help group model can be explored. E-payments 
-should also be introduced at every stage. To address demand-side challenges, 
-PRI and self-help groups (SHGs) should be involved for community engagement 
-and explaining benefits. Additionally, to increase nutritional status and reduce 
-intra-household consumption, fortification of THR and differentiating the packets 
-for pregnant and lactating women, and children is recommended. With the 
-introduction of POSHAN Tracker, the tracker should be used to monitor the 
-nutrition service delivery of THR through QR code-based check while distributing 
-packets and maintaining inventory. The tracker should also be used to monitor 
-food consumption and take concurrent feedback from beneficiaries.
-5  Rajpal et. al 2020
 What progress have we made to date?
-41
-Poshan Abhiyaan Monitoring
+
  ÂProgramme activities conducted under Department of Health have a mixed 
 performance across the States and UTs. There is low coverage of IFA 
 supplementation across the life stages, due to which it requires special attention. 
@@ -1711,9 +1287,10 @@ These conclusions resonate with the Development Monitoring and Evaluation Office
 (DMEO) of NITI Aayog’s earlier independent evaluation which identified challenges 
 of low fund utilisation, high numbers of staff vacancies limiting effective programme 
 implementation as well as implementation of training and mentoring of frontline workers3.
-42
 Poshan Abhiyaan Monitoring
-What progress have we made to date?4Jan Andolan and 
+What progress have we made to date?
+
+4Jan Andolan and 
 Multi-Sectoral 
 Interventions
 4.1 BACKGROUND
@@ -1741,8 +1318,9 @@ a Jan Andolan for effective outreach and implementation. The Mission strives to 
 and reduce undernutrition, LBW, and stunting across the life cycle as early as possible, 
 especially in the first three years of life, with interventions up to six years of age. Several 
 programmes across Ministries and Departments have been contributing to tackling 
-43
 Poshan Abhiyaan Monitoring
+
+
 malnutrition and anaemia in the country. POSHAN Abhiyaan seeks to synergise all these 
 efforts to achieve the desired goals and intends to raise community-level awareness into 
 a Jan Andolan.
@@ -1772,31 +1350,9 @@ associated with Poshan Maah 2020.
 The States with the most activities conducted and highest participation levels in Poshan 
 Maah 2020 are Tamil Nadu, Maharashtra, Uttar Pradesh, Bihar, Gujarat, Karnataka and 
 Madhya Pradesh.
-44
 Poshan Abhiyaan Monitoring
-Jan Andolan and Multi-Sectoral InterventionsPOSHAN MAAH (SEPTEMBER 2020)
-National Participation 
-379,64,93,044 
-Adult Participation
-MALE:1,02,11,20,479 FEMALE: 1,28,24,03,552
-Children Participation
-MALE: 59,45,47,561 FEMALE: 62,41,78,371Figure 19: Poshan Maah performance by participation across India, 2020
-Note: The number of participants include repeat and recurrent participation
-The State-level performance of participation in Poshan Maah was computed based on 
-an index that includes factors like total activities, number of AWCs and the number of 
-activities in the States/Districts. Figure 19 summarises the total number of activities and 
-participation under Poshan Maah nationwide.
-POSHAN MAAH
-2019 2020
-Activities
-3,66,54,719 14,08,22,709
-2019 2020
-Total Participation
-2,51,39,88,802 3,79,64,93,044
-Figure 20: Poshan Maah performance by participation: Comparison between 2019 and 2020
 Jan Andolan and Multi-Sectoral Interventions
-45
-Poshan Abhiyaan Monitoring
+
 All Ministries facilitated convergence through formal circulars and specific instructions to 
 their line departments in the States and Districts across themes to fight malnutrition. This 
 year, Poshan Maah’s primary themes were identifying and tracking children with SAM and 
@@ -1805,18 +1361,8 @@ promoting kitchen gardens. Figure 21 lists other themes covered under POSHAN Maa
 to end malnutrition and made it a personal agenda to monitor the progress regularly.
 211%%
 1100%%
-77%%
-66%%
  1122%%
-66%%
-4%
 1100%%
-110%
-44%%
-55%
-5%
-00%%
-5
 %%%%%%%%%%%%
 00%%THEMES
 Poshan (Overall Nutrition)
@@ -1830,7 +1376,6 @@ Hygiene, Water, Sanitation
 Anemia
 Adolescent Ed, Diet, Age of Marriage
 Antenatal Checkup
-ECCE
 Online Essay Competition
 Plantation
 Figure 21: Themes covered under POSHAN Maah, 2020
@@ -1845,9 +1390,10 @@ Consumer Affairs, Food & Public Distribution partnered with the MoWCD during Pos
 Maah. Grass-root level platforms like Gram Sabhas, SHGs, and field functionaries across 
 various ministries and schemes were used for optimum spread and coverage. Table 5 
 describes the key activities performed during Poshan Maah by line ministries.
-46
 Poshan Abhiyaan Monitoring
-Jan Andolan and Multi-Sectoral InterventionsTable 5: Key activities performed during Poshan Maah by Line Ministries
+Jan Andolan and Multi-Sectoral Interventions
+
+Table 5: Key activities performed during Poshan Maah by Line Ministries
 MINISTRY ACTIVITIES
 Ministry of Women and 
 Child DevelopmentThe Ministry conducted numerous activities, which included rallies, 
@@ -1895,8 +1441,9 @@ establishment was also focused in some States. As per the Jan-
 Andolan dashboard, 3.77 crore persons participated in 8.1 lakh 
 activities conducted by MoHFW and State Health Departments.
 Jan Andolan and Multi-Sectoral Interventions
-47
 Poshan Abhiyaan Monitoring
+
+
 MINISTRY ACTIVITIES
 Ministry of Consumer 
 Affairs, Food and Public 
@@ -1941,9 +1488,10 @@ a. Ministry of Health and Family Welfare: The Ministry has been working on
 Intensified Mission Indradhanush 2.0, which provides Pneumococcal Conjugate 
 Vaccines (PCV), Rotavirus Vaccines (RVV), National Deworming Day (NDD), 
 HBNC, Home Based Care for Young Child (HBYC), institutional deliveries, LBW , 
-48
 Poshan Abhiyaan Monitoring
-Jan Andolan and Multi-Sectoral Interventionsantenatal check-up, IFA supplementation, community and home distribution of 
+Jan Andolan and Multi-Sectoral Interventions
+
+antenatal check-up, IFA supplementation, community and home distribution of 
 IFA supplementation, vitamin-A supplementation, and Rashtirya Bal Swasthya 
 Karyakram (RBSK) for meeting the objective of POSHAN Abhiyaan. During 
 the four rounds conducted under Intensified Mission Indradhanush 2.0 from 
@@ -1988,8 +1536,9 @@ regional dishes and staple foods. Additionally, some States have been able to in
 fortified food items in the Supplementary Nutrition Programme. Some States offer sweets 
 like kheer, whereas others resort to offering a stipulated number of dry snacks with meals.
 Jan Andolan and Multi-Sectoral Interventions
-49
 Poshan Abhiyaan Monitoring
+
+
 States have also taken the following measures for POSHAN Abhiyaan:
  ÂTracking of severe underweight in Gujarat:  The state has created a unique 
 identification number of the severe underweight children for follow up purposes. 
@@ -2032,9 +1581,10 @@ have room for improvement, and there is low and delayed utilization of funds. Su
 4.3.2 Ministry of Health and Family Welfare
 The National Health Mission (NHM) under the MoHFW plays a vital role in the success 
 of POSHAN Abhiyaan as both the missions share similar goals such as the reduction of 
-50
 Poshan Abhiyaan Monitoring
-Jan Andolan and Multi-Sectoral Interventionsundernutrition, anaemia and the prevalence of LBW. Various health sector interventions 
+Jan Andolan and Multi-Sectoral Interventions
+
+undernutrition, anaemia and the prevalence of LBW. Various health sector interventions 
 that are instrumental in the success of POSHAN Abhiyaan include:
 a. Home-Based Care of Young Child (HBYC): The HBYC programme involves 
 additional home visits over and above the existing HBNC visits for nutrition 
@@ -2078,8 +1628,9 @@ of more than 10 crore under-five children were provided with ORS packets,
 counselling on the use of ORS and zinc and proper nutrition during diarrhoea. 
 An estimated 75% of beneficiaries were covered during this period. Additionally, 
 Jan Andolan and Multi-Sectoral Interventions
-51
 Poshan Abhiyaan Monitoring
+
+
 as per FY 2019-20, there were 1,072 functional NRCs in 28 States, where 2.25 
 lakh sick SAM children received treatment.
 f. Rashtriya Kishori Swasthya Karyakram (RKSK) and Ayushman Bharat School 
@@ -2121,9 +1672,10 @@ bartan bank in place, Sindhora Gram Panchayat in Indore District of Madhya
 Pradesh became the State’s first single-use plastic free Gram Panchayat. The 70-
 day campaign began in 425 households on 2 October 2019, and was implemented 
 by an all-woman team. Children, women, and other community members joined 
-52
 Poshan Abhiyaan Monitoring
-Jan Andolan and Multi-Sectoral Interventionsto clean the village, install dustbins at strategic places and plant saplings on 
+Jan Andolan and Multi-Sectoral Interventions
+
+to clean the village, install dustbins at strategic places and plant saplings on 
 roadsides and public spaces. Meanwhile, school children carried out awareness 
 rallies and performed nukkad nataks. A door-to-door campaign, where cloth 
 bags were distributed to homes and residents were asked to refrain from using 
@@ -2162,8 +1714,9 @@ In addition to the steps taken by the Development Partners for implementing POSH
 Abhiyaan during COVID-19, development partners have actively undertaken the regular 
 activities for POSHAN Abhiyaan. Box 3 presents an example of one such project.
 Jan Andolan and Multi-Sectoral Interventions
-53
 Poshan Abhiyaan Monitoring
+
+
 BOX 3: IMPROVING THE MICRONUTRIENT PROFILE OF THE 
 ICDS BENEFICIARIES
 The United Nations World Food Programme (WFP) has taken many steps to 
@@ -2203,9 +1756,10 @@ Source: World Food Programme
 The actions taken across Ministries to support India’s nutrition goals are commendable. 
 They take us closer to achieving the goals of effective convergence, and can support 
 convergent action planning. However, for maximum impact, diverse actions across 
-54
 Poshan Abhiyaan Monitoring
-Jan Andolan and Multi-Sectoral InterventionsMinistries must reach the last mile and ensure that all actions reach all households in the 
+Jan Andolan and Multi-Sectoral Interventions
+
+Ministries must reach the last mile and ensure that all actions reach all households in the 
 first 1,000 days. To achieve this, we recommend the following:
  ÂLocal innovations are essential to ensure that actions of MWCD and MoHFW 
 reach 1,000-day households fully so that each action/intervention is timed and 
@@ -2215,7 +1769,6 @@ received and missed across both health and ICDS, and use of local data to suppor
 co-coverage. Additionally, since MWCD and MoHFW use different applications 
 for tracking the same beneficiaries leading to duplication, therefore efforts are 
 required to develop a common platform for convergence of AWW, ASHA, and 
-ANM.
  ÂCo-locate critical actions of all ministries in focus districts and focus blocks within 
 districts, especially those actions that address underlying causes of malnutrition 
 such as poor sanitation, gender issues, poverty, food insecurity. This again will 
@@ -2236,13 +1789,13 @@ students and women volunteers from SHGs should also be involved, as this will
 achieve the dual objective of community engagement without compromising 
 home visits by FLWs.
 Jan Andolan and Multi-Sectoral Interventions
-55
 Poshan Abhiyaan Monitoring
+
+
 Delivering POSHAN 
 Abhiyaan Interventions 
 during a Pandemic: 
 How are States doing?
-5
 The COVID-19 pandemic disrupted progress on many activities in 2020, including the 
 delivery of health and nutrition services under the POSHAN Abhiyaan umbrella framework 
 of interventions. This chapter aims to quantitatively examine the impact of the pandemic 
@@ -2269,8 +1822,9 @@ of services despite the COVID-19-related disruptions.
 5.1 WOMEN AND CHILD DEVELOPMENT SERVICES
 To curtail the spread of the pandemic, Anganwadi Centres (AWCs) were closed, and 
 services were disrupted. Operation of ICDS platforms including Anganwadi Centres, 
-57
 Poshan Abhiyaan Monitoring
+
+
 VHSNDs, home visits, counselling and food supplementation for children, and pregnant 
 and lactating were examined for assessing the impact of COVID-19 on implementation 
 of these key women and child services.
@@ -2326,11 +1880,12 @@ Partly operational (i.e., for some groups of population or
 geographic restrictions)  
 Fully operational  
 Service suspended  
- 
+
 Figure 22: Policy guidance for implementation platforms and interventions across life stages
-58
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?5.1.2  Insights on disruption and restoration of supplementary 
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+5.1.2  Insights on disruption and restoration of supplementary 
 nutrition during COVID-19 pandemic
 To assess the impact of COVID-19 on ICDS service delivery, State/UT-wise quarterly data 
 were used for five quarters—that is, from October-December 2019 to October-December 
@@ -2363,8 +1918,9 @@ programme (SNP) was gradually recovering. However, the coverage of supplementary
 nutrition declined in the fourth quarter (October-December 2020), which was lower than 
 the pre-pandemic period.
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-59
 Poshan Abhiyaan Monitoring
+
+
 Figure 23: Changes in supplementary nutrition as per MPR data, October 2019 to 
 December 2020
 Source: Monthly Progress Report Data, Ministry of Women and Child Development
@@ -2387,9 +1943,10 @@ coverage of SNP in 10 States/UTs, which previously experienced disruption. Addit
 Madhya Pradesh and Delhi recovered to pre-pandemic levels during this quarter. By the 
 end of the fourth quarter (October-December 2020), coverage in 23 States and UTs was 
 greater than or equal to pre-pandemic levels, but it declined in 11 States and UTs.
-60
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?State/UTsDisruption  
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+State/UTsDisruption  
 (Q2 of 2020 to 
 Q4 of 2019)Early Restoration 
 (Q3 of 2020 to Q4 
@@ -2440,14 +1997,14 @@ Key>= 100%
 <100% and >= 75%
 <75% and >= 50%
 <75% and >= 25%
-<25%
 Figure 24: Disruption and restoration of supplementary nutrition among children 
 6 months to 6 years of age during the COVID-19 pandemic, MPR data, October 
 2019 to December 2020
 Source: Monthly Progress Report Data, Ministry of Women and Child Development
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-61
 Poshan Abhiyaan Monitoring
+
+
 State/UTsDisruption (Q2 
 of 2020 to Q4 of 
 2019)Early Restoration  
@@ -2498,13 +2055,13 @@ Key>= 100%
 <100% and >= 75%
 <75% and >= 50%
 <75% and >= 25%
-<25%
 Figure 25: Disruption and restoration of supplementary nutrition among pregnant 
 and lactating women during pandemic, MPR data, October 2019 to December 2020
 Source: Monthly Progress Report Data, Ministry of Women and Child Development
-62
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?Overall, services were disrupted during the lockdown period (April-June 2020), and were 
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+Overall, services were disrupted during the lockdown period (April-June 2020), and were 
 eventually restored between July and September 2020. The improvement in SNP services 
 may be attributed to the rigorous steps taken by States and UTs for increasing the 
 provision of take-home rations in response to the pandemic. Although coverage reduced 
@@ -2525,10 +2082,8 @@ Additional
 foodsInnovations 
 for growth 
 monitoring Innovations 
-for 
 community-
 based eventsInnovations 
-for 
 counsellingInnovations 
 for pre-
 school 
@@ -2581,17 +2136,16 @@ posters and
 callingPhone-based 
 activities
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-63
 Poshan Abhiyaan Monitoring
+
+
 State/UTsSNP: 
 Additional 
 foodsInnovations 
 for growth 
 monitoring Innovations 
-for 
 community-
 based eventsInnovations 
-for 
 counsellingInnovations 
 for pre-
 school 
@@ -2674,17 +2228,16 @@ classes and
 through local 
 TV channels
 Ladakh
-64
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?State/UTsSNP: 
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+State/UTsSNP: 
 Additional 
 foodsInnovations 
 for growth 
 monitoring Innovations 
-for 
 community-
 based eventsInnovations 
-for 
 counsellingInnovations 
 for pre-
 school 
@@ -2754,17 +2307,16 @@ classes and
 through local 
 TV channels
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-65
 Poshan Abhiyaan Monitoring
+
+
 State/UTsSNP: 
 Additional 
 foodsInnovations 
 for growth 
 monitoring Innovations 
-for 
 community-
 based eventsInnovations 
-for 
 counsellingInnovations 
 for pre-
 school 
@@ -2817,9 +2369,10 @@ pandemic. Counselling services were also provided during home visits in several 
 Two states (Assam and Uttarakhand) used video conferences as a medium to deliver 
 counselling messages. One UT (Puducherry) used the local television channel to share 
 counselling messages.
-66
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?Pre-school education
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+Pre-school education
 States/UTs primarily relied upon virtual media and phone-based activities to deliver pre-
 school education. Three states/UTs (Dadra & Nagar Haveli & Daman & Diu, Mizoram and 
 Tripura) ensure distribution of learning materials during home visits. Three states (Gujarat, 
@@ -2858,8 +2411,9 @@ enhancing trust and communication between demand-side and supply-side actors
 could help improve the access and distribution of the THR.
 Source: IDInsight and NITI Aayog
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-67
 Poshan Abhiyaan Monitoring
+
+
 BOX 5: FRONTLINE HEALTH WORKERS ENABLE RESTORATION 
 OF HEALTH AND NUTRITION SERVICE DELIVERY AFTER EARLY 
 COVID-19 LOCKDOWN: FINDINGS FROM A SEVEN-STATE 
@@ -2897,9 +2451,10 @@ VHSND varied widely across the states in April, with the lowest by FLW Bihar
 (1.5%) and Uttar Pradesh (9%), and the highest in Odisha (91%). In T2, conducting 
 of VHSND increased in all the states; 84 percentage point increase noted in Bihar, 
 78 percentage points in Uttar Pradesh and 58 percentage points in Tamil Nadu.
-68
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?A majority of FLWs in five states conducted home visits (74% to 99%) during 
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+A majority of FLWs in five states conducted home visits (74% to 99%) during 
 the lockdown except for Bihar (51%) and Uttar Pradesh (32%). In T2, home visits 
 increased by 41 percentage points in Bihar and 59 percentage points in Uttar Pradesh. 
 Except in Uttar Pradesh (14%), >50% FLWs reported providing counselling on health 
@@ -2938,8 +2493,9 @@ We examined disruptions and policy adaptations pertaining to interventions durin
 pregnancy period, postnatal period, and early childhood periods were assessed to 
 evaluate the toll of the pandemic on maternal and child health services.
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-69
 Poshan Abhiyaan Monitoring
+
+
 5.2.1 Disruptions to service delivery and policy adaptations
 Following the national guidance on essential maternal and child services, in April, several 
 states issued guidelines to provide antenatal care (ANC) services for on-demand and 
@@ -2973,23 +2529,18 @@ tationNeonatal
 tetanus 
 protection May 
 Aug
-Sep/
 Oct
 May 
 Aug
-Sep/
 Oct
 May 
 Aug
-Sep/
 Oct
 May 
 Aug
-Sep/
 Oct
 May 
 Aug
-Sep/
 Oct
 Andhra Pradesh                              
 Assam                              
@@ -3004,9 +2555,10 @@ Odisha                              
 Rajasthan                              
 Uttar Pradesh                              
 West Bengal                              
-70
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?State Interventions during early childhood
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+State Interventions during early childhood
 Pediatric 
 IFAGrowth 
 monitoring Immuniza -
@@ -3052,7 +2604,7 @@ Partly operational (i.e., for some groups of population or
 geographic restrictions)  
 Fully operational  
 Service suspended  
- 
+
 Figure 26: Policy guidance for interventions during pregnancy, postnatal and early 
 childhood period
 5.2.2  Insights on disruption and restoration of interventions delivered 
@@ -3067,8 +2619,9 @@ disruptions and restorations. These include:
 6. Number of children 9-11 months of age who received full immunisation;
 7. Number of severely underweight children provided health check-up (0-5 years).
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-71
 Poshan Abhiyaan Monitoring
+
+
 Section 2.5.2 details the methodology used for assessing disruption and restoration for 
 five quarters—that is, from October-December 2019 to October-December 2020 at the 
 national- and state-levels. The periods were divided into pre-pandemic period (October-
@@ -3094,9 +2647,10 @@ this area. Similarly, the situation further improved in October-December 2020 in
 States, and 22 States and UTs had coverage more than pre-pandemic levels. Coverage, 
 however, remained low in Manipur and Chandigarh. Data were not available for Ladakh 
 for all periods; thus, it was excluded.
-72
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?State/UTsDisruption  
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+State/UTsDisruption  
 (Q2 of 2020 to 
 Q4 of 2019)Early 
 restoration  
@@ -3147,13 +2701,13 @@ Key>= 100%
 <100% and >= 75%
 <75% and >= 50%
 <75% and >= 25%
-<25%
 Figure 28: Disruption and restoration of number of pregnant women who received 
 180+ IFA tablets, HMIS Data, October 2019-December 2020
 Source: HMIS publicly available data, Ministry of Health and Family Welfare
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-73
 Poshan Abhiyaan Monitoring
+
+
 Compared with the pre-pandemic period, the number of pregnant women who received 
 four or more ANC check-ups reduced in most States and UTs (30 out of 35 States/
 UTs) (Figure 29). The largest decline was in Manipur, Nagaland, Delhi and Uttar Pradesh. 
@@ -3164,9 +2718,10 @@ pre-pandemic period. The situation further improved in October-December 2020 in 
 States, and 13 States and UTs were covering more than pre-pandemic levels. However, 
 coverage remained low in Goa, Manipur, Nagaland, Chandigarh, Delhi and Jammu and 
 Kashmir. Ladakh was excluded because data were not available for all periods.
-74
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?State/UTsDisruption (Q2 
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+State/UTsDisruption (Q2 
 of 2020 to Q4 of 
 2019)Early restoration 
 (Q3 of 2020 to 
@@ -3216,13 +2771,13 @@ Key>= 100%
 <100% and >= 75%
 <75% and >= 50%
 <75% and >= 25%
-<25%
 Figure 29: Disruption and restoration of number of pregnant women who received four or more 
 ANC visits, HMIS Data, October 2019-December 2020
 Source: HMIS publicly available data, Ministry of Health and Family Welfare
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-75
 Poshan Abhiyaan Monitoring
+
+
 Key findings on changes in coverage of number of institutional deliveries 
 conducted, and number of women receiving 1st post-partum check-up between 48 
 hours and 14 days
@@ -3248,9 +2803,10 @@ were covering more than pre-pandemic levels. The coverage remained low in Manipu
 Chandigarh, Delhi, and Puducherry, whereas other States and UTs were covering more 
 than 75% of the pre-pandemic level. Data were unavailable for Ladakh for all periods; 
 thus, Ladakh was excluded from this analysis.
-76
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?State/UTsDisruption (Q2 
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+State/UTsDisruption (Q2 
 of 2020 to Q4 
 of 2019)Early 
 restoration (Q3 
@@ -3301,13 +2857,13 @@ Key>= 100%
 <100% and >= 75%
 <75% and >= 50%
 <75% and >= 25%
-<25%
 Figure 31: Disruption and restoration of number of institutional deliveries conducted  
 (including C-section), HMIS Data October 2019- December 2020
 Source: HMIS publicly available data, Ministry of Health and Family Welfare
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-77
 Poshan Abhiyaan Monitoring
+
+
 At the State-level, the number of women who received postpartum check-ups reduced  
 in 30 out of 34 States and UTs compared with the pre-pandemic period (Figure 32). 
 The maximum decline was in Bihar, Uttar Pradesh, Chandigarh, Delhi, and Lakshadweep. 
@@ -3337,9 +2893,10 @@ with pre-pandemic levels (6,247,000 vs 63,03,000). The reduction in rate of immu
 may have resulted due to hesitancy among caregivers to take care of children to healthcare 
 facilities due to fear of exposure to COVID-19 and further engagement and over burdening 
 of health care workers in COVID response had affected the coverage.
-78
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?State/UTsDisruption  
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+State/UTsDisruption  
 (Q2 of 2020 to 
 Q4 of 2019)Early 
 restoration  
@@ -3389,13 +2946,13 @@ Key>= 100%
 <100% and >= 75%
 <75% and >= 50%
 <75% and >= 25%
-<25%
 Figure 32: Disruption and restoration of number of women who received postpartum 
 check-ups between 48 hours and 14 days, HMIS Data, October 2019-December 2020
 Source: HMIS publicly available data, Ministry of Health and Family Welfare
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-79
 Poshan Abhiyaan Monitoring
+
+
 Figure 33: Changes in number of children who received fully immunized (9-11 months), 
 6 HBNC visits (newborns), and health check-up (severely underweighted children 0-5 
 years) from October 2019 to December 2020.
@@ -3409,9 +2966,10 @@ quarter (October -December 2020) in 23 States and UTs due to which the total num
 of children fully vaccinated reduced by 1% at the national-level during the fourth quarter 
 of 2020. Data were not available for Ladakh for all periods; therefore, data on Ladakh 
 have been excluded.
-80
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?State/UTsDisruption (Q2 
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+State/UTsDisruption (Q2 
 of 2020 to Q4 
 of 2019)Early 
 restoration (Q3 
@@ -3462,13 +3020,13 @@ Key>= 100%
 <100% and >= 75%
 <75% and >= 50%
 <75% and >= 25%
-<25%
 Figure 34: Disruption and restoration of number of children (9-11 months) fully 
 immunised, HMIS Data, October 2019-December 2020
 Source: HMIS publicly available data, Ministry of Health and Family Welfare
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-81
 Poshan Abhiyaan Monitoring
+
+
 At the State-level, the number of newborns who received HBNC visits reduced in most 
 States and UTs (27 out of 34 States/UTs) compared with the pre-pandemic period of 
 October-December 2019 (Figure 35). Bihar, Uttar Pradesh and Delhi reported the largest 
@@ -3492,9 +3050,10 @@ and Uttarakhand had the least coverage in quarter four of 2020 (October- Decembe
 2020), compared to the pre-pandemic period. Data were not available for Ladakh for 
 all periods and Tamil Nadu was an outlier; hence; these States have been excluded from 
 this analysis.
-82
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?State/UTsDisruption  
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+State/UTsDisruption  
 (Q2 of 2020 to 
 Q4 of 2019)Early 
 restoration  
@@ -3544,13 +3103,13 @@ Key>= 100%
 <100% and >= 75%
 <75% and >= 50%
 <75% and >= 25%
-<25%
 Figure 35: Disruption and restoration of number of newborns who received 6 HBNC visits after 
 institutional delivery, HMIS Data October 2019-December 2020
 Source: HMIS publicly available data, Ministry of Health and Family Welfare
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-83
 Poshan Abhiyaan Monitoring
+
+
 State/UTsDisruption  
 (Q2 of 2020 to 
 Q4 of 2019)Early 
@@ -3601,13 +3160,13 @@ Key>= 100%
 <100% and >= 75%
 <75% and >= 50%
 <75% and >= 25%
-<25%
 Figure 36: Disruption and restoration of number of severely underweighted children (0-5 years) 
 who received health check-ups, HMIS Data, October 2019- December 2020
 Source: HMIS publicly available data, Ministry of Health and Family Welfare
-84
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?Overall, services like pregnant women who received 180+ IFA and children (9-11 months) 
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+Overall, services like pregnant women who received 180+ IFA and children (9-11 months) 
 fully immunized experienced least disruption compared to other services. While, severely 
 underweighted children who received health check-up declined significantly in April-
 June 2020. Encouragingly, the coverage of IFA to pregnant women, HBNC visits, and 
@@ -3630,7 +3189,6 @@ State/UTsInnovations for
 distribution 
 of IFA (syrup, 
 pink, red, blue)Innovations 
-for 
 distribution 
 of ORS and 
 zinc Innovations for 
@@ -3656,7 +3214,6 @@ phones
 BiharHome 
 distribution
 Chandigarh By FLWsDuring IDCF 
-2020
 ChhattisgarhHome 
 distributionHome 
 distributionMobilization of 
@@ -3666,13 +3223,13 @@ DelhiHome
 distributionHome 
 distributionHome visits 
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-85
 Poshan Abhiyaan Monitoring
+
+
 State/UTsInnovations for 
 distribution 
 of IFA (syrup, 
 pink, red, blue)Innovations 
-for 
 distribution 
 of ORS and 
 zinc Innovations for 
@@ -3741,14 +3298,13 @@ Mizoram Incomplete template received
 NagalandHome 
 distribution
 Odisha During IDCF 
-2020
-86
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?State/UTsInnovations for 
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+State/UTsInnovations for 
 distribution 
 of IFA (syrup, 
 pink, red, blue)Innovations 
-for 
 distribution 
 of ORS and 
 zinc Innovations for 
@@ -3799,8 +3355,9 @@ ranging from identifying alternate sites for immunisation, following a staggered
 maintaining COVID-19 protocol, providing information and guidance to FLWs to conduct 
 immunisations using technology.
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-87
 Poshan Abhiyaan Monitoring
+
+
 Counselling
 States used different approaches to reach beneficiaries to ensure the most vulnerable 
 population received the services and most of the beneficiaries were covered. Use of 
@@ -3839,9 +3396,10 @@ with the Departments of Women and Child Development, Agriculture Rural Developme
 and Village Panchayats, Lakshadweep promoted Anganwadi Kitchen Gardens and Nutri-
 Gardens for a continuous supply of green leafy vegetables and fruits during COVID-19 
 outbreak.
-88
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?5.3.2 Ministry of Health and Family Welfare
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+5.3.2 Ministry of Health and Family Welfare
 Best practices, especially during COVID-19 times
 Continued support was provided to States and UTs through regular video conferences 
 (VC) and webinars on the implementation of various interventions amid COVID-19, 
@@ -3880,8 +3438,9 @@ interviews by ASHA facilitators using a standard checklist, which was later anal
 A&T. Similarly, A&T conducted telephonic interviews with frontline workers, pregnant 
 women, and women with children below 2 years in Uttar Pradesh for examining the 
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-89
 Poshan Abhiyaan Monitoring
+
+
 effects of COVID-19 on provision and use of health and nutrition services during and 
 after lockdown.
 Promoting community involvement for improving health and nutrition related 
@@ -3925,9 +3484,10 @@ and even during the COVID-19 pandemic, 1,45,140 children were monitored. Additio
 children who were identified as severely acutely malnourished were referred to the 
 Nutritional Rehabilitation Centres for recovery. Finally, the strategy detects early growth 
 retardation so that appropriate steps can be taken for the same.
-90
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?Field-level relief measures during the COVID-19 pandemic
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+Field-level relief measures during the COVID-19 pandemic
 The c entralised kitchens programme in Nashik and Palghar, which is run in collaboration 
 with the Tribal Development Department, Government of Maharashtra and TATA trusts, has 
 expanded its services to provide meals to migrant workers amid the COVID-19 pandemic. 
@@ -3971,8 +3531,9 @@ and development partners on the comprehensive community-based management of
 children with SAM programme. Similarly, online trainings and orientations were conducted 
 for frontline workers under ICDS in Odisha and Rajasthan .
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-91
 Poshan Abhiyaan Monitoring
+
+
 Technical Support: CoE has also provided technical support in the preparation of guidelines 
 and training modules in Rajasthan  for their project AMMA, and support was also provided 
 to ICDS Department of Bihar  for developing a comprehensive guidance note on activities 
@@ -4013,9 +3574,10 @@ girls will be critical. Evidence has accumulated that education is critical to p
 early marriage, which in turn is critical to prevent early childbearing in India. The 
 risks of increasing early marriage in the context of the pandemic are higher, 
 but little is known about the extent of the challenge. Community engagement 
-92
 Poshan Abhiyaan Monitoring
-Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?to ensure adolescent girls can return to school and that early marriages are 
+Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
+
+to ensure adolescent girls can return to school and that early marriages are 
 prevented will, therefore, also need sharp focus in 2021. Additionally, RKSK may 
 mobilize community to prevent early marriage of adolescent girls with the help 
 of FLWs.
@@ -4032,11 +3594,11 @@ achieve effective household convergence, but the evidence is strong that this is
 currently poor and therefore, must be a key goal for the efforts to strengthen 
 the convergence pillar of POSHAN Abhiyaan.
 Delivering POSHAN Abhiyaan Interventions during a Pandemic: How are States doing?
-93
 Poshan Abhiyaan Monitoring
+
+
 Conclusions and 
 Recommendations
-6
 This progress report has assessed the implementation of POSHAN Abhiyaan; analysed 
 the impact of the COVID-19 pandemic on nutrition and health services and generated 
 and curated insights on service delivery restorations and adaptations and other related 
@@ -4065,84 +3627,15 @@ POSHAN Tracker and reproductive and child health (RCH) services to facilitate
 convergence between WCD and health services. Additionally, conducting joint 
 convergent trainings/activities with field-level staff on how to constantly share 
 data and information is also necessary.
-95
 Poshan Abhiyaan Monitoring
- ÂWith the introduction of POSHAN Tracker, it can be utilised to monitor the 
-supply and delivery of THR. The tracker must be integrated with the RCH portal 
-to identify prevalence of malnutrition. All visits of AWWs should be tracked and 
-best 100 AWWs per month in every state may be incentivized and their photos/
-mobile numbers may be displayed on POSHAN tracker.
-Second, the analysis of service disruptions, drawing primarily on administrative data 
-highlights substantial disruptions in the early part of the pandemic. Although restorations 
-are apparent beginning in the middle of 2020, the restorations in June 2020 (the last 
-month for which data are available in public domain) indicate that full restoration to 
-December 2019 levels are still not apparent for various services. However, in several 
-states, it appears that higher reach of food supplements was achieved in the immediate 
-post-lockdown period, and this may have important lessons.
-Key recommendations
- ÂGiven the importance of achieving full-scale coverage of the POSHAN Abhiyaan 
-core interventions, efforts to restore service delivery are imperative, not just 
-to achieve pre-pandemic levels but to go beyond and achieve even greater 
-coverage and quality.
- ÂServices that will need particular attention in the restoration of services will be 
-screening and monitoring of growth of all children, active support to EBF and 
-even greater efforts to support complementary feeding.
- ÂEfforts to increase household demand for services are also going to be central 
-to achieving coverage; therefore, demand creation to access and use health 
-and ICDS services should likely be a key focus of the SBCC pillar of POSHAN 
-Abhiyaan in 2021.
-Third, the findings on early restorations and adaptations to service delivery highlight a 
-positive commitment across all levels–policy, implementation and frontline–to attempt to 
-restore essential services in health, nutrition and social safety nets. A range of adaptations 
-to service delivery across specific platforms and interventions bode well for supporting 
-the path to full restoration. At the same time, available findings also highlight the broader 
-economic impacts of the pandemic on incomes and food security, even as recently as 
-October 2020. Addressing the fallout of the impact on the education sector on adolescent 
-girls will also be critical. Evidence has accumulated that education is critical to prevent 
-early marriage, which in turn is critical to prevent early childbearing in India. The risks of 
-increasing early marriage in the context of the pandemic are higher, but little is known 
-about the extent of the challenge.
-Key recommendations
- ÂThe efforts for convergence with key sectors, especially food and civil supplies 
-(PDS) and rural development (NREGA) will be essential for strengthening social 
-protection to vulnerable families. This will also ensure that the social protection 
-programmes reach families in the first 1,000 days of life. Furthermore, by 
-96
+
+
 Poshan Abhiyaan Monitoring
-Conclusions and Recommendationsincorporating nutri-cereals, fortified rice, and other nutritious foods into social 
-safety nets will help to make these provisions nutrition sensitive.
- ÂEfforts to strengthen social protection to be more nutrition-sensitive and to 
-ensure that major social protection programmes reach families in the first 1000 
-days using the convergence action planning mechanisms will be essential.
- ÂCommunity engagement to ensure adolescent girls can return to school and 
-that early marriages are prevented will also warrant urgent attention in 2021.
-Despite significant progress on strengthening systems to support the delivery of key 
-POSHAN Abhiyaan interventions in the Health and WCD sectors, more work is needed 
-to close persisting gaps. In addition, the impacts of the COVID-19 pandemic mean that 
-millions of babies born in 2020 have likely missed several essential interventions in 
-health and nutrition. At the same time, there is also evidence of a broad system-wide 
-commitment to nutrition in the range of efforts to restore health and nutrition services 
-– across Ministries, States and development partners. The rapid and full restoration of 
-services is critical to the core POSHAN Abhiyaan goal of delivering essential evidence-
-based interventions to all women and children.
-In closing, this report offers sobering insights on the current state of malnutrition in India, 
-as well as several areas for optimism on the nutritional improvements underway in India. 
-With continued political leadership, system-wide implementation commitment, society-
-wide support and focused action, India can eliminate malnutrition in all forms.
-In 2021, an estimated 20 million babies will be born in India6. By investing more deeply 
-in solving the nutrition challenge, we have the power to assure the birth cohort of 2021 
-tremendous opportunities to strengthen their potential as future citizens. There is no 
-time to lose.
-6  UNICEF Press Release, 7 May 2020
-Conclusions and Recommendations
-97
-Poshan Abhiyaan Monitoring
-98
-Poshan Abhiyaan Monitoring
+
+
 Key Takeaways 
 from POSHAN 
 Abhiyaan
-7
 On 8 March 2018, the Honourable Prime Minister launched the POSHAN (Prime Minister’s 
 Overarching Scheme for Holistic Nutrition) Abhiyaan, which brought malnutrition to the 
 centre stage. Malnutrition, particularly in early life (especially during the first 1,000 days) 
@@ -4170,8 +3663,9 @@ FOCUS ON IMPROVING NUTRITION OUTCOMES DURING THE FIRST
 1,000 DAYS.
 The first 1,000 days—the time approximately from conception to the second birthday of 
 the child, constitute the foundation period for optimal child health, growth and neural 
-99
 Poshan Abhiyaan Monitoring
+
+
 development. The sensitive periods of brain development are susceptible to specific 
 nutritional deficiencies that could have long-term deficits. This is the period when children 
 require food with optimal nutrients, hygienic, nurturing and stimulating environments 
@@ -4211,9 +3705,10 @@ ensuring that they reach all the households with a child below two years is crit
 Improving the composition and quality of the food supplements and increasing the reach 
 of the take-home rations is essential. The achievement of optimal infant and young child 
 feeding practices, particularly in ensuring appropriate complementary feeding practices, 
-100
 Poshan Abhiyaan Monitoring
-Key Takeaways from POSHAN Abhiyaanremains a challenge. Therefore, it is imperative to use all existing programme platforms to 
+Key Takeaways from POSHAN Abhiyaan
+
+remains a challenge. Therefore, it is imperative to use all existing programme platforms to 
 emphasize complementary feeding at every possibly contact with families with children 
 under two years of age.
 The need of the hour is to sustain the POSHAN Abhiyaan for which actions looking 
@@ -4242,7 +3737,6 @@ community-based events and mass media. Jan Andolan could effectively be utilized
 change community level awareness of normative behaviours through concerted messages. 
 The messaging has to be complemented with strengthened delivery systems to implement 
 interventions so that the demand for services from the sensitized communities could be 
-met.
 In extending the Jan Andolan, engagement with elected representatives at all levels–
 from the Parliament to the Panchayats along with local partners–could be a next step to 
 ensure continuity of enabling environment for behaviour change communication as well 
@@ -4253,8 +3747,9 @@ change, their access to knowledge and other resources to support behaviour chang
 to ensure that the Jan Andolan and other behaviour change efforts of POSHAN Abhiyaan 
 are coupled with additional strategies that remove more barriers.
 Key Takeaways from POSHAN Abhiyaan
-101
 Poshan Abhiyaan Monitoring
+
+
 Building on this momentum, Jan Andolan should be intensified using high reach 
 platforms such as home visits, community-based events, mass media and more with 
 even greater participation of families and communities.
@@ -4295,9 +3790,10 @@ same mother–child dyad in the first 1,000-day period. The success of POSHAN Ab
 convergent action planning efforts will lie in the ability of the convergence-related 
 processes to trigger the within- and across-sector actions that lead to effective reach 
 of an agreed upon core set of interventions to all households in the 1,000-day period. 
-102
 Poshan Abhiyaan Monitoring
-Key Takeaways from POSHAN AbhiyaanConvergence can only be successful when all interventions reach all target households 
+Key Takeaways from POSHAN Abhiyaan
+
+Convergence can only be successful when all interventions reach all target households 
 in the right timeframes. Therefore, it is important to identify a core set of indicators of 
 successful convergence that can be monitored and supported through CAP so that the 
 review meetings become meaningful and enable progress tracking and programmatic 
@@ -4340,8 +3836,9 @@ and other systems in the context of POSHAN Abhiyaan is critical to enable data-d
 actions. Regardless of the source of the data, data use is a critical step in improving the 
 impact of technology-enabled data gathering.
 Key Takeaways from POSHAN Abhiyaan
-103
 Poshan Abhiyaan Monitoring
+
+
 Sustained, comprehensive and multidimensional use of technology platforms for 
 educating, counselling, on-site decision making, and work and task planning are all 
 essential to realize the full impact of technology. Additionally, leveraging the use of 
@@ -4383,9 +3880,10 @@ broad system-wide commitment to nutrition in the range of efforts to restore hea
 nutrition services was apparent across Ministries, across States and across development 
 partners. Continued attention to ensure rapid and full restoration of services as well as 
 new adaptations to services in the continuing pandemic is critical to the core POSHAN 
-104
 Poshan Abhiyaan Monitoring
-Key Takeaways from POSHAN AbhiyaanAbhiyaan goal of delivering essential evidence-based interventions to all women and all 
+Key Takeaways from POSHAN Abhiyaan
+
+Abhiyaan goal of delivering essential evidence-based interventions to all women and all 
 children.
 In addition, the pandemic has induced economic and food distress that must be tackled 
 to accelerate progress on nutrition. Improving nutrition is difficult, if not impossible, when 
@@ -4421,8 +3919,9 @@ among the beneficiaries through Jan Andolan, bring focus towards the importance 
 convergence between different line ministries, leveraging the use of technology for real-
 time monitoring of nutrition and health, and highlighting resilience amid pandemic.
 Key Takeaways from POSHAN Abhiyaan
-105
 Poshan Abhiyaan Monitoring
+
+
 References
 1. Development Initiatives, 2018. 2018 Global Nutrition Report: Shining a light to spur 
 action on nutrition. Bristol, UK: Development Initiatives
@@ -4450,8 +3949,9 @@ countries: a modelling study”. The Lancet, Global Health, Vol. 8, Issue 7, E90
 9. Chakrabarti, S., P. Singh, and T. Bruckner. 2020. “Association of Poor Sanitation With 
 Growth Measurements Among Children in India.” JAMA Network Open  3 (4). https:/ /
 doi.org/10.1001/jamanetworkopen.2020.2791 .
-107
 Poshan Abhiyaan Monitoring
+
+
 10. Dhami, M.V., F.A. Ogbo, U.L. Osuagwu, and K.E. Agho. 2019. “Prevalence and Factors 
 Associated with Complementary Feeding Practices among Children Aged 6-23 
 Months in India: A Regional Analysis.” BMC Public Health  19 (1): 1034. https:/ /doi.
@@ -4486,9 +3986,10 @@ Practices in Uttar Pradesh, India.” Maternal and Child Nutrition  16 (2): 1–
 doi.org/10.1111/mcn.12892 .
 18. World Health Organization. Pulse survey on continuity of essential health services 
 during the COVID-19 pandemic. Interim Report. August 2020.
-108
 Poshan Abhiyaan Monitoring
-ReferencesAnnexures
+References
+
+Annexures
 ANNEXURE 1A: STATE TEMPLATE-WOMEN AND CHILD 
 DEVELOPMENT
 Fourth POSHAN Abhiyaan Monitoring Report: Data Collection Form
@@ -4510,63 +4011,10 @@ B ConsultantNo. of posts sanctioned
 No. of posts filled
 C Project AssociateNo. of posts sanctioned
 No. of posts filled
-109
 Poshan Abhiyaan Monitoring
-SECTION I:
-NOTE : You are requested to share our response separately for two months
-March 2020 July 2020
-A. TRAINING & CAPACITY BUILDING
-1.1No. of District level Resource Groups 
-(DRGs ) for ILA training been established
-1.2No. of Block level Resource Groups ( BRGs ) 
-for ILA training been established
-1.3 Total no. of AWWs enrolled  for e-ILA
-1.4No. of enrolled AWWs who have completed 
-e-ILA  training
-1.5Total no. of Lady Supervisors enrolled  for 
-e-ILA
-1.6No. of enrolled Lady Supervisors who have 
-completed e-ILA training
-1.7Staff trained on ICDS-CAS Dashboard/Mobile
-Staff March 2020 July 2020
-ADPOs
-BCDPOs
-CLSs
-DAWW
-1.8 No. of AWWs who have started entry in ICDS-CAS till July 2020: 
-March 2020 July 2020
-1.9Staff trained on 
-ILA
-Nos. TrainedNo. of modules 
-Nos. 
-TrainedNo. of modules 
-Less 
-than 77-15More 
-than 15Less 
-than 77-15More 
-than 15
-AState Level (SRG 
-members)
-BDistrict Level 
-(DRG members)
-CBlock Level 
-(BRG members)
-DSector Level 
-(AWWs)
-B. Convergence
-1.10
-AHas State/UT 
-submitted the 
-Convergence 
-Action Plan 
-(CAP) to CPMU 
-for FY 2020-
-21 (If no, give 
-reason )Yes || 
-No || 
-110
-Poshan Abhiyaan Monitoring
-AnnexuresBNo. of Districts 
+
+
+BNo. of Districts 
 in which CAP 
 has been formedNo. of 
 Districts:
@@ -4590,13 +4038,11 @@ A. PROGRAMME ACTIVITES- ICDS
 2.1Total number of pregnant women enrolled 
 for Anganwadi services
 2.2No. of pregnant women  who received THR 
-for:
 15-21 days
 > 21+ days
 2.3Total number of lactating women enrolled 
 for Anganwadi services
 2.4No. of lactating women  who received THR 
-for:
 15-21 days
 > 21+ days
 2.5Total number of children 6-36 months old 
@@ -4612,8 +4058,9 @@ hot-cooked meal for:
 15-21 days
 > 21+ days
 Annexures
-111
 Poshan Abhiyaan Monitoring
+
+
 2.9Total number of children 0-5 years old 
 enrolled for Anganwadi services
 2.10No. of children 0-5 years  old who were 
@@ -4650,7 +4097,6 @@ visits, the % of home visits made by AWWs
 2.28% of home visits to household with 
 pregnant mothers to counsel on 
 appropriate practices during pregnancy
-2.29
 A.PMMVY scheme
 No. of pregnant women targeted
 B.No. of pregnant women benefited as per 
@@ -4660,9 +4106,10 @@ infant (less than 6 month)  to counsel on
 Importance of immediate breastfeeding, 
 initiation of complementary feeding and 
 continued breastfeeding
-112
 Poshan Abhiyaan Monitoring
-AnnexuresD. During COVID-19 times
+Annexures
+
+D. During COVID-19 times
 2.31Please specify, any innovative techniques 
 applied for providing services (March – 
 July 2020) during COVID-19 19 timesProvide the innovations in brief
@@ -4678,8 +4125,6 @@ in contact tracing of the migrant workers
 who came back from other cities?
 2.33During COVID-19 times, mention on what 
 all other activities AWW is involved in?1.
-2.
-3.
 SECTION III: INNOVATION & FLEXI-PLAN
 Sn Status of Flexi-Plan
 3.1 a. Constitution 
@@ -4713,7 +4158,6 @@ given)
 SN STATUS OF INNOVATION
 3.2 a. 
 Innovation 
-plan 
 prepared 
 (Y/N)
 (if no, 
@@ -4724,7 +4168,6 @@ SLSC held
 (if no, 
 reason and 
 timeline)c. Approval 
-of 
 Committee 
 obtained
 (if no, 
@@ -4747,8 +4190,9 @@ be utilized
 also to be 
 given)
 Annexures
-113
 Poshan Abhiyaan Monitoring
+
+
 SECTION IV: ADDITIONAL INFORMATION
 Sn Information Required
 4.1 Specify the main challenges faced in implementation of POSHAN Abhiyaan at State/
@@ -4765,9 +4209,10 @@ vii. Any other
 improve the nutrition indicators during the first 1000 days life cycle especially in 
 COVID-19 times:
 (Provide details as attachment)
-114
 Poshan Abhiyaan Monitoring
-AnnexuresANNEXURE 1B: STATE TEMPLATE-HEALTH
+Annexures
+
+ANNEXURE 1B: STATE TEMPLATE-HEALTH
 FOURTH POSHAN Abhiyaan Monitoring Report: Data Collection 
 Form
 Health Template
@@ -4803,8 +4248,9 @@ B. HUMAN RESOURCES (as on 31st March 2020)
 No. of LHVs in position
 b. ANM No. of posts sanctioned
 Annexures
-115
 Poshan Abhiyaan Monitoring
+
+
 No. of ANMs in position
 c. ASHA Facilitators Total no. in State/UT
 No. of ASHAs per facilitator
@@ -4814,7 +4260,6 @@ SECTION II:
 NOTE : You are requested to share your response separately for two months
 March 2020 July 2020
 A. PROGRAMME AND OUTPUT ACTIVITES- NHM
-2.1    A Total no. of pregnant women
 BTotal no. of lactating women
 CTotal no. of children 6-59 months
 DTotal no. c hildren 12-23 months
@@ -4843,55 +4288,9 @@ month against the target population
 2.11Total number of children 5-9 years (girls and 
 boys) given weekly IFA  supplementation per 
 month against the target population
-116
 Poshan Abhiyaan Monitoring
-Annexures2.12Total number of children 10-19 years (girls and 
-boys) given weekly IFA  supplementation per 
-month against the target population
-2.13Total no. of children (9-23 months)  who have 
-received 1st dose of Vitamin-A supplementation
-2.14Total no. of diarrhoea episodes reported in 
-children 0 to 59 months of age 
-2.15Total no. of deaths reported  due to childhood 
-(0-59 months) diarrhoea 
-2.16Total no. of childhood diarrhoea  cases treated in 
-the facility (inpatient)
-2.17Total n o. of diarrhoea episodes  reported in 
-children 0 to 59 months of age where only ORS 
-was given
-2.18Total number of childhood (0-59 months) 
-diarrhoea  cases reported treated with ORS and 
-zinc
-2.19Total no. Number of newborn breastfed 
-within one hour of birth (Early initiation of 
-breastfeeding)
-2.20No. of children 6 to 59 months  suffering from 
-ANY anaemia
-2.21No. of adolescent girls 15-19 years  suffering from 
-ANY anaemia
-2.22No. of pregnant women  suffering from ANY 
-anaemia
-2.23 AMB programme update
-AHas IFA been included in the EDL? Completed/In process/ Remark
-BHas the State procured digital invasive 
-hemoglobinometersCompleted/In process/ Remark
-B. HOME VISITS by ASHAs (DURING COVID-19 TIMES) MARCH -JULY 2020
-2.24Out of the mandated number of home visits, the 
-% of home visits made by ASHA during March-
-July 2020
-2.25% of home visits to household with pregnant 
-mothers to counsel on appropriate practices 
-during pregnancy during March-July 2020
-2.26 % of HBNC home visits in March-July 2020
-2.27Please specify, any innovative techniques applied 
-for providing services likeProvide the innovations in brief 
-(if required, place the annexure 
-for details)
-ACounselling
-BImmunization
 Annexures
-117
-Poshan Abhiyaan Monitoring
+
 CIFA (syrup, pink, red, blue) distribution
 DORS and zinc distribution 
 ETotal sick SAM admission at NRC
@@ -4902,68 +4301,15 @@ contact tracing of the migrant workers who
 came back from other cities?
 2.29 During COVID-19 times, mention on what all 
 other activities ASHAs are involved in?1.
-2.
-3.
-4.
-5.
 SECTION III:
 SN INFORMATION REQUIRED RESPONSE
 3.1 Specify the main challenges faced in 
 implementation of POSHAN Abhiyaan at State/
 UT level during COVID-19 Times:
 (Provide details as attachment)
-118
 Poshan Abhiyaan Monitoring
-AnnexuresANNEXURE 2: RUBRIC
-Theme Sub- ThemeIndicators (as per Template) 
--USING ONLY MAR 2020 DATAWeights 
-(TOTAL=100)
-WCD template TOTAL-50 50
-Governance & Institutional Mechanism 12
-1.1 Fund Allocation 3
-% utilized by the State/ UT (as on 
-July, 2020) 0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-1.2 Constitution of Committees and Resource Groups 9
-  % of districts where DRGs have 
-been formed– Section 1–A- 1.1 A1.20 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-  % of blocks where BRGs have 
-been formed Section 1–A–1.20 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-  % of districts where the CAP 
-committees have been formed–
-Section 1–B–1.10 B0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-Strategy and Planning 3
-  Has the State/UT level CAP been 
-submitted to CPMU for the year 
-2020-21- Section 1 B–1.10A1 if YES; 0 if NO
-% of districts that developed and 
-submitted CAP for the year 2020-
-21- Section 1 B–1.10D0.5 if <25%
-1 if 25%-<50%
-1.5 if 50%-<75%
-2 if ≥ 75%
-Inputs for Service Delivery & Capacities 23
-3.1 HR 6
-  
-% of joint project coordinator 
-positions filled– HR–QA 0.5 if <25%
-1 if 25%-<50%
-1.5 if 50%-<75%
-2 if ≥ 75%
 Annexures
-119
-Poshan Abhiyaan Monitoring
+
 Theme Sub- ThemeIndicators (as per Template) 
 -USING ONLY MAR 2020 DATAWeights 
 (TOTAL=100)
@@ -5008,206 +4354,9 @@ e-ILA modules - Section 1. A. -1.6 . 0 if <25%
 1 if 25%-<50%
 2 if 50%-<75%
 3 if ≥ 75%
-120
 Poshan Abhiyaan Monitoring
-AnnexuresTheme Sub- ThemeIndicators (as per Template) 
--USING ONLY MAR 2020 DATAWeights 
-(TOTAL=100)
-% of AWWs who completed 
-training on e-ILA modules Section 
-1. A. -1.40 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
- 
- 
- 
- 
- 
- 
- 
- % of CDPOs who were trained on 
-dashboard/mobile - Section IA. 
-1.7B. 0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of LS who were trained on 
-dashboard/mobile - Section IA. 
-1.7C. 0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-Programme activities and intervention coverage 12
-4.1 Programme activities- ICDS 12
-  
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- % of pregnant women who 
-received THR for 21+ days- 
-Section II. 2.2. 0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of lactating women who 
-received THR for 21 + days- 
-Section II. 2.4. 0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of children 6-36 months who 
-received THR for 21+ days - 
-Section II. 2.5.0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of children 0-5 years who were 
-weighed- Section 2 A. 2.10 0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
- 3 if ≥ 75%
-HEALTH TEMPLATE TOTAL-50 50
-Service delivery essentials 12
-1.1 Infrastructure  9
 Annexures
-121
-Poshan Abhiyaan Monitoring
-Theme Sub- ThemeIndicators (as per Template) 
--USING ONLY MAR 2020 DATAWeights 
-(TOTAL=100)
-  % of sub centres functional.  
-Section 1 A. 1.1B0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
- % of CHCs functional Section 1 A. 
-1.1A0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
- % of HWC functional Section 1 A. 
-1.1E0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-1.2 Human Resource  3
-  % of ANM posts filled– Section I-B 
-1.3b0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-Programme activities and intervention coverage 38
-2.1 Programme activities 36
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- % of newborn breastfed within 
-one hour of birth– Section 2 A–2.19 
-[ Data for live births from NITI]0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of children (12-23 mo) fully 
-immunized in– Section 2 A–2.9. 0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of children (6-59 mo) who were 
-provided at least 8-10 doses of 
-IFA syrup per month– Section 2 
-A–2.10.0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of pregnant women who 
-registered for ANC in the first 
-trimester– Section 2 A–2.2.0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-122
-Poshan Abhiyaan Monitoring
-AnnexuresTheme Sub- ThemeIndicators (as per Template) 
--USING ONLY MAR 2020 DATAWeights 
-(TOTAL=100)
-% of pregnant women who 
-received 4 or more ANCs– Section 
-2 A–2.3.0 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of pregnant women who were 
-given 180 IFA tablets Mar 2020- 
-Section 2 A–2.60 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of lactating women who were 
-given 180 IFA tablets– Section 2 
-A–2.80 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of 5-9 years children who were 
-given weekly IFA tablets– Section 
-2 A–2.110 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of pregnant women given TT2/
-booster in Mar 2020/ Section 2 A 
--2.40 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of pregnant women given one 
-Albendazole tablet after first 
-trimester - Section 2 A–2.50 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of children (0–59 months) 
-diarrhoea cases reported treated 
-with ORS and Zinc– Section 2 
-A-2.180 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-% of home visits to household 
-with pregnant mothers to counsel 
-on appropriate practices during 
-pregnancy during March-July 
-2020; Section 2 B-2.250 if <25%
-1 if 25%-<50%
-2 if 50%-<75%
-3 if ≥ 75%
-2.2 AMB strategy 2
-Annexures
-123
-Poshan Abhiyaan Monitoring
+
 Theme Sub- ThemeIndicators (as per Template) 
 -USING ONLY MAR 2020 DATAWeights 
 (TOTAL=100)
@@ -5220,110 +4369,9 @@ invasive hemoglobinometers
 Section 2 A -2.23B0 Yet to begin
 0.5 In process
 1 Completed
-124
 Poshan Abhiyaan Monitoring
-AnnexuresANNEXURE 3: STATE SCORE DASHBOARD OVERALL
-   WCD 
-Domain 
-1:  
-Gover -
-nance & 
-Institu -
-tional 
-Mecha -
-nismWCD 
-Domain 
-2:  
-Strategy  
-and 
-PlanningWCD  
-Domain  
-3: 
-Service 
-Delivery 
-& Capac -
-itiesWCD Do -
-main 4: 
-Program 
-activi -
-ties and 
-inter-
-vention 
-coverageOverall 
-WCD 
-score_
-Sum 
-of all 4 
-domainsHealth 
-Domain  
-1: 
-Service 
-delivery 
-essen -
-tialsHealth 
-Domain  
-2: 
-Program 
-activi -
-ties and 
-inter-
-vention 
-coverageOverall 
-Health 
-score: 
-Sum of 2 
-domainsTotal 
-imple -
-mentation 
-score
-  Max value 12 3 23 12 50 12 38 50 100
-Large 
-StatesAndhra 
-Pradesh10.00 3.00 22.00 12.00 47.00 12.00 28.00 40.00 87.00
-Assam 1.00 1.50 9.50 9.00 21.00 11.00 30.50 41.50 62.50
-Bihar 10.00 3.00 19.00 6.00 38.00 6.00 16.50 22.50 60.50
-Chattisgarh 10.00 2.50 9.25 12.00 33.75 11.00 27.50 38.50 72.25
-Gujarat 10.00 3.00 23.00 12.00 48.00 12.00 25.50 37.50 85.50
-Haryana 11.00 3.00 6.50 9.00 29.50 10.00 30.00 40.00 69.50
-Himachal 
-Pradesh11.00 3.00 17.25 11.00 42.25 9.00 31.50 40.50 82.75
-Jharkhand 10.00 3.00 12.00 11.00 36.00 11.00 26.50 37.50 73.50
-Karnataka 10.00 3.00 9.00 12.00 34.00 12.00 29.00 41.00 75.00
-Kerala 11.00 1.50 14.75 9.00 36.25 12.00 16.00 28.00 64.25
-Madhya 
-Pradesh10.00 3.00 19.25 12.00 44.25 10.00 28.50 38.50 82.75
-Maharashtra 11.00 2.00 20.50 12.00 45.50 10.00 32.00 42.00 87.50
-Odisha 9.00 2.00 9.25 12.00 32.25 11.00 31.00 42.00 74.25
-Punjab 9.00 2.00 5.75 11.00 27.75 9.00 11.00 20.00 47.75
-Rajasthan 10.00 3.00 17.75 9.00 39.75 10.00 17.00 27.00 66.75
-Tamil Nadu 11.00 3.00 22.50 12.00 48.50 10.00 24.50 34.50 83.00
-Telangana 10.00 3.00 10.50 10.00 33.50 11.00 31.00 42.00 75.50
-Uttar Pradesh 10.00 3.00 14.00 5.00 32.00 9.00 25.50 34.50 66.50
-Uttarakhand 10.00 1.50 11.00 9.00 31.50 10.00 26.50 36.50 68.00
-Small 
-StatesArunachal 
-Pradesh9.00 3.00 3.75 0.00 15.75 9.00 11.50 20.50 36.25
-Goa 4.00 1.50 6.50 12.00 24.00 12.00 20.00 32.00 56.00
-Manipur 2.00 0.00 1.25 0.00 3.25 10.00 14.00 24.00 27.25
-Meghalaya 12.00 3.00 19.00 11.00 45.00 11.00 12.50 23.50 68.50
-Mizoram 11.00 3.00 12.00 11.00 37.00 0.00 0.00 0.00 37.00
-Nagaland 12.00 3.00 17.00 1.00 33.00 11.00 7.00 18.00 51.00
-Sikkim 11.00 3.00 18.75 12.00 44.75 11.00 25.50 36.50 81.25
-Tripura 9.00 3.00 14.50 12.00 38.50 10.00 13.50 23.50 62.00
-UTsAndaman & 
-Nicobar4.00 1.50 21.50 12.00 39.00 11.00 26.00 37.00 76.00
-Chandigarh 10.00 3.00 23.00 12.00 48.00 9.00 23.00 32.00 80.00
-D & N Haveli & 
-Daman & Diu10.00 2.00 23.00 12.00 47.00 12.00 28.00 40.00 87.00
-Delhi 8.00 1.00 14.50 12.00 35.50 9.00 15.50 24.50 60.00
-Jammu & 
-Kashmir10.00 2.00 14.00 7.00 33.00 11.00 23.50 34.50 67.50
-Ladakh 3.00 3.00 5.00 9.00 20.00 10.00 20.00 30.00 50.00
-Lakshadweep 11.00 3.00 11.50 12.00 37.50 11.00 15.00 26.00 63.50
-Puducherry 7.00 2.50 6.50 8.00 24.00 10.00 20.50 30.50 54.50
 Annexures
-125
-Poshan Abhiyaan Monitoring
+
 Governance & Institutional Mechanism, WCD
    % utilized 
 by the 
@@ -5334,12 +4382,10 @@ March,
 Allocation% of 
 districts 
 where 
-DRGs 
 have been 
 formed% of 
 blocks 
 where 
-BRGs 
 have been 
 formed% of districts 
 where the 
@@ -5357,7 +4403,6 @@ Gover -
 nance & 
 Institution -
 al Mecha -
-nism
   Max value 3 3 3 3 3 9 12
 Large 
 StatesAndhra Pradesh 1.00 1.00 3.00 3.00 3.00 9.00 10.00
@@ -5399,9 +4444,10 @@ Ladakh 0.00 0.00 0.00 0.00 3.00 3.00 3.00
 Lakshadweep 2.00 2.00 3.00 3.00 3.00 9.00 11.00
 Puducherry 0.00 0.00 2.00 3.00 2.00 7.00 7.00
 Score: < 25% : 0 25%-50% : 1 50%-75% : 2 > 75% : 3
-126
 Poshan Abhiyaan Monitoring
-AnnexuresStrategy and Planning, WCD
+Annexures
+
+Strategy and Planning, WCD
    Convergence action plan 
 submitted to CPMU for 
 the year 2020-21% of districts that 
@@ -5446,12 +4492,12 @@ Jammu & Kashmir 0.00 2.00 2.00
 Ladakh 1.00 2.00 3.00
 Lakshadweep 1.00 2.00 3.00
 Puducherry 1.00 1.50 2.50
-Score:    No : 0; Yes : 1 < 25% : 0 25%-50% : 1 50%-75% : 2 > 75% : 3
 Annexures
-127
 Poshan Abhiyaan Monitoring
+
+
 Inputs for Service Delivery & Capacities, WCD
-   
+
 % of joint project 
 coordinator positions 
 filled 
@@ -5511,9 +4557,10 @@ Tamil Nadu 2.00 2.00 1.50 5.50 1.00 1.00 1.00 1.00 1.00 5.00 3.00 3.00 3.00 3.00
 Telangana 2.00 2.00 2.00 6.00 0.50 1.00 1.00 1.00 1.00 4.50 0.00 0.00 0.00 0.00 0.00 10.50
 Uttar Pradesh 1.00 0.50 0.50 2.00 0.50 0.50 0.50 0.25 0.25 2.00 3.00 3.00 1.00 3.00 10.00 14.00
 Uttarakhand 2.00 2.00 2.00 6.00 1.00 1.00 1.00 1.00 1.00 5.00 0.00 0.00 0.00 0.00 0.00 11.00
-128
 Poshan Abhiyaan Monitoring
-AnnexuresSmall 
+Annexures
+
+Small 
 StatesArunachal 
 Pradesh0.50 1.50 0.50 2.50 0.25 0.25 0.25 0.25 0.25 1.25 0.00 0.00     0.00 3.75
 Goa 0.50 0.50 0.50 1.50 1.00 1.00 1.00 1.00 1.00 5.00 0.00 0.00 0.00 0.00 0.00 6.50
@@ -5537,8 +4584,9 @@ Lakshadweep 0.50 1.00 2.00 3.50 1.00 1.00 1.00 1.00 1.00 5.00 0.00 0.00 3.00 0.0
 Puducherry 0.50 0.50 0.50 1.50 1.00 1.00 1.00 1.00 1.00 5.00 0.00 0.00 0.00 0.00 0.00 6.50
 Score: < 25% : 0 25%-50% : 1 50%-75% : 2 > 75% : 3
 Annexures
-129
 Poshan Abhiyaan Monitoring
+
+
 Programme activities and intervention coverage, WCD
    % of pregnant 
 women who 
@@ -5594,14 +4642,14 @@ Ladakh 3.00 3.00 3.00 0.00 9.00
 Lakshadweep 3.00 3.00 3.00 3.00 12.00
 Puducherry 3.00 1.00 3.00 1.00 8.00
 Score: < 25% : 0 25%-50% : 1 50%-75% : 2 > 75% : 3
-130
 Poshan Abhiyaan Monitoring
-AnnexuresService delivery essentials, Health
+Annexures
+
+Service delivery essentials, Health
    % of sub 
 centres 
 functional% of CHCs 
 functional% of 
-HWCs 
 functional1.1: Infrastruc -
 ture% of ANM 
 posts 
@@ -5653,176 +4701,10 @@ Lakshadweep 2.00 3.00 3.00 8.00 3.00 3.00 11.00
 Puducherry 3.00 3.00 1.00 7.00 3.00 3.00 10.00
 Score: < 25% : 0 25%-50% : 1 50%-75% : 2 > 75% : 3
 Annexures
-131
 Poshan Abhiyaan Monitoring
-Programme activities and intervention coverage, Health
-   
-% of newborn breastfed within one 
-hour of birth
-% of children (12-23 mo) fully 
-immunized
-% of children (6-59 mo) provided at 
-least 8-10 doses of IFA syrup
-% of pregnant women who registered 
-for ANC in the first trimester
-% of pregnant women who received 
-4 or more ANCs
-% of pregnant women who were 
-given 180 IFA tablets Mar 2020
-% of lactating women who were 
-given 180 IFA tablets
-% of 5-9 years children who were 
-given weekly IFA tablets
-% of pregnant women given TT2/
-booster in Mar 2020
-% of pregnant women given 1 
-Albendazole tablet after first trimes
-% of children (0-59 mo) diarrhoea 
-cases reported treated with ORS
-% of home visits to household with 
-pregnant mothers to counsel on  
-practices during pregnancy
-2.1: Program activities
-Has IFA been included in the EDL?
-Has the State procured digital 
-invasive hemoglobinometers?
-2.2_AMB strategy
-Domain 2: Program activities and 
-intervention coverage
-  Max value 3 3 3 3 3 3 3 3 3 3 3 3 36 1 1 2 38
-  Score:< 25% 
-: 0 
-25%-
-50% 
-: 1 
-50%-
-75% 
-: 2 
-> 75% 
-: 3< 25% 
-: 0 
-25%-
-50% 
-: 1 
-50%-
-75% 
-: 2 
-> 75% 
-: 3< 25% 
-: 0 
-25%-
-50% 
-: 1 
-50%-
-75% 
-: 2 
-> 75% 
-: 3< 25% 
-: 0 
-25%-
-50% 
-: 1 
-50%-
-75% 
-: 2 
-> 75% 
-: 3< 25% 
-: 0 
-25%-
-50% 
-: 1 
-50%-
-75% 
-: 2 
-> 75% 
-: 3< 25% 
-: 0 
-25%-
-50% 
-: 1 
-50%-
-75% 
-: 2 
-> 75% 
-: 3< 25% 
-: 0 
-25%-
-50% 
-: 1 
-50%-
-75% 
-: 2 
-> 75% 
-: 3< 25% 
-: 0 
-25%-
-50% 
-: 1 
-50%-
-75% 
-: 2 
-> 75% 
-: 3< 25% 
-: 0 
-25%-
-50% 
-: 1 
-50%-
-75% 
-: 2 
-> 75% 
-: 3< 25% 
-: 0 
-25%-
-50% 
-: 1 
-50%-
-75% 
-: 2 
-> 75% 
-: 3< 25% 
-: 0 
-25%-
-50% 
-: 1 
-50%-
-75% 
-: 2 
-> 75% 
-: 3< 25% 
-: 0 
-25%-
-50% : 1  
-50%-
-75% : 2  
-> 75% 
-: 3 Yet to 
-begin 
-: 0 
-In 
-process 
-: 0.5 
-Com-
-pleted: 1Yet to begin 
-: 0 
-In process 
-: 0.5 
-Completed: 
-1   
-Large 
-StatesAndhra Pradesh 3.00 3.00 0.00 3.00 3.00 3.00 2.00 1.00 3.00 1.00 3.00 1.00 26.00 1.00 1.00 2.00 28.00
-Assam 3.00 3.00 1.00 3.00 3.00 3.00 3.00 0.00 3.00 2.00 3.00 2.00 29.00 1.00 0.50 1.50 30.50
-Bihar 3.00 0.00 0.00 2.00 2.00 3.00 1.00 0.00 3.00 1.00     15.00 1.00 0.50 1.50 16.50
-Chattisgarh 3.00 0.00 0.00 3.00 3.00 3.00 2.00 0.00 3.00 3.00 3.00 3.00 26.00 1.00 0.50 1.50 27.50
-Gujarat 3.00 0.00 0.00 3.00 3.00 3.00 0.00 3.00 3.00 3.00 3.00   24.00 1.00 0.50 1.50 25.50
-Haryana 3.00 3.00 2.00 3.00 2.00 3.00 1.00 0.00 3.00 2.00 3.00 3.00 28.00 1.00 1.00 2.00 30.00
-Himachal 
-Pradesh3.00 3.00 3.00 3.00 2.00 3.00   3.00 3.00 2.00 3.00 2.00 30.00 1.00 0.50 1.50 31.50
-Jharkhand 3.00 3.00 0.00 2.00 3.00 3.00 3.00 0.00 3.00 1.00 1.00 3.00 25.00 1.00 0.50 1.50 26.50
-Karnataka 3.00 3.00 0.00 3.00 3.00 3.00 3.00   3.00 2.00 3.00 2.00 28.00 1.00 0.00 1.00 29.00
-132
-Poshan Abhiyaan Monitoring
-AnnexuresKerala 3.00 0.00 0.00 3.00 3.00 3.00 0.00   2.00 0.00 0.00   14.00 1.00 1.00 2.00 16.00
+
+
+Kerala 3.00 0.00 0.00 3.00 3.00 3.00 0.00   2.00 0.00 0.00   14.00 1.00 1.00 2.00 16.00
 Madhya Pradesh 3.00 3.00 0.00 2.00 3.00 3.00 3.00 2.00 3.00 2.00 3.00 0.00 27.00 1.00 0.50 1.50 28.50
 Maharashtra 3.00 3.00 1.00 3.00 3.00 3.00 2.00 1.00 3.00 2.00 3.00 3.00 30.00 1.00 1.00 2.00 32.00
 Odisha 3.00   1.00 3.00 3.00 3.00 3.00 1.00 3.00 3.00 3.00 3.00 29.00 1.00 1.00 2.00 31.00
@@ -5835,7 +4717,6 @@ Uttarakhand 3.00 3.00 0.00 2.00 2.00 3.00 2.00 3.00 3.00 0.00 1.00 3.00 25.00 1.
 Small 
 StatesArunachal 
 Pradesh3.00 0.00 0.00 1.00 1.00 2.00 1.00 0.00 2.00 0.00   0.00 10.00 1.00 0.50 1.50 11.50
-Goa 3.00   0.00 2.00 3.00 2.00 3.00   1.00 1.00 3.00   18.00 1.00 1.00 2.00 20.00
 Manipur 3.00 1.00 0.00 2.00 2.00 1.00 1.00   2.00 0.00 1.00   13.00 0.50 0.50 1.00 14.00
 Meghalaya 3.00 3.00 0.00 1.00 1.00 1.00 0.00   2.00 0.00 0.00   11.00 1.00 0.50 1.50 12.50
 Mizoram                         0.00     0.00 0.00
@@ -5854,8 +4735,9 @@ Ladakh 0.00 3.00 0.00 2.00 2.00 3.00 3.00 0.00 2.00 0.00 2.00 2.00 19.00 0.50 0.
 Lakshadweep 3.00 0.00 0.00 2.00 3.00 3.00     2.00 1.00     14.00 0.50 0.50 1.00 15.00
 Puducherry 0.00 0.00 3.00 1.00 2.00 3.00 0.00 3.00 1.00 3.00 0.00 3.00 19.00 0.50 1.00 1.50 20.50
 Annexures
-133
 Poshan Abhiyaan Monitoring
+
+
 ANNEXURE 4: POSHAN ABHIYAAN II MONITORING REPORT: DATA 
 COLLECTION FORM FOR MOWCD
 S.No.INFORMATION REQUIRED
@@ -5907,17 +4789,19 @@ representatives
  Convergence essential for expanding
  Shortage of Anganwadi buildings, 
 toilets and drinking water facilities
-134
 Poshan Abhiyaan Monitoring
-Annexures6. State/UT wise Details on POSHAN Maah 2020 :
+Annexures
+
+6. State/UT wise Details on POSHAN Maah 2020 :
  No. of participants 3,65,95,20,157
  No. of events 13,90,00,170
  No. of SAM children identified Not available
  No. of SAM children referred Not available 
  Other details of the event Need to be specified 
 Annexures
-135
 Poshan Abhiyaan Monitoring
+
+
 ANNEXURE 4-A
 Flexi-Funds
 S.No. State/UTsFlexi Fund 
@@ -5976,9 +4860,10 @@ Slip Books
  Project Management 
 Expense
  IEC video films
-136
 Poshan Abhiyaan Monitoring
-AnnexuresS.No. State/UTsFlexi Fund 
+Annexures
+
+S.No. State/UTsFlexi Fund 
 approved 
 by SLSC 
 committeeStatus of im -
@@ -6036,8 +4921,9 @@ Initiated
  Water Purifiers
 7 Chhattisgarh Yes Under Process — —
 Annexures
-137
 Poshan Abhiyaan Monitoring
+
+
 S.No. State/UTsFlexi Fund 
 approved 
 by SLSC 
@@ -6099,9 +4985,10 @@ certificate printing
 District and Help 
 desk team of 
 POSHAN Abhiyaan
-138
 Poshan Abhiyaan Monitoring
-AnnexuresS.No. State/UTsFlexi Fund 
+Annexures
+
+S.No. State/UTsFlexi Fund 
 approved 
 by SLSC 
 committeeStatus of im -
@@ -6162,8 +5049,9 @@ and operating Staff
 & MT CAS Training
 19 Ladakh No — — —
 Annexures
-139
 Poshan Abhiyaan Monitoring
+
+
 S.No. State/UTsFlexi Fund 
 approved 
 by SLSC 
@@ -6226,9 +5114,10 @@ Helpdesk staff
 District officials 
 and CDPOs on 
 Dashboard
-140
 Poshan Abhiyaan Monitoring
-AnnexuresS.No. State/UTsFlexi Fund 
+Annexures
+
+S.No. State/UTsFlexi Fund 
 approved 
 by SLSC 
 committeeStatus of im -
@@ -6281,8 +5170,9 @@ InitiatedRs.150.24  Printing of Flip
 Books: 6170 nos.
  Printing of takeaways
 Annexures
-141
 Poshan Abhiyaan Monitoring
+
+
 S.No. State/UTsFlexi Fund 
 approved 
 by SLSC 
@@ -6333,7 +5223,6 @@ Mobile Devices
  Printing of Takeaways 
 to the AWW
  ICDS-CAS Training to 
-AWW
  Painting of AWC 
 with the POSHAN 
 Abhiyaan themes
@@ -6343,9 +5232,10 @@ Cards to AWWs
 (Rs.292.4)Under 
 Process Upgradation of AWC 
 to Model AWC
-142
 Poshan Abhiyaan Monitoring
-AnnexuresS.No. State/UTsFlexi Fund 
+Annexures
+
+S.No. State/UTsFlexi Fund 
 approved 
 by SLSC 
 committeeStatus of im -
@@ -6399,122 +5289,9 @@ Day
 Sanitation and 
 Nutrition Day
 Annexures
-143
 Poshan Abhiyaan Monitoring
-S.No. State/UTsFlexi Fund 
-approved 
-by SLSC 
-committeeStatus of im -
-plementation/
-funds ear -
-marked (Rs. in 
-lakh)Funds 
-Utilised 
-(Rs. in 
-Lakh)Activities
-32 Tamil Nadu Yes Implementation 
-Initiated  
-(Rs.516.95)Rs.248.73  Electricity to 220 
-AWC
- Printing and Supply 
-of Handbook on 
-Growth Monitoring 
-Devices
- Printing and supply 
-of guidelines in Tamil 
-language
- Expenditure on 
-convening the 
-Convergence Plan 
-Committee meeting 
-at State/Districts/
-Blocks
- Procurement of LCD 
-Projector for 32 
-Districts
- Imparting orientation, 
-induction & 
-sensitization training
- Promoting Kitchen 
-Garden in 655 AWC
- Six-seater table chair 
-kit
- Mobile configuration 
-& preparation of 
-devices training to 
-Help Desk Personnel 
-(Phase I & II Districts)
-33 Telangana — — — —
-34 Tripura Under 
-processProposal 
-received— —
-35 Uttar 
-PradeshYes Implementation 
-initiated (Rs. 20
-42.03)Rs.1401.97  Suposhan Swasth 
-Mela
- Flip Book
-36 Uttarakhand Yes Implementation 
-initiated 
-(Rs.697.12)Rs. 317.52  Hydroponic Farming
- Solar Cooker
- Recipe Book
-37 West Bengal No Proposal yet to 
-be  received— —
-Total Rs.6067.84
-144
-Poshan Abhiyaan Monitoring
-AnnexuresANNEXURE 4-B
-Convergence activities undertaken by partner Ministries/
-Departments under POSHAN Abhiyaan
-S. No. Ministry Activity
-1. Ministry of Youth 
-Affairs & Sports
-Dept. of Sports The Department supports and encourages balance and 
-nutritious diet for a good health.
- The Department has launched Fit India Movement in August, 
-2019, which cover all aspects having a bearing on fitness and 
-healthy living viz., physical fitness, mental fitness, healthy life 
-style, preventive health care, sustainable and environment 
-friendly living, etc. including healthy eating habits, healthy 
-and balance diet.
- The Department has rationalized the diet and food supplement 
-charges under which financial assistance towards diet, food 
-supplements are provided to all athletes whether Senior, 
-Junior or Sub Junior athletes. Earlier Senior, Junior athletes 
-and SAI trainees had different diets which has been done 
-away with to ensure parity amongst all level of trainees.
-2. Ministry of Health & 
-Family Welfare Intensified Mission Indradhanush 2.0 was launched in 
-December 2019 and 4 rounds were conducted from 
-December 2019 to March 2020. During these rounds about 
-37.09 lakh children and 7.41 lakh pregnant women were 
-vaccinated.
- Pneumococcal Conjugate Vaccine (PCV) vaccination is in 6 
-States-HP, Bihar, MP, Rajasthan, UP, and Haryana. Introduced 
-PCV on its own. In last 6 months:
- PCV expanded to 17 Districts of Rajasthan, to cover entire 
-State.
- Expansion in UP to remaining 56 Districts started. Already 
-covering 19 Districts.
- More than 49 lakh doses administered from January 2020 
-to April 2020
- Rotavirus vaccine (RVV) has already been expanded to the 
-entire country, by September 2019. More than 1.8 crore doses 
-administered from January 2020 to April 2020.
- National Deworming Day (NDD) was conducted in 25 States/
-UTs11.3 Cr children were covered with average 94% coverage 
-as per the target set by States and UTs
- Under Home Based Newborn Care (HBNC) programme 
-46.92 lakhs newborns received complete schedule of home 
-visits by ASHA. 2.5 lakhs sick newborns referred to health 
-facilities
- Under Home Based Care for Young Child (HBYC) programme:
- Out of 242 Districts, 238 Districts have completed trainers 
-training
-Annexures
-145
-Poshan Abhiyaan Monitoring
+
+
 S. No. Ministry Activity
  1,60,339 frontline workers are trained covering 179 
 Districts across 27 States/UTs
@@ -6526,7 +5303,6 @@ hospitals against total number of reported deliveries. (i.e.
 crore deliveries reported); 70% of delivery reported in public 
 health facilities.
  LBW: 12.6% of the newborn were reported as LBW as per 
-HMIS
  Antenatal Check-up: 71% ANC registered in the 1sty trimester; 
 80% PW received 4 or more ANC check-ups
  IFA supplementation: 91% PW given 180 IFA tablets.
@@ -6561,9 +5337,10 @@ of the Pilot Scheme.
 Gujarat (from Feb. 2020) & Andhra Pradesh (from April 
 2020) have started distributing of fortified rice under the 
 Pilot Scheme.
-146
 Poshan Abhiyaan Monitoring
-AnnexuresS. No. Ministry Activity
+Annexures
+
+S. No. Ministry Activity
  Targeted Public Distribution System (TPDS)/National Food 
 Security Act, 2013 (NFSA): Covers all States & UTs; Poorest 
 of poor entitled 35 kg foodgrains per family per month; 
@@ -6618,66 +5395,10 @@ Cycle Yatra,
 Exhibitions, Competitions were conducted to focus public 
 attention on focus areas of Poshan Maah
 Annexures
-147
 Poshan Abhiyaan Monitoring
+
+
 S. No. Ministry Activity
-8. Dpt. of School 
-Education & 
-Literacy Developed cadre of 3,20,373 Poshan Monitors
- 7,40,045 Poshan Report cards prepared
-9. Dept. of 
-Agriculture, 
-Cooperation 
-& Farmers’ 
-Welfare, Ministry 
-of Agriculture & 
-Farmers Welfare Nutri-cereals comprising Jowar, Bajra, Ragi/Mandua, Kutki, 
-Kodo, Sawa/Jhangora, Kangni/Kakun and Cheena have been 
-implemented in the National Food Security Mission since 
-2018-19 in 202 Districts of 14 States.
- Promotion of nutri-cereals through Kisan Goshthis, training 
-at KVK level, SAU and State Agriculture Dept. Provision of 
-safe grain storage.
- Other interventions include cluster front line demonstrations, 
-creation of seed hubs, distribution of seed kits, print & 
-electronic publicity, etc.
- Establishment of three “Centres of Excellence‟ across the 
-country. Provision of setting up of processing units.
- Bio-fortified and high-yielding crop distribution through 
-seeds and FLD.
-10. Ministry of Tribal 
-Affairs Evaluation undertaken on “Scheduled Tribe Component 
-Relevance and Effectiveness in GoI Funded Schemes‟ which 
-included POSHAN Abhiyaan, Anganwadi Services-ICDS, 
-PMMVY, NIPCCD, etc.
-Department of Animal Husbandry & Dairying:
- “Eklavya Kamdhenu Project‟ envisions to establish 
-„Gaushalas‟ under “Rashtriya Kamedhenu Aayog” in EMRSs 
-with a view to provide Desi cow’s milk and milk products for 
-self-sustainability towards milk consumption among school 
-children to improve their nutritional status.
- In addition, community nutrition approaches in and around 
-the EMRS school will be used to further address dietary 
-diversity in tribal households.
-11. Ministry of Minority 
-Affairs Interventions in the form of trainings, community mobilisation 
-or assisting States in creation of AWC.
-12. Ministry of AYUSH  Generating nutrition awareness through Health and Nutrition 
-camps and lectures through its national institutes.
- The Ministry has also shared yoga protocol for pregnancy, 
-children and adolescent with MoWCD to incorporate it into 
-POSHAN Abhiyaan.
- The Ministry is actively participating in the Poshan Pakhwada 
-and Poshan Maah every year.
- Introduction of Yoga activities in schools in collaboration of 
-Department of School Education and Literacy, MHRD
- Introduction of poshan awareness in AYUSH Health and 
-Wellness Centres in collaboration with local AWC.
- Awareness programme for Herbal plants with high nutritional 
-value in AYUSH Health and Wellness Centres
-148
-Poshan Abhiyaan Monitoring
-AnnexuresS. No. Ministry Activity
 13. Ministry of 
 Panchayati Raj Held special gram sabha with the participation from 
 community resource persons, ANMs, Sakhis etc for:
@@ -6729,8 +5450,9 @@ Swachh Bharat Mission-Urban (SBM-U) for construction of
 Toilets/Urinals in AWC situated within the jurisdiction of the 
 Municipal Corporations in their States/UTs.
 Annexures
-149
 Poshan Abhiyaan Monitoring
+
+
 S. No. Ministry Activity
 17. NITI Aayog  CSR funding in health & nutrition programmes: Mobilisation 
 of Rs.70.4 crore in 57 Aspirational Districts
@@ -6749,9 +5471,10 @@ quarterly monitoring reports on PMMVY
  Evaluation study conducted on strengthening of ICDS; draft 
 report with recommendations shared with MoWCD
  Promotion of healthy diets through local food systems
-150
 Poshan Abhiyaan Monitoring
-AnnexuresANNEXURE 4-C
+Annexures
+
+ANNEXURE 4-C
 Best practices/innovations made by MoWCD, especially during COVID-19 times that 
 can be scaled-up for strengthening Nutritional indicators in all States/UTs, following 
 are the activities that have been undertaken by CD-Section during the COVID-19 
@@ -6790,8 +5513,9 @@ of green leafy vegetables/fruits can be seen.
 each Anganwadi adopting 15 houses. To initiate the same, UT’s main focus was 
 on Convergence of WCD, Agriculture, Rural Development & Village Panchayats.
 Annexures
-151
 Poshan Abhiyaan Monitoring
+
+
  ÂIn March 2020, UT has started distributing the seeds. So far, 99 clusters 
 at UT level already initiated Anganwadi Kitchens. Each having 30 families i.e. 
 3000 households (besides 1600 around the AWC) benefitted. Lakshadweep 
@@ -6833,51 +5557,9 @@ prevention in pregnant women and adolescent girls through the use of iron
 utensils and promotion of Nutri garden. Also, 1870 low cost hand wash models 
 being installed at AWC and community places to improve hygiene practices 
 without wasting water.
-152
 Poshan Abhiyaan Monitoring
-Annexures3.   Odisha – Revamping Supplementary Nutrition Programme & Introduction 
-of Millets in SNP
-Key highlights
- ÂState has highlighted the decentralized model of supplies of SNP across 
-72,000 AWC, while focusing on the unaffected distribution of THR during the 
-recent floods. For this, the State has engaged 548 SHGs in THR production 
-and distribution i.e. for roasting, weighing, package and distribution of grains. 
-Additionally, the State has also formed ajaanch-committee at every AWC 
-which is responsible to promote transparency.
- ÂState has also shared that they have made guidelines for financial engagement 
-of SHGs. Every 23rd of the month is dedicated for packaging and better 
-monitoring. This additionally streamlines end to end tracking of indents and 
-payments of online bills. Also, quality is the key factor monitored consistently 
-by the State. For this, IT interventions are focused to make the Supply Chain 
-robust. Geo-tagging, with pictures is an added feature of the same, which 
-works from production to distribution. State has mentioned that the system 
-has enhanced transparency, accountability, quality, monitoring, and thus the 
-improved nutrition status. Nutrition distribution is tracked at multi- level from 
-Field Functionaries to CDPO to SHG, while effectively engaging them all for 
-the jobs assigned to each one of them.
- ÂState further has multi-sectoral plan and additional plans for hard to reach 
-areas. State’s adoption system for SAM and MAM is in place and the focus 
-is on complementary feeding for which fish-based food distribution is being 
-taken as a pilot. Creshes have also been initiated in several areas of the 
-State. Similarly, to reach out to the children who can’t reache the AWC, a 
-system is being formulated – AWC to pada . State has also distributed baby 
-furniture through District mineral funds
-4.   Uttarakhand – Adoption of SAM children by Government officials, 
-Public Representative and public
-Key highlights
- ÂUttarakhand has discussed on adoption of SAM by officials, public 
-representatives and public. State has further stated that Nutrition is 
-multi-disciplinary in the State, and it includes sanitation, hygiene etc. In 
-continuation to last year’s initiative by the Hon’ble Chief Minister, officials 
-were requested to adopt one child each which resulted in adoption of 9177 
-SAM/MAM children. Similarly, 1962 children freed from SAM/MAM category 
-and 385 children upgraded.
- ÂThe schemes and efforts of government were made more reachable and 
-the concept of ‘Sarkar Aapke Dwar’ (Govt. at your doorstep) was actualized. 
-People were sensitized towards malnutrition and its ill effect on the growth 
 Annexures
-153
-Poshan Abhiyaan Monitoring
+
 and overall development of their children and were made aware of the totality 
 of the causes that can affect health of a family. Convergence helps addressing 
 the multi- dimensional problems of SAM and MAM. Under Flexi-fund the 
@@ -6902,9 +5584,10 @@ officers. To create transparency, parents are also involved in the activity.
 & weight, finally, an MO looks after the same. Children then categorized on 
 the basis of complications for referral (to NRC) or no-referral. ICT based tool 
 is in place with H&FW to measure the impact of this programme.
-154
 Poshan Abhiyaan Monitoring
-AnnexuresANNEXURE 4-D
+Annexures
+
+ANNEXURE 4-D
 Supplementary Nutrition Programme details from States/UT
 S.No. StatesMorning Snack (MS)/Hot 
 Cooked Meal (HCM)Take-Home RationFortified food 
@@ -6927,7 +5610,6 @@ Channa
 Quantity–(3-6 y) Snacks 
 -15g.
 HCM–95g, eggs–4 per 
-week6m-3y & SAM Children 
 – Balamrutham 
 (Weaning Food), Egg
 PW&LM–one full meal 
@@ -6986,10 +5668,10 @@ monthDFS pilot in 6
 Districts and plan 
 to cover entire 
 State in June 
-2019.
 Annexures
-155
 Poshan Abhiyaan Monitoring
+
+
 S.No. StatesMorning Snack (MS)/Hot 
 Cooked Meal (HCM)Take-Home RationFortified food 
 items used in SNP
@@ -7010,7 +5692,6 @@ Dalia, Kadi Rice, Aloo
 Nutri with gravy, Rice, 
 Khichadi, Ghiya Chana 
 dal, Aloo chana, Quantity- 
-60-200gms6m-1 y in the form of 
 weaning foods , 1-3 
 years in the form of 
 cooked food , murmura 
@@ -7029,7 +5710,6 @@ dal, sabzi, fortified oil,
 achar, papad, salad, 
 jaggery, Quantity–approx. 
 120g-150g as per menuTHR in powder form Fortified oil and 
-salt
 8 Dadar & 
 Nagar HaveliBoiled Egg/ fruit, 
 Vegetable khichdi, Sheera, 
@@ -7047,10 +5727,10 @@ provide d similar to 3
 Ground nut, Tuvar Dal, 
 Raosted sing chana, oil, 
 moong dal, moong)DFS and oil are 
-used
-156
 Poshan Abhiyaan Monitoring
-AnnexuresS.No. StatesMorning Snack (MS)/Hot 
+Annexures
+
+S.No. StatesMorning Snack (MS)/Hot 
 Cooked Meal (HCM)Take-Home RationFortified food 
 items used in SNP
 9 Daman & Diu Veg khichdi, sukhdi + 
@@ -7128,7 +5808,6 @@ Aloo poori, meethe
 Chawal, Pulao meetha 
 Dalia, Gulgule; Quantity
 - MS- 25-50g, HCM -110-
-120g6m-18m–THR given 
 in the form of Panjiri, 
 1.5y-3 y- HCM is given 
 similar to 3-6 yr, SAM- 
@@ -7152,8 +5831,9 @@ basis through
 HAFED, from 
 march. Wheat
 Annexures
-157
 Poshan Abhiyaan Monitoring
+
+
 S.No. StatesMorning Snack (MS)/Hot 
 Cooked Meal (HCM)Take-Home RationFortified food 
 items used in SNP
@@ -7171,7 +5851,6 @@ PradeshMS- Nutrimix, Oat bisuits,
 ajwain biscuits, HCM–rice 
 khichdi, meetha rice, 
 sweet dalia, p anner curry, 
-Quantity- not mentioned6m-3 y-(Foritifed 
 Panjiri,+ F. Oat biscuit, 
 Rice Pularo+ F. Oat 
 biscui t, Sweet Dali + F. 
@@ -7192,7 +5871,6 @@ pulao, matter pulao,
 moongi rice khichdi , 
 chana pulao, matter 
 pulao; Quantity -60-
-210gms6m-3y–THR is given in 
 the form of HCM, SAM- 
 not mentioned, PW& 
 LM – not mentionedfortified salt
@@ -7217,16 +5895,16 @@ Kheer, wheat upma,
 Moong dal, Gram dal 
 kheer, sprouted grams, 
 Chithranna, rice sambhar, 
-Quantity- not mentioned6m-3 y -Nutrimix 
 Powder (in flour fo 
 rm- milk powder, ragi, 
 wheat, moo ng dal, 
 sugar) , Rice kheer mix, 
 S AM–not mentioned, 
 P&L–Not men tionedno
-158
 Poshan Abhiyaan Monitoring
-AnnexuresS.No. StatesMorning Snack (MS)/Hot 
+Annexures
+
+S.No. StatesMorning Snack (MS)/Hot 
 Cooked Meal (HCM)Take-Home RationFortified food 
 items used in SNP
 18 Kerala MS–Ragi porridge, 
@@ -7241,7 +5919,6 @@ veg. Sambar, payasam
 with green gram, 
 gooseberry chutney, rice 
 dal khichdi with veg., 
-Quantity- not mentioned6m- 3y–THR – 
 Amrutham Nutrimix 
 (weaning food), P&L–
 Provided with raw food 
@@ -7261,7 +5938,6 @@ fortified with 11
 micronutrients
 19 Lakshad -
 weepbiscuits, Horlicks milk, 
-Quantity- not mentioned6m–3 y–in form of 
 THR rice, green gram, 
 Bengal gram, SAM- not 
 mentioned, P&L–not 
@@ -7287,7 +5963,6 @@ P&L–not mentionedYes
 21 Maharashtra Chiwda, Murmura, laddu, 
 shira, chakli, lapsi, usal 
 khichdi, Quantity- 150-
-160gms6m-3y- in form of raw 
 grains & groceries 
 supplied through State 
 consumer federation 
@@ -7310,15 +5985,15 @@ turme rice powder, salt),
 Quantity- 10gm morning 
 snacks per child per day 
 & 40gms per child per 
-day6m -3y–Raw material, 
 RTE lentil, mustard oil, 
 groundnut, turmeric 
 powder, salt, rice SAM- 
 same as 6m- 3y, P&L 
 -same as 6m-3yNo info.
 Annexures
-159
 Poshan Abhiyaan Monitoring
+
+
 S.No. StatesMorning Snack (MS)/Hot 
 Cooked Meal (HCM)Take-Home RationFortified food 
 items used in SNP
@@ -7342,12 +6017,10 @@ roasted ground nut, fresh
 fruits HCM–Khitchdi, 
 parantha and chann, high 
 protein soya noodles, 
-Quantity-58-137g6m–3y-Energy dense 
 fortified food, SAM- not 
 mentioned, P&L–not 
 mentionedDFS and fortified 
 oil distributed in 
-SNP
 25 Nagaland MS-biscuit & cornflake-
 100gm per day, HCM- 
 Rich rice food-50gm, 
@@ -7400,9 +6073,10 @@ will be finalized
 after decision 
 of Hon’ble High 
 Court.
-160
 Poshan Abhiyaan Monitoring
-AnnexuresS.No. StatesMorning Snack (MS)/Hot 
+Annexures
+
+S.No. StatesMorning Snack (MS)/Hot 
 Cooked Meal (HCM)Take-Home RationFortified food 
 items used in SNP
 29 Rajasthan Rice Puffed and roasted 
@@ -7411,7 +6085,6 @@ Halwa, HCM Khichdi,
 Dalia, Quantity- 55gm 
 morn. Snacks per day per 
 beneficiaries, 80gm HCM 
-per day per beneficiary6m–3 y–Yes in the 
 form of baby mix 
 (whole wheat, bengal 
 gram, soyabean, sugar, 
@@ -7427,7 +6100,6 @@ HCM as khichdi in day
 time, HCM khichdi @ 
 150gm per day per child 
 kheer @150 gms every 
-Thursday6m-3y THR given 
 in form of poshtik 
 ahaar (wheat, maize, 
 soyabean, bengal 
@@ -7466,7 +6138,6 @@ sa vory form at AWC
 dal, Vegetable + Egg; 
 Quantity- 25g/ day (MS) 
 + 14 0g/day(HCM)+ 4 
-eggs per week6m–3 y–Balamrutham 
 -(Ready to eat food in 
 powder form) and Egg 
 s, SAM- same as 6m 
@@ -7495,10 +6166,10 @@ rice flakes,) + 10 eggs,
 P&L–rice, dal, soyabean, 
 semolina, bengal gram, 
 rice flakes,) + 10 eggsDFS, F. Oil is 
-used
 Annexures
-161
 Poshan Abhiyaan Monitoring
+
+
 S.No. StatesMorning Snack (MS)/Hot 
 Cooked Meal (HCM)Take-Home RationFortified food 
 items used in SNP
@@ -7512,7 +6183,6 @@ enegy dense namkeen
 dalia, HCM roti, dal, veg., 
 tahri, milk, soyabean, 
 Quantity- morning snacks 
-400-450gm per month6m–3 y–yes in form 
 of RTE Micronutrient 
 Fortified energy dense 
 weaning food, (wheat, 
@@ -7556,52 +6226,9 @@ Rice + dal+ veg with soya
 nuggets, Veg. Khichdi + 
 soya nuggetsHCM provided in place 
 THRnot used
-162
 Poshan Abhiyaan Monitoring
-AnnexuresANNEXURE 4-E
-Status of Malnourished Children reported by the States/UTs
-S.No. State/UTsNo. of Malnourished 
-Children
-1 Andhra Pradesh 55607
-2 Bihar 389174
-3 Chhattisgarh 159833
-4 Goa 60
-5 Gujarat 93672
-6 Haryana 4342
-7 Himachal Pradesh 2568
-8 Jammu & Kashmir 6198
-9 Ladakh 20
-10 Jharkhand 13283
-11 Karnataka 10915
-12 Kerala 5587
-13 Madhya Pradesh 104868
-14 Maharashtra 81242
-15 Odisha 22641
-16 Punjab 600
-17 Rajastham 8645
-18 Tamil Nadu 4534
-19 Telangana 35700
-20 UttarPradesh 397000
-21 Uttarakhand 1800
-22 West Bengal 9996
-23 Delhi 250
-24 Puducherry 0
-25 Andaman & Nicobar 50
-26 Chandigarh 336
-27 Dadar & Nagar Haveli & daman & Diu 1245
-28 Lakshadweep 0
-29 Arunachal Pradesh 0
-30 Assam 11298
-31 Manipur 17
-32 Meghalaya 615
-33 Mizoram 271
-34 Nagaland 275
-35 Sikkim 30
-36 Tripura 464
-Total 1423136
 Annexures
-163
-Poshan Abhiyaan Monitoring
+
 ANNEXURE 5: CONCORDANCE CHECK BETWEEN STATE 
 TEMPLATE INDICATORS AND MPR/HMIS DATA
 Concordance check between state template and MPR data was conducted on the WCD 
@@ -7641,9 +6268,10 @@ provided at least 8-10 doses of IFA syrup per
 month13273124 14288047 93%
 Percentage of newborn breastfed within one 
 hour of birth (Early Initiation of Breastfeeding)81.98 85.37 96%
-164
 Poshan Abhiyaan Monitoring
-AnnexuresANNEXURE 6: TOP AND BOTTOM PERFORMING STATES/UTS 
+Annexures
+
+ANNEXURE 6: TOP AND BOTTOM PERFORMING STATES/UTS 
 BASED ON INDICATORS USED IN RUBRIC
 The performance of States/UTs is based on a rubric which comprises of 4 themes, which 
 consists of number of indicators (Annexure 2). The top and bottom performing States 
@@ -7661,7 +6289,6 @@ Lakshadweep 65% Odisha 8%
 b. Constitution of Committees and Resource Groups
 Apart from the following States/UTs, all the remaining States/UTs have constituted 
 committees and resource groups in 100% districts. The bottom performing States/UTs 
-are:
 Constitution of DRGs Constitution of BRGsConstitution of CAP 
 committees
 State/UT% districts 
@@ -7674,8 +6301,9 @@ Assam 0% Assam 1% Puducherry 50%
 Ladakh 0% Ladakh 0% Assam 18%
 — — — — Goa 0%
 Annexures
-165
 Poshan Abhiyaan Monitoring
+
+
 ANNEXURE 6-B: STRATEGY AND PLANNING
 a. % of districts that developed and submitted CAP for FY 2020-21
 States/UTs where 100% districts that developed and submitted CAP for FY 2020-21 are 
@@ -7700,226 +6328,9 @@ Assam 18%
 Uttarakhand 0%
 Goa 0%
 Andaman & Nicobar Island 0%
-166
 Poshan Abhiyaan Monitoring
-AnnexuresANNEXURE 6-C: INPUTS FOR SERVICE DELIVERY AND CAPACITY- 
-DEPARTMENT OF WOMEN AND CHILD DEVELOPMENT
-a. Human Resources
-States/UTs that filled 100% HR positions are as follows:
-Category of 
-State100% Joint Coordinator positions filled Total
-Large StatesAndhra Pradesh, Bihar, Gujarat, Himachal Pradesh, 
-Jharkhand, Kerala, Madhya Pradesh, Maharashtra, Rajasthan, 
-Tamil Nadu, Telangana, Uttarakhand12
-Small States Meghalaya, Mizoram, Nagaland, Sikkim 4
-Union TerritoriesChandigarh, Dadar & Nagar Haveli and Daman & Diu, Delhi, 
-Jammu & Kashmir4
-Category of 
-State100% Consultant positions filled Total
-Large StatesAssam, Bihar, Gujarat, Himachal Pradesh, Madhya Pradesh, 
-Rajasthan, Telangana7
-Small States Mizoram 1
-Union TerritoriesAndaman & Nicobar Island, Chandigarh, Dadar & Nagar 
-Haveli and Daman & Diu3
-Category of 
-State100% Project Associate positions filled Total
-Large StatesAndhra Pradesh, Bihar, Gujarat, Haryana, Himachal Pradesh, 
-Kerala, Madhya Pradesh, Rajasthan, Telangana, Uttarakhand10
-Small States Meghalaya, Mizoram, Nagaland, Sikkim 4
-Union TerritoriesAndaman & Nicobar Island, Chandigarh, Dadar & Nagar 
-Haveli and Daman & Diu, Lakshadweep4
-The following States/UTs had not filled any positions for Joint Coordinator, Consultant, 
-and Project Associate:
-Joint Coordinator Consultant Project Associate
-Punjab Punjab Punjab
-Goa Goa Goa
-Tripura Tripura Tripura
-Puducherry Puducherry Puducherry
-Haryana Odisha Odisha
-Chhattisgarh Uttar Pradesh Uttar Pradesh
-Andaman & Nicobar Island Jammu & Kashmir Jammu & Kashmir 
-Arunachal Pradesh Sikkim Arunachal Pradesh
-Lakshadweep - Delhi
 Annexures
-167
-Poshan Abhiyaan Monitoring
-a. Supplies
-States/UTs that distributed 100% of supplies are as follows:
-Category of 
-State100% mobile phones distributed to districts Total
-Large StatesAndhra Pradesh, Bihar, Gujarat, Haryana, Jharkhand, Maharashtra, 
-Tamil Nadu, Uttarakhand8
-Small States Meghalaya, Mizoram, Nagaland, Tripura 4
-Union 
-TerritoriesAndaman & Nicobar Island, Chandigarh, Dadar & Nagar Haveli 
-and Daman & Diu, Delhi, Ladakh5
-Category of 
-State100% weighing scale (adult) distributed Total
-Large StatesAndhra Pradesh, Gujarat, Himachal Pradesh, Karnataka, Kerala, 
-Maharashtra, Punjab, Tamil Nadu, Telangana, Uttarakhand10
-Small States Goa, Meghalaya, Mizoram, Nagaland 4
-Union 
-TerritoriesAndaman & Nicobar Island, Chandigarh, Dadar & Nagar 
-Haveli and Daman & Diu, Delhi, Jammu & Kashmir, Ladakh, 
-Lakshadweep, Puducherry8
-Category of 
-State100% weighing scale (infant) distributed Total
-Large StatesAndhra Pradesh, Gujarat, Himachal Pradesh, Karnataka, Kerala, 
-Madhya Pradesh, Maharashtra, Punjab, Tamil Nadu, Telangana, 
-Uttarakhand11
-Small States Goa, Meghalaya, Mizoram, Nagaland 4
-Union 
-TerritoriesAndaman & Nicobar Island, Chandigarh, Dadar & Nagar 
-Haveli and Daman & Diu, Delhi, Jammu & Kashmir, Ladakh, 
-Lakshadweep, Puducherry8
-Category of 
-State100% infantometer distributed Total
-Large StatesAndhra Pradesh, Bihar, Gujarat, Haryana, Himachal Pradesh, 
-Karnataka, Kerala, Madhya Pradesh, Maharashtra, Punjab, Tamil 
-Nadu, Telangana, Uttarakhand13
-Small States Goa, Meghalaya, Mizoram, Nagaland 4
-Union 
-TerritoriesAndaman & Nicobar Island, Chandigarh, Dadar & Nagar 
-Haveli and Daman & Diu, Delhi, Jammu & Kashmir, Ladakh, 
-Lakshadweep, Puducherry8
-Category of 
-State100% stadiometer distributed Total
-Large StatesAndhra Pradesh, Gujarat, Haryana, Himachal Pradesh, Karnataka, 
-Kerala, Madhya Pradesh, Maharashtra, Punjab, Tamil Nadu, 
-Telangana, Uttarakhand12
-Small States Goa, Meghalaya, Mizoram, Nagaland 4
-Union 
-TerritoriesAndaman & Nicobar Island, Chandigarh, Dadar & Nagar 
-Haveli and Daman & Diu, Delhi, Jammu & Kashmir, Ladakh, 
-Lakshadweep, Puducherry8
-168
-Poshan Abhiyaan Monitoring
-AnnexuresThe least performing States/UTs on distribution of supplies are as follows:
-Mobile PhonesWeigh-scale 
-(Adult)Weigh-scale 
-(Infant)Infantometer Stadiometer
-Odisha Odisha Odisha Odisha Odisha
-Arunachal 
-PradeshArunachal 
-PradeshArunachal 
-PradeshArunachal 
-PradeshArunachal 
-Pradesh
-Kerala Manipur Manipur Manipur Manipur
-Himachal 
-PradeshHaryana Haryana Uttar Pradesh Uttar Pradesh
-Punjab Sikkim Sikkim Chhattisgarh Sikkim
-— Rajasthan — — —
-Training and Capacity Building
-States/UTs that have trained 100% staff on e-ILA and dashboard/mobile phones are as 
-follows:
-Category of 
-State100% LS trained on e-ILA Total
-Large StatesAndhra Pradesh, Gujarat, Madhya Pradesh, Odisha, Rajasthan, 
-Tamil Nadu, Uttar Pradesh7
-Small States Meghalaya, Sikkim, Tripura 3
-Union 
-TerritoriesAndaman & Nicobar Island, Chandigarh, Dadar & Nagar 
-Haveli and Daman & Diu, Jammu & Kahsmir4
-Category of 
-State100% AWW trained on e-ILA Total
-Large States Gujarat, Madhya Pradesh, Odisha, Tamil Nadu, Uttar Pradesh 5
-Small States Sikkim 1
-Union 
-TerritoriesAndaman & Nicobar Island, Chandigarh, Dadar & Nagar 
-Haveli and Daman & Diu, Jammu & Kashmir 4
-Category of 
-State100% CDPOs trained on Dashboard/Mobile Total
-Large States Andhra Pradesh, Bihar, Gujarat, Kerala, Tamil Nadu 5
-Small States Nagaland, Sikkim, Tripura 3
-Union 
-TerritoriesAndaman & Nicobar Island, Chandigarh, Dadar & Nagar 
-Haveli and Daman & Diu, Delhi, Lakshadweep5
-Category of 
-State100% LS trained on Dashboard/Mobile Total
-Large StatesAndhra Pradesh, Bihar, Gujarat, Madhya Pradesh, Tamil Nadu, 
-Uttarakhand6
-Small States Meghalaya, Nagaland, Sikkim 3
-Union 
-TerritoriesAndaman & Nicobar Island, Chandigarh, Dadar & Nagar 
-Haveli and Daman & Diu, Delhi4
-Annexures
-169
-Poshan Abhiyaan Monitoring
-States/UTs that had 0% staff trained on e-ILA and dashboard/mobile phones are as 
-follows:
-Category of 
-State0% LS trained on e-ILA Total
-Large StatesAssam, Haryana, Karnataka, Kerala, Punjab, Telangana, 
-Uttarakhand7
-Small States Arunachal Pradesh, Goa, Mizoram, Nagaland 3
-Union 
-TerritoriesDelhi, Ladakh, Lakshadweep, Puducherry 4
-Category of 
-State0% AWW trained on e-ILA Total
-Large StatesAssam, Haryana, Karnataka, Kerala, Punjab, Telangana, 
-Uttarakhand7
-Small States Arunachal Pradesh, Goa, Meghalaya, Mizoram, Nagaland 4
-Union 
-TerritoriesDelhi, Ladakh, Lakshadweep, Puducherry 4
-Category of 
-State0% CDPOs trained on dashboard/mobile phones Total
-Large States Assam, Haryana, Karnataka, Kerala, Uttarakhand 5
-Small States Goa, Mizoram 2
-Union 
-TerritoriesJammu & Kahsmir, Ladakh 2
-Category of 
-State0% LS trained on dashboard/mobile phones Total
-Large States Assam, Haryana, Karnataka, Punjab 4
-Small States Goa 1
-Union 
-TerritoriesJammu & Kashmir, Ladakh, Puducherry 3
-170
-Poshan Abhiyaan Monitoring
-AnnexuresANNEXURE 6-D: SERVICE DELIVERY ESSENTIALS- DEPARTMENT 
-OF HEALTH
-a. Infrastructure
-Out of sanctioned health facilities, 100% facilities are functional in the following States/
-UTs:
-Category of 
-State100% sub-centres functional Total
-Large StatesAndhra Pradesh, Assam, Chhattisgarh, Haryana, Himachal 
-Pradesh, Karnataka, Kerala, Madhya Pradesh, Odisha, Tamil 
-Nadu, Telangana, Uttar Pradesh, Uttarakhand13
-Small States Goa, Sikkim 2
-Union 
-TerritoriesAndaman & Nicobar Island, Dadar & Nagar Haveli and Daman 
-& Diu, Delhi, Jammu & Kashmir, Ladakh, Puducherry6
-Category of 
-State100% CHCs functional Total
-Large StatesAndhra Pradesh, Chhattisgarh, Haryana, Himachal Pradesh, 
-Karnataka, Kerala, Madhya Pradesh, Maharashtra, Odisha, 
-Rajasthan, Tamil Nadu, Telangana, Uttar Pradesh, Uttarakhand14
-Small States Goa, Manipur, Meghalaya, Sikkim 4
-Union 
-TerritoriesAndaman & Nicobar Island, Chandigarh Dadar & Nagar 
-Haveli and Daman & Diu, Delhi, Jammu & Kashmir, Ladakh, 
-Lakshadweep, Puducherry8
-Category of 
-State100% HWCs functional Total
-Large States Andhra Pradesh, Kerala, Punjab 3
-Small States Goa, Nagaland 2
-Union 
-TerritoriesChandigarh, Dadar & Nagar Haveli and Daman & Diu, 
-Lakshadweep3
-Out of sanctioned health facilities, following States/UTS had lowest number of functional 
-health facilities:
-Sub-centres functional CHCs functional HWCs functional
-State % sub-centre State % CHCs State % HWCs
-Punjab 77% Tripura 88% Maharashtra 36%
-Nagaland 76% Assam 82% Ladakh 33%
-Lakshadweep 71% Punjab 82% Puducherry 33%
-Arunachal 
-Pradesh63% Nagaland 64% Bihar 30%
-Bihar 60% Bihar 43% Haryana 26%
-Annexures
-171
-Poshan Abhiyaan Monitoring
+
 Human Resource
 Performance of top 5 and bottom 5 States/UTs on ANM positions filled are as follows:
 Top 5 performing States/UTs Bottom 5 performing States/UTs
@@ -7929,48 +6340,9 @@ Nagaland 100% Himachal Pradesh 71%
 Lakshadweep 100% Uttar Pradesh 61%
 Odisha 100% Tripura 56%
 Assam 99% Bihar 52%
-172
 Poshan Abhiyaan Monitoring
-AnnexuresANNEXURE 6-E: PROGRAMME ACTIVITIES AND INTERVENTION 
-COVERAGE-DEPARTMENT OF WOMEN AND CHILD DEVELOPMENT
-a. Take Home Ration
-States/UTs that distributed THR to 100% beneficiaries registered at AWCs are as follows:
-Category of 
-StateTHR distributed to 100% pregnant women Total
-Large StatesGujarat, Jharkhand, Kerala, Maharashtra, Odisha, Rajasthan, 
-Tamil Nadu7
-Small States Meghalaya, Mizoram, Tripura 3
-Union 
-TerritoriesAndaman & Nicobar Island, Dadar & Nagar Haveli and Daman 
-& Diu, Delhi, Ladakh, Lakshadweep, Puducherry6
-Category of 
-StateTHR distributed to 100% lactating women Total
-Large States Jharkhand, Kerala, Maharashtra, Odisha, Tamil Nadu 5
-Small States Goa, Meghalaya, Mizoram, Tripura 4
-Union 
-TerritoriesAndaman & Nicobar Island, Delhi, Ladakh, Lakshadweep, 
-Puducherry5
-Category of 
-StateTHR distributed to 100% children (6-36 months) Total
-Large StatesJharkhand, Kerala, Maharashtra, Odisha, Tamil Nadu, Uttar 
-Pradesh6
-Small States Meghalaya, Mizoram, Tripura 3
-UTsAndaman & Nicobar Island, Dadar & Nagar Haveli and Daman 
-& Diu, Delhi, Ladakh, Lakshadweep5
-States/UTs with least distribution of THR are as follows:
-Pregnant women Lactating women Children (6-36 months)
-State % covered State % covered State % covered
-Karnataka 80% Punjab 76% Sikkim 77%
-Punjab 78% Haryana 63% Punjab 65%
-Bihar 65% Bihar 62% Haryana 59%
-Haryana 63% Jammu & 
-Kashmir51% Jammu & 
-Kashmir54%
-Jammu & 
-Kashmir49% Puducherry 49% Bihar 52%
 Annexures
-173
-Poshan Abhiyaan Monitoring
+
 b. Children (0-5 years) weighed:
 Top and bottom performing States/UTs on % of children (0-5 years) registered under 
 AWC weighed at AWC are as follows:
@@ -7982,9 +6354,10 @@ Maharashtra 100% Kerala 18%
 Odisha 100% Bihar 16%
 Sikkim 100% Ladakh 15%
 Tamil Nadu 100% Arunachal Pradesh 4%
-174
 Poshan Abhiyaan Monitoring
-AnnexuresANNEXURE 6-F: PROGRAMME ACTIVITIES AND INTERVENTION 
+Annexures
+
+ANNEXURE 6-F: PROGRAMME ACTIVITIES AND INTERVENTION 
 COVERAGE- DEPARTMENT OF HEALTH
 a. Programme Activities:
 Top 5 and bottom 5 performing States/UTs on the 14 indicators that were used in rubric 
@@ -8028,8 +6401,9 @@ Nicobar64%
 Chandigarh 100% Rajasthan 58% Chandigarh 100% Manipur 50%
 Maharashtra 97% Meghalaya 46% Karnataka 100% Rajasthan 46%
 Annexures
-175
 Poshan Abhiyaan Monitoring
+
+
 Top States/UTs Bottom States/UTs Top States/UTs Bottom States/UTs
 D &N Haveli 
 Daman & Diu95%Arunachal 
@@ -8078,9 +6452,10 @@ Karnataka 100% Jharkhand 35% Chhattisgarh 97% Ladakh 71%
 Madhya 
 Pradesh100%Jammu & 
 Kashmir29% Haryana 96% Karnataka 67%
-176
 Poshan Abhiyaan Monitoring
-AnnexuresTop States/UTs Bottom States/UTs Top States/UTs Bottom States/UTs
+Annexures
+
+Top States/UTs Bottom States/UTs Top States/UTs Bottom States/UTs
 Himachal 
 Pradesh100% Uttarakhand 28%D & N Haveli 
 & Daman & 
@@ -8097,11 +6472,13 @@ Goa 100% Sikkim Odisha 82%Madhya
 Pradesh0%
 Uttar Pradesh 100% Puducherry Tamil Nadu 81% - -
 Annexures
-177
 Poshan Abhiyaan Monitoring
+
+
 PRESERVING PROGRESS ON NUTRITION IN INDIA: 
 POSHAN ABHIYAAN IN PANDEMIC TIMES
 Designed b y
  JULY 21POSHAN ABHIYAANPRESERVING PROGRESS ON 
 NUTRITION IN INDIA:
 IN PANDEMIC TIMES
+
