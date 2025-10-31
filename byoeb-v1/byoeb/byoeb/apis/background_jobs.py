@@ -62,7 +62,7 @@ JOB_CONFIGURATIONS = [
     {
         "id": "message_leaderboard",
         "name": "Message Leaderboard",
-        "cron": "0 12 * * 5",   # 12 PM every Friday
+        "cron": "0 12 * * FRI",   # 12 PM every Friday
         "function": message_leaderboard,
         "enabled": True
     },
