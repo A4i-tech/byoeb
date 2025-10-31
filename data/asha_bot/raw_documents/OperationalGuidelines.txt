@@ -1,12 +1,12 @@
-1
 GUIDELINES FOR NATIONAL PROGRAMME
 FOR  PREVENTION & MANAGEMENT OF  
 SICKLE CELL DISEASE  
 National Sickle Cell Anaemia Elimination Mission 2023
 Ministry of  Health & Fam ily Welfare
 Governm ent of  Ind ia
-20232
-1
+
+
+
 India’s past, history, present and India’s future will 
 never be complete without the tribal community.
 Tribal populations in India share a disproportionate 
@@ -16,30 +16,24 @@ advanced science and technology to tackle it.
 We are committed to improve the quality of life of 
 people with sickle cell disease and ensure future 
 generation is safe from it.
-Hon’ble Prime Minister Shri Narendra Modi3
-4
-5
-7
-9
-11
-13
-15
-1
-BACKGROUND  2
-OVERVIEW OF SICKLE CELL DISEASE 4
-NATIONAL SICKLE CELL ANAEMIA ELIMINATION MISSION  9
-PRIMARY PREVENTION - AWARENESS GENERATION &  
-PREMARITAL COUNSELLING 11
-SECONDARY PREVENTION: UNIVERSAL SCREENING AND  
-EARLY DIAGNOSIS  15
-HOLISTIC MANAGEMENT & CONTINUUM OF CARE 22
-NATIONAL SICKLE CELL ANAEMIA ELIMINATION  
-PORTAL  30
-OPERATIONAL FRAMEWORK 32
-ADVANCED RESEARCH   41
-SUMMARY & CONCLUSION  41
-ANNEXURES  42
-LIST OF CONTRIBUTERS 60TABLE OF CONTENTS2
+Hon’ble Prime Minister Shri Narendra Modi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 BACKGROUND
 Hemoglobinopathies are the commonest genetic disorders worldwide. They include thalassemia 
 and abnormal variant hemoglobin such as Hemoglobin S, D, E, etc. They constitute a major burden 
@@ -79,7 +73,8 @@ disease in the offspring.
 1 WHO resolution on Sickle Cell Disease (WHA59.20) and Thalassemia (EB118.R1), 29 May 2006. (http://www.who. int/ 
 genomics/WHO-TIF_genetics_final.pdf)
 2 https://tribal.nic.in/
-3 https://nhsrcindia.org/sites/default/files/2021-07/Tribal%20Health%20in%20India-Detailed%20Report.pdf3
+3 https://nhsrcindia.org/sites/default/files/2021-07/Tribal%20Health%20in%20India-Detailed%20Report.pdf
+
 At present there is no permanent cure for the disease. However, with good management of the 
 disease, severity, and complications can be curtailed to improve the quality of life and life span 
 of the people suffering from the disease. With this focus, the guidelines for National Sickle Cell 
@@ -98,7 +93,8 @@ diagnosis of SCD in all individuals across levels of care with a focus on preven
 care at the primary level health care facilities.
 The roadmap also includes actions for advancing effective care and management of the disease. It 
 also strives to innovate and improve care delivery for people living with sickle cell disease through 
-the engagement of multiple stakeholders.4
+the engagement of multiple stakeholders.
+
 OVERVIEW OF SICKLE CELL DISEASE
 Blood is a specialized body fluid and has four main components: plasma, red 
 blood cells, white blood cells, and platelets. Hemoglobin (Hb) is a protein-
@@ -142,7 +138,8 @@ is  commonly called sickle cell anaemia / disease and is usually the most severe
 HbS beta thalassemia: People who have this form of SCD, inherit one sickle cell gene (“S”) from one 
 parent and one gene for beta thalassemia, another type of hemoglobinopathy, from the other parent. 
 Those with HbS beta thalassemia usually have a severe form of SCD. 
-5
+
+
 If one p arent has sic kle cel l trait and the other has sic kle cel l disease, then c hildren ha ve a 50% c hance o f being dis eased 
 and 50% o f being carriersIf both parents ha ve sic kle cel l disease, there is a 100% c hance t hat their c hildren wil l be born wi th the dis ease
 If one pa rent is no rmal a nd the other has sic kle cel l disease, then c hildren ha ve a 100% c hance o f being carriersIf one p arent has sic kle cel l trait and the other is no rmal, then c hildren ha ve a 50% c hance o f being no rmal a nd 50% 
@@ -162,7 +159,8 @@ necrosis of bone, micro infarction of spleen, brain and kidney, infections, stro
 affecting every organ in the body. Recent studies reiterated that the individual with SCD may incur 
 red cell dehydration, abnormal adhesion of RBCs to the vascular endothelium, inflammatory events 
 and activation of all cells in the vessels, and abnormalities of nitric oxide metabolism leading to 
-increased thrombotic complications and multi-organ disease as well as other complications like hand 6
+increased thrombotic complications and multi-organ disease as well as other complications like hand 
+
 and foot syndrome (dactylitis) presenting as swelling of hands and feet. Given the effects of Sickle cell 
 disease on the spleen, the immune system also gets affected in individuals with this disease. Thus, 
 individuals with SCD have weakened immune systems and are more likely to get repeated infections.
@@ -193,7 +191,8 @@ of the tribal population in collaboration with ICMR and the Department of Biotec
 the 1,13,83,664 persons screened in different States, about 8.75% (9,96,368) tested positive (Trait – 
 9,49,057, Disease – 47,311).
 Data from published sources has been collated with reference to the project being conducted by ICMR 
-using variable screening methodology in various States and Districts (Figure 1 )7
+using variable screening methodology in various States and Districts (Figure 1 )
+
 NIIH, Maharashtra
 Total-13,135
 AA-11912 (90.69%)
@@ -276,7 +275,8 @@ future loss to the economy as sickle cell disease deaths mainly occur in childre
 causing early deaths that erode the future workforce.
 Given the association with health care costs due to long-term management, and aforementioned 
 associated factors, this may also lead to financial hardship for population subgroups of middle and 
-lower economic status.8
+lower economic status.
+
 Figure 2: Major contributing factors to direct and indirect costs of sickle cell disease
 Cost of sickle cell Disease Direct costCost of healthcare
 Primary Care visits
@@ -286,10 +286,10 @@ Blood transfusion
 bone marrow transplant
 Indirect costCurrent loss of productivity Presenteeism/Absenteeism
 Future productivity lossPremature Childhood 
-Mortality9
+Mortality
+
 NATIONAL SICKLE CELL ANAEMIA 
 ELIMINATION MISSION
-GOAL
 Eliminate sickle cell disease as a public health problem in India before 2047
 PRIORITY AREAS FOR MANAGEMENT OF SICKLE CELL DISEASE
 To achieve the aforementioned time-bound goal of eliminating sickle cell disease as a public health 
@@ -325,7 +325,8 @@ II. Secondary Prevention and Screening:
 of sickle cell disease.
 •	Screening for detection of Sickle Cell Trait to reduce the birth of children affected with Sickle 
 Cell Disease and screening for early detection of sickle cell disease to achieve a reduction in 
-mortality and morbidity with improvement in quality of life of the affected.10
+mortality and morbidity with improvement in quality of life of the affected.
+
 III. Holistic management and continuum of care
 •	 Management of persons with sickle cell disease at primary, secondary, and tertiary health 
 care levels
@@ -354,7 +355,8 @@ The programme would be integrated with existing mechanisms and strategies under 
 ensure the utilization of existing resources and also minimize the duplication of efforts. For example, 
 the established platform of Rashtriya Bal Swathya Karyakram (RBSK), Pradhan Mantri Surakshit 
 Matritva Abhiyan (PMSMA), and Anaemia Mukt Bharat would be leveraged to achieve the targets 
-for the Sickle Cell mission11
+for the Sickle Cell mission
+
 PRIMARY PREVENTION - AWARENESS 
 GENERATION & PREMARITAL COUNSELLING
 Multiple platforms shall be utilized for awareness generation for the prevention and control of SCDs. 
@@ -392,7 +394,8 @@ workers to improve treatment compliance and engaging not only those with the dis
 but also family members or caregivers.
 Community platforms should develop mechanisms for community level referrals for per-marital and 
 per-conceptional screening backed by genetic counselling services. Also, at the level of community, for 
-all individuals detected or known as carriers or patients, extended family screening is to be ensured.12
+all individuals detected or known as carriers or patients, extended family screening is to be ensured.
+
 AT SCHOOLS: 
 In all blocks with sickle cell disease, Community Health Officers (CHO) at Sub Health Centre – Health 
 and Wellness Centre (SHC-HWC) and Medical Officers at Primary Health Centre – Health and 
@@ -429,7 +432,8 @@ All the eligible individuals and couples identified as positive or at risk eithe
 or  at  SHC-HWC/UHWC will be referred to the counsellor at PHC-HWC/UPHC-HWC for further 
 advice. Advise on pregnancy continuation shall be provided in case both parents are identified as 
 carriers. Higher centers will also  be engaged in providing counselling services to walk-in patients or 
-patients referred from lower-level facilities13
+patients referred from lower-level facilities
+
 SICKLE CELL CARDS:
 Counsellors at the primary health care centers shall be using sickle cell cards for the purpose of pre-
 marital and pre-conceptional counselling by matching the cards of prospective matches. Matching of 
@@ -455,7 +459,8 @@ children will be born with sickle cell trait
 being normal and 50% chance of being carriers
 Back                                Front Back                                Front
 Revised Design of Sickle Cell Card - 16-02-2023
-14
+
+
 IEC AND MASS MEDIA:
 The Health Promotion strategy recommended by the National Health Policy 2017 emphasizes 
 institutionalizing intersectoral coordination at national and sub-national levels to optimize health 
@@ -475,7 +480,8 @@ ENGAGEMENT OF CBOS/NGOS:
 NGOs working in the area in the sector of health, especially tribal health shall also be utilized for 
 mobilization, awareness, and providing pre-marital counselling and prenatal screening  services. The 
 NGO involvement framework under NHM may also be referred to while engaging with an NGO in 
-these areas.15
+these areas.
+
 SECONDARY PREVENTION: UNIVERSAL 
 SCREENING AND EARLY DIAGNOSIS
 Universal screening of all populations up to the age of 40 years will be done using a mass screening 
@@ -534,7 +540,8 @@ sickle cell diseaseAt the tertiary care facilities
 7. Cascade screening Screening of extended family 
 members of carriers and sickle cell 
 positive people.Outreach screening and facility-based 
-camps may be adopted16
+camps may be adopted
+
 FACILITY-BASED SCREENING AT SHC-HWC AND PHC-HWC 
 On a daily basis, opportunistic screening shall be conducted for people attending the outpatient 
 services at the SHC-HWC/UHWC & PHC/UPHC-HWC. At SHC-HWC for screening and confirmation 
@@ -567,11 +574,11 @@ family members of carriers, and disease
 • Solubility test shall be used for the community based screening
 • Pre and post-test counselling, pre-marital, and preconception counselling services shall be 
 provided for sickle cell disease prevention by a trained nurse/ counsellor of PHC-HWC/UPHC-
-HWC
 • IEC and BCC activities for sickle cell disease prevention shall be undertaken using audio-visual 
 media and other engaging modalities
 • Individuals identified positive will be referred to the nearest primary care facility (SHC-HWC/
-UHWC/PHC-HWC/UPHC-HWC) for confirmation of diagnosis and treatment initiation17
+UHWC/PHC-HWC/UPHC-HWC) for confirmation of diagnosis and treatment initiation
+
 Also, outreach screening camps on a monthly basis shall be undertaken by SHC-HWC/UHWC 
 and PHC-HWC/UPHC-HWC at schools, ashram schools, tribal hostels, and anganwadi. The 
 school screening event may be undertaken on the weekly Health and Wellness Day. The Village/
@@ -596,7 +603,7 @@ GoI-approved Point of Care test * (Confirmatory test)
 Option 2: Two-step approach
 Mass screening / Initial screening - using Solubility test (Tube based) If found positive for 
 Solubility test in field setting
- 
+
 Confirmation - using GoI-approved Point of Care confirmatory test at SHC-HWC/UHWC/PHC-
 HWC/UPHC-HWC or Hb- HPLC/Capillary zone electrophoresis/Agarose gel/Cellulose Acetate 
 Hb Electrophoresis testing at District Hospital
@@ -610,7 +617,8 @@ small blood sample. It is also a cost-effective test. The sensitivity is
 100% while specificity is on an average 91.66%. Positive Predictive 
 value of 80% & Negative Predictive value of 100%.
 (Ref: Journal of Research in Medical Education & Ethics 11/2012; 2(3):214- 216)
-18
+
+
 CONFIRMATORY TESTS
 - Point of Care (POC)-States may also opt for the Point of Care (POC) test which is a one-step 
 confirmatory sickle cell test validated by GoI for mass screening. The average cost of these tests 
@@ -651,7 +659,8 @@ be done as early as 10 weeks of pregnancy. Being a specialized technique, it can
 experienced specialists only and should be judiciously considered weighing the ‘risks’ and ‘benefits’ 
 for the patients. The person and/or family members should be counseled to make an informed choice.
 These tests shall be undertaken by specialists, only at select tertiary care centers/SCD Centres of 
-Excellence.19
+Excellence.
+
 Table: Screening and Diagnosis at various levels of Care
 Site of screening Screening/confirmatory tests Person to conduct the test
 Initial screening
@@ -707,7 +716,8 @@ conducting institutional deliveries, in sickle cell endemic areas. The dried blo
 sickle screening and the routine Hb-HPLC equipment with the Hb variant program is used.
 Informed consent: An explanatory leaflet detailing the purpose, process, and outcomes of newborn 
 screening for sickle cell conditions must be provided to the parent(s) before screening. The purpose 
-of screening should be explained before testing. In cases where the infant’s parent(s) does/do not 20
+of screening should be explained before testing. In cases where the infant’s parent(s) does/do not 
+
 wish the child to be screened for sickle cell disease (or any of the other conditions), the decision to 
 opt out of testing must be specifically documented. ICMR’S ethical guidelines for all subjects are to 
 be invariably followed.
@@ -725,7 +735,8 @@ shown in the above photograph, and print 1cm circles on it along with the sample
 AFFECTED PERSON IDENTIFICATION: 
 Each individual being screened shall be registered for an ABHA ID. Individuals with confirmed sickle 
 cell disease diagnosis shall be registered at the respective HWC and linked with the ABHA ID with 
-updated details on sickle cell disease or carrier status.21
+updated details on sickle cell disease or carrier status.
+
 DIAGNOSTICS AND DRUGS 
 Under National Health Mission (NHM), in the Sickle Cell Disease prevalent areas, States shall ensure 
 the availability of sickle cell disease testing at all SHC-HWC and PHC/UPHC-HWCs/U-HWCs. 
@@ -746,9 +757,9 @@ At all first referral centers, daycare facilities for transfusion and monitoring
 NHM shall support all the needs listed above at the district and sub-district facilities.
 Treatment facilities at the higher level of care, i.e. Tertiary level facilities to be financially supported 
 through MoTA, and would be linked with Health care facilities below and utilizing the established 
-linkages under NHM.22
+linkages under NHM.
+
 HOLISTIC MANAGEMENT & CONTINUUM OF 
-CARE
 Without universal screening, SCD patient is generally diagnosed when she/he comes to the hospital 
 with anemic symptoms, or sickle cell crisis. It is a common painful complication seen in patients of 
 sickle cell disease. Acute episodes of severe pain (crises) are the primary reason that these patients 
@@ -782,7 +793,8 @@ is as follows:
 encapsulated bacteria therefore, early vaccination shall be instituted to prevent  infection and 
 complications in later stages of life. For newborn children, vaccination as per schedule in the 
 National  Immunization schedule. For adults vaccination, national guidelines needs to be 
-followed 23
+followed 
+
 b) Preventive Management: To avoid crisis, nutrition, health maintenance, and comprehensive 
 care is important. Education of both patients and caregivers about sickle cell disease including 
 ‘Do’s and Dont’s in acute conditions before coming to the hospital, shall be undertaken.
@@ -814,7 +826,8 @@ from hydroxyurea. These patients may benefit from blood transfusions to decrease
 and post stroke may need anticoagulation, along with required monitoring for anticoagulation 
 medicines. Though unusual, this is a serious condition and such patients should be referred 
 to a higher center to receive evaluation and required management. Patients who have suffered 
-strokes, TIAs etc. will need Transcranial Doppler (TCD), computerized axial tomography, MRI, 24
+strokes, TIAs etc. will need Transcranial Doppler (TCD), computerized axial tomography, MRI, 
+
 or MRI with angiography. Comprehensive management of SCD requires a multi-specialty team, 
 especially for young children with these complications.
 c) Transfusion:
@@ -848,7 +861,8 @@ every 3-6 months. The services include:
 • Monitoring for fever, jaundice, pallor and spleen size on each health visit
 • Monitoring Hb levels
 • Refill of medications
-• Counselling on Diet, stress management and risk reduction25
+• Counselling on Diet, stress management and risk reduction
+
 • At all PHC-HWCs, vaccination and penicillin prophylaxis therapy for all new-born identified 
 with SCD
 • Co-morbidity management
@@ -887,7 +901,8 @@ Selected Centres of Excellence (CoE) shall be in such a way that they can provid
 transplant services also for eligible individuals with SCD 
 INTEGRATION OF AYUSH IN SICKLE CELL DISEASE CARE
 Yoga is an integral component of comprehensive primary healthcare provided through Ayushman 
-Bharat Health and Wellness Centres (AB-HWC). Ministry of AYUSH, Ministry of Health and Family 26
+Bharat Health and Wellness Centres (AB-HWC). Ministry of AYUSH, Ministry of Health and Family 
+
 Welfare, Ministry of Tribal Affairs in coordination shall support epigenetic and clinical research on 
 the role of Yoga in the prevention and cure of sickle cell disease complications.
 An action research project has been sanctioned by MoTA to understand the efficacy of Yoga based life- 
@@ -924,7 +939,8 @@ schemes of the government for economic livelihood.
 d. Sustained availability of medicines and diagnostics for SCD at the health facilities.
 COMMUNITY ADOPTION
 Community adoption involves leveraging community support for people with sickle cell disease by 
-identifying, orienting and motivating voluntary individuals and organizations. This initiative shall:27
+identifying, orienting and motivating voluntary individuals and organizations. This initiative shall:
+
 1. Provide additional support for patients with sickle cell disease (SCD) to improve treatment 
 outcomes
 2. Enhance community support in the care of sickle cell disease
@@ -954,7 +970,8 @@ o Outreach screening camps for SCDs
 o Counselling for lifestyle, treatment adherence and stress management
 o Vaccine for all identified patients as per National Immunization Schedule 
 o Vocational support
-o Genetic Counselling support28
+o Genetic Counselling support
+
 IMPLEMENTATION PLAN OF COMMUNITY ADOPTION:
 Step 1: Development of integrated web portal and obtaining consent from SCD patients:
 o Creation of ABHA ID based e-registry for individuals with SCDs
@@ -986,7 +1003,8 @@ channels.
 o District Health Society (DHS) under the chairmanship of district collector will engage with 
 potential donors across corporates, public sector undertakings, institutions, citizens, elected 
 representatives, etc. DHS Chair shall approve such donations to be finally implemented for the 
-benefit of people with SCD. 29
+benefit of people with SCD. 
+
 Step 4: Service delivery:
 o The assistance shall be provided by the identified donor to the patient, as mutually agreed with 
 the district committee on SCD
@@ -1004,7 +1022,8 @@ will be eligible for the following:
 • Free education from 6 to 18 years of age
 • 4% reservation in the education and government jobs
 • 5% reservation in higher education
-• Other rights under RPWD Act 201630
+• Other rights under RPWD Act 2016
+
 NATIONAL SICKLE CELL ANAEMIA 
 ELIMINATION PORTAL 
 Under National sickle cell Anaemia Elimination programme, National Informatics Center  has 
@@ -1040,7 +1059,8 @@ and click on edit button present against each record.
 6. User can get the details of the patient whose screening test is done and he/she is found to be 
 positive but confirmation test is not conducted yet. They can also download it in PDF and CSV 
 format
-31
+
+
 SICKLE CELL MOBILE APPLICATION
 The data of every person would be captured through a Mobile Application developed by National 
 Information Center  after due generation of ABHA (unique Health ID) of every person being screened 
@@ -1067,7 +1087,8 @@ for reviewing the status of implementation of the sickle disease
 prevention and care at all levels of care.
 For more details on web portal and mobile application visit the link below
 https://sickle.nhm.gov.in/home
-32
+
+
 OPERATIONAL FRAMEWORK
 HUMAN RESOURCES:
 States are encouraged to make use of existing human resources effectively for SCD prevention and 
@@ -1101,7 +1122,8 @@ Department functionaries shall build the capacity of the human resources at vari
 Departments of Health and Family Welfare, and Tribal Development for tackling SCD. Awareness 
 and training programme for Ekalvya Model Residential School teachers and school students will be 
 conducted by MoHFW, TRIs and NTRI. The medical and paramedical staff will be trained in a time 
-bound manner so that there are trained staffs available in each district of the states.33
+bound manner so that there are trained staffs available in each district of the states.
+
 MONITORING
 The Sickle cell Portal wherein through Dashboard the necessary monitoring of the Mission progress 
 shall be undertaken. The Monitoring and evaluation tools shall be provided at National level, State 
@@ -1140,7 +1162,8 @@ shall be part of the District level sub- committee. The Block level sub-committe
 a representative from the academic institutions. However, representatives from 3 NGOs/ Civil society 
 organizations working in Tribal Health and/or Sickle Cell Anemia in the block shall be included. The 
 Member of Parliament shall be a special invitee in the district subcommittee. The District and Block 
-level sub-committees will be involved in operational planning, implementation, and field monitoring 34
+level sub-committees will be involved in operational planning, implementation, and field monitoring 
+
 of the Sickle Cell Mission. The District and Block level sub-committees too shall regularly review 
 the Sickle Cell Mission program implementation and performance and submit report to the district 
 health society.
@@ -1175,7 +1198,8 @@ sickle cell at public healthcare facilities including screening.
 • Support states in roll-out of telemedicine services in all the endemic areas of SCDs.
 Role of AIIMS, Centres of Excellence and all Medical Colleges  
 • Provide chorionic villous sampling (CVS) and other advanced diagnostics
-• Provide care for all referred patients35
+• Provide care for all referred patients
+
 • Being a telemedicine hub support primary and secondary health care institutions in clinical 
 management of patients with severe Sickle cell disease
  • Undertake capacity building of healthcare providers on SCD
@@ -1200,11 +1224,11 @@ universal screening in their areas of operation
 Role of States and Health Department 
 • Constitute Sickle Cell Programme Sub-Committee at the state, district and block levels
 • Sensitize and engage rural and urban local bodies, panchayats, municipal corporations, ULBs 
-etc.
 • Prepare plan for universal screening
 • Identify and support centers of excellence in the states
 • Allocate financial resources from NHM PIP and leverage MoTA grants
-• District Health Society to monitor the performance of the program on a monthly basis36
+• District Health Society to monitor the performance of the program on a monthly basis
+
 Role of NGOS :
 • Support states and districts in awareness generation and community mobilization, capacity 
 development of health care providers and facilitators offering counselling services, ensuring 
@@ -1215,7 +1239,6 @@ Indian Red Cross Society
 • Support States and districts in providing blood transfusion services for the critical patients 
 diagnosed with SCDs
 • Leverage their thalassemia screening and counselling centres for providing services related to 
-SCDs
 • Include SCD awareness as one of the agenda in their youth -led community-based interventions
 Role of Other Ministries 
 Ministry of Education
@@ -1234,7 +1257,8 @@ Ministry of Social Justice & Empowerment
 • Participate in state/district and block level sub-committee
 • Create awareness regarding screening diagnosis and management of SCDs
 • Ensure disability certification and benefits of other relevant socio-economic schemes for persons 
-affected by sickle cell disease37
+affected by sickle cell disease
+
 ROLE AND RESPONSIBILITIES OF HEALTH PERSONNEL
 Sl 
 NoHuman 
@@ -1275,7 +1299,7 @@ Technician •	Conduct sickle cell screenings
 •	Assure availability of diagnostics and consumables as required for the 
 camps for the PHC
 •	Participate in both facility-based and community-based screening for 
-SCD38
+
 Sl 
 NoHuman 
 resourceRoles and responsibilities
@@ -1287,7 +1311,6 @@ counselling support
 •	Under monthly   capacity   building   sessions   for   CHOs/ASHAs/MPW   
 on counselling care of individuals diagnosed with SCDs
 •	Pre and post-test counselling to all referred patients or OPD patients for 
-SCDs
 •	Support PHC team during screening camps
 •	To provide information about community adoption options available for 
 affected families and undertake informed consent of patients
@@ -1315,12 +1338,12 @@ for the camps for the PHC as well as catchment SHC
 •	Treatment initiation
 •	Referral of the identified cases to higher centres for diagnosis and 
 treatment initiation
-•	Follow-up of confirmed cases39
+•	Follow-up of confirmed cases
+
 SERVICE DELIVERY FRAMEWORK
 Community levelAB-HWCs/ primary
 healthcare facilitiesSecondary healthcare
 facilitiesTertiary care facilities &
-CoEs
 Awareness generation 
 and mobilization
 •	Community 
@@ -1328,7 +1351,6 @@ awareness by
 ASHA and MPW, 
 through home visits, 
 VHSNC/MAS, and 
-JAS
 •	Sensitization 
 through self-help 
 groups and youth 
@@ -1471,24 +1493,8 @@ Residential School
 teachers and school 
 students with guid-
 ance from MoHFW, 
-TRIs and NTRI40
-FINANCIAL NORMS OF THE PROJECT
-Sl 
-noItem Unit PriceYear 1
-(2022-23)
-(in lakhs)Year 2
-(2023-24)
-(in lakhs)Year 3
-(2024-25)
-(in lakhs)
-1Point of care Test OR Solubility 
-tests + HPLC/ electrophoresis TestUpto Rs. 100 150 350 200
-2Hydroxyurea for SCDs (@ 1% of 
-the total Screened Persons)Rs 1000/year/
-patient1.5 3.5 2
-3 PCV VaccinationAs and when part of UIP / after due NTAGI 
-recommendations
-4 Human resource- counsellor Rs. 319 Cr Per annum (For 1 counsellor each in 2 PHCs)41
+TRIs and NTRI
+
 ADVANCED RESEARCH
 The Council for Scientific and Industrial Research (CSIR) IGIB is working on CRISPR CAS-9 therapy 
 on cells or Sickle Cell Disease. The breakthrough success of CRISPR-CAS (Clustered Regularly 
@@ -1516,7 +1522,8 @@ recommendations to improve SCD care and where each stakeholder can identify and 
 specific strategic recommendations. While the challenge to provide advance care for patients with 
 SCD seems daunting, it is indeed achievable, especially with engaged active partners leading the 
 way. A multi-stakeholder approach is needed to mitigate the barriers and ensure improvement in the 
-quality of care for individuals with SCD and for preventive and promotive efforts.42
+quality of care for individuals with SCD and for preventive and promotive efforts.
+
 ANNEXURES 
 ANNEXURE 1 :
 STATE-WISE INSTITUTIONS TO BE CENTRE OF EXCELLENCE 
@@ -1548,7 +1555,8 @@ Govt Medical College, Coimbatore
 AIIMS, Madurai
 9OdishaVeer Surendra Sai Institute of Medical Sciences, Burla
 Govt. Medical College, Cuttack
-Paripada Medical college43
+Paripada Medical college
+
 S.No State Institutes
 10 West BengalInstitute of Haematology & Transfusion Medicine, NRS Medical 
 College, Kolkata
@@ -1570,12 +1578,13 @@ Government Medical College Haridwar
 Government Doon Medical College
 17 Assam Guwahati Medical College, Guwahati
 Assam Medical College, Dibrugarh
-Silchar Medical College, Silchar44
+Silchar Medical College, Silchar
+
 ANNEXURE 2:
  SICKLE CELL DISEASE MANGEMENT
 Universal Screening for Population  
 (≤40years)  
- 
+
 Community/  
 Facility  
 based  Screening in few tribal  
@@ -1605,37 +1614,37 @@ HPLC/Hb electrophoresis at higher centers
 other  haemoglobinopathy  SC Trait (Carrier;  
 AS) SC Diseased*  
 (SS)  Target  group  screening  Mass  screening  ANNEXURE  2- SICKLE  CELL  DISEASE  MANGEMENT  
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 *Prevention  Treatment  and Management  for SCD  
 1. Preventive strategies to the community along with focused counselling to the affected person and family  
 is one of the key strategy  in reducing  the incidence  of SCD.  
@@ -1645,9 +1654,9 @@ is one of the key strategy  in reducing  the incidence  of SCD.
 5. Psychological  support  to adolescents  and adults  for life long  management  of disease  
 6. Management  of complications  with  defined  upward  and down  ward  linkages  
 7. Blood  support for transfusion  
- 
- 
- 
+
+
+
 Awareness generation  
 Using local mass  
 media/Public platforms  
@@ -1664,7 +1673,8 @@ Data management
 and monitoring  
 Sickle cell disease  
 electronic data base via  
-SMART  application  States  with  high  prevalence  States  with  low prevalence 45
+SMART  application  States  with  high  prevalence  States  with  low prevalence 
+
 ANNEXURE 3 :
 IEC STRATEGIES
 It is the most important component for the prevention and control of Sickle Cell Disease. The aim 
@@ -1698,7 +1708,8 @@ Non-government organizations (NGO) and community-based
 organizations can be involved in development of resource materials. 
 States should work with education department for inclusion of 
 information about hemoglobinopathies in the school textbooks and 
-school health programs.46
+school health programs.
+
 Strategy Content 
 Inter-personal communication and one to group communication
 These are very effective IEC tools with well trained counsellors and informed healthcare personnel. 
@@ -1725,7 +1736,8 @@ camps and at Blood centreOne to one counselling in at least two to three session
 reinforcement of information by healthcare workers – ASHAs.
 At DEICs Inform children who have sickle cell disease about care and prevention 
 of complications and affected families about the importance of family 
-(cascade) screening.47
+(cascade) screening.
+
 ANNEXURE 4 :
  TREATMENT WITH HYDROXYUREA
 Hydroxyurea (HU), is a ribonucleotide reductase inhibitor found effective in sickle cell disease patient. 
@@ -1742,7 +1754,6 @@ regardless of clinical severity to reduce complications (e.g., pain, dactylitis,
 to SCD. 
  yIn adults and children with SCD who have chronic kidney disease and are taking erythropoietin, 
 hydroxyurea is added to improve anaemia. However lower doses are required in patients with 
-CKD.
  y  In persons with HbS beta+ thalassemia disease who have recurrent SCD-associated pain that 
 interferes with daily activities or quality of life, hydroxyurea therapy can be considered after 
 consulting a specialist.
@@ -1766,7 +1777,8 @@ depends on their adherence to daily dosing
 Should be counselled not to double doses if a dose is missed 
 Females of reproductive age should be counselled about the need 
 for stopping 3 months prior to conceiving 
-Clinical response to treatment may take 3 to 6 months48
+Clinical response to treatment may take 3 to 6 months
+
 ANNEXURE 5 :
 LIST OF DIAGNOSTIC SERVICES (ACCORDING  
 TO LEVEL OF FACILITY)
@@ -1800,7 +1812,8 @@ Urine Microscopy E E E E
 Urine for creatinine and Albumin to creati-
 nine ratio (ACR)E E E 
 Serum potassium E E E E
-E: Essential; D: Desirable, *- DH above 100 beds49
+E: Essential; D: Desirable, *- DH above 100 beds
+
  ANNEXURE 6 :
  LIST OF COMPLICATIONS AND ITS MANAGEMENT (ACCORDING TO 
 LEVEL OF FACILITY) 
@@ -1819,9 +1832,9 @@ Priapism  Hepatobiliary dysfunction
 Pregnancy related 
 problems Chronic leg ulcers
   Proliferative retinopathy
-  Neurologic deficit/ seizure 50
+  Neurologic deficit/ seizure 
+
 Chronic complications and management
-Sr. 
 NoComplication Intervention PHC CHC DH
 1 Chronic pain
 AVN, leg ulcer, no 
@@ -1839,7 +1852,6 @@ Tramadol
 Opioid
 NSAIDAmitryptiline
 Gabapentinoid
-SNRI
 Tramadol
 Opioid
 NSAID
@@ -1870,8 +1882,8 @@ Drugs - As per need in
 selected blocksY
 Integrated services for
 Hemoglobinopathies 
-& Haemophilia- - (Desirable)51
-Sr. 
+& Haemophilia- - (Desirable)
+
 NoComplication Intervention PHC CHC DH
 3Lung disease
 Pulmonary 
@@ -1883,7 +1895,6 @@ Lung FibrosisHistory, Exam, SpO2 Y Y Y
 Chest x-ray - Y Y
 Spirometry - - Y
 HRCT/CECT/CTPA - - Referral to 
-higher centre2D-ECHO - -
 Right Heart 
 Catheterization- -
 Polysomnography - -
@@ -1916,22 +1927,13 @@ Microscopy
 Urine culture and 
 sensitivity
 KFT ,Imaging -USGY
-Y
-Y
--Y
-Y
-Y
-YY
-Y
-Y
-Y
 Treat proteinuria* with 
 ACE-I/ARBY Y Y
 Treat HT Y Y Y
 Nephrology specialist 
 consultation- - D
-Hemodialysis Y52
-Sr. 
+Hemodialysis Y
+
 NoComplication Intervention PHC CHC DH
 6Osteoporosis
 Bone disease-AVN, 
@@ -1949,22 +1951,10 @@ procedure- - Y/D
 dysfunction
 LVH,MI,Heart 
 failureInvestigations
-ECG
 2D-ECHO
 Chest X- ray
 Iron level with ferritin
 NT-proBNP-
--
-D
--
--Y
--
-Y
-D
--Y
-Y
-Y
-Y
 Referral to 
 Higher centre 
 for Echo and 
@@ -2001,8 +1991,8 @@ Iron chelation y
 Surgery consultation - Y Y
 Specialist 
 gastroenterology 
-consult- - D53
-Sr. 
+consult- - D
+
 NoComplication Intervention PHC CHC DH
 9Leg ulcers Dressings Y Y Y
 Antibiotics-oral, 
@@ -2032,7 +2022,6 @@ Cognitive
 dysfunction
 SeizuresInvestigations
 CT Scan
-MRI
 EEG- - D
 Aspirin Y Y Y
 HU Y Y Y
@@ -2051,7 +2040,8 @@ Mellitus& Hypertension.
 Y: Yes; N: No; D: Desirable; OT/PT: Occupational Therapy/Physiotherapy; BT: Blood transfusion; 
 SNRI: Serotonin Nor-epinephrine Reuptake Inhibitor, PBF-Peripheral Blood Film, ESA-Erythropoiesis 
 Stimulating Agent; CBT: Cognitive Behavioural Therapy; PH: Pulmonary Hypertension; PAH-
-Pulmonary Artery Hypertension; AED-Anti-epileptic drugs. 54
+Pulmonary Artery Hypertension; AED-Anti-epileptic drugs. 
+
 ANNEXURE 7 :
 LIST OF MEDICINE (ACCORDING TO LEVEL OF FACILITY)
 Essential Medicines at various Health facilities
@@ -2063,7 +2053,6 @@ CapsuleHydroxyurea Capsule
 Clonidine Tablet Ferrous Salt (A) + 
 Folic Acid (B)Ferrous Salt (A) + 
 Folic Acid (B)Ferrous Salt (A) + Folic Acid 
-(B)
 Ferrous Salt (A) + Folic 
 Acid (B)Ferrous Salts Ferrous Salts Ferrous sulphate + Folic acid 
 Syrup
@@ -2109,7 +2098,8 @@ Oral solutionTramadol capsule
 * As per IPHS, Hydroxyurea is available at SDH/DH, However, in states with high endemicity, Hydroxy 
 urea can be made available up to the level of PHC by indenting from DH, with a system of monthly 
 dispension to the CHO (in charge of HWC-SC) for identified SCD patients with a mandatory criteria of 
-monthly follow up and required testing by the medical officer at PHC. 55
+monthly follow up and required testing by the medical officer at PHC. 
+
 ANNEXURE 8 :
 INDICATION FOR REFFERAL
 Indications for referral to 
@@ -2143,7 +2133,8 @@ Indication for referral to
 CHC • Need for overnight hospitalisation- moderate-severe pain 
 requiring opioid, mild -moderate acute chest syndrome
 • Need for simple blood transfusion
-• Need for clinic-based service56
+• Need for clinic-based service
+
 Indication for referral to 
 District Hospital• Need for ICU
 • Need for Exchange transfusion
@@ -2179,7 +2170,8 @@ chronic complications and inpatient evaluation can expedite this
 process. 
 • Social conditions can complicate the way patients access 
 healthcare. These factors (e.g. long travel distance) may also be 
-considered while evaluating admission criteria. 57
+considered while evaluating admission criteria. 
+
 Indications for referral to 
 tertiary centre• Acute persistent Abdominal pain refractory to opioids and fluid 
 therapy 
@@ -2197,7 +2189,8 @@ antibiotics
 • Consultation with certain speciality/ areas and commensurate 
 medicines/investigations may not be available at DH (as defined 
 in IPHS) and hence would require further management at higher 
-centres58
+centres
+
  LIST OF ABBREVIATIONS 
 ABHA Ayushman Bharat Health Account
 AB-HWC Ayushman Bharat - Health and Wellness Centres
@@ -2229,7 +2222,8 @@ IEC Information, Education & Communication
 JAS Jan Arogya Samiti
 MAS Mahila Arogya Samiti 
 MO Medical Officer
-MoTA Ministry of Tribal Affairs59
+MoTA Ministry of Tribal Affairs
+
 MPW Multi-Purpose Worker
 NGO Non-governmental organization
 NHM National Health Mission
@@ -2255,43 +2249,8 @@ ULB Urban Local Bodies
 UPHC-HWC Urban Primary Health Centre – Health and Wellness Centre
 VHSNC Village Health, Sanitation, and Nutrition Committees
 VHSND Village Health, Sanitation, and Nutrition Day
-VOC Vaso-occlusive crisis60
-LIST O F CONTRIBUTORS
-OVERALL LEADERSHIP & GUIDANCE 
-•	Sh. Rajesh Bhushan, Secretary, MoHFW
-•	Ms. Roli Singh, Former AS&MD, MoHFW
-•	Sh. Vishal Chauhan, Joint Secretary (Policy), MoHFW
-•	Maj Gen (Prof) Atul Kotwal, Executive Director, NHSRC
-WORKING GROUP
-•	Sh. Harsh Mangla, Director, NHM-I, MoHFW
-•	Dr. (Flt Lt). M.A. Balasubramanya, Former Advisor, Community Process & Comprehensive 
-Primary Healthcare, NHSRC
-•	Dr. Neha Dumka, Lead Consultant, Knowledge Management Division, NHSRC
-•	Dr. Arghyadeep Marik, Senior Consultant, Blood Cell, MoHFW
-•	Ms. Saranga Panwar, Senior Consultant, (NHM PHP & P, Blood Cell), MoHFW
-•	Mr. Prasanth KS, Sr. Consultant, Public Health Administration, NHSRC
-•	Dr. Anantha Kumar Srinivasaiyer, Senior Consultant, Community Process & Comprehensive 
-Primary Healthcare, NHSRC
-•	 Dr. Palak, Consultant, Public Health Administration, NHSRC
-•	Dr. Anwar Mirza, Former Consultant, Community Process & Comprehensive Primary Healthcare, 
-NHSRC
-•	Ms. Preethu Prasanna Kumar Consultant, Public Health Administration, NHSRC
-•	Dr. Shayoni Sen, Consultant Community process & Comprehensive Primary Healthcare, NHSRC
-•	Dr. Bhawna Gupta, Former Consultant Community Processes & Comprehensive Primary 
-Healthcare, NHSRC
-•	Dr. Rutuja Kolhe, Consultant Community Processes & Comprehensive Primary Healthcare, 
-NHSRC
-TECHNICAL EXPERTS 
-•	Dr. (Col)Jyoti Kotwal, Prof. & Head, Department of Hematology, Sir Ganga Ram Hospital, New 
-Delhi
-•	Dr. Mukul Aggarwal, Assistant Professor in Clinical Hematology, Department of Hematology, 
-AIIMS, New Delhi
-•	 Dr.Aparup Das,Director,ICMR-NIRTH,Jabalpur
-•	Dr.Ravindra Kumar, Scientist ‘C’, ICMR-NIRTH,Jabalpur
-•	Dr Ruby Khan, State Nodal Officer Blood Cell / NHM,Madhya Pradesh
-•	 Dr. Bimlesh Singh, Pathologist ,District  Hospital, Ranchi
-•	Dr. Khemraj Sonwani, Deputy Director Blood Cell, Chattisgarh
-•	Dr. Usha Joshi, Director General Sickle Cell Institute, Chattisgarh
-•	Dr. Yezdi Italia, Director Valsad Raktdan Kendra,Gujrat62
+VOC Vaso-occlusive crisis
+
 National Health Systems Resource Centre
 Design & Printed at Royal Press # 9310132888
+
