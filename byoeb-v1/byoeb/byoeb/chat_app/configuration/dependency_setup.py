@@ -214,20 +214,33 @@ import os
 from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 
-azure_search_doc_index_name = app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
-azure_search_service_name = app_config["vector_store"]["azure_vector_search"]["service_name"]
+# Azure Search configuration: use environment variables if set, otherwise fall back to config file
+azure_search_service_name = env_config.env_azure_search_service_name or app_config["vector_store"]["azure_vector_search"]["service_name"]
+azure_search_doc_index_name = env_config.env_azure_search_index_name or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
 # git_root_dir = byoeb_utils.get_git_root_path()
 # vector_db_path = os.path.join(git_root_dir, "../vector_db")
 
-if env_config.env_azure_openai_whisper_key:
+# Use environment variables for Azure OpenAI endpoint and deployment if set, otherwise fallback to app_config.json
+azure_openai_endpoint = env_config.env_azure_openai_endpoint or app_config["embeddings"]["azure"]["endpoint"]
+azure_openai_deployment_name = env_config.env_azure_openai_deployment_name or app_config["embeddings"]["azure"]["deployment_name"]
+
+if env_config.env_azure_openai_whisper_key or env_config.env_azure_openai_key:
     print("✅ Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
+    azure_openai_key = env_config.env_azure_openai_key or env_config.env_azure_openai_whisper_key
     azure_openai_embed = AzureOpenAIEmbed(
     model=app_config["embeddings"]["azure"]["model"],
-    deployment_name=app_config["embeddings"]["azure"]["deployment_name"],
-    azure_endpoint=app_config["embeddings"]["azure"]["endpoint"],
-    api_key=env_config.env_azure_openai_whisper_key,
+    deployment_name=azure_openai_deployment_name,
+    azure_endpoint=azure_openai_endpoint,
+    api_key=azure_openai_key,
     api_version=app_config["embeddings"]["azure"]["api_version"]
     )
+    print(f"🔍 Azure OpenAI Embed Configuration:")
+    print(f"   Endpoint: {azure_openai_endpoint}")
+    print(f"   Deployment: {azure_openai_deployment_name}")
+    endpoint_source = "Environment Variable" if env_config.env_azure_openai_endpoint else "Config File"
+    deployment_source = "Environment Variable" if env_config.env_azure_openai_deployment_name else "Config File"
+    print(f"   Endpoint Source: {endpoint_source}")
+    print(f"   Deployment Source: {deployment_source}")
 else:
     from azure.identity import get_bearer_token_provider, DefaultAzureCredential
     print("⚠️ Azure OpenAI Embed key not set. Defaulting to DefaultAzureCredential for Azure OpenAI Embed")
@@ -236,11 +249,18 @@ else:
     )
     azure_openai_embed = AzureOpenAIEmbed(
     model=app_config["embeddings"]["azure"]["model"],
-    deployment_name=app_config["embeddings"]["azure"]["deployment_name"],
-    azure_endpoint=app_config["embeddings"]["azure"]["endpoint"],
+    deployment_name=azure_openai_deployment_name,
+    azure_endpoint=azure_openai_endpoint,
     token_provider=token_provider,
     api_version=app_config["embeddings"]["azure"]["api_version"]
 )
+    print(f"🔍 Azure OpenAI Embed Configuration:")
+    print(f"   Endpoint: {azure_openai_endpoint}")
+    print(f"   Deployment: {azure_openai_deployment_name}")
+    endpoint_source = "Environment Variable" if env_config.env_azure_openai_endpoint else "Config File"
+    deployment_source = "Environment Variable" if env_config.env_azure_openai_deployment_name else "Config File"
+    print(f"   Endpoint Source: {endpoint_source}")
+    print(f"   Deployment Source: {deployment_source}")
 embedding_fn = azure_openai_embed.get_embedding_function()
 
 # vector_store = LlamaIndexChromaDBStore(
@@ -255,6 +275,16 @@ if env_config.env_azure_search_api_key:
 else:
     credential = DefaultAzureCredential()   
     print("⚠️ Azure Search API key not set. Defaulting to DefaultAzureCredential")
+
+# Determine source of configuration
+service_source = "Environment Variable" if env_config.env_azure_search_service_name else "Config File"
+index_source = "Environment Variable" if env_config.env_azure_search_index_name else "Config File"
+
+print(f"🔍 Vector Store Configuration:")
+print(f"   Service Name: {azure_search_service_name} (from {service_source})")
+print(f"   Index Name: {azure_search_doc_index_name} (from {index_source})")
+print(f"   Endpoint: https://{azure_search_service_name}.search.windows.net")
+print(f"   API Key: {'*' * (len(env_config.env_azure_search_api_key) - 4) + env_config.env_azure_search_api_key[-4:] if env_config.env_azure_search_api_key else 'Not set'}")
 
 vector_store = AzureVectorStore(
     service_name=azure_search_service_name,
