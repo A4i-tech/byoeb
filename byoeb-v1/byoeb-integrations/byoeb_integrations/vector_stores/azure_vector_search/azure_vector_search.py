@@ -8,6 +8,7 @@ from byoeb_core.llms.base import BaseLLM
 from azure.search.documents import SearchClient, SearchIndexingBufferedSender
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.models import VectorizableTextQuery, IndexAction
+from azure.core.credentials import AzureKeyCredential
 from byoeb_core.models.vector_stores.azure.azure_search import AzureSearchNode, Metadata
 from byoeb_integrations.vector_stores.related_questions import aget_related_questions
 from byoeb_core.models.vector_stores.chunk import Chunk, Chunk_metadata
@@ -36,27 +37,34 @@ class AzureVectorStore(BaseVectorStore):
             raise ValueError("api_key or credential is required")
         if api_key and credential:
             raise ValueError("only one of api_key or credential is required")
-        if api_key:
-            raise NotImplementedError("api_key is not supported yet")
     
         self.__service_name = service_name
         self.__index_name = index_name
         self.__embedding_function = embedding_function
-        self.__credential = credential
+
+        # Use AzureKeyCredential if API key provided, otherwise use provided credential
+        if api_key:
+            auth_credential = AzureKeyCredential(api_key)
+        else:
+            auth_credential = credential
+
+        self.__credential = auth_credential
         self.__endpoint = f"https://{self.__service_name}.search.windows.net"
         self.search_client = SearchClient(
             endpoint=self.__endpoint,
             index_name=self.__index_name,
-            credential=credential
+            credential=auth_credential
         )
         self.search_index_client = SearchIndexClient(
             endpoint=self.__endpoint,
-            credential=credential
+            credential=auth_credential
         )
 
     def fails(self, error: IndexAction):
         print("Failed to upload document")
-        print(error.additional_properties)
+        # Log error details without exposing sensitive information
+        if hasattr(error, 'key'):
+            print(f"Error for document ID: {error.key}")
 
     async def __prepare_azure_node(
         self,
@@ -116,33 +124,49 @@ class AzureVectorStore(BaseVectorStore):
     
         # Initialize tqdm progress bar if enabled
         progress_bar = tqdm(total=total_batches, desc="Started uploading documents to Azure vector search", disable=not show_progress)
-        for i in range(0, len(data_chunks), batch_size):
-            batch_chunks = data_chunks[i:i+batch_size]
-            batch_ids = ids[i:i+batch_size]
-            batch_metadata = metadata[i:i+batch_size]
 
-            # Process batch concurrently
-            batch_nodes = await asyncio.gather(*[
-                self.__prepare_azure_node(
-                    id=batch_ids[idx],
-                    chunk=batch_chunks[idx],
-                    metadata=batch_metadata[idx],
-                    llm_client=llm_client,
-                    languages_translation_prompts=languages_translation_prompts,
-                    system_prompt=system_prompt
-                ) for idx in range(len(batch_chunks))
-            ])
-            current_documents = [node.model_dump(exclude_none=True, exclude_defaults=True) for node in batch_nodes]
-            with SearchIndexingBufferedSender(
-                endpoint=self.__endpoint,
-                index_name=self.__index_name,
-                credential=self.__credential,
-                on_error=self.fails
-            ) as batch_client:
+        # Use a single SearchIndexingBufferedSender for all batches to ensure proper flushing
+        errors_collected = []
+        def enhanced_error_handler(error):
+            errors_collected.append(error)
+            self.fails(error)
+
+        with SearchIndexingBufferedSender(
+            endpoint=self.__endpoint,
+            index_name=self.__index_name,
+            credential=self.__credential,
+            on_error=enhanced_error_handler
+        ) as batch_client:
+            for i in range(0, len(data_chunks), batch_size):
+                batch_chunks = data_chunks[i:i+batch_size]
+                batch_ids = ids[i:i+batch_size]
+                batch_metadata = metadata[i:i+batch_size]
+
+                # Process batch concurrently
+                batch_nodes = await asyncio.gather(*[
+                    self.__prepare_azure_node(
+                        id=batch_ids[idx],
+                        chunk=batch_chunks[idx],
+                        metadata=batch_metadata[idx],
+                        llm_client=llm_client,
+                        languages_translation_prompts=languages_translation_prompts,
+                        system_prompt=system_prompt
+                    ) for idx in range(len(batch_chunks))
+                ])
+                current_documents = [node.model_dump(exclude_none=True, exclude_defaults=True) for node in batch_nodes]
                 batch_client.upload_documents(documents=current_documents)
-            progress_bar.update(1)
+                progress_bar.update(1)
+
+            # Explicitly flush before context exit
+            batch_client.flush()
         
         progress_bar.close()
+
+        if errors_collected:
+            print(f"\n⚠️  Warning: {len(errors_collected)} documents failed to upload")
+        else:
+            print(f"\n✅ All documents uploaded successfully")
+
         print(f"Uploading process complete")
         # return True
 

@@ -14,6 +14,13 @@ from byoeb_core.models.media_storage.file_data import FileMetadata, FileData
 
 logger = logging.getLogger("kb_service")
 
+# Print configuration before starting
+def print_upload_configuration():
+    """Print the configuration that will be used for the upload"""
+    print("\n" + "=" * 80)
+    print("  Starting upload process...")
+    print("=" * 80 + "\n")
+
 
 prefix_raw_documents = "raw_documents"
 prefix_updated_documents = "expert_update_documents"
@@ -69,12 +76,24 @@ async def create_raw_files_chunks(files: list):
     return chunk_ids, chunk_texts, chunk_metadatas
 
 async def create_kb_from_blob_store():
+    print("Step 1: Fetching files from blob storage...")
     files = await amedia_storage.aget_all_files_properties()
+    print(f"  ✅ Found {len(files)} files in blob storage")
+
+    print("\nStep 2: Creating chunks from raw documents...")
     raw_chunks_ids, raw_chunks_text, raw_chunks_metadata = await create_raw_files_chunks(files)
+    print(f"  ✅ Created {len(raw_chunks_ids)} chunks from raw documents")
+
+    print("\nStep 3: Creating chunks from updated documents...")
     update_chunks_ids, update_chunks_text, update_chunks_metadata = await create_update_files_chunk(files)
+    print(f"  ✅ Created {len(update_chunks_ids)} chunks from updated documents")
+
     chunk_ids = raw_chunks_ids + update_chunks_ids
     chunk_texts = raw_chunks_text + update_chunks_text
     chunk_metadatas = raw_chunks_metadata + update_chunks_metadata
+
+    print(f"\nStep 4: Uploading {len(chunk_ids)} total chunks to Azure Search...\n")
+
     await vector_store.aadd_chunks(
         ids=chunk_ids,
         data_chunks=chunk_texts,
@@ -84,6 +103,7 @@ async def create_kb_from_blob_store():
         batch_size=10,
         show_progress=True
     )
+    print(f"\n✅ Successfully uploaded {len(chunk_ids)} chunks to Azure Search")
 
 async def abulk_download_files(
     all_files: List[FileMetadata]
@@ -115,8 +135,13 @@ def delete_kb():
     vector_store.delete_store()
 
 async def main():
-    await create_kb_from_blob_store()
-    await amedia_storage._close()
+    # Print configuration at the start
+    print_upload_configuration()
+
+    try:
+        await create_kb_from_blob_store()
+    finally:
+        await amedia_storage._close()
 
 if __name__ == "__main__":
     asyncio.run(main())
