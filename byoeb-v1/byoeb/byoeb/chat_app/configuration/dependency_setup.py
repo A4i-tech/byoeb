@@ -228,18 +228,24 @@ import os
 from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 
-azure_search_doc_index_name = app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
-azure_search_service_name = app_config["vector_store"]["azure_vector_search"]["service_name"]
+# Azure Search configuration: use environment variables if set, otherwise fall back to config file
+azure_search_service_name = env_config.env_azure_search_service_name or app_config["vector_store"]["azure_vector_search"]["service_name"]
+azure_search_doc_index_name = env_config.env_azure_search_index_name or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
 # git_root_dir = byoeb_utils.get_git_root_path()
 # vector_db_path = os.path.join(git_root_dir, "../vector_db")
 
-if env_config.env_azure_openai_whisper_key:
+# Use environment variables for Azure OpenAI endpoint and deployment if set, otherwise fallback to app_config.json
+azure_openai_endpoint = env_config.env_azure_openai_endpoint or app_config["embeddings"]["azure"]["endpoint"]
+azure_openai_deployment_name = env_config.env_azure_openai_deployment_name or app_config["embeddings"]["azure"]["deployment_name"]
+
+if env_config.env_azure_openai_whisper_key or env_config.env_azure_openai_key:
     print("✅ Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
+    azure_openai_key = env_config.env_azure_openai_key or env_config.env_azure_openai_whisper_key
     azure_openai_embed = AzureOpenAIEmbed(
     model=app_config["embeddings"]["azure"]["model"],
-    deployment_name=app_config["embeddings"]["azure"]["deployment_name"],
-    azure_endpoint=app_config["embeddings"]["azure"]["endpoint"],
-    api_key=env_config.env_azure_openai_whisper_key,
+    deployment_name=azure_openai_deployment_name,
+    azure_endpoint=azure_openai_endpoint,
+    api_key=azure_openai_key,
     api_version=app_config["embeddings"]["azure"]["api_version"]
     )
 else:
@@ -250,8 +256,8 @@ else:
     )
     azure_openai_embed = AzureOpenAIEmbed(
     model=app_config["embeddings"]["azure"]["model"],
-    deployment_name=app_config["embeddings"]["azure"]["deployment_name"],
-    azure_endpoint=app_config["embeddings"]["azure"]["endpoint"],
+    deployment_name=azure_openai_deployment_name,
+    azure_endpoint=azure_openai_endpoint,
     token_provider=token_provider,
     api_version=app_config["embeddings"]["azure"]["api_version"]
 )
