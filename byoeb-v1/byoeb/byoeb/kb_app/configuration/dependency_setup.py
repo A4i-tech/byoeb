@@ -10,15 +10,15 @@ from byoeb_core.media_storage.base import BaseMediaStorage
 account_url = app_config["media_storage"]["azure"]["account_url"]
 container_name = app_config["media_storage"]["azure"]["container_name"]
 model = app_config["embeddings"]["azure"]["model"]
-deployment_name = app_config["embeddings"]["azure"]["deployment_name"]
-aoai_endpoint = app_config["embeddings"]["azure"]["endpoint"]
+deployment_name = env_config.env_azure_openai_deployment_name or app_config["embeddings"]["azure"]["deployment_name"]
+aoai_endpoint = env_config.env_azure_openai_endpoint or app_config["embeddings"]["azure"]["endpoint"]
 cognitive_services_endpoint = app_config["app"]["azure_cognitive_endpoint"]
 api_version = app_config["embeddings"]["azure"]["api_version"]
 default_credential = DefaultAzureCredential()
-token_provider = get_bearer_token_provider(default_credential, cognitive_services_endpoint)
 
-azure_search_service_name = app_config["vector_store"]["azure_vector_search"]["service_name"]
-azure_search_doc_index_name = app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
+# Azure Search Service Configuration - use environment variables if set, otherwise fallback to app_config.json
+azure_search_service_name = env_config.env_azure_search_service_name or app_config["vector_store"]["azure_vector_search"]["service_name"]
+azure_search_doc_index_name = env_config.env_azure_search_index_name or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
 
 llm_client = AsyncLLamaIndexOpenAILLM(
     model=app_config["llms"]["openai"]["model"],
@@ -27,13 +27,35 @@ llm_client = AsyncLLamaIndexOpenAILLM(
     organization=env_config.env_openai_org_id
 )
 
-azure_openai_embed = AzureOpenAIEmbed(
-    model=model,
-    deployment_name=deployment_name,
-    azure_endpoint=aoai_endpoint,
-    token_provider=token_provider,
-    api_version=api_version
-)
+# Azure OpenAI Embed - try API key first, fallback to token provider
+if env_config.env_azure_openai_key:
+    # Use Azure OpenAI specific key if available
+    azure_openai_embed = AzureOpenAIEmbed(
+        model=model,
+        deployment_name=deployment_name,
+        azure_endpoint=aoai_endpoint,
+        api_key=env_config.env_azure_openai_key,
+        api_version=api_version
+    )
+elif env_config.env_azure_cognitive_key:
+    # Fallback to cognitive key if Azure OpenAI key not available
+    azure_openai_embed = AzureOpenAIEmbed(
+        model=model,
+        deployment_name=deployment_name,
+        azure_endpoint=aoai_endpoint,
+        api_key=env_config.env_azure_cognitive_key,
+        api_version=api_version
+    )
+else:
+    # Last resort: use token provider with default credentials
+    azure_openai_token_provider = get_bearer_token_provider(default_credential, "https://cognitiveservices.azure.com/.default")
+    azure_openai_embed = AzureOpenAIEmbed(
+        model=model,
+        deployment_name=deployment_name,
+        azure_endpoint=aoai_endpoint,
+        token_provider=azure_openai_token_provider,
+        api_version=api_version
+    )
 
 if env_config.env_azure_storage_connection_string:
     amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
@@ -49,9 +71,20 @@ else:
         credentials=DefaultAzureCredential()
     )
 
-vector_store = AzureVectorStore(
-    service_name=azure_search_service_name,
-    index_name=azure_search_doc_index_name,
-    embedding_function=azure_openai_embed.get_embedding_function(),
-    credential=default_credential
-)
+# Azure Vector Store - use API key if available, otherwise use credentials
+if env_config.env_azure_search_api_key:
+    # Use API key if available
+    vector_store = AzureVectorStore(
+        service_name=azure_search_service_name,
+        index_name=azure_search_doc_index_name,
+        embedding_function=azure_openai_embed.get_embedding_function(),
+        api_key=env_config.env_azure_search_api_key
+    )
+else:
+    # Fallback to default credentials
+    vector_store = AzureVectorStore(
+        service_name=azure_search_service_name,
+        index_name=azure_search_doc_index_name,
+        embedding_function=azure_openai_embed.get_embedding_function(),
+        credential=default_credential
+    )
