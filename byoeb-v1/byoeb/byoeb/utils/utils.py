@@ -1,10 +1,48 @@
+import logging
 import os
 import re
-from typing import Iterable, List, TypeVar
+from typing import Iterable, List, Optional, TypeVar
+import uuid
+from byoeb.application_logger.azure_app_insights import AzureAppInsightsLogger
 from byoeb.constants.onboarding_text import ONBOARD_WELCOME_MESSAGE_DICT
 from byoeb.constants.user_enums import LanguageCode
 from urllib.parse import unquote
 from fastmcp.server.dependencies import get_http_request
+
+class AppInsightsLogHandler(logging.Handler):
+    """
+    Attach to a logger to mirror logs to Azure App Insights. Supports structured logging.
+
+    Example:
+        from byoeb.chat_app.configuration.dependency_setup import app_insights_log_handler
+
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s: %(message)s"))
+
+        my_logger = logging.getLogger("my_logger_name")
+        my_logger.setLevel(logging.DEBUG)
+        my_logger.addHandler(handler)  # log to stdout as well
+        my_logger.addHandler(app_insights_log_handler)
+
+        my_logger.info("hello")
+        my_logger.info("hello", extra={app_insights_log_handler.DETAILS: {
+            "user_id": "xyz",
+            "phone_number": "91xx"
+        }})
+    """
+    DETAILS = str(uuid.uuid4())
+
+    def __init__(self, app_insights_logger: Optional[AzureAppInsightsLogger], **kwargs):
+        super().__init__(**kwargs)
+        self._app_insights_logger = app_insights_logger
+
+    def emit(self, record):
+        if self._app_insights_logger is None:
+            return
+        details = {"details.level": record.levelname, "details.message": record.getMessage()}
+        for k, v in getattr(record, AppInsightsLogHandler.DETAILS, {}).items():
+            details["details." + k] = v
+        self._app_insights_logger.add_log(record.name, **details)
 
 def get_git_root_path():
     current_dir = os.path.abspath(__file__)

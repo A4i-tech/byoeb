@@ -4,6 +4,8 @@ from byoeb.chat_app.configuration.config import app_config
 import time, json, traceback, uuid, asyncio
 import logging
 
+from byoeb.utils.utils import AppInsightsLogHandler
+
 _logger = logging.getLogger("flow")
 
 def _safe_json(obj):
@@ -61,6 +63,7 @@ if env_config.env_appinsights_connection_string:
 else:
     print("⚠️ App Insights connection string not set. Skipping Azure logging.")
 
+app_insights_log_handler = AppInsightsLogHandler(app_insights_logger)
 
 import byoeb.utils.utils as byoeb_utils
 from byoeb.factory import (
