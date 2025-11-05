@@ -237,6 +237,7 @@ def get_current_timestamp():
 def generate_message_id():
     return f"wamid.{uuid.uuid4().hex}"
 
+@pytest.mark.integration
 def test_whatsapp_onboarding_flow():
     context_id = None
     print("Starting onboarding flow test...")

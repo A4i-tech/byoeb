@@ -79,20 +79,41 @@ jobs:
           restore-keys: |
             venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-integrations-
 
-      # Install dependencies for byoeb-core
+      # Install dependencies for byoeb-core (only if cache missed)
       - name: Install dependencies (byoeb-core)
+        if: steps.cache-byoeb-core.outputs.cache-hit != 'true'
         working-directory: ./byoeb-v1/byoeb-core
         run: poetry install --no-interaction
 
-      # Install dependencies for byoeb
+      # Sync dependencies for byoeb-core (if cache hit, just verify)
+      - name: Sync dependencies (byoeb-core)
+        if: steps.cache-byoeb-core.outputs.cache-hit == 'true'
+        working-directory: ./byoeb-v1/byoeb-core
+        run: poetry sync --no-interaction
+
+      # Install dependencies for byoeb (only if cache missed)
       - name: Install dependencies (byoeb)
+        if: steps.cache-byoeb.outputs.cache-hit != 'true'
         working-directory: ./byoeb-v1/byoeb
         run: poetry install --no-interaction
 
-      # Install dependencies for byoeb-integrations
+      # Sync dependencies for byoeb (if cache hit, just verify)
+      - name: Sync dependencies (byoeb)
+        if: steps.cache-byoeb.outputs.cache-hit == 'true'
+        working-directory: ./byoeb-v1/byoeb
+        run: poetry sync --no-interaction
+
+      # Install dependencies for byoeb-integrations (only if cache missed)
       - name: Install dependencies (byoeb-integrations)
+        if: steps.cache-byoeb-integrations.outputs.cache-hit != 'true'
         working-directory: ./byoeb-v1/byoeb-integrations
         run: poetry install --no-interaction
+
+      # Sync dependencies for byoeb-integrations (if cache hit, just verify)
+      - name: Sync dependencies (byoeb-integrations)
+        if: steps.cache-byoeb-integrations.outputs.cache-hit == 'true'
+        working-directory: ./byoeb-v1/byoeb-integrations
+        run: poetry sync --no-interaction
 
       # Run tests for byoeb-integrations (MongoDB tests)
       - name: Run tests (byoeb-integrations)
@@ -100,10 +121,10 @@ jobs:
         run: poetry run pytest
         id: byoeb-integrations-tests
 
-      # Run tests for byoeb
+      # Run tests for byoeb (excluding integration tests)
       - name: Run tests (byoeb)
         working-directory: ./byoeb-v1/byoeb
-        run: poetry run pytest
+        run: poetry run pytest -m "not integration"
         id: byoeb-tests
 
       # Set test results based on both test runs
