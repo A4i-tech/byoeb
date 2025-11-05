@@ -43,28 +43,28 @@ JOB_CONFIGURATIONS = [
     {
         "id": "consensus_responder",
         "name": "Respond with Consensus",
-        "cron": CronTrigger.from_crontab("*/30 * * * *", timezone=TIMEZONE),  # Every 30 minutes
+        "trigger": CronTrigger.from_crontab("*/30 * * * *", timezone=TIMEZONE),  # Every 30 minutes
         "function": respond_with_consensus,
         "enabled": True
     },
     {
         "id": "expert_query_sender",
         "name": "Send Query to Expert",
-        "cron": CronTrigger.from_crontab("0 8-20 * * *", timezone=TIMEZONE),  # Every hour from 8 AM to 8 PM
+        "trigger": CronTrigger.from_crontab("0 8-20 * * *", timezone=TIMEZONE),  # Every hour from 8 AM to 8 PM
         "function": send_query_to_expert,
         "enabled": True
     },
     {
         "id": "message_leaderboard",
         "name": "Message Leaderboard",
-        "cron": CronTrigger.from_crontab("0 12 * * FRI", timezone=TIMEZONE),   # 12 PM every Friday
+        "trigger": CronTrigger.from_crontab("0 12 * * FRI", timezone=TIMEZONE),   # 12 PM every Friday
         "function": message_leaderboard,
         "enabled": True
     },
         {
         "id": "send_dyk",
         "name": "Send DYK",
-        "cron": IntervalTrigger(weeks=2, start_date=datetime(2025, 11, 5, 11, 0, tzinfo=TIMEZONE)),
+        "trigger": IntervalTrigger(weeks=2, start_date=datetime(2025, 11, 5, 11, 0, tzinfo=TIMEZONE)),
         "function": send_dyk,
         "enabled": True
     }
@@ -113,10 +113,9 @@ def setup_scheduled_jobs():
     for job_config in JOB_CONFIGURATIONS:
         if job_config["enabled"]:
             try:
-                # Use CronTrigger.from_crontab with timezone support
                 scheduler.add_job(
                     execute_job_function,
-                    job_config["cron"],
+                    job_config["trigger"],
                     args=[job_config["function"]],
                     id=job_config["id"],
                     name=job_config["name"],
@@ -129,7 +128,7 @@ def setup_scheduled_jobs():
                     "error": None
                 }
 
-                _logger.info(f"Added job: {job_config['name']} with schedule: {job_config['cron']}")
+                _logger.info(f"Added job: {job_config['name']} with schedule: {job_config['trigger']}")
 
             except Exception as e:
                 _logger.error(f"Failed to setup job {job_config['id']}: {str(e)}")
@@ -316,7 +315,7 @@ async def list_jobs(request: Request):
             job_info = {
                 "id": job_id,
                 "name": job_config["name"],
-                "cron": job_config["cron"],
+                "trigger": str(job_config["trigger"]),
                 "enabled": job_config["enabled"],
                 "status": status_info.get("status", "not_scheduled"),
                 "last_run": status_info.get("last_run"),
