@@ -2,11 +2,13 @@ import logging
 import os
 import asyncio
 from datetime import datetime
+import sys
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 from zoneinfo import ZoneInfo
+from byoeb.chat_app.configuration.dependency_setup import app_insights_log_handler
 
 # Import job functions at module level - this ensures they exist and will catch ImportErrors early
 from byoeb.background_jobs.consensus.respond_with_consensus import main as respond_with_consensus
@@ -27,6 +29,12 @@ TIMEZONE = ZoneInfo("Asia/Kolkata")
 
 background_apis_router = APIRouter()
 _logger = logging.getLogger(REGISTER_API_NAME)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s: %(message)s"))
+_logger.setLevel(logging.DEBUG)
+_logger.addHandler(handler)
+_logger.addHandler(app_insights_log_handler)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 jobs_path = os.path.join(current_dir, '..', 'background_jobs')
@@ -76,14 +84,20 @@ job_status = {}
 def job_listener(event):
     """Handle job execution events"""
     if event.exception:
-        _logger.error(f"Job {event.job_id} failed: {event.exception}")
+        _logger.error(f"Job {event.job_id} failed: {event.exception}", extra={app_insights_log_handler.DETAILS: {
+            "context": job_listener.__name__,
+            "job_id": event.job_id
+        }})
         job_status[event.job_id] = {
             "status": "failed",
             "last_run": datetime.now().isoformat(),
             "error": str(event.exception)
         }
     else:
-        _logger.info(f"Job {event.job_id} executed successfully")
+        _logger.info(f"Job {event.job_id} executed successfully", extra={app_insights_log_handler.DETAILS: {
+            "context": job_listener.__name__,
+            "job_id": event.job_id
+        }})
         job_status[event.job_id] = {
             "status": "completed",
             "last_run": datetime.now().isoformat(),
@@ -128,10 +142,16 @@ def setup_scheduled_jobs():
                     "error": None
                 }
 
-                _logger.info(f"Added job: {job_config['name']} with schedule: {job_config['trigger']}")
+                _logger.info(f"Added job: {job_config['name']} with schedule: {job_config['trigger']}", extra={app_insights_log_handler.DETAILS: {
+                    "context": setup_scheduled_jobs.__name__,
+                    "job_id": job_config["id"]
+                }})
 
             except Exception as e:
-                _logger.error(f"Failed to setup job {job_config['id']}: {str(e)}")
+                _logger.error(f"Failed to setup job {job_config['id']}: {str(e)}", extra={app_insights_log_handler.DETAILS: {
+                    "context": setup_scheduled_jobs.__name__,
+                    "job_id": job_config["id"]
+                }})
                 job_status[job_config["id"]] = {
                     "status": "error",
                     "last_run": None,
