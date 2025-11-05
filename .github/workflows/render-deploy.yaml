@@ -1,0 +1,84 @@
+name: deploy-on-render
+on:
+  workflow_call:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+    steps:
+      - name: Create deployment
+        id: create
+        run: |
+          set -euo pipefail
+          AUTH="Authorization: Bearer $RENDER_API_KEY"
+
+          # Debug: Check if environment variables are set
+          echo "RENDER_SERVICE_ID: $RENDER_SERVICE_ID"
+          echo "RENDER_API_KEY: ${RENDER_API_KEY:0:10}..." # Show first 10 chars only
+
+          # Validate required environment variables
+          if [ -z "$RENDER_SERVICE_ID" ]; then
+            echo "❌ RENDER_SERVICE_ID is not set"
+            exit 1
+          fi
+
+          if [ -z "$RENDER_API_KEY" ]; then
+            echo "❌ RENDER_API_KEY is not set"
+            exit 1
+          fi
+
+          # Create deployment with proper request body
+          DEPLOY_JSON=$(curl -fsS -X POST -H "$AUTH" -H "Accept: application/json" -H "Content-Type: application/json" \
+            "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+            -d '{}')
+
+          echo "Deploy response:"
+          echo "$DEPLOY_JSON" | jq .
+
+          # Check if the response contains an error
+          if echo "$DEPLOY_JSON" | jq -e '.error' > /dev/null; then
+            echo "Error in deployment response:"
+            echo "$DEPLOY_JSON" | jq '.error'
+            exit 1
+          fi
+
+          DEPLOY_ID=$(echo "$DEPLOY_JSON" | jq -r '.id')
+          if [ "$DEPLOY_ID" = "null" ] || [ -z "$DEPLOY_ID" ]; then
+            echo "Failed to get deploy ID from response"
+            exit 1
+          fi
+          echo "deploy_id=$DEPLOY_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Watching deployment
+        run: |
+          set -euo pipefail
+          AUTH="Authorization: Bearer $RENDER_API_KEY"
+          DEPLOY_ID="${{ steps.create.outputs.deploy_id }}"
+
+          START_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          while :; do
+            STATUS=$(curl -fsS -H "$AUTH" -H "Accept: application/json" \
+              "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys/$DEPLOY_ID" \
+              | jq -r '.status')
+
+            RESP=$(curl -fsS -G -H "$AUTH" -H "Accept: application/json" \
+              --data-urlencode "ownerId=${DEPLOY_ID}" \
+              --data-urlencode "resource=${RENDER_SERVICE_ID}" \
+              --data-urlencode "startTime=${START_TIME}" \
+              --data-urlencode "direction=forward" \
+              --data-urlencode "limit=200" \
+              https://api.render.com/v1/logs)
+
+            echo "$RESP" | jq -r '.logs[]?.message'
+
+            START_TIME=$(echo "$RESP" | jq -r '.nextStartTime // empty')
+
+            case "$STATUS" in
+              live|succeeded|completed) echo "Deploy complete."; break ;;
+              failed|update_failed|canceled|cancelled|error|deactivated) echo "Deploy failed."; exit 1 ;;
+              *) sleep 8 ;;
+            esac
+          done

@@ -17,14 +17,18 @@ RUN pip install "poetry==$POETRY_VERSION"
 # Set workdir
 WORKDIR /app
 
-# Copy project files
-COPY . .
+# Copy dependency files first for better layer caching
+# This allows Docker to cache the dependency installation layer
+COPY pyproject.toml poetry.lock* ./
 
-# Install dependencies via Poetry
+# Install dependencies via Poetry (this layer will be cached if dependencies don't change)
 RUN poetry install --no-root --no-interaction --no-ansi
 
+# Copy the rest of the application code
+COPY . .
+
 # Expose the port (Render expects 10000 internally, but you can set 5000)
-EXPOSE 8000
+EXPOSE 5000
 
 # Command to run your FastAPI app
-CMD ["poetry", "run", "python3", "-m", "byoeb.chat_app.run", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["poetry", "run", "uvicorn", "byoeb.chat_app.run:app", "--host", "0.0.0.0", "--port", "5000"]
