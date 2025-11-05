@@ -12,6 +12,7 @@ from fastapi import Form, Request
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import StreamingResponse
+from zoneinfo import ZoneInfo
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
 from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
 
@@ -23,12 +24,14 @@ from byoeb.background_jobs.did_you_know.send_dyk import run as send_dyk
 
 # APScheduler imports for proper cron job scheduling
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 
 # Import scheduler from dependency_setup
 from byoeb.chat_app.configuration.dependency_setup import scheduler, get_scheduler, start_scheduler, stop_scheduler
 
 REGISTER_API_NAME = 'background_api'
+TIMEZONE = ZoneInfo("Asia/Kolkata")
 
 background_apis_router = APIRouter()
 _logger = logging.getLogger(REGISTER_API_NAME)
@@ -48,28 +51,28 @@ JOB_CONFIGURATIONS = [
     {
         "id": "consensus_responder",
         "name": "Respond with Consensus",
-        "cron": "*/30 * * * *",  # Every 30 minutes
+        "cron": CronTrigger.from_crontab("*/30 * * * *", timezone=TIMEZONE),  # Every 30 minutes
         "function": respond_with_consensus,
         "enabled": True
     },
     {
         "id": "expert_query_sender",
         "name": "Send Query to Expert",
-        "cron": "0 8-20 * * *",  # Every hour from 8 AM to 8 PM
+        "cron": CronTrigger.from_crontab("0 8-20 * * *", timezone=TIMEZONE),  # Every hour from 8 AM to 8 PM
         "function": send_query_to_expert,
         "enabled": True
     },
     {
         "id": "message_leaderboard",
         "name": "Message Leaderboard",
-        "cron": "0 12 * * FRI",   # 12 PM every Friday
+        "cron": CronTrigger.from_crontab("0 12 * * FRI", timezone=TIMEZONE),   # 12 PM every Friday
         "function": message_leaderboard,
         "enabled": True
     },
         {
         "id": "send_dyk",
         "name": "Send DYK",
-        "cron": "0 11 * * WED#2,WED#4",
+        "cron": IntervalTrigger(weeks=2, start_date=datetime(2025, 11, 5, 11, 0, tzinfo=TIMEZONE)),
         "function": send_dyk,
         "enabled": True
     }
@@ -121,10 +124,7 @@ def setup_scheduled_jobs():
                 # Use CronTrigger.from_crontab with timezone support
                 scheduler.add_job(
                     execute_job_function,
-                    CronTrigger.from_crontab(
-                        job_config["cron"],
-                        timezone=pytz.timezone("Asia/Kolkata")
-                    ),
+                    job_config["cron"],
                     args=[job_config["function"]],
                     id=job_config["id"],
                     name=job_config["name"],
