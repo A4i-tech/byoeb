@@ -51,6 +51,35 @@ jobs:
           fi
           echo "deploy_id=$DEPLOY_ID" >> "$GITHUB_OUTPUT"
 
+      - name: Get service URL
+        id: service_url
+        run: |
+          set -euo pipefail
+          AUTH="Authorization: Bearer $RENDER_API_KEY"
+          
+          SERVICE_JSON=$(curl -fsS -H "$AUTH" -H "Accept: application/json" \
+            "https://api.render.com/v1/services/$RENDER_SERVICE_ID")
+          
+          # Try multiple possible paths for service URL in Render API response
+          SERVICE_URL=$(echo "$SERVICE_JSON" | jq -r '
+            .service.serviceDetails.url // 
+            .service.url // 
+            .serviceDetails.url // 
+            .url // 
+            empty
+          ')
+          
+          if [ -z "$SERVICE_URL" ] || [ "$SERVICE_URL" = "null" ]; then
+            echo "⚠️  Could not get service URL from Render API"
+            echo "Debug: Service JSON structure:"
+            echo "$SERVICE_JSON" | jq '.' | head -20
+            echo "⚠️  Will skip health check (deployment will still be considered successful if Render marks it as live)"
+            echo "service_url=" >> "$GITHUB_OUTPUT"
+          else
+            echo "✅ Service URL retrieved: $SERVICE_URL"
+            echo "service_url=$SERVICE_URL" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Watching deployment
         run: |
           set -euo pipefail
@@ -77,8 +106,64 @@ jobs:
             START_TIME=$(echo "$RESP" | jq -r '.nextStartTime // empty')
 
             case "$STATUS" in
-              live|succeeded|completed) echo "Deploy complete."; break ;;
+              live|succeeded|completed) echo "Deploy marked as live by Render."; break ;;
               failed|update_failed|canceled|cancelled|error|deactivated) echo "Deploy failed."; exit 1 ;;
               *) sleep 8 ;;
             esac
           done
+
+      - name: Health check
+        if: steps.service_url.outputs.service_url != ''
+        run: |
+          set -euo pipefail
+          SERVICE_URL="${{ steps.service_url.outputs.service_url }}"
+          
+          # Remove trailing slash if present
+          SERVICE_URL="${SERVICE_URL%/}"
+          
+          echo "Waiting for service to be healthy at $SERVICE_URL..."
+          echo "Note: Service may return 500 errors during startup, we'll retry until it's ready."
+          
+          MAX_ATTEMPTS=30
+          ATTEMPT=0
+          WAIT_SECONDS=5
+          CONSECUTIVE_SUCCESSES=0
+          REQUIRED_SUCCESSES=3  # Require 3 consecutive 200s to consider service healthy
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Health check attempt $ATTEMPT/$MAX_ATTEMPTS..."
+            
+            # Try to get the health endpoint (root path)
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$SERVICE_URL/" || echo "000")
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              CONSECUTIVE_SUCCESSES=$((CONSECUTIVE_SUCCESSES + 1))
+              echo "✅ Got HTTP 200 (consecutive successes: $CONSECUTIVE_SUCCESSES/$REQUIRED_SUCCESSES)"
+              
+              if [ $CONSECUTIVE_SUCCESSES -ge $REQUIRED_SUCCESSES ]; then
+                echo "✅ Service is healthy! Health check passed with $CONSECUTIVE_SUCCESSES consecutive successful responses"
+                exit 0
+              fi
+            elif [ "$HTTP_CODE" = "000" ]; then
+              CONSECUTIVE_SUCCESSES=0
+              echo "⚠️  Connection failed or timeout (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+            elif [ "$HTTP_CODE" = "500" ] || [ "$HTTP_CODE" = "502" ] || [ "$HTTP_CODE" = "503" ] || [ "$HTTP_CODE" = "504" ]; then
+              CONSECUTIVE_SUCCESSES=0
+              echo "⚠️  Service returned HTTP $HTTP_CODE (service may still be starting, attempt $ATTEMPT/$MAX_ATTEMPTS)"
+            else
+              CONSECUTIVE_SUCCESSES=0
+              echo "⚠️  Service returned HTTP $HTTP_CODE (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+            fi
+            
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+              echo "Waiting ${WAIT_SECONDS}s before next attempt..."
+              sleep $WAIT_SECONDS
+            fi
+          done
+          
+          echo "❌ Health check failed after $MAX_ATTEMPTS attempts"
+          echo "Last HTTP code: $HTTP_CODE"
+          echo "Consecutive successes: $CONSECUTIVE_SUCCESSES/$REQUIRED_SUCCESSES"
+          echo "Service may still be starting up. You may want to check manually at: $SERVICE_URL"
+          exit 1
