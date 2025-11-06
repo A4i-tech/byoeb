@@ -19,17 +19,21 @@ class AppInsightsLogHandler(logging.Handler):
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s: %(message)s"))
 
-        my_logger = logging.getLogger("my_logger_name")
+        my_logger = logging.getLogger("my_logger_name")                     # <-- also the name of event under 'customEvents'
         my_logger.setLevel(logging.DEBUG)
-        my_logger.addHandler(handler)  # log to stdout as well
+        my_logger.addHandler(handler)                                       # log to stdout as well
         my_logger.addHandler(app_insights_log_handler)
 
-        my_logger.info("hello")
-        my_logger.info("hello", extra={app_insights_log_handler.DETAILS: {
+        my_logger.info("hello")                                             # basic logging
+        my_logger.info("hello", extra={app_insights_log_handler.DETAILS: {  # structured logging
             "user_id": "xyz",
             "phone_number": "91xx"
         }})
     """
+
+    # map structured logs to this field in 'extra'
+    # e.g., logger.info("message", extra={AppInsightsLogHandler.DETAILS: {"key1": "value1"}})
+    # 'key1' will be accessible thru customDimenisons.["details.key1"]
     DETAILS = str(uuid.uuid4())
 
     def __init__(self, app_insights_logger: Optional[AzureAppInsightsLogger], **kwargs):
