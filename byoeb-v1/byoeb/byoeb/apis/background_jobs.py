@@ -3,10 +3,8 @@ import os
 import asyncio
 from datetime import datetime
 import sys
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from fastapi import Request
-from fastapi.templating import Jinja2Templates
 from zoneinfo import ZoneInfo
 from byoeb.chat_app.configuration.dependency_setup import app_insights_log_handler
 
@@ -22,28 +20,20 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 
 # Import scheduler from dependency_setup
-from byoeb.chat_app.configuration.dependency_setup import scheduler, get_scheduler, start_scheduler, stop_scheduler
+from byoeb.chat_app.configuration.dependency_setup import scheduler
 
 REGISTER_API_NAME = 'background_api'
 TIMEZONE = ZoneInfo("Asia/Kolkata")
 
 background_apis_router = APIRouter()
+
+_handler = logging.StreamHandler(sys.stdout)
+_handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s: %(message)s"))
+
 _logger = logging.getLogger(REGISTER_API_NAME)
-
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s: %(message)s"))
 _logger.setLevel(logging.DEBUG)
-_logger.addHandler(handler)
+_logger.addHandler(_handler)
 _logger.addHandler(app_insights_log_handler)
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-jobs_path = os.path.join(current_dir, '..', 'background_jobs')
-jobs_path = os.path.normpath(jobs_path)
-template_dir = os.path.join(current_dir, 'ui_templates')
-templates = Jinja2Templates(directory=template_dir)
-file_path = "asha_data.xlsx"
-account_url = "https://khushibabyashastorage.blob.core.windows.net"
-container_name = "ashacontainer"
 
 # Job configuration with proper cron expressions and function references
 # ModuleNotFoundError / ImportError catches this early
@@ -158,79 +148,8 @@ def setup_scheduled_jobs():
                     "error": str(e)
                 }
 
-# Scheduler start/stop functions are now imported from dependency_setup
-# Use start_scheduler() and stop_scheduler() from dependency_setup
-
-# @background_apis_router.get("/asha_logs", response_class=HTMLResponse)
-# async def form_get(request: Request):
-#     return templates.TemplateResponse("index.html", {"request": request})
-
-# @background_apis_router.post("/asha_logs", response_class=HTMLResponse)
-# async def form_post(request: Request, start_datetime: str = Form(...), end_datetime: str = Form(...)):
-#     start = datetime.strptime(start_datetime, "%Y-%m-%dT%H:%M")
-#     end = datetime.strptime(end_datetime, "%Y-%m-%dT%H:%M")
-    
-#     start_unix = str(start.timestamp())
-#     end_unix = str(end.timestamp())
-#     media_storage = AsyncAzureBlobStorage(
-#         container_name=container_name,
-#         account_url=account_url,
-#         credentials=DefaultAzureCredential()
-#     )
-
-#     ashas_df = await fetch_daily_logs(
-#         start_timestamp=start_unix,
-#         end_timestamp=end_unix
-#     )
-    
-#     # Save to excel for download
-#     ashas_df.to_excel(file_path, index=False)
-#     blob_file_name = f"logs/{os.path.basename(file_path)}"
-#     await media_storage.adelete_file(
-#         file_name=blob_file_name
-#     )
-#     await media_storage.aupload_file(
-#         file_path=file_path,
-#         file_name=blob_file_name
-#     )
-#     await media_storage._close()
-#     # Render HTML
-#     df_html = ashas_df.to_html(classes="table table-bordered", index=False)
-#     return templates.TemplateResponse("index.html", {
-#         "request": request,
-#         "table": df_html,
-#         "show_download": True
-#     })
-
-# @background_apis_router.get("/download")
-# async def download_excel():
-#     media_storage = AsyncAzureBlobStorage(
-#         container_name=container_name,
-#         account_url=account_url,
-#         credentials=DefaultAzureCredential()
-#     )
-#     _, asha_data = await media_storage.adownload_file(
-#         file_name=f"logs/{os.path.basename(file_path)}"
-#     )
-#     await media_storage._close()
-#     stream = BytesIO(asha_data.data)  # or just use Filedata if already BytesIO
-#     return StreamingResponse(
-#         stream,
-#         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-#         headers={
-#             "Content-Disposition": "attachment; filename=downloaded.xlsx"
-#         }
-#     )
-#     # return FileResponse(
-#     #     path=file_path,
-#     #     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-#     #     filename="data.xlsx",
-#     # )
-
-# Manual start/stop endpoints removed - scheduler is now managed by FastAPI lifecycle
-
 @background_apis_router.get("/status")
-async def get_scheduler_status(request: Request):
+async def get_scheduler_status():
     """Get the status of all scheduled jobs with next run times"""
     try:
         # Get detailed job information including next run times
@@ -281,7 +200,7 @@ async def get_scheduler_status(request: Request):
         )
 
 @background_apis_router.post("/run/{job_id}")
-async def run_job_manually(request: Request, job_id: str):
+async def run_job_manually(job_id: str):
     """Manually trigger a specific job"""
     try:
         # Find the job configuration
@@ -312,7 +231,7 @@ async def run_job_manually(request: Request, job_id: str):
         )
 
 @background_apis_router.get("/jobs")
-async def list_jobs(request: Request):
+async def list_jobs():
     """List all configured jobs with next run times"""
     try:
         jobs_info = []
