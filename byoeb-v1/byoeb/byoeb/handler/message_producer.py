@@ -49,6 +49,10 @@ class QueueProducerHandler:
         channel, message_type = await self.__validate_channel_and_get_message_type(message)
         print(f"[handle] ← __validate...  out channel={channel}, message_type={message_type}")
 
+        if message_type is None:
+            print(f"[handle] ↳ branch: unsupported message type")
+            return ByoebResponseModel(status_code=ByoebStatusCodes.OK)
+
         if message_type == "status":
             print("[handle] ↳ branch: status → return OK('status update')")
             return ByoebResponseModel(
