@@ -2,150 +2,269 @@ import logging
 import os
 import asyncio
 import pytz
-import byoeb.chat_app.configuration.dependency_setup as dependency_setup
-from io import BytesIO
-from azure.identity import DefaultAzureCredential
 from datetime import datetime
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
-from fastapi import Form, Request
-from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import StreamingResponse
-from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
-from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
+from typing import Any, Optional, Dict, List
 
-# Import job functions at module level - this ensures they exist and will catch ImportErrors early
+from fastapi import APIRouter, Path
+from pydantic import BaseModel, Field
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+
+import byoeb.chat_app.configuration.dependency_setup as dependency_setup
+from byoeb.chat_app.configuration.dependency_setup import scheduler, start_scheduler, stop_scheduler
+
+# ---------------------------------------------------------
+# Router & logger setup
+# ---------------------------------------------------------
+REGISTER_API_NAME = "background_api"
+background_apis_router = APIRouter(tags=["Background Jobs"])
+_logger = logging.getLogger(REGISTER_API_NAME)
+
+# ---------------------------------------------------------
+# Shared API Response Model
+# ---------------------------------------------------------
+class APIResponse(BaseModel):
+    status: str = Field(
+        ..., description="Response status — 'success' or 'error'",
+        json_schema_extra={"example": "success"}
+    )
+    message: str = Field(
+        ..., description="Human-readable message",
+        json_schema_extra={"example": "Job executed successfully"}
+    )
+    content: Optional[Any] = Field(None, description="Optional data or payload")
+
+
+# ---------------------------------------------------------
+# Job Configuration
+# ---------------------------------------------------------
 from byoeb.background_jobs.consensus.respond_with_consensus import main as respond_with_consensus
 from byoeb.background_jobs.consensus.send_query_to_expert import main as send_query_to_expert
 from byoeb.background_jobs.message_leaderboard.leaderboard import main as message_leaderboard
 from byoeb.background_jobs.did_you_know.send_dyk import run as send_dyk
 
-# APScheduler imports for proper cron job scheduling
-from apscheduler.triggers.cron import CronTrigger
-from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
-
-# Import scheduler from dependency_setup
-from byoeb.chat_app.configuration.dependency_setup import scheduler, get_scheduler, start_scheduler, stop_scheduler
-
-REGISTER_API_NAME = 'background_api'
-
-background_apis_router = APIRouter()
-_logger = logging.getLogger(REGISTER_API_NAME)
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-jobs_path = os.path.join(current_dir, '..', 'background_jobs')
-jobs_path = os.path.normpath(jobs_path)
-template_dir = os.path.join(current_dir, 'ui_templates')
-templates = Jinja2Templates(directory=template_dir)
-file_path = "asha_data.xlsx"
-account_url = "https://khushibabyashastorage.blob.core.windows.net"
-container_name = "ashacontainer"
-
-# Job configuration with proper cron expressions and function references
-# ModuleNotFoundError / ImportError catches this early
 JOB_CONFIGURATIONS = [
     {
         "id": "consensus_responder",
         "name": "Respond with Consensus",
         "cron": "*/30 * * * *",  # Every 30 minutes
         "function": respond_with_consensus,
-        "enabled": True
+        "enabled": True,
     },
     {
         "id": "expert_query_sender",
         "name": "Send Query to Expert",
         "cron": "0 8-20 * * *",  # Every hour from 8 AM to 8 PM
         "function": send_query_to_expert,
-        "enabled": True
+        "enabled": True,
     },
     {
         "id": "message_leaderboard",
         "name": "Message Leaderboard",
-        "cron": "0 12 * * FRI",   # 12 PM every Friday
+        "cron": "0 12 * * FRI",  # 12 PM every Friday
         "function": message_leaderboard,
-        "enabled": True
+        "enabled": True,
     },
-        {
+    {
         "id": "send_dyk",
         "name": "Send DYK",
-        "cron": "0 11 * * WED#2,WED#4",
+        "cron": "0 11 * * WED#2,WED#4",  # Every 2nd and 4th Wednesday
         "function": send_dyk,
-        "enabled": True
-    }
+        "enabled": True,
+    },
 ]
 
-# Job status tracking
-job_status = {}
+# ---------------------------------------------------------
+# Job Management Utilities
+# ---------------------------------------------------------
+job_status: Dict[str, Dict[str, Any]] = {}
 
 def job_listener(event):
-    """Handle job execution events"""
+    """Handle job execution events."""
     if event.exception:
         _logger.error(f"Job {event.job_id} failed: {event.exception}")
         job_status[event.job_id] = {
             "status": "failed",
             "last_run": datetime.now().isoformat(),
-            "error": str(event.exception)
+            "error": str(event.exception),
         }
     else:
         _logger.info(f"Job {event.job_id} executed successfully")
         job_status[event.job_id] = {
             "status": "completed",
             "last_run": datetime.now().isoformat(),
-            "error": None
+            "error": None,
         }
 
-# Add event listeners
 scheduler.add_listener(job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
 
 async def execute_job_function(job_function):
-    """Execute a job function directly"""
+    """Execute a job function directly (async or sync)."""
     try:
-        # Check if function is async
         if asyncio.iscoroutinefunction(job_function):
             await job_function()
         else:
             job_function()
-
-        _logger.info(f"Successfully executed job function {job_function.__name__}")
-
+        _logger.info(f"Executed job function {job_function.__name__}")
     except Exception as e:
-        _logger.error(f"Failed to execute job function {job_function.__name__}: {str(e)}")
+        _logger.error(f"Error executing job function {job_function.__name__}: {str(e)}")
         raise
 
 def setup_scheduled_jobs():
-    """Setup all scheduled jobs"""
+    """Register all enabled jobs with the scheduler."""
     for job_config in JOB_CONFIGURATIONS:
         if job_config["enabled"]:
             try:
-                # Use CronTrigger.from_crontab with timezone support
                 scheduler.add_job(
                     execute_job_function,
-                    CronTrigger.from_crontab(
-                        job_config["cron"],
-                        timezone=pytz.timezone("Asia/Kolkata")
-                    ),
+                    CronTrigger.from_crontab(job_config["cron"], timezone=pytz.timezone("Asia/Kolkata")),
                     args=[job_config["function"]],
                     id=job_config["id"],
                     name=job_config["name"],
-                    replace_existing=True
+                    replace_existing=True,
                 )
-
                 job_status[job_config["id"]] = {
                     "status": "scheduled",
                     "last_run": None,
-                    "error": None
+                    "error": None,
                 }
-
-                _logger.info(f"Added job: {job_config['name']} with schedule: {job_config['cron']}")
-
+                _logger.info(f"Added job '{job_config['name']}' → {job_config['cron']}")
             except Exception as e:
                 _logger.error(f"Failed to setup job {job_config['id']}: {str(e)}")
                 job_status[job_config["id"]] = {
                     "status": "error",
                     "last_run": None,
-                    "error": str(e)
+                    "error": str(e),
                 }
+
+# ---------------------------------------------------------
+# API Endpoints
+# ---------------------------------------------------------
+
+@background_apis_router.get(
+    "/status",
+    summary="Get scheduler and job statuses",
+    response_model=APIResponse,
+)
+async def get_scheduler_status() -> APIResponse:
+    """
+    Returns scheduler info and job execution details.
+    Includes job next run time, status, and last execution timestamp.
+    """
+    try:
+        detailed_jobs = {}
+        for job_id, status_info in job_status.items():
+            info = status_info.copy()
+            try:
+                job = scheduler.get_job(job_id)
+                if job:
+                    info["next_run"] = job.next_run_time.isoformat() if job.next_run_time else None
+                    info["job_exists"] = True
+                else:
+                    info["next_run"] = None
+                    info["job_exists"] = False
+            except Exception as e:
+                info["error"] = str(e)
+                info["job_exists"] = False
+                _logger.warning(f"Could not retrieve job {job_id}: {str(e)}")
+            detailed_jobs[job_id] = info
+
+        scheduler_info = {
+            "running": scheduler.running,
+            "state": "running" if scheduler.running else "stopped",
+            "timezone": str(getattr(scheduler, "timezone", "UTC")),
+        }
+
+        return APIResponse(
+            status="success",
+            message="Scheduler status retrieved successfully",
+            content={
+                "scheduler": scheduler_info,
+                "jobs": detailed_jobs,
+                "total_jobs": len(detailed_jobs),
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
+    except Exception as e:
+        _logger.exception("Error in /status")
+        return APIResponse(status="error", message=str(e))
+
+
+@background_apis_router.post(
+    "/run/{job_id}",
+    summary="Run a background job manually",
+    response_model=APIResponse,
+)
+async def run_job_manually(job_id: str = Path(..., description="Job ID to trigger")) -> APIResponse:
+    """
+    Manually triggers a background job by its job_id.
+    """
+    try:
+        job_config = next((j for j in JOB_CONFIGURATIONS if j["id"] == job_id), None)
+        if not job_config:
+            return APIResponse(status="error", message=f"Job '{job_id}' not found")
+
+        await execute_job_function(job_config["function"])
+
+        return APIResponse(
+            status="success",
+            message=f"Job '{job_id}' executed successfully",
+            content={"job_id": job_id},
+        )
+    except Exception as e:
+        _logger.exception(f"Error running job {job_id}")
+        return APIResponse(status="error", message=str(e))
+
+
+@background_apis_router.get(
+    "/jobs",
+    summary="List configured jobs and schedules",
+    response_model=APIResponse,
+)
+async def list_jobs() -> APIResponse:
+    """
+    Returns a list of all configured jobs with status, schedule, and next run info.
+    """
+    try:
+        jobs_info = []
+        for job_config in JOB_CONFIGURATIONS:
+            job_id = job_config["id"]
+            status_info = job_status.get(job_id, {"status": "not_scheduled"})
+            next_run, job_exists = None, False
+            try:
+                job = scheduler.get_job(job_id)
+                if job:
+                    next_run = job.next_run_time.isoformat() if job.next_run_time else None
+                    job_exists = True
+            except Exception as e:
+                _logger.warning(f"Could not get next run time for {job_id}: {str(e)}")
+
+            jobs_info.append({
+                "id": job_id,
+                "name": job_config["name"],
+                "cron": job_config["cron"],
+                "enabled": job_config["enabled"],
+                "status": status_info.get("status", "not_scheduled"),
+                "last_run": status_info.get("last_run"),
+                "next_run": next_run,
+                "job_exists": job_exists,
+                "error": status_info.get("error"),
+            })
+
+        return APIResponse(
+            status="success",
+            message="Job list retrieved successfully",
+            content={
+                "jobs": jobs_info,
+                "total": len(jobs_info),
+                "scheduler_running": scheduler.running,
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
+    except Exception as e:
+        _logger.exception("Error in /jobs")
+        return APIResponse(status="error", message=str(e))
+
 
 # Scheduler start/stop functions are now imported from dependency_setup
 # Use start_scheduler() and stop_scheduler() from dependency_setup
@@ -218,134 +337,3 @@ def setup_scheduled_jobs():
 
 # Manual start/stop endpoints removed - scheduler is now managed by FastAPI lifecycle
 
-@background_apis_router.get("/status")
-async def get_scheduler_status(request: Request):
-    """Get the status of all scheduled jobs with next run times"""
-    try:
-        # Get detailed job information including next run times
-        detailed_jobs = {}
-
-        for job_id, status_info in job_status.items():
-            job_info = status_info.copy()
-
-            # Get the job from scheduler to get next run time
-            try:
-                job = scheduler.get_job(job_id)
-                if job:
-                    next_run_time = job.next_run_time
-                    job_info["next_run"] = next_run_time.isoformat() if next_run_time else None
-                    job_info["job_exists"] = True
-                else:
-                    job_info["next_run"] = None
-                    job_info["job_exists"] = False
-            except Exception as e:
-                _logger.warning(f"Could not get job info for {job_id}: {str(e)}")
-                job_info["next_run"] = None
-                job_info["job_exists"] = False
-                job_info["error"] = str(e)
-
-            detailed_jobs[job_id] = job_info
-
-        # Get scheduler information
-        scheduler_info = {
-            "running": scheduler.running,
-            "state": "running" if scheduler.running else "stopped",
-            "timezone": str(scheduler.timezone) if hasattr(scheduler, 'timezone') else "UTC"
-        }
-
-        return JSONResponse(
-            content={
-                "scheduler": scheduler_info,
-                "jobs": detailed_jobs,
-                "total_jobs": len(detailed_jobs),
-                "timestamp": datetime.now().isoformat()
-            },
-            status_code=200
-        )
-    except Exception as e:
-        _logger.error(f"Failed to get scheduler status: {str(e)}")
-        return JSONResponse(
-            content={"error": str(e)},
-            status_code=500
-        )
-
-@background_apis_router.post("/run/{job_id}")
-async def run_job_manually(request: Request, job_id: str):
-    """Manually trigger a specific job"""
-    try:
-        # Find the job configuration
-        job_config = next((job for job in JOB_CONFIGURATIONS if job["id"] == job_id), None)
-
-        if not job_config:
-            return JSONResponse(
-                content={"error": f"Job {job_id} not found"},
-                status_code=404
-            )
-
-        # Execute the job function
-        await execute_job_function(job_config["function"])
-
-        return JSONResponse(
-            content={
-                "message": f"Job {job_id} executed successfully",
-                "job_id": job_id
-            },
-            status_code=200
-        )
-
-    except Exception as e:
-        _logger.error(f"Failed to run job {job_id}: {str(e)}")
-        return JSONResponse(
-            content={"error": str(e)},
-            status_code=500
-        )
-
-@background_apis_router.get("/jobs")
-async def list_jobs(request: Request):
-    """List all configured jobs with next run times"""
-    try:
-        jobs_info = []
-        for job_config in JOB_CONFIGURATIONS:
-            job_id = job_config["id"]
-            status_info = job_status.get(job_id, {"status": "not_scheduled"})
-
-            # Get next run time from scheduler
-            next_run = None
-            job_exists = False
-            try:
-                job = scheduler.get_job(job_id)
-                if job:
-                    next_run_time = job.next_run_time
-                    next_run = next_run_time.isoformat() if next_run_time else None
-                    job_exists = True
-            except Exception as e:
-                _logger.warning(f"Could not get next run time for {job_id}: {str(e)}")
-
-            job_info = {
-                "id": job_id,
-                "name": job_config["name"],
-                "cron": job_config["cron"],
-                "enabled": job_config["enabled"],
-                "status": status_info.get("status", "not_scheduled"),
-                "last_run": status_info.get("last_run"),
-                "next_run": next_run,
-                "job_exists": job_exists,
-                "error": status_info.get("error")
-            }
-            jobs_info.append(job_info)
-
-        return JSONResponse(
-            content={
-                "jobs": jobs_info,
-                "total": len(jobs_info),
-                "scheduler_running": scheduler.running,
-                "timestamp": datetime.now().isoformat()
-            },
-            status_code=200
-        )
-    except Exception as e:
-        _logger.error(f"Failed to list jobs: {str(e)}")
-        return JSONResponse(
-            content={"error": str(e)},
-            status_code=500
-    )
