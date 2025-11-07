@@ -32,7 +32,6 @@ def validate_template_message(original_message):
 def validate_interactive_message(original_message):
     if isinstance(original_message, str):
         original_message = json.loads(original_message)
-    interactive_message = incoming_message.WhatsAppInteractiveMessageBody.model_validate(original_message)
     try:
         interactive_message = incoming_message.WhatsAppInteractiveMessageBody.model_validate(original_message)
         if interactive_message.entry[0].changes[0].value.messages[0].type == "interactive":
