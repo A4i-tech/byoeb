@@ -1,7 +1,7 @@
 import logging
 import json
 from typing import Any, Optional, List
-
+from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
@@ -97,30 +97,22 @@ async def receive(message: ReceiveMessageRequest = Body(...)) -> APIResponse:
 @chat_apis_router.get(
     "/get_bot_messages",
     summary="Fetch bot messages after a given timestamp",
-    response_model=APIResponse,
 )
 async def get_bot_messages(
     timestamp: str = Query(
         ..., description="Unix timestamp string to fetch messages since that time",
         json_schema_extra={"example": "1730960200"}
     )
-) -> APIResponse:
+) -> List[ByoebMessageContext]:
     """
     Retrieves all bot messages stored in the database
     after the specified timestamp.
     """
-    try:
-        responses = await dependency_setup.message_db_service.get_latest_bot_messages_by_timestamp(timestamp)
-        byoeb_response = [resp.model_dump() for resp in responses]
+    responses = await dependency_setup.message_db_service.get_latest_bot_messages_by_timestamp(timestamp)
+    byoeb_response = [resp.model_dump() for resp in responses]
 
-        return APIResponse(
-            status="success",
-            message=f"Retrieved {len(byoeb_response)} messages successfully.",
-            content=byoeb_response,
-        )
-    except Exception as e:
-        _logger.exception(f"Error in /get_bot_messages: {str(e)}")
-        return APIResponse(status="error", message=str(e))
+    return responses
+
 
 
 @chat_apis_router.delete(

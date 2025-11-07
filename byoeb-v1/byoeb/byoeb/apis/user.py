@@ -1,6 +1,6 @@
 import logging
 from typing import Any, List, Optional, Dict
-
+from byoeb_core.models.byoeb.user import User
 from fastapi import APIRouter, Body, Request, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -187,32 +187,23 @@ async def delete_users(users: List[str] = Query(
     "/get_users",
     summary="Retrieve one or more users by phone_number_id",
     tags=["Users"],
-    response_model=APIResponse,
 )
 async def get_users(
     phone_number_ids: List[str] = Query(
         ...,
         description="List of phone_number_ids (must be numeric).",
         json_schema_extra=["9982674531", "9876543210"]    )
-) -> APIResponse:
+) -> List[User]:
     """
     Retrieve user information for one or more users.
     - Accepts multiple `phone_number_id` values as query parameters.
     """
-    try:
-        response = await dependency_setup.users_handler.aget(phone_number_ids)
+    response = await dependency_setup.users_handler.aget(phone_number_ids)
+    print("Response from aget:", response.message)
 
-        return APIResponse(
-            status="success" if 200 <= response.status_code < 300 else "error",
-            message="Fetched user data successfully" if response.status_code == 200 else "Failed to fetch users",
-            content=response.message,  # actual handler output
-        )
+    return list(map(lambda x: User(**x), response.message))
 
-    except Exception as e:
-        _logger.exception(f"Error in /get_users: {str(e)}")
-        return APIResponse(status="error", message=str(e))
-
-
+    
 
 # -----------------------------
 # MCP Tool Registration
