@@ -91,4 +91,9 @@ def get_read_receipt_byoeb_messages(byoeb_messages: List[ByoebMessageContext]):
         if byoeb_message.message_category == MessageCategory.READ_RECEIPT.value
     ]
     return read_receipt_messages
-    
+
+def clean_message_for_console(message: ByoebMessageContext) -> ByoebMessageContext:
+    message = message.model_copy(deep=True)
+    if message.message_context and isinstance(message.message_context.additional_info, dict) and "data" in message.message_context.additional_info:
+        del message.message_context.additional_info["data"]
+    return message
