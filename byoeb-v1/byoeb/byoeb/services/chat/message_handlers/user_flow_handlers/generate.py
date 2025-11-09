@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+from byoeb.services.chat.utils import clean_message_for_console
 import byoeb.services.chat.constants as constants
 import re
 import byoeb.utils.utils as utils
@@ -689,9 +690,9 @@ class ByoebUserGenerateResponse(Handler):
         # print("Created expert message")
 
         # Aggregate all messages
-        print(f"[GENERATE] byoeb_user_message: {byoeb_user_message}")
-        print(f"[GENERATE] byoeb_expert_message: {byoeb_expert_message}")
-        print(f"[GENERATE] read_reciept_message: {read_reciept_message}")
+        print(f"[GENERATE] byoeb_user_message: {clean_message_for_console(byoeb_user_message)}")
+        print(f"[GENERATE] byoeb_expert_message: {clean_message_for_console(byoeb_expert_message) if byoeb_expert_message else byoeb_expert_message}")
+        print(f"[GENERATE] read_reciept_message: {clean_message_for_console(read_reciept_message)}")
         
         if byoeb_user_message is not None:
             byoeb_messages.append(byoeb_user_message)
