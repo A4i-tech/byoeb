@@ -91,12 +91,14 @@ if __name__ == '__main__':
         uvicorn.run(
             f"{module_name}:app",
             host="0.0.0.0",
-            port=8000
+            port=8000,
+            ws="websockets-sansio"
         )
     else:
         print(module_name)
         uvicorn.run(
             f"{module_name}:app",
             host="127.0.0.1",
-            port=5000
+            port=5000,
+            ws="websockets-sansio"
         )
