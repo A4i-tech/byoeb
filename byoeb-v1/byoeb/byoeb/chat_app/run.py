@@ -87,6 +87,7 @@ if __name__ == '__main__':
             log_config = yaml.safe_load(file)
         logging.config.dictConfig(log_config)
         logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.CRITICAL)
+        logging.getLogger("azure.monitor.opentelemetry.exporter.export._base").setLevel(logging.WARNING)  # suppress 'Transmission succeeded' logs
         uvicorn.run(
             f"{module_name}:app",
             host="0.0.0.0",
