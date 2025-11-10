@@ -41,35 +41,35 @@ jobs:
           path: |
             ~/.cache/pypoetry
             ~/.cache/pip
-          key: poetry-pip-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}
+          key: poetry-pip-v2-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}
           restore-keys: |
-            poetry-pip-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}
-            poetry-pip-${{ runner.os }}-
-            poetry-pip-
+            poetry-pip-v2-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}
+            poetry-pip-v2-${{ runner.os }}-
+            poetry-pip-v2-
 
       - name: Cache .venv (byoeb-core)
         uses: actions/cache@v4
         with:
           path: ./byoeb-v1/byoeb-core/.venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-core-${{ hashFiles('byoeb-v1/byoeb-core/poetry.lock') }}
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-core-v2-${{ hashFiles('byoeb-v1/byoeb-core/poetry.lock') }}
           restore-keys: |
-            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-core-
+            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-core-v2-
 
       - name: Cache .venv (byoeb)
         uses: actions/cache@v4
         with:
           path: ./byoeb-v1/byoeb/.venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-${{ hashFiles('byoeb-v1/byoeb/poetry.lock') }}
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-v2-${{ hashFiles('byoeb-v1/byoeb/poetry.lock') }}
           restore-keys: |
-            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-
+            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-v2-
 
       - name: Cache .venv (byoeb-integrations)
         uses: actions/cache@v4
         with:
           path: ./byoeb-v1/byoeb-integrations/.venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-integrations-${{ hashFiles('byoeb-v1/byoeb-integrations/poetry.lock') }}
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-integrations-v2-${{ hashFiles('byoeb-v1/byoeb-integrations/poetry.lock') }}
           restore-keys: |
-            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-integrations-
+            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-integrations-v2-
 
       - name: Install dependencies (all projects)
         run: |
