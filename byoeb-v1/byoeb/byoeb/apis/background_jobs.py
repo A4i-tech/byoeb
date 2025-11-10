@@ -123,7 +123,8 @@ def setup_scheduled_jobs():
                     args=[job_config["function"]],
                     id=job_config["id"],
                     name=job_config["name"],
-                    replace_existing=True
+                    replace_existing=True,
+                    misfire_grace_time=60
                 )
 
                 job_status[job_config["id"]] = {
