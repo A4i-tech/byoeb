@@ -42,29 +42,6 @@ class APIResponse(BaseModel):
 
 
 # ---------------------------------------------------------
-# Request Models
-# ---------------------------------------------------------
-
-class ReceiveMessageRequest(BaseModel):
-    sender_phone_number: str = Field(
-        ..., description="Phone number of the sender",
-        json_schema_extra={"example": "918273645123"}
-    )
-    message_text: str = Field(
-        ..., description="Text message sent by the user",
-        json_schema_extra={"example": "What are the vaccination days this week?"}
-    )
-    source: Optional[str] = Field(
-        "whatsapp", description="Message source (e.g., whatsapp, ivr, sms)",
-        json_schema_extra={"example": "whatsapp"}
-    )
-    timestamp: Optional[str] = Field(
-        None, description="Unix timestamp string when the message was received",
-        json_schema_extra={"example": "1730960200"}
-    )
-
-
-# ---------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------
 @chat_apis_router.post(
@@ -117,9 +94,8 @@ async def get_bot_messages(
 @chat_apis_router.delete(
     "/delete_message_collection",
     summary="Delete all message collections from the database",
-    response_model=APIResponse,
 )
-async def delete_collection() -> APIResponse:
+async def delete_collection() -> JSONResponse:
     """
     Deletes the message collection from the message database.
     Returns whether the deletion was successful.
