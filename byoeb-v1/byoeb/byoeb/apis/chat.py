@@ -1,6 +1,6 @@
 import logging
 import json
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Dict
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from byoeb_core.models.byoeb.message_context import (
@@ -14,6 +14,7 @@ from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
 from byoeb.utils.utils import mcp_get_phone_number
 from fastapi import APIRouter, Query, Body
 from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
 
 # ---------------------------------------------------------
 # Setup
@@ -66,32 +67,32 @@ class ReceiveMessageRequest(BaseModel):
 # ---------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------
-
 @chat_apis_router.post(
     "/receive",
     summary="Handle incoming WhatsApp messages",
     response_model=APIResponse,
 )
-async def receive(message: ReceiveMessageRequest = Body(...)) -> APIResponse:
+async def receive(body: Dict[str, Any] = Body(..., description="Raw WhatsApp webhook payload")) -> APIResponse:
     """
     Handles an incoming WhatsApp message from a user.
     The message is processed by the message_producer_handler.
     """
     try:
-        body = message.dict(exclude_unset=True)
-        _logger.info(f"Received the request: {json.dumps(body, ensure_ascii=False)}")
+        _logger.info(f"Received WhatsApp request: {json.dumps(body, ensure_ascii=False)}")
 
         response = await dependency_setup.message_producer_handler.handle(body)
-        _logger.info(f"Response: {response}")
+        _logger.info(f"Handler response: {response}")
 
         return APIResponse(
             status="success" if 200 <= response.status_code < 300 else "error",
             message=response.message if isinstance(response.message, str) else str(response.message),
             content=body,
         )
+
     except Exception as e:
         _logger.exception(f"Error in /receive: {str(e)}")
         return APIResponse(status="error", message=str(e))
+
 
 
 @chat_apis_router.get(
@@ -109,8 +110,6 @@ async def get_bot_messages(
     after the specified timestamp.
     """
     responses = await dependency_setup.message_db_service.get_latest_bot_messages_by_timestamp(timestamp)
-    byoeb_response = [resp.model_dump() for resp in responses]
-
     return responses
 
 
@@ -125,20 +124,26 @@ async def delete_collection() -> APIResponse:
     Deletes the message collection from the message database.
     Returns whether the deletion was successful.
     """
-    try:
-        response, e = await dependency_setup.message_db_service.delete_message_collection()
+    
+    response, e = await dependency_setup.message_db_service.delete_message_collection()
 
-        if response:
-            return APIResponse(status="success", message="Successfully deleted message collection.")
-        elif not response and e is None:
-            return APIResponse(status="error", message="Failed to delete message collection.")
-        else:
-            return APIResponse(status="error", message=f"Error during deletion: {e}")
+    if response == True:
+        return JSONResponse(
+            content="Successfully deleted",
+            status_code=200
+        )
+    elif response == False and e is None:
+        return JSONResponse(
+            content="Failed to delete",
+            status_code=500
+        )
+    elif e is not None:
+        return JSONResponse(
+            content=f"Error: {e}",
+            status_code=500
+        )
 
-    except Exception as e:
-        _logger.exception(f"Error in /delete_message_collection: {str(e)}")
-        return APIResponse(status="error", message=str(e))
-
+    
 
 # ---------------------------------------------------------
 # MCP Tool

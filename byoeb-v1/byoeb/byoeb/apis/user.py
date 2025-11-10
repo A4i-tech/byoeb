@@ -4,7 +4,7 @@ from byoeb_core.models.byoeb.user import User
 from fastapi import APIRouter, Body, Request, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-
+from byoeb_core.models.byoeb.response import ByoebStatusCodes
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from byoeb.constants.user_enums import LanguageCode, UserType
 from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
@@ -65,9 +65,7 @@ class User_Phone(BaseModel):
 
 @user_apis_router.post(
     "/register_users",
-    summary="Register one or more users",
-    response_model=APIResponse,
-)
+    summary="Register one or more users",)
 async def register_users(
     users: List[UserRegister] = Body(
         ...,
@@ -92,7 +90,7 @@ async def register_users(
             },
         },
     ),
-) -> APIResponse:
+) -> List[User]:
     """
     Registers one or more users.
 
@@ -100,19 +98,12 @@ async def register_users(
     - Other fields like `block`, `sector`, `sub_center` are optional.
     - Calls the async handler `users_handler.aregister` with validated payload.
     """
-    try:
-        payload = [u.dict(exclude_unset=True) for u in users]
-        response = await dependency_setup.users_handler.aregister(payload)
+    payload = [u.dict(exclude_unset=True) for u in users]
+    response = await dependency_setup.users_handler.aregister(payload)
+    if response.status_code == ByoebStatusCodes.OK.value:
+        return [User(**x) for x in response.message]
 
-        return APIResponse(
-            status="success" if 200 <= response.status_code < 300 else "error",
-            message=response.message if isinstance(response.message, str) else str(response.message),
-            content=payload,
-        )
-
-    except Exception as e:
-        _logger.exception(f"Error in /register_users: {str(e)}")
-        return APIResponse(status="error", message=str(e))
+    return JSONResponse(content=response.message, status_code=response.status_code)
 
 
 @user_apis_router.post(
@@ -148,23 +139,24 @@ async def update_users(
         payload = [u.dict(exclude_unset=True) for u in users]
         response = await dependency_setup.users_handler.aupdate(payload)
 
-        return APIResponse(
-            status="success" if 200 <= response.status_code < 300 else "error",
-            message=response.message if isinstance(response.message, str) else str(response.message),
-            content=payload,
+        return JSONResponse(
+            content=response.message,
+            status_code=response.status_code
         )
 
     except Exception as e:
         _logger.exception(f"Error in /update_users: {str(e)}")
-        return APIResponse(status="error", message=str(e))
-
-
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500
+        )
+       
 @user_apis_router.delete(
     "/delete_users",
     summary="Delete one or more users",
     response_model=APIResponse,
 )
-async def delete_users(users: List[str] = Query(
+async def delete_users(users: List[str] = Body(
         ...,
         description="List of phone_number_ids (must be numeric).",
         json_schema_extra=["9982674531", "9876543210"]    )) -> APIResponse:
@@ -189,7 +181,7 @@ async def delete_users(users: List[str] = Query(
     tags=["Users"],
 )
 async def get_users(
-    phone_number_ids: List[str] = Query(
+    phone_number_ids: List[str] = Body(
         ...,
         description="List of phone_number_ids (must be numeric).",
         json_schema_extra=["9982674531", "9876543210"]    )
