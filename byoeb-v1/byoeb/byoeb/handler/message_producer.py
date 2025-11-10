@@ -1,9 +1,12 @@
+import json
 import logging
 import traceback
+import byoeb_core.models.whatsapp.incoming as incoming_message
 import byoeb_integrations.channel.whatsapp.validate_message as wa_validator
 from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
 from typing import Any
 from byoeb.factory import QueueProducerFactory
+from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
 from byoeb.services.chat.message_producer import MessageProducerService
 from byoeb_core.models.byoeb.response import ByoebResponseModel, ByoebStatusCodes
 
@@ -55,9 +58,17 @@ class QueueProducerHandler:
 
         if message_type == "status":
             print("[handle] ↳ branch: status → return OK('status update')")
+            status_message = incoming_message.WhatsAppStatusMessageBody.model_validate(message)
+            status = status_message.entry[0].changes[0].value.statuses[0].model_dump()
+            app_insights_logger.add_log(event_name="wa_transmission_status", details={
+                "id": status["id"],
+                "status": status["status"],
+                "timestamp": str(status["timestamp"]),
+                "errors": json.dumps(status["errors"] or [])
+            })
             return ByoebResponseModel(
                 status_code=ByoebStatusCodes.OK,
-                message="status update"
+                message={"id": status["id"], "status": status["status"]}
             )
 
         if not channel:
