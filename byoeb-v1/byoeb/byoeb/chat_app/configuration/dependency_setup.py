@@ -229,17 +229,18 @@ from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEm
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 
 # Allow environment variables to override config file values
-azure_search_doc_index_name = os.getenv("AZURE_SEARCH_INDEX_NAME") or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
-azure_search_service_name = os.getenv("AZURE_SEARCH_SERVICE_NAME") or app_config["vector_store"]["azure_vector_search"]["service_name"]
+azure_search_doc_index_name = env_config.env_azure_search_index_name or os.getenv("AZURE_SEARCH_INDEX_NAME") or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
+azure_search_service_name = env_config.env_azure_search_service_name or os.getenv("AZURE_SEARCH_SERVICE_NAME") or app_config["vector_store"]["azure_vector_search"]["service_name"]
 print(f"🔍 Azure Search Configuration: service_name={azure_search_service_name}, index_name={azure_search_doc_index_name}")
-# git_root _dir = byoeb_utils.get_git_root_path()
+# git_root_dir = byoeb_utils.get_git_root_path()
 # vector_db_path = os.path.join(git_root_dir, "../vector_db")
 
 # Prioritize staging env vars (AZURE_OPENAI_*) over app_config.json
 embedding_deployment_name = env_config.env_azure_openai_deployment_name or app_config["embeddings"]["azure"]["deployment_name"]
 embedding_endpoint = env_config.env_azure_openai_endpoint or app_config["embeddings"]["azure"]["endpoint"]
-# Priority: 1. AZURE_OPENAI_KEY (staging), 2. AZURE_OPENAI_WHISPER_KEY, 3. Token provider
-embedding_api_key = env_config.env_azure_openai_key or env_config.env_azure_openai_whisper_key
+# env_azure_openai_key already includes fallback to AZURE_OPENAI_WHISPER_KEY in config.py
+# Priority: 1. AZURE_OPENAI_KEY (staging), 2. AZURE_OPENAI_WHISPER_KEY (via config), 3. Token provider
+embedding_api_key = env_config.env_azure_openai_key
 
 if embedding_api_key:
     print("✅ Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")

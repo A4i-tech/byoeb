@@ -17,9 +17,8 @@ aoai_endpoint = env_config.env_azure_openai_endpoint or app_config["embeddings"]
 cognitive_services_endpoint = app_config["app"]["azure_cognitive_endpoint"]
 api_version = app_config["embeddings"]["azure"]["api_version"]
 default_credential = DefaultAzureCredential()
-token_provider = get_bearer_token_provider(default_credential, cognitive_services_endpoint)
 
-# Use environment variables if available, otherwise fall back to app_config
+# Azure Search Service Configuration - use environment variables if set, otherwise fallback to app_config.json
 azure_search_service_name = env_config.env_azure_search_service_name or app_config["vector_store"]["azure_vector_search"]["service_name"]
 azure_search_doc_index_name = env_config.env_azure_search_index_name or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
 
@@ -31,7 +30,8 @@ llm_client = AsyncLLamaIndexOpenAILLM(
 )
 
 # Azure OpenAI Embed with fallback for token provider
-# Priority: 1. AZURE_OPENAI_KEY (staging), 2. AZURE_COGNITIVE_KEY, 3. Token provider
+# env_azure_openai_key already includes fallback to AZURE_OPENAI_WHISPER_KEY in config.py
+# Priority: 1. AZURE_OPENAI_KEY (staging), 2. AZURE_OPENAI_WHISPER_KEY (via config), 3. AZURE_COGNITIVE_KEY, 4. Token provider
 api_key = env_config.env_azure_openai_key or env_config.env_azure_cognitive_key
 
 if api_key:
@@ -44,12 +44,13 @@ if api_key:
         api_version=api_version
     )
 else:
-    # Fallback to token provider with default credentials
+    # Last resort: use token provider with default credentials
+    azure_openai_token_provider = get_bearer_token_provider(default_credential, "https://cognitiveservices.azure.com/.default")
     azure_openai_embed = AzureOpenAIEmbed(
         model=model,
         deployment_name=deployment_name,
         azure_endpoint=aoai_endpoint,
-        token_provider=token_provider,
+        token_provider=azure_openai_token_provider,
         api_version=api_version
     )
 
@@ -68,7 +69,7 @@ else:
         credentials=DefaultAzureCredential()
     )
 
-# Azure Vector Store with fallback
+# Azure Vector Store - use API key if available, otherwise use credentials
 if env_config.env_azure_search_api_key:
     # Use API key if available
     vector_store = AzureVectorStore(
