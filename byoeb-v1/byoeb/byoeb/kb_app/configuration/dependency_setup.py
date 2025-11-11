@@ -7,18 +7,21 @@ from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search im
 from byoeb_integrations.llms.llama_index.llama_index_openai import AsyncLLamaIndexOpenAILLM
 from byoeb_core.media_storage.base import BaseMediaStorage
 
-account_url = app_config["media_storage"]["azure"]["account_url"]
-container_name = app_config["media_storage"]["azure"]["container_name"]
+# Use environment variables if available, otherwise fall back to app_config
+account_url = env_config.env_azure_storage_account_url or app_config["media_storage"]["azure"]["account_url"]
+container_name = env_config.env_azure_storage_container_name or app_config["media_storage"]["azure"]["container_name"]
 model = app_config["embeddings"]["azure"]["model"]
-deployment_name = app_config["embeddings"]["azure"]["deployment_name"]
-aoai_endpoint = app_config["embeddings"]["azure"]["endpoint"]
+# Prioritize staging env vars (AZURE_OPENAI_*) over app_config.json
+deployment_name = env_config.env_azure_openai_deployment_name or app_config["embeddings"]["azure"]["deployment_name"]
+aoai_endpoint = env_config.env_azure_openai_endpoint or app_config["embeddings"]["azure"]["endpoint"]
 cognitive_services_endpoint = app_config["app"]["azure_cognitive_endpoint"]
 api_version = app_config["embeddings"]["azure"]["api_version"]
 default_credential = DefaultAzureCredential()
 token_provider = get_bearer_token_provider(default_credential, cognitive_services_endpoint)
 
-azure_search_service_name = app_config["vector_store"]["azure_vector_search"]["service_name"]
-azure_search_doc_index_name = app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
+# Use environment variables if available, otherwise fall back to app_config
+azure_search_service_name = env_config.env_azure_search_service_name or app_config["vector_store"]["azure_vector_search"]["service_name"]
+azure_search_doc_index_name = env_config.env_azure_search_index_name or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
 
 llm_client = AsyncLLamaIndexOpenAILLM(
     model=app_config["llms"]["openai"]["model"],
@@ -28,13 +31,16 @@ llm_client = AsyncLLamaIndexOpenAILLM(
 )
 
 # Azure OpenAI Embed with fallback for token provider
-if env_config.env_azure_cognitive_key:
-    # Use API key if available
+# Priority: 1. AZURE_OPENAI_KEY (staging), 2. AZURE_COGNITIVE_KEY, 3. Token provider
+api_key = env_config.env_azure_openai_key or env_config.env_azure_cognitive_key
+
+if api_key:
+    # Use API key if available (prioritize AZURE_OPENAI_KEY for staging)
     azure_openai_embed = AzureOpenAIEmbed(
         model=model,
         deployment_name=deployment_name,
         azure_endpoint=aoai_endpoint,
-        api_key=env_config.env_azure_cognitive_key,
+        api_key=api_key,
         api_version=api_version
     )
 else:

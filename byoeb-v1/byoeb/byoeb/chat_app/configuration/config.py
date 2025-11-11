@@ -53,3 +53,8 @@ env_azure_openai_whisper_key= os.getenv("AZURE_OPENAI_WHISPER_KEY")
 # Azure Search
 env_azure_search_api_key = os.getenv("AZURE_SEARCH_API_KEY")
 
+# Azure OpenAI (optional - for staging/override of app_config.json)
+env_azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+env_azure_openai_deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
+env_azure_openai_key = os.getenv("AZURE_OPENAI_KEY")
+

@@ -26,9 +26,18 @@ env_openai_org_id = os.getenv("OPENAI_ORG_ID")
 
 # Azure Storage
 env_azure_storage_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+env_azure_storage_account_url = os.getenv("AZURE_STORAGE_ACCOUNT_URL")
+env_azure_storage_container_name = os.getenv("AZURE_STORAGE_CONTAINER_NAME")
 
 # Azure Search (optional - for API key authentication)
 env_azure_search_api_key = os.getenv("AZURE_SEARCH_API_KEY")
+env_azure_search_service_name = os.getenv("AZURE_SEARCH_SERVICE_NAME")
+env_azure_search_index_name = os.getenv("AZURE_SEARCH_INDEX_NAME")
 
 # Azure Cognitive Services (optional - for API key authentication)
 env_azure_cognitive_key = os.getenv("AZURE_COGNITIVE_KEY")
+
+# Azure OpenAI (optional - for staging/override of app_config.json)
+env_azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+env_azure_openai_deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
+env_azure_openai_key = os.getenv("AZURE_OPENAI_KEY")
