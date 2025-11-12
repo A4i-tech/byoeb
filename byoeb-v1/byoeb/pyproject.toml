@@ -12,7 +12,6 @@ aiocache = "0.12.3"
 byoeb-integrations = {git = "https://github.com/A4i-tech/byoeb.git", branch = "reduce-log-spam", subdirectory = "byoeb-v1/byoeb-integrations"}
 azure-monitor-opentelemetry = "1.6.7"
 azure-monitor-events-extension = "0.1.0"
-notebook = "7.3.3"
 croniter = "6.0.0"
 rapidfuzz = "3.13.0"
 python-multipart = "0.0.20"
