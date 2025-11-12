@@ -1,0 +1,20 @@
+{
+    "path": "dyk.csv",
+    "user_types_to_send": [],
+    "languages": [
+        {
+            "language": "en",
+            "template": [
+                "💡 *Did you know?*",
+                "{message}"
+            ]
+        },
+        {
+            "language": "hi",
+            "template": [
+                "💡 *क्या आपको पता है?*",
+                "{message}"
+            ]
+        }
+    ]
+}

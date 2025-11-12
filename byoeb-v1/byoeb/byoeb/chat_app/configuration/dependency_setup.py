@@ -96,8 +96,22 @@ user_db_service = UserMongoDBService(
 )
 message_db_service = MessageMongoDBService(
     config=app_config,
-    mongo_db_factory=mongo_db_factory
+    mongo_db_factory=mongo_db_factory,
+    user_db_service=user_db_service  # Pass user_db_service for leaderboard functionality
 )
+
+# Leaderboard service functions
+from byoeb.services.leaderboard import LeaderboardService
+from typing import Optional
+
+_leaderboard_service: Optional[LeaderboardService] = None
+
+async def get_leaderboard_service() -> LeaderboardService:
+    """Get or create leaderboard service instance."""
+    global _leaderboard_service
+    if _leaderboard_service is None:
+        _leaderboard_service = LeaderboardService(user_db_service, message_db_service)
+    return _leaderboard_service
 
 # message queue
 queue_producer_factory = QueueProducerFactory(
@@ -214,18 +228,24 @@ import os
 from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 
-azure_search_doc_index_name = app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
-azure_search_service_name = app_config["vector_store"]["azure_vector_search"]["service_name"]
+# Azure Search configuration: use environment variables if set, otherwise fall back to config file
+azure_search_service_name = env_config.env_azure_search_service_name or app_config["vector_store"]["azure_vector_search"]["service_name"]
+azure_search_doc_index_name = env_config.env_azure_search_index_name or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
 # git_root_dir = byoeb_utils.get_git_root_path()
 # vector_db_path = os.path.join(git_root_dir, "../vector_db")
 
-if env_config.env_azure_openai_whisper_key:
+# Use environment variables for Azure OpenAI endpoint and deployment if set, otherwise fallback to app_config.json
+azure_openai_endpoint = env_config.env_azure_openai_endpoint or app_config["embeddings"]["azure"]["endpoint"]
+azure_openai_deployment_name = env_config.env_azure_openai_deployment_name or app_config["embeddings"]["azure"]["deployment_name"]
+
+if env_config.env_azure_openai_whisper_key or env_config.env_azure_openai_key:
     print("✅ Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
+    azure_openai_key = env_config.env_azure_openai_key or env_config.env_azure_openai_whisper_key
     azure_openai_embed = AzureOpenAIEmbed(
     model=app_config["embeddings"]["azure"]["model"],
-    deployment_name=app_config["embeddings"]["azure"]["deployment_name"],
-    azure_endpoint=app_config["embeddings"]["azure"]["endpoint"],
-    api_key=env_config.env_azure_openai_whisper_key,
+    deployment_name=azure_openai_deployment_name,
+    azure_endpoint=azure_openai_endpoint,
+    api_key=azure_openai_key,
     api_version=app_config["embeddings"]["azure"]["api_version"]
     )
 else:
@@ -236,8 +256,8 @@ else:
     )
     azure_openai_embed = AzureOpenAIEmbed(
     model=app_config["embeddings"]["azure"]["model"],
-    deployment_name=app_config["embeddings"]["azure"]["deployment_name"],
-    azure_endpoint=app_config["embeddings"]["azure"]["endpoint"],
+    deployment_name=azure_openai_deployment_name,
+    azure_endpoint=azure_openai_endpoint,
     token_provider=token_provider,
     api_version=app_config["embeddings"]["azure"]["api_version"]
 )
@@ -337,3 +357,48 @@ elif account_url:
 else:
     media_storage = None
     print("⚠️ Azure Blob Storage not configured. Media storage disabled.")
+
+# Scheduler configuration
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.jobstores.mongodb import MongoDBJobStore
+from apscheduler.executors.asyncio import AsyncIOExecutor
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+import pymongo
+from byoeb.chat_app.configuration.config import env_mongo_db_connection_string
+
+# MongoDB connection configuration for scheduler job store
+MONGODB_URL = env_mongo_db_connection_string
+MONGODB_DATABASE = app_config["databases"]["mongo_db"]["database_name"]
+MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
+
+# Initialize MongoDB client and job store
+mongodb_client = pymongo.MongoClient(MONGODB_URL)
+mongodb_jobstore = MongoDBJobStore(
+    database=MONGODB_DATABASE,
+    collection=MONGODB_COLLECTION,
+    client=mongodb_client
+)
+
+# Initialize the scheduler with MongoDB job store
+scheduler = AsyncIOScheduler(
+    jobstores={'default': mongodb_jobstore},
+    executors={'default': AsyncIOExecutor()},
+    job_defaults={'coalesce': False, 'max_instances': 1}
+)
+
+def get_scheduler() -> AsyncIOScheduler:
+    """Get the scheduler instance."""
+    return scheduler
+
+def start_scheduler():
+    """Start the scheduler."""
+    if not scheduler.running:
+        scheduler.start()
+        print("✅ Background job scheduler started")
+
+def stop_scheduler():
+    """Stop the scheduler."""
+    if scheduler.running:
+        scheduler.shutdown()
+        print("✅ Background job scheduler stopped")

@@ -7,8 +7,7 @@ from byoeb_core.models.byoeb.response import ByoebResponseModel, ByoebStatusCode
 from byoeb_core.models.byoeb.user import User 
 from byoeb.chat_app.configuration.config import app_config, bot_config
 from byoeb.factory import MongoDBFactory
-from byoeb_core.databases.mongo_db.base import BaseDocumentCollection
-from byoeb_integrations.databases.mongo_db.azure.async_azure_cosmos_mongo_db import AsyncAzureCosmosMongoDB, AsyncAzureCosmosMongoDBCollection
+from byoeb.repositories.repository_factory import RepositoryFactory
 
 class UsersHandler:
     _user_service = None
@@ -47,23 +46,15 @@ class UsersHandler:
                 return False
         return True
 
-    async def get_collection_client(self) -> BaseDocumentCollection:
-        if self.__user_collection_client is not None:
-            return self.__user_collection_client
-        self.__mongo_db = await self.__mongo_db_facory.get(self.__db_provider)
-        if isinstance(self.__mongo_db, AsyncAzureCosmosMongoDB):
-            self.__user_collection_client = AsyncAzureCosmosMongoDBCollection(
-                collection=self.__mongo_db.get_collection(self.__user_collection)
-            )
-        return self.__user_collection_client
+    async def get_user_repository(self):
+        repository_factory = RepositoryFactory(self.__mongo_db_facory)
+        return await repository_factory.get_user_repository()
     
     async def get_or_create_user_service(self) -> UserService:
         if self._user_service is not None:
             return self._user_service
-        self._user_service = UserService(
-            collection_client=await self.get_collection_client(),
-            bot_config=bot_config
-        )
+        user_repository = await self.get_user_repository()
+        self._user_service = UserService(user_repository=user_repository, bot_config=bot_config)
         return self._user_service
     
     async def aregister(
@@ -73,6 +64,7 @@ class UsersHandler:
         user_svc = await self.get_or_create_user_service()
         byoeb_users = []
         byoeb_messages = []
+        
         for user in data:
             byoeb_user = User(**user)
             expert_numbers = user_utils.get_experts_numbers(byoeb_user.experts)
@@ -162,13 +154,91 @@ class UsersHandler:
             status_code=ByoebStatusCodes.OK.value,
             message=results
         )
-    
     async def aupdate(
         self,
-        data: str
-    ):
-        user_collection_client = await self.get_collection_client()
-        
+        data: list
+    ) -> ByoebResponseModel:
+        if not isinstance(data, list):
+            return ByoebResponseModel(
+                status_code=ByoebStatusCodes.BAD_REQUEST.value,
+                message="Input data must be a list of user objects."
+            )
+
+        user_svc = await self.get_or_create_user_service()
+        byoeb_messages = []
+        updated_users = []
+        phone_number_ids=[]
+        for i in data:
+        	phone_number_ids.append(i["phone_number_id"])
+        results = await user_svc.aget(
+            phone_number_ids=phone_number_ids)
+        print("start",results, "end")
+        response={}
+        for x in results:
+        	response[x["phone_number_id"]]=x
+
+        for x in range(len(response)):
+        	if data[x]["phone_number_id"] in response.keys():
+        		data[x]["user_id"]=str(response[data[x]["phone_number_id"]]["user_id"])
+        		for i in response[data[x]["phone_number_id"]]:
+        			if i not in data[x]:
+        	        	        	data[x][i]=response[data[x]["phone_number_id"]][i]
+        	else:
+        		byoeb_messages.append(
+                        user_utils.get_register_message(
+                            byoeb_user,
+                            ErrorMessage.PHONE_NUMBER_NOT_PRESENT.value
+                        )
+                    )
+       
+        for user_data in data:
+            try:
+                byoeb_user = User(**user_data)
+                if byoeb_user.phone_number_id is None:
+                    byoeb_messages.append(
+                        user_utils.get_register_message(
+                            byoeb_user,
+                            ErrorMessage.PHONE_NUMBER_ID_REQUIRED.value
+                        )
+                    )
+                    continue
+                if len(results)==0:
+                    byoeb_messages.append(
+                        user_utils.get_register_message(
+                            byoeb_user,
+                            ErrorMessage.PHONE_NUMBER_NOT_PRESENT.value
+                        )
+                    )
+                    continue
+
+                # Validation: phone_number_id is mandatory
+                if byoeb_user.phone_number_id is None:
+                    byoeb_messages.append(
+                        user_utils.get_register_message(
+                            byoeb_user,
+                            ErrorMessage.PHONE_NUMBER_ID_REQUIRED.value
+                        )
+                    )
+                    continue
+                await user_svc.aupdate(byoeb_user)
+                updated_users.append(byoeb_user.phone_number_id)
+
+            except Exception as e:
+                byoeb_messages.append({
+                    "phone_number_id": user_data.get("phone_number_id", None),
+                    "message": f"Error updating user: {str(e)}"
+                })
+        # Return aggregated response
+        if byoeb_messages:
+            return ByoebResponseModel(
+                status_code=ByoebStatusCodes.BAD_REQUEST.value,
+                message=byoeb_messages
+            )
+
+        return ByoebResponseModel(
+            status_code=ByoebStatusCodes.OK.value,
+            message=f"Successfully updated users: {updated_users}"
+        )   
     async def aget(
         self,
         phone_number_ids: Any

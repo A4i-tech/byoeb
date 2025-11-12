@@ -35,7 +35,7 @@ def get_language_code(language):
 def get_consent(choice):
     if choice in YES_SET:
         return True
-    if choice in NO_SET:
+    elif choice in NO_SET:
         return False
     return None
 
@@ -69,7 +69,6 @@ def create_user_selection_message(
     payload = MESSAGE_DICT[user_lang]
     text_message = payload["text"]
     text_options = payload["options"]
-
     message_type = MessageTypes.INTERACTIVE_BUTTON.value
     button_additional_info = {
         chat_const.BUTTON_TITLES: text_options,
@@ -90,6 +89,7 @@ def create_language_selection_message(
     message: ByoebMessageContext
 ) -> ByoebMessageContext:
     text_message = "अपनी भाषा का चयन करें।\nतुमची भाषा निवडा\nSelect your language\nమీ భాషను ఎంచుకోండి"
+    lang_list = ["हिंदी", "मराठी", "English", "తెలుగు"]
     interactive_list_additional_info = {
         chat_const.DESCRIPTION: "भाषा चुनें:",
         chat_const.ROW_TEXTS: LANGUAGE_DISPLAY_NAMES,
@@ -111,6 +111,7 @@ def map_user_type(user_type: Optional[str]) -> Optional[str]:
     if user_type is None:
         return None
     return UserType.ASHA.value if user_type.lower() == UserType.OTHERS.value else user_type
+
 
 def create_consent_message(
     message: ByoebMessageContext,

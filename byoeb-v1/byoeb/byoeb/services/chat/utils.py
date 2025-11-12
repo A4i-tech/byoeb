@@ -67,10 +67,22 @@ def get_expert_byoeb_messages(byoeb_messages: List[ByoebMessageContext]):
 
 def get_user_byoeb_messages(byoeb_messages: List[ByoebMessageContext]):
     regular_user_type = bot_config["regular"]["user_type"]
-    user_messages = [
-        byoeb_message for byoeb_message in byoeb_messages 
-        if byoeb_message.user is not None and byoeb_message.user.user_type == regular_user_type
-    ]
+    print(f"[get_user_byoeb_messages] DEBUG: regular_user_type={regular_user_type}")
+    print(f"[get_user_byoeb_messages] DEBUG: Processing {len(byoeb_messages)} messages")
+
+    user_messages = []
+    for i, byoeb_message in enumerate(byoeb_messages):
+        print(f"[get_user_byoeb_messages] DEBUG: Message {i}: user={byoeb_message.user}")
+        if byoeb_message.user is not None:
+            print(f"[get_user_byoeb_messages] DEBUG: Message {i}: user_type={byoeb_message.user.user_type}")
+            print(f"[get_user_byoeb_messages] DEBUG: Message {i}: user_type in regular_user_type={byoeb_message.user.user_type in regular_user_type}")
+            if byoeb_message.user.user_type in regular_user_type:
+                user_messages.append(byoeb_message)
+                print(f"[get_user_byoeb_messages] DEBUG: Message {i}: ADDED to user_messages")
+        else:
+            print(f"[get_user_byoeb_messages] DEBUG: Message {i}: user is None")
+
+    print(f"[get_user_byoeb_messages] DEBUG: Final user_messages count={len(user_messages)}")
     return user_messages
 
 def get_read_receipt_byoeb_messages(byoeb_messages: List[ByoebMessageContext]):
