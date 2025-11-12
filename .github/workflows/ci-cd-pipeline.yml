@@ -55,8 +55,8 @@ jobs:
     uses: ./.github/workflows/unit-test.yml
 
   notify-unit-test-failure:
-    needs: [build, unit-tests]
-    if: always() && needs.build.result == 'success' && needs.unit-tests.outputs.tests-passed == 'false' && github.event_name != 'pull_request'
+    needs: unit-tests
+    if: always() && needs.unit-tests.outputs.tests-passed == 'false' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Send failure notification
@@ -69,11 +69,32 @@ jobs:
             "$TEAMS_WEBHOOK_URL" || true
         continue-on-error: true
 
-  # Step 3: Publish Staging Docker Image (only if unit tests passed)
+  # Step 3: Integration Tests (builds and validates Docker image end-to-end)
+  integration-tests:
+    needs: build
+    uses: ./.github/workflows/integration-test.yml
+    secrets: inherit
+
+  notify-integration-test-failure:
+    needs: integration-tests
+    if: always() && needs.integration-tests.outputs.tests-passed == 'false' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure notification
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: |
+          if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
+          curl -X POST -H "Content-Type: application/json" \
+            -d '{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"FF0000","summary":"❌ Pipeline Stage Failed","sections":[{"activityTitle":"❌ Pipeline Stage Failed","facts":[{"name":"Stage","value":"Integration Tests"},{"name":"Branch","value":"${{ github.ref_name }}"},{"name":"Commit","value":"${{ github.sha }}"},{"name":"Workflow","value":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]}]}' \
+            "$TEAMS_WEBHOOK_URL" || true
+        continue-on-error: true
+
+  # Step 4: Publish Staging Docker Image (only if tests passed)
   # Uses Docker layer caching from build step for fast builds
   publish-staging-image:
-    needs: unit-tests
-    if: success() && needs.unit-tests.outputs.tests-passed == 'true' && github.event_name == 'push' && (github.ref_name == 'a4i/main' || github.ref_name == 'a4i/main-CD-1')
+    needs: [unit-tests, integration-tests]
+    if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.integration-tests.outputs.tests-passed == 'true' && github.event_name == 'push' && (github.ref_name == 'a4i/main' || github.ref_name == 'a4i/main-CD-1')
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
@@ -149,7 +170,7 @@ jobs:
             "$TEAMS_WEBHOOK_URL" || true
         continue-on-error: true
 
-  # Step 4: Deploy to Render Staging
+  # Step 5: Deploy to Render Staging
   deploy-staging:
     needs: [unit-tests, publish-staging-image]
     if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.publish-staging-image.result == 'success'
@@ -189,35 +210,10 @@ jobs:
             "$TEAMS_WEBHOOK_URL" || true
         continue-on-error: true
 
-  # Step 5: Run Integration Tests (after staging deployment)
-  integration-tests:
-    needs: [deploy-staging, publish-staging-image]
-    uses: ./.github/workflows/integration-test.yml
-    secrets: inherit
-    with:
-      image: ${{ needs.publish-staging-image.outputs['image-ref'] }}
-      registry: ${{ needs.publish-staging-image.outputs.registry }}
-      staging-url: ${{ needs.deploy-staging.outputs.service_url }}
-
-  notify-integration-test-failure:
-    needs: [deploy-staging, integration-tests]
-    if: always() && needs.deploy-staging.result == 'success' && needs.integration-tests.outputs.tests-passed == 'false'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send failure notification
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: |
-          if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
-          curl -X POST -H "Content-Type: application/json" \
-            -d '{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"FF0000","summary":"❌ Pipeline Stage Failed","sections":[{"activityTitle":"❌ Pipeline Stage Failed","facts":[{"name":"Stage","value":"Integration Tests"},{"name":"Branch","value":"${{ github.ref_name }}"},{"name":"Commit","value":"${{ github.sha }}"},{"name":"Workflow","value":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]}]}' \
-            "$TEAMS_WEBHOOK_URL" || true
-        continue-on-error: true
-
   # Step 6: Publish Production Docker Image (only if integration tests passed)
   publish-production-image:
-    needs: integration-tests
-    if: success() && needs.integration-tests.outputs.tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main-CD-1'  # TODO: change this to 'a4i/main'
+    needs: [unit-tests, integration-tests]
+    if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.integration-tests.outputs.tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main-CD-1'  # TODO: change this to 'a4i/main'
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.production-tag.outputs.tag }}
