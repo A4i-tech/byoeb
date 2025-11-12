@@ -1,30 +1,36 @@
 name: Deploy to Production
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
+      azure_webapp_name:
+        description: 'Name of the Azure WebApp service'
+        required: true
+        type: string
       image_tag:
         description: 'Docker image tag to deploy (leave empty for latest production)'
         required: false
         type: string
-        default: 'production-latest'
-      confirm_deployment:
-        description: 'Confirm deployment to production'
+    secrets:
+      AZURE_WEBAPP_PUBLISH_PROFILE:
         required: true
-        type: choice
-        options:
-          - 'Yes, deploy to production'
-          - 'No, cancel deployment'
-        default: 'No, cancel deployment'
+      TEAMS_WEBHOOK_URL:
+        required: false
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
+permissions:
+  contents: 'read'
+  packages: 'write'
+
 jobs:
-  deploy-production:
-    if: ${{ github.event.inputs.confirm_deployment == 'Yes, deploy to production' }}
+  deploy:
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -32,7 +38,7 @@ jobs:
 
       - name: Validate deployment
         run: |
-          IMAGE_TAG="${{ github.event.inputs.image_tag || 'production-latest' }}"
+          IMAGE_TAG="${{ inputs.image_tag || 'production-latest' }}"
           FULL_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
           echo "🚀 Deploying to production: ${FULL_IMAGE}"
           echo "Deployment confirmed by: ${{ github.actor }}"
@@ -40,15 +46,13 @@ jobs:
           echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
         id: validate
 
-      - name: Deploy to production
-        id: deploy
-        run: |
-          echo "Deploying ${{ steps.validate.outputs.image }} to production..."
-          # TODO: Add actual production deployment commands here
-          # This could be Azure App Service, Render, or another platform
-          echo "Production deployment completed (placeholder)"
-          echo "Deployment completed at $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-        continue-on-error: true
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ inputs.azure_webapp_name }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          images: ${{ steps.validate.outputs.image }}
 
       - name: Notify deployment success
         if: success()
@@ -71,4 +75,3 @@ jobs:
             -d '{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"FF0000","summary":"❌ Pipeline Stage Failed","sections":[{"activityTitle":"❌ Pipeline Stage Failed","facts":[{"name":"Stage","value":"Deploy to Production"},{"name":"Branch","value":"${{ github.ref_name }}"},{"name":"Commit","value":"${{ github.sha }}"},{"name":"Deployed by","value":"${{ github.actor }}"},{"name":"Workflow","value":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]}]}' \
             "$TEAMS_WEBHOOK_URL" || true
         continue-on-error: true
-
