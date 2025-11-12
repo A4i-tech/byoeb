@@ -1,0 +1,74 @@
+name: Integration Tests
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: "Full reference to the staging Docker image (e.g. ghcr.io/org/app:staging-sha)"
+        required: true
+        type: string
+      registry:
+        description: "Registry hosting the image"
+        required: true
+        type: string
+      staging-url:
+        description: "URL to the staging endpoint's root"
+        required: true
+        type: string
+    outputs:
+      tests-passed:
+        description: "Whether integration tests passed"
+        value: ${{ jobs.integration-tests.outputs.tests-passed }}
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      tests-passed: ${{ steps.test-results.outputs.tests-passed }}
+    steps:
+      - name: Log into container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull staging image
+        run: docker pull ${{ inputs.image }}
+
+      - name: Run integration tests inside container
+        id: run-tests
+        continue-on-error: true
+        env:
+          RECIEVE_URL: ${{ inputs.staging-url }}/receive
+          USER_NAME: ${{ secrets.USERNAME }}
+          PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER }}
+          IMAGE: ${{ inputs.image }}
+        run: |
+          docker run --rm \
+            -e RECIEVE_URL="$RECIEVE_URL" \
+            -e USER_NAME="$USER_NAME" \
+            -e PHONE_NUMBER_ID="$PHONE_NUMBER_ID" \
+            "$IMAGE" \
+            poetry run pytest tests/integration
+
+      - name: Record test result
+        id: test-results
+        if: ${{ always() }}
+        env:
+          TEST_OUTCOME: ${{ steps.run-tests.outcome }}
+        run: |
+          if [ "$TEST_OUTCOME" = "success" ]; then
+            echo "tests-passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tests-passed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fail if tests failed
+        if: ${{ steps.run-tests.outcome != 'success' }}
+        run: |
+          echo "Integration tests failed"
+          exit 1

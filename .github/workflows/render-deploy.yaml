@@ -15,6 +15,13 @@ on:
         description: "Render API base URL"
         required: false
         type: string
+    outputs:
+      deploy_id:
+        description: "Render deployment ID"
+        value: ${{ jobs.deploy.outputs.deploy_id }}
+      service_url:
+        description: "Render service URL"
+        value: ${{ jobs.deploy.outputs.service_url }}
     secrets:
       render_api_key:
         description: "Render API key"
@@ -25,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       deploy_id: ${{ steps.create.outputs.deploy_id }}
+      service_url: ${{ steps.service.outputs.service_url }}
     env:
       RENDER_API_KEY: ${{ secrets.render_api_key }}
       RENDER_SERVICE_ID: ${{ inputs.service_id }}
@@ -81,3 +89,13 @@ jobs:
               *) sleep 8 ;;
             esac
           done
+
+      - name: Get service URL
+        id: service
+        run: |
+          set -euo pipefail
+          AUTH="Authorization: Bearer $RENDER_API_KEY"
+          SERVICE_URL=$(curl -fsS -H "$AUTH" -H "Accept: application/json" \
+            "$RENDER_API_URL/v1/services/$RENDER_SERVICE_ID" | jq -r '.serviceDetails.url')
+          echo "Service URL: $SERVICE_URL"
+          echo "service_url=$SERVICE_URL" >> "$GITHUB_OUTPUT"

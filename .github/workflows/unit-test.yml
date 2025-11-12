@@ -2,19 +2,13 @@ name: Unit Tests
 
 on:
   workflow_call:
-    inputs:
-      environment:
-        description: "Deployment environment (staging/production)"
-        required: false
-        default: "staging"
-        type: string
     outputs:
       tests-passed:
         description: "Whether all tests passed successfully"
-        value: ${{ jobs.unit-tests.outputs.tests-passed }}
+        value: ${{ jobs.tests.outputs.tests-passed }}
 
 jobs:
-  unit-tests:
+  tests:
     runs-on: ubuntu-latest
     outputs:
       tests-passed: ${{ steps.test-results.outputs.tests-passed }}
@@ -103,11 +97,7 @@ jobs:
       # Run tests for byoeb
       - name: Run tests (byoeb)
         working-directory: ./byoeb-v1/byoeb
-        env:
-            RECIEVE_URL: ${{ secrets.RECIEVE_ENDPOINT }}
-            USER_NAME: ${{ secrets.USERNAME }}
-            PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER }}
-        run: poetry run pytest
+        run: poetry run pytest tests/unit
         id: byoeb-tests
 
       # Set test results based on both test runs

@@ -52,12 +52,10 @@ jobs:
   # Step 2: Unit Tests (uses dependency caching for fast runs)
   unit-tests:
     needs: build
-    if: success()
-    uses: ./.github/workflows/tests.yml
-    secrets: inherit
+    uses: ./.github/workflows/unit-test.yml
 
   notify-unit-test-failure:
-    needs: unit-tests
+    needs: [build, unit-tests]
     if: always() && needs.build.result == 'success' && needs.unit-tests.outputs.tests-passed == 'false' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -79,7 +77,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
+      image-ref: ${{ steps.staging-tag.outputs.tag }}
       image-digest: ${{ steps.build.outputs.digest }}
+      registry: ${{ env.REGISTRY }}
     permissions:
       contents: read
       packages: write
@@ -113,6 +113,19 @@ jobs:
             type=raw,value=staging-{{sha}}
             type=raw,value=staging-latest
 
+      - name: Select staging image tag
+        id: staging-tag
+        env:
+          META_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          first="$(printf '%s\n' "$META_TAGS" | head -n 1)"
+          if [ -z "$first" ]; then
+            echo "Unable to determine staging tag from metadata output" >&2
+            exit 1
+          fi
+          printf 'tag=%s\n' "$first" >> "$GITHUB_OUTPUT"
+
       - name: Build and push staging Docker image
         id: build
         uses: docker/build-push-action@v5
@@ -138,7 +151,7 @@ jobs:
 
   # Step 4: Deploy to Render Staging
   deploy-staging:
-    needs: publish-staging-image
+    needs: [unit-tests, publish-staging-image]
     if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.publish-staging-image.result == 'success'
     uses: ./.github/workflows/render-deploy.yaml
     with:
@@ -147,7 +160,7 @@ jobs:
       render_api_key: ${{ secrets.RENDER_API_KEY }}
 
   notify-staging-deploy-success:
-    needs: deploy-staging
+    needs: [publish-staging-image, deploy-staging]
     if: always() && needs.publish-staging-image.result == 'success' && needs.deploy-staging.result == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -162,7 +175,7 @@ jobs:
         continue-on-error: true
 
   notify-staging-deploy-failure:
-    needs: deploy-staging
+    needs: [publish-staging-image, deploy-staging]
     if: always() && needs.publish-staging-image.result == 'success' && needs.deploy-staging.result == 'failure'
     runs-on: ubuntu-latest
     steps:
@@ -178,39 +191,16 @@ jobs:
 
   # Step 5: Run Integration Tests (after staging deployment)
   integration-tests:
-    needs: deploy-staging
-    runs-on: ubuntu-latest
-    outputs:
-      tests-passed: ${{ steps.test-results.outputs.tests-passed }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Wait for staging to be ready
-        run: |
-          echo "Waiting for staging deployment to be ready..."
-          sleep 30  # Give staging time to start
-
-      - name: Run integration tests
-        id: integration-tests
-        run: |
-          echo "Running integration tests against staging environment"
-          # TODO: Add actual integration test commands here
-          # For now, this is a placeholder that passes
-          echo "Integration tests passed (placeholder)"
-        continue-on-error: true
-
-      - name: Set test results
-        id: test-results
-        run: |
-          if [ "${{ steps.integration-tests.outcome }}" == "success" ]; then
-            echo "tests-passed=true" >> $GITHUB_OUTPUT
-          else
-            echo "tests-passed=false" >> $GITHUB_OUTPUT
-          fi
+    needs: [deploy-staging, publish-staging-image]
+    uses: ./.github/workflows/integration-test.yml
+    secrets: inherit
+    with:
+      image: ${{ needs.publish-staging-image.outputs['image-ref'] }}
+      registry: ${{ needs.publish-staging-image.outputs.registry }}
+      staging-url: ${{ needs.deploy-staging.outputs.service_url }}
 
   notify-integration-test-failure:
-    needs: integration-tests
+    needs: [deploy-staging, integration-tests]
     if: always() && needs.deploy-staging.result == 'success' && needs.integration-tests.outputs.tests-passed == 'false'
     runs-on: ubuntu-latest
     steps:
@@ -306,6 +296,6 @@ jobs:
     needs: publish-production-image
     uses: ./.github/workflows/deploy-production.yml
     with:
-      azure_webapp_name: byoebstage-api
+      azure_webapp_name: ${{ vars.AZURE_WEBAPP_NAME }}
       image_tag: ${{ needs.publish-production-image.outputs['image-tag'] }}
     secrets: inherit
