@@ -94,7 +94,7 @@ jobs:
   # Uses Docker layer caching from build step for fast builds
   publish-staging-image:
     needs: [unit-tests, integration-tests]
-    if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.integration-tests.outputs.tests-passed == 'true' && github.event_name == 'push' && (github.ref_name == 'a4i/main' || github.ref_name == 'a4i/main-CD-1')
+    if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.integration-tests.outputs.tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main-CD-1'
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
@@ -173,7 +173,7 @@ jobs:
   # Step 5: Deploy to Render Staging
   deploy-staging:
     needs: [unit-tests, publish-staging-image]
-    if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.publish-staging-image.result == 'success'
+    if: success() && needs.publish-staging-image.result == 'success'
     uses: ./.github/workflows/render-deploy.yaml
     with:
       service_id: ${{ vars.RENDER_SERVICE_ID }}
@@ -213,7 +213,7 @@ jobs:
   # Step 6: Publish Production Docker Image (only if integration tests passed)
   publish-production-image:
     needs: [unit-tests, integration-tests]
-    if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.integration-tests.outputs.tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main-CD-1'  # TODO: change this to 'a4i/main'
+    if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.integration-tests.outputs.tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main'
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.production-tag.outputs.tag }}
