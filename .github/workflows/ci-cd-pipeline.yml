@@ -141,7 +141,10 @@ jobs:
     needs: [unit-tests, publish-staging-image]
     if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.publish-staging-image.result == 'success'
     uses: ./.github/workflows/render-deploy.yaml
-    secrets: inherit
+    with:
+      service_id: ${{ vars.RENDER_SERVICE_ID }}
+    secrets:
+      render_api_key: ${{ secrets.RENDER_API_KEY }}
 
   notify-staging-deploy-success:
     needs: [publish-staging-image, deploy-staging]
@@ -228,7 +231,7 @@ jobs:
     if: success() && needs.integration-tests.outputs.tests-passed == 'true' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
+      image-tag: ${{ steps.production-tag.outputs.tag }}
       image-digest: ${{ steps.build.outputs.digest }}
     permissions:
       contents: read
@@ -263,6 +266,20 @@ jobs:
             type=raw,value=production-{{sha}}
             type=raw,value=production-latest
 
+      - name: Select production image tag
+        id: production-tag
+        env:
+          META_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          first="$(printf '%s\n' "$META_TAGS" | head -n 1)"
+          tag="${first##*:}"
+          if [ -z "$tag" ]; then
+            echo "Unable to parse production tag from metadata output" >&2
+            exit 1
+          fi
+          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
+
       - name: Build and push production Docker image
         id: build
         uses: docker/build-push-action@v5
@@ -286,3 +303,11 @@ jobs:
             "$TEAMS_WEBHOOK_URL" || true
         continue-on-error: true
 
+  deploy-production:
+    needs: publish-production-image
+    if: success() && needs.publish-production-image.result == 'success' && github.event_name != 'pull_request'
+    uses: ./.github/workflows/deploy-production.yml
+    with:
+      azure_webapp_name: byoebstage-api
+      image_tag: ${{ needs.publish-production-image.outputs['image-tag'] }}
+    secrets: inherit
