@@ -1,8 +1,9 @@
 import asyncio
+import hashlib
 from enum import Enum
 from typing import List
 from tqdm.asyncio import tqdm
-from datetime import datetime
+from datetime import datetime, timezone
 from byoeb_core.vector_stores.base import BaseVectorStore
 from byoeb_core.llms.base import BaseLLM
 from azure.search.documents import SearchClient, SearchIndexingBufferedSender
@@ -11,6 +12,10 @@ from azure.search.documents.models import VectorizableTextQuery, IndexAction
 from byoeb_core.models.vector_stores.azure.azure_search import AzureSearchNode, Metadata
 from byoeb_integrations.vector_stores.related_questions import aget_related_questions
 from byoeb_core.models.vector_stores.chunk import Chunk, Chunk_metadata
+try:
+    from llama_index.core.schema import TextNode
+except ImportError:
+    TextNode = None
 
 class AzureVectorSearchType(Enum):
     BM25 = "bm25"
@@ -87,6 +92,56 @@ class AzureVectorStore(BaseVectorStore):
             related_questions=related_questions,
         )
         return azure_doc
+    
+    async def add_nodes(
+        self,
+        nodes: List,
+        llm_client: BaseLLM = None,
+        languages_translation_prompts: dict = None,
+        system_prompt = None,
+        batch_size = 10,
+        show_progress: bool = False,
+        **kwargs
+    ):
+        """
+        Add TextNode objects to Azure Vector Search.
+        
+        :param nodes: List of TextNode objects from LlamaIndex
+        :param llm_client: LLM client for generating related questions (optional)
+        :param languages_translation_prompts: Dictionary of language translation prompts (optional)
+        :param system_prompt: System prompt for related questions generation (optional)
+        :param batch_size: Batch size for uploading documents
+        :param show_progress: Whether to show progress bar
+        """
+        if TextNode is None:
+            raise ImportError("llama_index is required for add_nodes method")
+        
+        # Convert TextNodes to chunks format
+        chunk_texts = [node.text for node in nodes]
+        chunk_metadatas = [
+            {
+                "source": node.metadata.get("file_name", "unknown") if node.metadata else "unknown",
+                "creation_timestamp": str(int(datetime.now(timezone.utc).timestamp())),
+                "update_timestamp": str(int(datetime.now(timezone.utc).timestamp())),
+            }
+            for node in nodes
+        ]
+        chunk_ids = [
+            node.node_id if hasattr(node, 'node_id') and node.node_id 
+            else hashlib.md5(node.text.encode()).hexdigest()
+            for node in nodes
+        ]
+        
+        await self.aadd_chunks(
+            ids=chunk_ids,
+            data_chunks=chunk_texts,
+            metadata=chunk_metadatas,
+            llm_client=llm_client,
+            languages_translation_prompts=languages_translation_prompts,
+            system_prompt=system_prompt,
+            batch_size=batch_size,
+            show_progress=show_progress
+        )
     
     def add_chunks(
         self,

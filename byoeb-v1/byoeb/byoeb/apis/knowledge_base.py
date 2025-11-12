@@ -11,11 +11,20 @@ _logger = logging.getLogger(KB_API_NAME)
 
 @kb_apis_router.get("/load")
 async def load_from_blob_store(request: Request):
-    count = await kb.create_kb_from_blob_store()
-    return JSONResponse(
-        content={"message": f"Loaded {count} documents"},
-        status_code=200
-    )
+    _logger.info("🚀 Starting knowledge base load from blob store")
+    try:
+        count = await kb.create_kb_from_blob_store()
+        _logger.info(f"✅ Successfully loaded {count} documents into knowledge base")
+        return JSONResponse(
+            content={"message": f"Loaded {count} documents"},
+            status_code=200
+        )
+    except Exception as e:
+        _logger.error(f"❌ Error loading knowledge base: {str(e)}", exc_info=True)
+        return JSONResponse(
+            content={"error": str(e), "message": "Failed to load knowledge base"},
+            status_code=500
+        )
 
 # @kb_apis_router.post("/add_document")
 # async def add_document(request: Request):
