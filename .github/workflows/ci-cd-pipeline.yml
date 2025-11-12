@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "a4i/main", "a4i/main-CD-1" ]
+    branches: [ "a4i/main", "staging" ]
   pull_request:
-    branches: [ "a4i/main", "a4i/main-CD-1" ]
+    branches: [ "a4i/main", "staging" ]
   workflow_dispatch:
 
 env:
@@ -94,7 +94,7 @@ jobs:
   # Uses Docker layer caching from build step for fast builds
   publish-staging-image:
     needs: [unit-tests, integration-tests]
-    if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.integration-tests.outputs.tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main-CD-1'
+    if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.integration-tests.outputs.tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'staging'
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
