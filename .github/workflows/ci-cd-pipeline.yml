@@ -57,7 +57,7 @@ jobs:
     secrets: inherit
 
   notify-unit-test-failure:
-    needs: [build, unit-tests]
+    needs: unit-tests
     if: always() && needs.build.result == 'success' && needs.unit-tests.outputs.tests-passed == 'false' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -74,8 +74,8 @@ jobs:
   # Step 3: Publish Staging Docker Image (only if unit tests passed)
   # Uses Docker layer caching from build step for fast builds
   publish-staging-image:
-    needs: [build, unit-tests]
-    if: success() && needs.unit-tests.outputs.tests-passed == 'true' && github.event_name != 'pull_request'
+    needs: unit-tests
+    if: success() && needs.unit-tests.outputs.tests-passed == 'true' && github.event_name == 'push' && (github.ref_name == 'a4i/main' || github.ref_name == 'a4i/main-CD-1')
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
@@ -138,7 +138,7 @@ jobs:
 
   # Step 4: Deploy to Render Staging
   deploy-staging:
-    needs: [unit-tests, publish-staging-image]
+    needs: publish-staging-image
     if: success() && needs.unit-tests.outputs.tests-passed == 'true' && needs.publish-staging-image.result == 'success'
     uses: ./.github/workflows/render-deploy.yaml
     with:
@@ -147,7 +147,7 @@ jobs:
       render_api_key: ${{ secrets.RENDER_API_KEY }}
 
   notify-staging-deploy-success:
-    needs: [publish-staging-image, deploy-staging]
+    needs: deploy-staging
     if: always() && needs.publish-staging-image.result == 'success' && needs.deploy-staging.result == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -162,7 +162,7 @@ jobs:
         continue-on-error: true
 
   notify-staging-deploy-failure:
-    needs: [publish-staging-image, deploy-staging]
+    needs: deploy-staging
     if: always() && needs.publish-staging-image.result == 'success' && needs.deploy-staging.result == 'failure'
     runs-on: ubuntu-latest
     steps:
@@ -178,8 +178,7 @@ jobs:
 
   # Step 5: Run Integration Tests (after staging deployment)
   integration-tests:
-    needs: [deploy-staging]
-    if: success() && github.event_name != 'pull_request'
+    needs: deploy-staging
     runs-on: ubuntu-latest
     outputs:
       tests-passed: ${{ steps.test-results.outputs.tests-passed }}
@@ -211,7 +210,7 @@ jobs:
           fi
 
   notify-integration-test-failure:
-    needs: [deploy-staging, integration-tests]
+    needs: integration-tests
     if: always() && needs.deploy-staging.result == 'success' && needs.integration-tests.outputs.tests-passed == 'false'
     runs-on: ubuntu-latest
     steps:
@@ -227,8 +226,8 @@ jobs:
 
   # Step 6: Publish Production Docker Image (only if integration tests passed)
   publish-production-image:
-    needs: [integration-tests]
-    if: success() && needs.integration-tests.outputs.tests-passed == 'true' && github.event_name != 'pull_request'
+    needs: integration-tests
+    if: success() && needs.integration-tests.outputs.tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main-CD-1'  # TODO: change this to 'a4i/main'
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.production-tag.outputs.tag }}
@@ -305,7 +304,6 @@ jobs:
 
   deploy-production:
     needs: publish-production-image
-    if: success() && needs.publish-production-image.result == 'success' && github.event_name != 'pull_request'
     uses: ./.github/workflows/deploy-production.yml
     with:
       azure_webapp_name: byoebstage-api
