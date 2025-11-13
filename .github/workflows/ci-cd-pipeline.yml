@@ -57,7 +57,7 @@ jobs:
 
   notify-tests-failure:
     needs: tests
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && (needs.tests.outputs.unit-tests-passed == 'false' || needs.integration-tests.outputs.integration-tests-passed == 'false')
     runs-on: ubuntu-latest
     steps:
       - name: Notify unit test failure
