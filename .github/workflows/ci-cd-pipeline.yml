@@ -173,11 +173,8 @@ jobs:
       render_api_key: ${{ secrets.RENDER_API_KEY }}
 
   notify-deploy-success:
-    needs: [publish-staging-image, deploy-staging, publish-production-image, deploy-production]
-    if: always() && (
-         (needs.publish-staging-image.result == 'success' && needs.deploy-staging.result == 'success') ||
-         (needs.publish-production-image.result == 'success' && needs.deploy-production.result == 'success')
-       )
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Send success notification
@@ -196,11 +193,8 @@ jobs:
         continue-on-error: true
 
   notify-deploy-failure:
-    needs: [publish-staging-image, deploy-staging, publish-production-image, deploy-production]
-    if: always() && (
-         (needs.publish-staging-image.result == 'success' && needs.deploy-staging.result == 'failure') ||
-         (needs.publish-production-image.result == 'success' && needs.deploy-production.result == 'failure')
-       )
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'failure' || needs.deploy-production.result == 'failure')
     runs-on: ubuntu-latest
     steps:
       - name: Send failure notification
