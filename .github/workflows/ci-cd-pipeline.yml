@@ -55,8 +55,18 @@ jobs:
     uses: ./.github/workflows/tests.yml
     secrets: inherit
 
+  integration-tests:
+    needs: [publish-staging-image, deploy-staging]
+    if: needs.deploy-staging.result == 'success'
+    uses: ./.github/workflows/integration-tests.yml
+    with:
+      service-url: ${{ needs.deploy-staging.outputs.service_url }}
+      image-ref: ${{ needs.publish-staging-image.outputs.image-ref }}
+      registry: ${{ needs.publish-staging-image.outputs.registry }}
+    secrets: inherit
+
   notify-tests-failure:
-    needs: tests
+    needs: [tests, integration-tests]
     if: github.event_name == 'push' && (needs.tests.outputs.unit-tests-passed == 'false' || needs.integration-tests.outputs.integration-tests-passed == 'false')
     runs-on: ubuntu-latest
     steps:
@@ -85,8 +95,8 @@ jobs:
   # Step 4: Publish Staging Docker Image (only if tests passed)
   # Uses Docker layer caching from build step for fast builds
   publish-staging-image:
-    needs: tests
-    if: success() && needs.tests.outputs.unit-tests-passed == 'true' && needs.tests.outputs.integration-tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'staging'
+    needs: [tests]
+    if: success() && needs.tests.outputs.unit-tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'staging'
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
@@ -214,8 +224,8 @@ jobs:
 
   # Step 6: Publish Production Docker Image (only if integration tests passed)
   publish-production-image:
-    needs: tests
-    if: success() && needs.tests.outputs.unit-tests-passed == 'true' && needs.tests.outputs.integration-tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main'
+    needs: [tests, integration-tests]
+    if: success() && needs.tests.outputs.unit-tests-passed == 'true' && (needs.integration-tests.result == 'skipped' || needs.integration-tests.outputs.integration-tests-passed == 'true') && github.event_name == 'push' && github.ref_name == 'a4i/main'
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.production-tag.outputs.tag }}
