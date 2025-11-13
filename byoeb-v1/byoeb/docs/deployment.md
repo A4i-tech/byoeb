@@ -4,7 +4,7 @@
 - Access to the GitHub repo (branch: `a4i/main`)
 - **MongoDB Atlas** connection string for *staging* and *production*
 - **OpenAI** API keys and endpoints
-- **Azure** credentials (Blob, Storage Queue, App Insights, Cognitive Services)
+- **Azure** credentials (Blob, Storage Queue, App Insights, Cognitive Services, Web App)
 - **Render.com** account for deployment
 - **Microsoft Teams** webhook URL for notifications
 - Docker installed (for local testing)
@@ -20,28 +20,35 @@ Our CI/CD pipeline automatically handles:
 - **Monitoring**: Sends notifications to Teams for success/failure
 
 ### Pipeline Triggers:
-- **Push to `a4i/main`**: Deploys to staging
+- **Push to `a4i/main`**: Deploys to production
+- **Push to `staging`**: Deploys to staging
+- **Pulls or pushes to `a4i/main` or `staging`**: Runs unit tests and integration tests
 - **Manual trigger**: Choose staging or production
 - **Tags (`v*.*.*`)**: Deploys to production
 
 ## 3) Environment Variables
 
-### GitHub Secrets (Repository Settings → Secrets and Variables → Actions):
-```
+### GitHub Secrets and Variables (Repository Settings → Secrets and Variables → Actions):
+Below are the required repository secrets:
+```sh
 # Notifications
-TEAMS_WEBHOOK_URL          # Microsoft Teams webhook for notifications
+TEAMS_WEBHOOK_URL             # Microsoft Teams webhook for notifications
 
 # Render.com (Staging)
-RENDER_API_KEY             # Render.com API key
-RENDER_SERVICE_ID          # Render.com service ID
+RENDER_API_KEY                # Render.com API key
+STAGING_ENVS                  # Raw contents of keys.env
 
 # Azure (Production)
-AZURE_CLIENT_ID            # Azure service principal client ID
-AZURE_CLIENT_SECRET        # Azure service principal client secret
-AZURE_TENANT_ID            # Azure tenant ID
-AZURE_SUBSCRIPTION_ID      # Azure subscription ID
-AZURE_RESOURCE_GROUP       # Azure resource group name
-AZURE_APP_SERVICE_NAME     # Azure App Service name
+AZURE_WEBAPP_PUBLISH_PROFILE  # Web App Publish Profile raw XML string
+```
+
+Below are the required repository variables:
+```sh
+# Render.com (Staging)
+RENDER_SERVICE_ID             # Render.com service ID
+
+# Azure (Production)
+AZURE_WEBAPP_NAME             # Name of the Azure Web App
 ```
 
 ### Render.com Environment Variables:
@@ -86,14 +93,15 @@ A Dockerfile is already present in `/byoeb-v1/byoeb`. The CI/CD pipeline automat
 ## 5) Deployment Process
 
 ### Automatic Deployment:
-1. **Push to `a4i/main`**:
-   - Runs tests
+1. **Push to `staging`**:
+   - Runs tests (unit and integration)
    - Builds Docker image with `staging-*` tags
    - Deploys to staging environment
    - Sends notification to Teams
 
-2. **Create Release Tag**:
-   - Push a tag like `v1.0.0`
+2. **Push to `a4i/main`**:
+   - Runs tests (unit and integration)
+   - Builds Docker image with `production-*` tags
    - Deploys to production environment
    - Sends notification to Teams
 
@@ -149,12 +157,10 @@ curl https://your-app.onrender.com/docs
 # Expected: FastAPI Swagger UI
 ```
 
-### Schedule Endpoint (Background Jobs):
+### Background Jobs Endpoint:
 ```bash
-curl -X POST https://your-app.onrender.com/schedule \
-  -H "Content-Type: application/json" \
-  -d "{}"
-# Expected: 202 Accepted
+curl -X GET https://your-app.onrender.com/jobs \
+# Expected: {"jobs": [{...}, {...}, ...], "total": int, "scheduler_running": bool, "timestamp": str}
 ```
 
 ## 9) Troubleshooting
