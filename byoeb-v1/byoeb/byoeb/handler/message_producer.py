@@ -54,7 +54,7 @@ class QueueProducerHandler:
 
         if message_type is None:
             print(f"[handle] ↳ branch: unsupported message type")
-            return ByoebResponseModel(status_code=ByoebStatusCodes.ACCEPTED, message="unsupported message type")
+            return ByoebResponseModel(status_code=ByoebStatusCodes.OK, message="unsupported message type")
 
         if message_type == "status":
             print("[handle] ↳ branch: status → return OK('status update')")

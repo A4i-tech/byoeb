@@ -8,7 +8,6 @@ class ByoebStatusCodes(Enum):
 
     Attributes:
         OK (int): The status code for a successful request.
-        ACCEPTED (int): The status code for an accepted request that will not be processed further.
         BAD_REQUEST (int): The status code for a bad request.
         UNAUTHORIZED (int): The status code for an unauthorized request.
         FORBIDDEN (int): The status code for a forbidden request.
@@ -16,7 +15,6 @@ class ByoebStatusCodes(Enum):
         INTERNAL_SERVER_ERROR (int): The status code for an internal server error.
     """
     OK = 200
-    ACCEPTED = 202
     BAD_REQUEST = 400
     UNAUTHORIZED = 401
     FORBIDDEN = 403
