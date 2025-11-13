@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "a4i/main-CD-1", "staging" ]
+    branches: [ "a4i/main", "staging" ]
   pull_request:
-    branches: [ "a4i/main-CD-1", "staging" ]
+    branches: [ "a4i/main", "staging" ]
   workflow_dispatch:
 
 env:
@@ -221,7 +221,7 @@ jobs:
   # Step 6: Publish Production Docker Image (only if integration tests passed)
   publish-production-image:
     needs: tests
-    if: success() && needs.tests.outputs.unit-tests-passed == 'true' && needs.tests.outputs.integration-tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main-CD-1'
+    if: success() && needs.tests.outputs.unit-tests-passed == 'true' && needs.tests.outputs.integration-tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main'
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.production-tag.outputs.tag }}
