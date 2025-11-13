@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "a4i/main", "a4i/main-CD-1" ]
+    branches: [ "a4i/main-CD-1", "staging" ]
   pull_request:
-    branches: [ "a4i/main", "a4i/main-CD-1" ]
+    branches: [ "a4i/main-CD-1", "staging" ]
   workflow_dispatch:
 
 env:
@@ -86,7 +86,7 @@ jobs:
   # Uses Docker layer caching from build step for fast builds
   publish-staging-image:
     needs: tests
-    if: success() && needs.tests.outputs.unit-tests-passed == 'true' && needs.tests.outputs.integration-tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main-CD-1'
+    if: success() && needs.tests.outputs.unit-tests-passed == 'true' && needs.tests.outputs.integration-tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'staging'
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
@@ -187,7 +187,7 @@ jobs:
           if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
 
           ENVIRONMENT="unknown"
-          if [ "${{ needs.deploy-staging.result }}" == "success" ]; then ENVIRONMENT="a4i/main-CD-1"; fi
+          if [ "${{ needs.deploy-staging.result }}" == "success" ]; then ENVIRONMENT="staging"; fi
           if [ "${{ needs.deploy-production.result }}" == "success" ]; then ENVIRONMENT="production"; fi
 
           curl -X POST -H "Content-Type: application/json" \
@@ -210,7 +210,7 @@ jobs:
           if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
 
           ENVIRONMENT="unknown"
-          if [ "${{ needs.deploy-staging.result }}" == "failure" ]; then ENVIRONMENT="a4i/main-CD-1"; fi
+          if [ "${{ needs.deploy-staging.result }}" == "failure" ]; then ENVIRONMENT="staging"; fi
           if [ "${{ needs.deploy-production.result }}" == "failure" ]; then ENVIRONMENT="production"; fi
 
           curl -X POST -H "Content-Type: application/json" \
@@ -221,7 +221,7 @@ jobs:
   # Step 6: Publish Production Docker Image (only if integration tests passed)
   publish-production-image:
     needs: tests
-    if: success() && needs.tests.outputs.unit-tests-passed == 'true' && needs.tests.outputs.integration-tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main'
+    if: success() && needs.tests.outputs.unit-tests-passed == 'true' && needs.tests.outputs.integration-tests-passed == 'true' && github.event_name == 'push' && github.ref_name == 'a4i/main-CD-1'
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.production-tag.outputs.tag }}
