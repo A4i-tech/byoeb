@@ -62,6 +62,17 @@ class ChromaDBVectorStore(BaseVectorStore):
         
         logger.info(f"📥 Converting {len(nodes)} TextNodes to chunks format")
         
+        # Log files being ingested
+        from collections import defaultdict
+        files_ingested = defaultdict(int)
+        for node in nodes:
+            file_name = node.metadata.get("file_name", "unknown") if node.metadata else "unknown"
+            files_ingested[file_name] += 1
+        
+        logger.info(f"📋 Files to be ingested ({len(files_ingested)} files):")
+        for file_name, chunk_count in sorted(files_ingested.items()):
+            logger.info(f"  📄 {file_name}: {chunk_count} chunks")
+        
         # Convert TextNodes to chunks format
         data_chunks = [node.text for node in nodes]
         metadata = [
@@ -111,7 +122,16 @@ class ChromaDBVectorStore(BaseVectorStore):
             
             batch_num = (i // batch_size) + 1
             total_batches = (total_chunks + batch_size - 1) // batch_size
-            logger.info(f"  Processing batch {batch_num}/{total_batches} ({len(batch_chunks)} chunks)")
+            
+            # Log files in this batch
+            from collections import defaultdict
+            files_in_batch = defaultdict(int)
+            for meta in batch_metadata:
+                file_name = meta.get("file_name", "unknown") if meta else "unknown"
+                files_in_batch[file_name] += 1
+            
+            files_summary = ", ".join([f"{name}({count})" for name, count in sorted(files_in_batch.items())])
+            logger.info(f"  Processing batch {batch_num}/{total_batches} ({len(batch_chunks)} chunks) - Files: {files_summary}")
             
             try:
                 self.collection.add(

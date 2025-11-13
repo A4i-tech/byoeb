@@ -103,6 +103,19 @@ class LLamaIndexTextParser:
         logger.info(f"✂️  Splitting documents into chunks using {splitter_type.value}")
         splitter = self.get_splitter(splitter_type)
         nodes = splitter.get_nodes_from_documents(documents)
+        
+        # Log chunking details per file
+        if isinstance(data, list) and all(isinstance(item, FileData) for item in data):
+            from collections import defaultdict
+            chunks_per_file = defaultdict(int)
+            for node in nodes:
+                file_name = node.metadata.get("file_name", "unknown") if node.metadata else "unknown"
+                chunks_per_file[file_name] += 1
+            
+            logger.info(f"📊 Chunking summary by file:")
+            for file_name, chunk_count in sorted(chunks_per_file.items()):
+                logger.info(f"  📄 {file_name}: {chunk_count} chunks")
+        
         logger.info(f"✅ Created {len(nodes)} chunks from {len(documents)} documents")
         return nodes
     

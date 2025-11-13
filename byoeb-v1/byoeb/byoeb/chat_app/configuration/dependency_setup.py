@@ -263,7 +263,7 @@ else:
 
 # Vector Store Type Configuration - use environment variable if set, otherwise fallback to app_config.json
 # Default to "azure_vector_search" if not specified (for backward compatibility)
-vector_store_type = env_config.env_vector_store_type
+vector_store_type = env_config.env_vector_store_type or "azure_vector_search"
 
 # Initialize vector store based on configuration
 vector_store: BaseVectorStore = None
