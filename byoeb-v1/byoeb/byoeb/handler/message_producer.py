@@ -62,7 +62,7 @@ class QueueProducerHandler:
                 "id": status["id"],
                 "status": status["status"],
                 "timestamp": str(status["timestamp"]),
-                "errors": json.dumps(status["errors"] or [])
+                "errors": json.dumps(status["errors"] if "errors" in status else [])
             }})
             return ByoebResponseModel(
                 status_code=ByoebStatusCodes.OK,
