@@ -1,12 +1,11 @@
 import asyncio
 import csv
 import json
-import logging
 import random
 import uuid
-import sys
+from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from byoeb.background_jobs.did_you_know.config import bot_config, current_dir
-from byoeb.chat_app.configuration.dependency_setup import app_insights_log_handler, channel_client_factory
+from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
 from byoeb.models.dyk import DykFactSheet, DykRecord
 from byoeb.repositories.dyk_repository import DykRepository
 from byoeb.repositories.user_repository import UserRepository
@@ -96,7 +95,7 @@ async def queue(dyk_repo: DykRepository, sheet: DykFactSheet, candidates: DykBat
         diff = lang_sets[lang] - sent  # deduplication
         if len(diff) == 0:
             # no facts remaining !
-            send_logger.warning("User %s is exhausted", user.user_id, extra={app_insights_log_handler.DETAILS: {
+            send_logger.warning("User %s is exhausted", user.user_id, extra={AppInsightsLogHandler.DETAILS: {
                 "context": queue.__name__,
                 "user_id": user.user_id,
                 "user_phone_number": user.phone_number_id
@@ -113,7 +112,7 @@ async def queue(dyk_repo: DykRepository, sheet: DykFactSheet, candidates: DykBat
             status="pending",
             batch_id=batch_id
         ))
-        send_logger.info("[batch-%s] User %s is assigned DYK %s", batch_id, user.user_id, dyk_id, extra={app_insights_log_handler.DETAILS: {
+        send_logger.info("[batch-%s] User %s is assigned DYK %s", batch_id, user.user_id, dyk_id, extra={AppInsightsLogHandler.DETAILS: {
             "context": queue.__name__,
             "dyk_id": str(dyk_id),
             "user_id": user.user_id,
@@ -146,7 +145,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
         for record in pending:
             user = users[record.user_id]
             if not user:
-                send_logger.warning("User %s not found", record.user_id, extra={app_insights_log_handler.DETAILS: {
+                send_logger.warning("User %s not found", record.user_id, extra={AppInsightsLogHandler.DETAILS: {
                     "context": dispatch.__name__,
                     "dyk_id": str(record.dyk_id),
                     "user_id": record.user_id,
@@ -179,7 +178,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
 
             requests = whatsapp_service.prepare_requests(text_message)
             if not requests:
-                send_logger.error("Failed to prepare a request message", extra={app_insights_log_handler.DETAILS: {
+                send_logger.error("Failed to prepare a request message", extra={AppInsightsLogHandler.DETAILS: {
                     "context": dispatch.__name__,
                     "dyk_id": str(record.dyk_id),
                     "user_id": record.user_id,
@@ -193,7 +192,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
             responses, message_ids = await whatsapp_service.send_requests(requests)
             assert len(responses) == 1
             if int(responses[0].response_status.status) != StatusCode.SUCCESS.value:
-                send_logger.error(responses[0].response_status.error, extra={app_insights_log_handler.DETAILS: {
+                send_logger.error(responses[0].response_status.error, extra={AppInsightsLogHandler.DETAILS: {
                     "context": dispatch.__name__,
                     "dyk_id": str(record.dyk_id),
                     "user_id": record.user_id,
@@ -204,7 +203,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
                 n_failure += 1
                 continue
 
-            send_logger.info("Sent DYK %s to user %s", record.dyk_id, record.user_id, extra={app_insights_log_handler.DETAILS: {
+            send_logger.info("Sent DYK %s to user %s", record.dyk_id, record.user_id, extra={AppInsightsLogHandler.DETAILS: {
                 "context": dispatch.__name__,
                 "dyk_id": str(record.dyk_id),
                 "user_id": record.user_id,
@@ -233,8 +232,8 @@ async def main(sheet: DykFactSheet, user_types: List[str], batch_size: int) -> N
         # schedule (pick candidates in batches and assign them dyk ids)
         async for batch in pick_candidates(dyk_repo, user_repo, sheet.keys(), user_types, batch_size):
             batch_id, queued, exhausted = await queue(dyk_repo, sheet, batch)
-            run_logger.info("[batch-%s] Queued jobs: %d", batch_id, queued, extra={app_insights_log_handler.DETAILS: {"batch_id": batch_id}})  # messages that were added to the dispatch queue
-            run_logger.info("[batch-%s] Exhausted jobs: %d", batch_id, exhausted, extra={app_insights_log_handler.DETAILS: {"batch_id": batch_id}})  # users who could not be sent a DYK message (because they have received every DYK message)
+            run_logger.info("[batch-%s] Queued jobs: %d", batch_id, queued, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # messages that were added to the dispatch queue
+            run_logger.info("[batch-%s] Exhausted jobs: %d", batch_id, exhausted, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # users who could not be sent a DYK message (because they have received every DYK message)
 
         # dispatch (...to whatsapp. pick a batch of candidates and send them their assigned dyks)
         whatsapp_service = WhatsAppService(channel_client_factory)
@@ -247,7 +246,7 @@ async def main(sheet: DykFactSheet, user_types: List[str], batch_size: int) -> N
             failed_batches = []
             for batch_id in batch_ids:
                 success, fail = await dispatch(dyk_repo, user_repo, sheet, whatsapp_service, batch_id)
-                run_logger.info("[batch-%s] Dispatched jobs: %d succeeded, %d failed", batch_id, success, fail, extra={app_insights_log_handler.DETAILS: {"batch_id": batch_id}})  # messages that were sent to WhatsApp (includes messages that were just queued)
+                run_logger.info("[batch-%s] Dispatched jobs: %d succeeded, %d failed", batch_id, success, fail, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # messages that were sent to WhatsApp (includes messages that were just queued)
                 if fail > 0:
                     failed_batches.append(batch_id)
 
@@ -263,18 +262,8 @@ async def main(sheet: DykFactSheet, user_types: List[str], batch_size: int) -> N
         await channel_client_factory.close()
 
 
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s: %(message)s"))
-
-run_logger = logging.getLogger("dyk_run")
-run_logger.setLevel(logging.DEBUG)
-run_logger.addHandler(handler)
-run_logger.addHandler(app_insights_log_handler)
-
-send_logger = logging.getLogger("dyk_send")
-send_logger.setLevel(logging.DEBUG)
-send_logger.addHandler(handler)
-send_logger.addHandler(app_insights_log_handler)
+run_logger = AppInsightsLogHandler.getLogger("dyk_run")
+send_logger = AppInsightsLogHandler.getLogger("dyk_send")
 
 user_types_to_send = bot_config["user_types_to_send"]
 _LANG_ENTRIES = [LangEntry(**e) for e in bot_config["languages"]]

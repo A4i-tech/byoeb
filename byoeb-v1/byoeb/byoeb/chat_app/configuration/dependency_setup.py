@@ -4,8 +4,6 @@ from byoeb.chat_app.configuration.config import app_config
 import time, json, traceback, uuid, asyncio
 import logging
 
-from byoeb.utils.utils import AppInsightsLogHandler
-
 _logger = logging.getLogger("flow")
 
 def _safe_json(obj):
@@ -49,21 +47,17 @@ def log_async_call(name):
     return decorator
 
 
-
 # App logger
-from byoeb.application_logger.azure_app_insights import AzureAppInsightsLogger
-app_insights_logger = None
 if env_config.env_appinsights_connection_string:
+    from azure.monitor.opentelemetry import configure_azure_monitor
     print("✅ App Insights connection string set. Enabling Azure logging.")
-    app_insights_logger = AzureAppInsightsLogger(
+    configure_azure_monitor(
         logger_name=app_config["app_logger"]["azure"]["logger_name"],
         connection_string=env_config.env_appinsights_connection_string,
         instrumentations=["fastapi", "urllib3"]
     )
 else:
     print("⚠️ App Insights connection string not set. Skipping Azure logging.")
-
-app_insights_log_handler = AppInsightsLogHandler(app_insights_logger)
 
 import byoeb.utils.utils as byoeb_utils
 from byoeb.factory import (

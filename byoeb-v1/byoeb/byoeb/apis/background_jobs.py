@@ -1,12 +1,9 @@
-import logging
-import os
 import asyncio
 from datetime import datetime
-import sys
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from zoneinfo import ZoneInfo
-from byoeb.chat_app.configuration.dependency_setup import app_insights_log_handler
+from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 
 # Import job functions at module level - this ensures they exist and will catch ImportErrors early
 from byoeb.background_jobs.consensus.respond_with_consensus import main as respond_with_consensus
@@ -26,14 +23,7 @@ REGISTER_API_NAME = 'background_api'
 TIMEZONE = ZoneInfo("Asia/Kolkata")
 
 background_apis_router = APIRouter()
-
-_handler = logging.StreamHandler(sys.stdout)
-_handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s: %(message)s"))
-
-_logger = logging.getLogger(REGISTER_API_NAME)
-_logger.setLevel(logging.DEBUG)
-_logger.addHandler(_handler)
-_logger.addHandler(app_insights_log_handler)
+_logger = AppInsightsLogHandler.getLogger(REGISTER_API_NAME)
 
 # Job configuration with proper cron expressions and function references
 # ModuleNotFoundError / ImportError catches this early
@@ -74,7 +64,7 @@ job_status = {}
 def job_listener(event):
     """Handle job execution events"""
     if event.exception:
-        _logger.error(f"Job {event.job_id} failed: {event.exception}", extra={app_insights_log_handler.DETAILS: {
+        _logger.error(f"Job {event.job_id} failed: {event.exception}", extra={AppInsightsLogHandler.DETAILS: {
             "context": job_listener.__name__,
             "job_id": event.job_id
         }})
@@ -84,7 +74,7 @@ def job_listener(event):
             "error": str(event.exception)
         }
     else:
-        _logger.info(f"Job {event.job_id} executed successfully", extra={app_insights_log_handler.DETAILS: {
+        _logger.info(f"Job {event.job_id} executed successfully", extra={AppInsightsLogHandler.DETAILS: {
             "context": job_listener.__name__,
             "job_id": event.job_id
         }})
@@ -133,13 +123,13 @@ def setup_scheduled_jobs():
                     "error": None
                 }
 
-                _logger.info(f"Added job: {job_config['name']} with schedule: {job_config['trigger']}", extra={app_insights_log_handler.DETAILS: {
+                _logger.info(f"Added job: {job_config['name']} with schedule: {job_config['trigger']}", extra={AppInsightsLogHandler.DETAILS: {
                     "context": setup_scheduled_jobs.__name__,
                     "job_id": job_config["id"]
                 }})
 
             except Exception as e:
-                _logger.error(f"Failed to setup job {job_config['id']}: {str(e)}", extra={app_insights_log_handler.DETAILS: {
+                _logger.error(f"Failed to setup job {job_config['id']}: {str(e)}", extra={AppInsightsLogHandler.DETAILS: {
                     "context": setup_scheduled_jobs.__name__,
                     "job_id": job_config["id"]
                 }})

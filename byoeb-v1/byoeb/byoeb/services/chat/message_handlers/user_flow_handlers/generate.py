@@ -11,7 +11,6 @@ from typing import List, Dict, Any
 from byoeb.chat_app.configuration.config import bot_config, app_config
 from byoeb.models.message_category import MessageCategory
 from byoeb_core.models.vector_stores.chunk import Chunk
-from byoeb_core.models.vector_stores.azure.azure_search import AzureSearchNode
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
     MessageContext,
@@ -21,7 +20,8 @@ from byoeb_core.models.byoeb.message_context import (
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorSearchType
 from byoeb_core.models.byoeb.user import User
 from byoeb.services.chat.message_handlers.base import Handler
-from byoeb.chat_app.configuration.dependency_setup import llm_client, app_insights_logger
+from byoeb.chat_app.configuration.dependency_setup import llm_client
+from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 
 class ByoebUserGenerateResponse(Handler):
     AUDIO_MODALITY = "audio"
@@ -345,13 +345,10 @@ class ByoebUserGenerateResponse(Handler):
             user_language=user_language
         )
         end_time = datetime.now(timezone.utc).timestamp()
-        app_insights_logger.add_log(
-            event_name="text_to_audio",
-            details={
-                "message_id": message.message_context.message_id,
-                "time_taken": end_time - start_time
-            }
-        )
+        AppInsightsLogHandler.getLogger("text_to_audio").info(f"Created audio response message in {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {
+            "message_id": message.message_context.message_id,
+            "time_taken": end_time - start_time
+        }})
         utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
         description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
         message_type = None
@@ -631,13 +628,10 @@ class ByoebUserGenerateResponse(Handler):
                 retrieved_chunks_related_questions_task
             )
             end_time = datetime.now(timezone.utc).timestamp()
-            app_insights_logger.add_log(
-                event_name="retrieve_chunks",
-                details={
-                    "message_id": message.message_context.message_id,
-                    "time_taken": end_time - start_time
-                }
-            )
+            AppInsightsLogHandler.getLogger("retrieve_chunks").info(f"Retrieved chunks from KB for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
+                "message_id": message.message_context.message_id,
+                "time_taken": end_time - start_time
+            }})
             start_time = datetime.now(timezone.utc).timestamp()
             response_task = self.agenerate_answer(user_language,message_english,query_type,retrieved_chunks)
             response_backup_task = self.agenerate_answer(user_language,message_english,query_type,retrieved_chunks_backup)
@@ -657,17 +651,14 @@ class ByoebUserGenerateResponse(Handler):
                 response_source = response_en
             related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
             end_time = datetime.now(timezone.utc).timestamp()
-            app_insights_logger.add_log(
-                event_name="generate_answer_and_related_questions",
-                details={
-                    "message_id": message.message_context.message_id,
-                    "time_taken": end_time - start_time,
-                    "completion_tokens": tokens.get("completion_tokens"),
-                    "backup_completion_tokens": tokens_backup.get("completion_tokens"),
-                    "prompt_tokens": tokens.get("prompt_tokens"),
-                    "backup_prompt_tokens": tokens_backup.get("prompt_tokens")
-                }
-            )
+            AppInsightsLogHandler.getLogger("generate_answer_and_related_questions").info(f"Generated related questions for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
+                "message_id": message.message_context.message_id,
+                "time_taken": end_time - start_time,
+                "completion_tokens": tokens.get("completion_tokens"),
+                "backup_completion_tokens": tokens_backup.get("completion_tokens"),
+                "prompt_tokens": tokens.get("prompt_tokens"),
+                "backup_prompt_tokens": tokens_backup.get("prompt_tokens")
+            }})
             byoeb_user_message = await self.__create_user_message(
                 message=message,
                 response_en=response_en,
