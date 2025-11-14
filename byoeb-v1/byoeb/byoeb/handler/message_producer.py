@@ -5,9 +5,9 @@ import byoeb_integrations.channel.whatsapp.validate_message as wa_validator
 from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
 from typing import Any
 from byoeb.factory import QueueProducerFactory
-from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
 from byoeb.services.chat.message_producer import MessageProducerService
 from byoeb_core.models.byoeb.response import ByoebResponseModel, ByoebStatusCodes
+from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 
 class QueueProducerHandler:
     def __init__(
@@ -58,12 +58,12 @@ class QueueProducerHandler:
         if message_type == "status":
             print("[handle] ↳ branch: status → return OK('status update')")
             status = message["entry"][0]["changes"][0]["value"]["statuses"][0]
-            app_insights_logger.add_log(event_name="wa_transmission_status", details={
+            AppInsightsLogHandler.getLogger("wa_transmission_status").info(f"Received status {status['status']} for message {status['id']}", extra={AppInsightsLogHandler.DETAILS: {
                 "id": status["id"],
                 "status": status["status"],
                 "timestamp": str(status["timestamp"]),
                 "errors": json.dumps(status["errors"] or [])
-            })
+            }})
             return ByoebResponseModel(
                 status_code=ByoebStatusCodes.OK,
                 message={"id": status["id"], "status": status["status"]}
