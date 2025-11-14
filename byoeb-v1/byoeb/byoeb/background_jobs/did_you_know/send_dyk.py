@@ -89,6 +89,8 @@ async def queue(dyk_repo: DykRepository, sheet: DykFactSheet, candidates: DykBat
     lang_sets = {lang: set(messages.keys()) for lang, messages in sheet.items()}
     queued_client_ops = []
     for user, sent in candidates:
+        if user.user_language is None:
+            continue
         lang = LanguageCode(user.user_language)
         if not lang in lang_sets:
             continue
