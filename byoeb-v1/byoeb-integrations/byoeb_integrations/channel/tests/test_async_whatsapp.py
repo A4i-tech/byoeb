@@ -442,6 +442,12 @@ def test_status_message():
     assert byoeb_message.message_id == "wamid.HBgMOTE4ODM3NzAxODI4FQIAERgSQjM1RjY0M0QyMkU4OUU3OTc3AA=="
     assert message_type == "status"
 
+def test_bogus_message():
+    message = '{"object": true}'
+    is_wa, message_type = wa_validate.validate_whatsapp_message(message)
+    assert is_wa is False
+    assert message_type is None
+
 import byoeb_integrations.channel.whatsapp.request_payload as wa_request_payload
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 def test_text_request_payload():
