@@ -20,7 +20,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
 permissions:
   contents: 'read'
@@ -32,6 +31,8 @@ jobs:
       name: 'production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.validate.outputs.image }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -54,24 +55,35 @@ jobs:
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           images: ${{ steps.validate.outputs.image }}
 
-      - name: Notify deployment success
-        if: success()
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: |
-          if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
-          curl -X POST -H "Content-Type: application/json" \
-            -d '{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"00FF00","summary":"✅ Deploy to Production - Success","sections":[{"activityTitle":"✅ Deploy to Production - Success","facts":[{"name":"Image","value":"${{ steps.validate.outputs.image }}"},{"name":"Deployed by","value":"${{ github.actor }}"},{"name":"Environment","value":"production"},{"name":"Workflow","value":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]}]}' \
-            "$TEAMS_WEBHOOK_URL" || true
-        continue-on-error: true
+  notify-deploy-success:
+    needs: deploy
+    if: ${{ needs.deploy.result == 'success' }}
+    uses: ./.github/workflows/dispatch-teams-webhook.yml
+    secrets: inherit
+    with:
+      summary: '✅ Deploy to Production - Success'
+      activity_title: '✅ Deploy to Production - Success'
+      theme_color: '00FF00'
+      stage: 'Deploy to Production'
+      environment: 'production'
+      include_commit: false
+      include_actor: true
+      actor_label: 'Deployed by'
+      additional_facts: >-
+        [
+          {"name":"Image","value":"${{ needs.deploy.outputs.image }}"}
+        ]
 
-      - name: Notify deployment failure
-        if: failure()
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: |
-          if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
-          curl -X POST -H "Content-Type: application/json" \
-            -d '{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"FF0000","summary":"❌ Pipeline Stage Failed","sections":[{"activityTitle":"❌ Pipeline Stage Failed","facts":[{"name":"Stage","value":"Deploy to Production"},{"name":"Branch","value":"${{ github.ref_name }}"},{"name":"Commit","value":"${{ github.sha }}"},{"name":"Deployed by","value":"${{ github.actor }}"},{"name":"Workflow","value":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]}]}' \
-            "$TEAMS_WEBHOOK_URL" || true
-        continue-on-error: true
+  notify-deploy-failure:
+    needs: deploy
+    if: ${{ always() && needs.deploy.result == 'failure' }}
+    uses: ./.github/workflows/dispatch-teams-webhook.yml
+    secrets: inherit
+    with:
+      summary: '❌ Pipeline Stage Failed'
+      activity_title: '❌ Pipeline Stage Failed'
+      theme_color: 'FF0000'
+      stage: 'Deploy to Production'
+      environment: 'production'
+      include_actor: true
+      actor_label: 'Deployed by'

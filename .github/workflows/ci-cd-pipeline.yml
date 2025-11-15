@@ -10,7 +10,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
 jobs:
   # Step 1: Build (validates Dockerfile - uses Docker layer caching for fast builds)
@@ -38,16 +37,18 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Notify build failure
-        if: failure() && github.event_name != 'pull_request'
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: |
-          if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
-          curl -X POST -H "Content-Type: application/json" \
-            -d '{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"FF0000","summary":"❌ Pipeline Stage Failed","sections":[{"activityTitle":"❌ Pipeline Stage Failed","facts":[{"name":"Stage","value":"Build"},{"name":"Branch","value":"${{ github.ref_name }}"},{"name":"Commit","value":"${{ github.sha }}"},{"name":"Triggered by","value":"${{ github.actor }}"},{"name":"Workflow","value":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]}]}' \
-            "$TEAMS_WEBHOOK_URL" || true
-        continue-on-error: true
+  notify-build-failure:
+    needs: build
+    if: ${{ always() && needs.build.result == 'failure' && github.event_name != 'pull_request' }}
+    uses: ./.github/workflows/dispatch-teams-webhook.yml
+    secrets: inherit
+    with:
+      summary: '❌ Pipeline Stage Failed'
+      activity_title: '❌ Pipeline Stage Failed'
+      theme_color: 'FF0000'
+      stage: 'Build'
+      include_actor: true
+      actor_label: 'Triggered by'
 
   # Step 2: Run unit tests and integration tests
   tests:
@@ -65,32 +66,27 @@ jobs:
       registry: ${{ needs.publish-staging-image.outputs.registry }}
     secrets: inherit
 
-  notify-tests-failure:
-    needs: [tests, integration-tests]
-    if: github.event_name == 'push' && (needs.tests.outputs.unit-tests-passed == 'false' || needs.integration-tests.outputs.integration-tests-passed == 'false')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Notify unit test failure
-        if: always() && needs.tests.outputs.unit-tests-passed == 'false'
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: |
-          if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
-          curl -X POST -H "Content-Type: application/json" \
-            -d '{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"FF0000","summary":"❌ Pipeline Stage Failed","sections":[{"activityTitle":"❌ Pipeline Stage Failed","facts":[{"name":"Stage","value":"Unit Tests"},{"name":"Branch","value":"${{ github.ref_name }}"},{"name":"Commit","value":"${{ github.sha }}"},{"name":"Workflow","value":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]}]}' \
-            "$TEAMS_WEBHOOK_URL" || true
-        continue-on-error: true
+  notify-unit-tests-failure:
+    needs: tests
+    if: ${{ always() && github.event_name == 'push' && needs.tests.outputs.unit-tests-passed == 'false' }}
+    uses: ./.github/workflows/dispatch-teams-webhook.yml
+    secrets: inherit
+    with:
+      summary: '❌ Pipeline Stage Failed'
+      activity_title: '❌ Pipeline Stage Failed'
+      theme_color: 'FF0000'
+      stage: 'Unit Tests'
 
-      - name: Notify integration test failure
-        if: always() && needs.integration-tests.outputs.integration-tests-passed == 'false'
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: |
-          if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
-          curl -X POST -H "Content-Type: application/json" \
-            -d '{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"FF0000","summary":"❌ Pipeline Stage Failed","sections":[{"activityTitle":"❌ Pipeline Stage Failed","facts":[{"name":"Stage","value":"Integration Tests"},{"name":"Branch","value":"${{ github.ref_name }}"},{"name":"Commit","value":"${{ github.sha }}"},{"name":"Workflow","value":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]}]}' \
-            "$TEAMS_WEBHOOK_URL" || true
-        continue-on-error: true
+  notify-integration-tests-failure:
+    needs: integration-tests
+    if: ${{ always() && github.event_name == 'push' && needs.integration-tests.result != 'skipped' && needs.integration-tests.outputs.integration-tests-passed == 'false' }}
+    uses: ./.github/workflows/dispatch-teams-webhook.yml
+    secrets: inherit
+    with:
+      summary: '❌ Pipeline Stage Failed'
+      activity_title: '❌ Pipeline Stage Failed'
+      theme_color: 'FF0000'
+      stage: 'Integration Tests'
 
   # Step 4: Publish Staging Docker Image (only if tests passed)
   # Uses Docker layer caching from build step for fast builds
@@ -161,16 +157,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Notify publish staging failure
-        if: failure() && github.event_name != 'pull_request'
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: |
-          if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
-          curl -X POST -H "Content-Type: application/json" \
-            -d '{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"FF0000","summary":"❌ Pipeline Stage Failed","sections":[{"activityTitle":"❌ Pipeline Stage Failed","facts":[{"name":"Stage","value":"Publish Staging Image"},{"name":"Branch","value":"${{ github.ref_name }}"},{"name":"Commit","value":"${{ github.sha }}"},{"name":"Workflow","value":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]}]}' \
-            "$TEAMS_WEBHOOK_URL" || true
-        continue-on-error: true
+  notify-publish-staging-failure:
+    needs: publish-staging-image
+    if: ${{ always() && needs.publish-staging-image.result == 'failure' && github.event_name != 'pull_request' }}
+    uses: ./.github/workflows/dispatch-teams-webhook.yml
+    secrets: inherit
+    with:
+      summary: '❌ Pipeline Stage Failed'
+      activity_title: '❌ Pipeline Stage Failed'
+      theme_color: 'FF0000'
+      stage: 'Publish Staging Image'
 
   # Step 5: Deploy to Render Staging
   deploy-staging:
@@ -184,43 +180,28 @@ jobs:
 
   notify-deploy-success:
     needs: [deploy-staging, deploy-production]
-    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send success notification
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: |
-          if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
-
-          ENVIRONMENT="unknown"
-          if [ "${{ needs.deploy-staging.result }}" == "success" ]; then ENVIRONMENT="staging"; fi
-          if [ "${{ needs.deploy-production.result }}" == "success" ]; then ENVIRONMENT="production"; fi
-
-          curl -X POST -H "Content-Type: application/json" \
-            -d "{\"@type\":\"MessageCard\",\"@context\":\"http://schema.org/extensions\",\"themeColor\":\"00FF00\",\"summary\":\"✅ Deploy Success\",\"sections\":[{\"activityTitle\":\"✅ Deploy Success\",\"facts\":[{\"name\":\"Branch\",\"value\":\"${{ github.ref_name }}\"},{\"name\":\"Environment\",\"value\":\"$ENVIRONMENT\"},{\"name\":\"Workflow\",\"value\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}]}]}" \
-            "$TEAMS_WEBHOOK_URL" || true
-        continue-on-error: true
+    if: ${{ always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success') }}
+    uses: ./.github/workflows/dispatch-teams-webhook.yml
+    secrets: inherit
+    with:
+      summary: '✅ Deploy Success'
+      activity_title: '✅ Deploy Success'
+      theme_color: '00FF00'
+      stage: 'Deploy'
+      environment: ${{ needs.deploy-production.result == 'success' && 'production' || (needs.deploy-staging.result == 'success' && 'staging' || 'unknown') }}
+      include_commit: false
 
   notify-deploy-failure:
     needs: [deploy-staging, deploy-production]
-    if: always() && (needs.deploy-staging.result == 'failure' || needs.deploy-production.result == 'failure')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send failure notification
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: |
-          if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
-
-          ENVIRONMENT="unknown"
-          if [ "${{ needs.deploy-staging.result }}" == "failure" ]; then ENVIRONMENT="staging"; fi
-          if [ "${{ needs.deploy-production.result }}" == "failure" ]; then ENVIRONMENT="production"; fi
-
-          curl -X POST -H "Content-Type: application/json" \
-            -d "{\"@type\":\"MessageCard\",\"@context\":\"http://schema.org/extensions\",\"themeColor\":\"FF0000\",\"summary\":\"❌ Deploy Failed\",\"sections\":[{\"activityTitle\":\"❌ Deploy Failed\",\"facts\":[{\"name\":\"Environment\",\"value\":\"$ENVIRONMENT\"},{\"name\":\"Branch\",\"value\":\"${{ github.ref_name }}\"},{\"name\":\"Commit\",\"value\":\"${{ github.sha }}\"},{\"name\":\"Workflow\",\"value\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}]}]}" \
-            "$TEAMS_WEBHOOK_URL" || true
-        continue-on-error: true
+    if: ${{ always() && (needs.deploy-staging.result == 'failure' || needs.deploy-production.result == 'failure') }}
+    uses: ./.github/workflows/dispatch-teams-webhook.yml
+    secrets: inherit
+    with:
+      summary: '❌ Deploy Failed'
+      activity_title: '❌ Deploy Failed'
+      theme_color: 'FF0000'
+      stage: 'Deploy'
+      environment: ${{ needs.deploy-production.result == 'failure' && 'production' || (needs.deploy-staging.result == 'failure' && 'staging' || 'unknown') }}
 
   # Step 6: Publish Production Docker Image (only if integration tests passed)
   publish-production-image:
@@ -289,17 +270,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Notify publish production failure
-        if: failure() && github.event_name != 'pull_request'
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: |
-          if [ -z "$TEAMS_WEBHOOK_URL" ]; then exit 0; fi
-          curl -X POST -H "Content-Type: application/json" \
-            -d '{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"FF0000","summary":"❌ Pipeline Stage Failed","sections":[{"activityTitle":"❌ Pipeline Stage Failed","facts":[{"name":"Stage","value":"Publish Production Image"},{"name":"Branch","value":"${{ github.ref_name }}"},{"name":"Commit","value":"${{ github.sha }}"},{"name":"Workflow","value":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]}]}' \
-            "$TEAMS_WEBHOOK_URL" || true
-        continue-on-error: true
-
   deploy-production:
     needs: publish-production-image
     uses: ./.github/workflows/deploy-production.yml
@@ -307,3 +277,14 @@ jobs:
       azure_webapp_name: ${{ vars.AZURE_WEBAPP_NAME }}
       image_tag: ${{ needs.publish-production-image.outputs['image-tag'] }}
     secrets: inherit
+
+  notify-publish-production-failure:
+    needs: publish-production-image
+    if: ${{ always() && needs.publish-production-image.result == 'failure' && github.event_name != 'pull_request' }}
+    uses: ./.github/workflows/dispatch-teams-webhook.yml
+    secrets: inherit
+    with:
+      summary: '❌ Pipeline Stage Failed'
+      activity_title: '❌ Pipeline Stage Failed'
+      theme_color: 'FF0000'
+      stage: 'Publish Production Image'
