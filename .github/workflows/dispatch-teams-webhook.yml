@@ -16,41 +16,8 @@ on:
         required: false
         default: '0076D7'
         type: string
-      stage:
-        description: 'Optional stage or step name to include as a fact'
-        required: false
-        type: string
-      environment:
-        description: 'Optional environment name to include as a fact'
-        required: false
-        type: string
-      include_branch:
-        description: 'Include the current branch as a fact'
-        required: false
-        default: true
-        type: boolean
-      include_commit:
-        description: 'Include the commit SHA as a fact'
-        required: false
-        default: true
-        type: boolean
-      include_workflow_link:
-        description: 'Include a link to the workflow run as a fact'
-        required: false
-        default: true
-        type: boolean
-      include_actor:
-        description: 'Include the triggering actor as a fact'
-        required: false
-        default: false
-        type: boolean
-      actor_label:
-        description: 'Fact label to use when include_actor is true'
-        required: false
-        default: 'Actor'
-        type: string
-      additional_facts:
-        description: 'JSON array of additional {"name": "...", "value": "..."} facts to append'
+      facts:
+        description: 'JSON array of {"name": "...", "value": "..."} facts to append'
         required: false
         default: '[]'
         type: string
@@ -65,7 +32,7 @@ jobs:
       - name: Dispatch notification to Microsoft Teams
         env:
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-          ADDITIONAL_FACTS_INPUT: ${{ inputs.additional_facts }}
+          FACTS_INPUT: ${{ inputs.facts }}
         run: |
           set -euo pipefail
 
@@ -85,29 +52,13 @@ jobs:
             FACTS="$(jq --arg name "$name" --arg value "$value" '. + [{"name":$name,"value":$value}]' <<< "$FACTS")"
           }
 
-          add_fact "Stage" "${{ inputs.stage }}"
-          add_fact "Environment" "${{ inputs.environment }}"
+          add_fact "Branch" "${{ github.ref_name }}"
+          add_fact "Commit" "${{ github.sha }}"
+          add_fact "Workflow" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          add_fact "Actor" "${{ github.actor }}"
 
-          if [ "${{ inputs.include_branch }}" = 'true' ]; then
-            add_fact "Branch" "${{ github.ref_name }}"
-          fi
-
-          if [ "${{ inputs.include_commit }}" = 'true' ]; then
-            add_fact "Commit" "${{ github.sha }}"
-          fi
-
-          if [ "${{ inputs.include_workflow_link }}" = 'true' ]; then
-            add_fact "Workflow" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          fi
-
-          if [ "${{ inputs.include_actor }}" = 'true' ]; then
-            add_fact "${{ inputs.actor_label }}" "${{ github.actor }}"
-          fi
-
-          ADDITIONAL_FACTS="$ADDITIONAL_FACTS_INPUT"
-
-          if [ -n "$(echo "$ADDITIONAL_FACTS" | tr -d '[:space:]')" ]; then
-            FACTS="$(jq --argjson extra "$ADDITIONAL_FACTS" '. + $extra' <<< "$FACTS")"
+          if [ -n "$(echo "$FACTS_INPUT" | tr -d '[:space:]')" ]; then
+            FACTS="$(jq --argjson extra "$FACTS_INPUT" '. + $extra' <<< "$FACTS")"
           fi
 
           PAYLOAD="$(jq -cn \

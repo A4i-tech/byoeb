@@ -26,7 +26,13 @@ jobs:
       summary: '❌ Pipeline Stage Failed'
       activity_title: '❌ Pipeline Stage Failed'
       theme_color: 'FF0000'
-      stage: 'Unit Tests'
+      facts: |
+        [
+          {
+            "name": "Stage",
+            "value": "Unit Tests"
+          }
+        ]
 
   # Step 2: Build (validates Dockerfile - uses Docker layer caching for fast builds)
   build:
@@ -62,9 +68,17 @@ jobs:
       summary: '❌ Pipeline Stage Failed'
       activity_title: '❌ Pipeline Stage Failed'
       theme_color: 'FF0000'
-      stage: 'Build'
-      include_actor: true
-      actor_label: 'Triggered by'
+      facts: |
+        [
+          {
+            "name": "Stage",
+            "value": "Build"
+          },
+          {
+            "name": "Actor",
+            "value": "${{ github.actor }}"
+          }
+        ]
 
   # Step 4: Publish Docker Image (only if tests passed)
   publish-image:
@@ -166,7 +180,17 @@ jobs:
       summary: '❌ Pipeline Stage Failed'
       activity_title: '❌ Pipeline Stage Failed'
       theme_color: 'FF0000'
-      stage: ${{ github.ref_name == 'a4i/main' && 'Publish Image (Production)' || 'Publish Image (Staging)' }}
+      facts: |
+        [
+          {
+            "name": "Stage",
+            "value": "${{ github.ref_name == 'a4i/main' && 'Publish Image (Production)' || 'Publish Image (Staging)' }}"
+          },
+          {
+            "name": "Environment",
+            "value": "${{ github.ref_name == 'a4i/main' && 'production' || 'staging' }}"
+          }
+        ]
 
   # Step 5: Deploy image
   deploy-image:
@@ -290,8 +314,17 @@ jobs:
       summary: '❌ Deploy Failed'
       activity_title: '❌ Deploy Failed'
       theme_color: 'FF0000'
-      stage: ${{ needs.deploy-image.outputs.environment == 'production' && 'Deploy (Production)' || 'Deploy (Staging)' }}
-      environment: ${{ needs.deploy-image.outputs.environment }}
+      facts: |
+        [
+          {
+            "name": "Stage",
+            "value": "${{ needs.deploy-image.outputs.environment == 'production' && 'Deploy (Production)' || 'Deploy (Staging)' }}"
+          },
+          {
+            "name": "Environment",
+            "value": "${{ needs.deploy-image.outputs.environment }}"
+          }
+        ]
 
   # Step 5: Run integration tests
   integration-tests:
@@ -313,7 +346,13 @@ jobs:
       summary: '❌ Pipeline Stage Failed'
       activity_title: '❌ Pipeline Stage Failed'
       theme_color: 'FF0000'
-      stage: 'Integration Tests'
+      facts: |
+        [
+          {
+            "name": "Stage",
+            "value": "Integration Tests"
+          }
+        ]
 
   notify-workflow-success:
     needs: [deploy-image, integration-tests]
@@ -324,11 +363,16 @@ jobs:
       summary: '✅ Workflow Complete'
       activity_title: '✅ Workflow Complete'
       theme_color: '00FF00'
-      stage: 'Workflow Complete'
-      environment: ${{ needs.deploy-image.outputs.environment }}
-      include_commit: false
-      additional_facts: |
+      facts: |
         [
+          {
+            "name": "Stage",
+            "value": "Workflow Complete"
+          },
+          {
+            "name": "Environment",
+            "value": "${{ needs.deploy-image.outputs.environment }}"
+          },
           {
             "name": "Deployment",
             "value": "${{ needs.deploy-image.outputs.service_url }}"
