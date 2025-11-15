@@ -39,6 +39,9 @@ jobs:
       image: ${{ steps.validate.outputs.image }}
       service_url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Validate deployment
         run: |
           IMAGE_TAG="${{ inputs.image_tag || 'production-latest' }}"
@@ -56,3 +59,38 @@ jobs:
           app-name: ${{ inputs.azure_webapp_name }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           images: ${{ steps.validate.outputs.image }}
+
+      - name: Notify Teams of production deploy failure
+        if: ${{ failure() }}
+        uses: ./.github/actions/dispatch-teams-webhook
+        with:
+          summary: '❌ Deploy Failed'
+          activity_title: '❌ Deploy Failed'
+          theme_color: 'FF0000'
+          facts: |
+            [
+              {
+                "name": "Stage",
+                "value": "Deploy (Production)"
+              },
+              {
+                "name": "Environment",
+                "value": "production"
+              }
+            ]
+          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
+      - name: Notify Teams of workflow success (production)
+        if: ${{ success() }}
+        uses: ./.github/actions/dispatch-teams-webhook
+        with:
+          summary: '✅ Workflow Complete'
+          activity_title: '✅ Workflow Complete'
+          theme_color: '00FF00'
+          facts: |
+            [
+              { "name": "Stage", "value": "Workflow Complete" },
+              { "name": "Environment", "value": "production" },
+              { "name": "Deployment", "value": "${{ steps.deploy-to-webapp.outputs.webapp-url || 'N/A' }}" }
+            ]
+          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}

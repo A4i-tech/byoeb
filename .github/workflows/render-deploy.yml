@@ -26,6 +26,9 @@ on:
       render_api_key:
         description: "Render API key"
         required: true
+      TEAMS_WEBHOOK_URL:
+        description: "Microsoft Teams webhook URL"
+        required: false
 
 jobs:
   deploy:
@@ -42,6 +45,9 @@ jobs:
       RENDER_API_URL: ${{ inputs.api_base_url || 'https://api.render.com' }}
       DEPLOY_PAYLOAD: ${{ inputs.deployment_payload || '{}' }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Create deployment
         id: create
         run: |
@@ -102,3 +108,23 @@ jobs:
             "$RENDER_API_URL/v1/services/$RENDER_SERVICE_ID" | jq -r '.serviceDetails.url')
           echo "Service URL: $SERVICE_URL"
           echo "service_url=$SERVICE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Teams of staging deploy failure
+        if: ${{ failure() }}
+        uses: ./.github/actions/dispatch-teams-webhook
+        with:
+          summary: '❌ Deploy Failed'
+          activity_title: '❌ Deploy Failed'
+          theme_color: 'FF0000'
+          facts: |
+            [
+              {
+                "name": "Stage",
+                "value": "Deploy (Staging)"
+              },
+              {
+                "name": "Environment",
+                "value": "staging"
+              }
+            ]
+          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}

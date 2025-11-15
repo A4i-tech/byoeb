@@ -15,6 +15,16 @@ on:
         description: "Registry hosting the container image"
         required: true
         type: string
+      environment:
+        description: "Target environment name"
+        required: false
+        default: "staging"
+        type: string
+      deployment-url:
+        description: "URL of the deployed service"
+        required: false
+        default: ""
+        type: string
 
 jobs:
   integration-tests:
@@ -23,6 +33,9 @@ jobs:
       contents: read
       packages: read
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Determine receive endpoint
         id: receive-endpoint
         env:
@@ -80,3 +93,34 @@ jobs:
         run: |
           echo "Integration tests failed"
           exit 1
+
+      - name: Notify Teams of integration test failure
+        if: ${{ failure() }}
+        uses: ./.github/actions/dispatch-teams-webhook
+        with:
+          summary: '❌ Pipeline Stage Failed'
+          activity_title: '❌ Pipeline Stage Failed'
+          theme_color: 'FF0000'
+          facts: |
+            [
+              {
+                "name": "Stage",
+                "value": "Integration Tests"
+              }
+            ]
+          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
+      - name: Notify Teams of workflow success (staging)
+        if: ${{ success() }}
+        uses: ./.github/actions/dispatch-teams-webhook
+        with:
+          summary: '✅ Workflow Complete'
+          activity_title: '✅ Workflow Complete'
+          theme_color: '00FF00'
+          facts: |
+            [
+              { "name": "Stage", "value": "Workflow Complete" },
+              { "name": "Environment", "value": "${{ inputs.environment }}" },
+              { "name": "Deployment", "value": "${{ inputs.deployment-url || 'N/A' }}" }
+            ]
+          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}

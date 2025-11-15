@@ -110,3 +110,19 @@ jobs:
           name: coverage-html-byoeb
           path: ./byoeb-v1/byoeb/htmlcov
           if-no-files-found: ignore
+
+      - name: Notify Teams of unit test failure
+        if: ${{ failure() }}
+        uses: ./.github/actions/dispatch-teams-webhook
+        with:
+          summary: '❌ Pipeline Stage Failed'
+          activity_title: '❌ Pipeline Stage Failed'
+          theme_color: 'FF0000'
+          facts: |
+            [
+              {
+                "name": "Stage",
+                "value": "Unit Tests"
+              }
+            ]
+          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
