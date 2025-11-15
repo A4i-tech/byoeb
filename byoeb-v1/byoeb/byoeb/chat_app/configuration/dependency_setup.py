@@ -295,7 +295,7 @@ if vector_store_type == "azure_vector_search":
 
 elif vector_store_type == "chroma":
     # ChromaDB Vector Store - needs ChromaDB-compatible embedding function
-    collection_name = app_config["vector_store"]["chroma"]["collection_name"]
+    collection_name = app_config["vector_store"]["chroma"]["doc_index_name"]
     persist_directory = env_config.env_persist_directory
     
     if not persist_directory:
@@ -324,7 +324,7 @@ elif vector_store_type == "chroma":
 
 elif vector_store_type == "llama_index_chroma":
     # LlamaIndex ChromaDB Vector Store - uses LlamaIndex embedding function
-    collection_name = app_config["vector_store"]["llama_index_chroma"]["collection_name"]
+    collection_name = app_config["vector_store"]["llama_index_chroma"]["doc_index_name"]
     persist_directory = env_config.env_persist_directory
     
     if not persist_directory:

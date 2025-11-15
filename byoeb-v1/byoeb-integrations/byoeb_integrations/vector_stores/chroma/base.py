@@ -183,21 +183,102 @@ class ChromaDBVectorStore(BaseVectorStore):
         """
         Retrieve the top k data chunks from the collection based on similarity to the query text.
         
-        :param query_embedding: The embedding of the query to search for
+        :param text: The query text to search for
         :param k: Number of top results to retrieve
         :return: The top k data chunks and their corresponding metadata
         """
+        logger.info(f"Querying ChromaDB with text: '{text[:100]}...' (k={k})")
+        
+        try:
+            results = self.collection.query(query_texts=[text], n_results=k)
+            chunk_list: List[Chunk] = []
+            
+            # Check if we have any results
+            if not results or "documents" not in results or not results["documents"]:
+                logger.warning(f"No documents found in ChromaDB query results")
+                return chunk_list
+            
+            # Check if the first query result has documents
+            if not results["documents"][0]:
+                logger.warning(f"ChromaDB query returned empty documents list")
+                return chunk_list
+            
+            documents = results["documents"][0]
+            ids = results.get("ids", [[]])[0] if results.get("ids") else []
+            metadatas = results.get("metadatas", [[]])[0] if results.get("metadatas") else []
+            
+            logger.info(f"ChromaDB returned {len(documents)} documents")
+            
+            # Ensure all lists have the same length
+            min_length = min(len(documents), len(ids) if ids else len(documents), len(metadatas) if metadatas else len(documents))
+            
+            for idx in range(min_length):
+                chunk_id = ids[idx] if idx < len(ids) else f"chunk_{idx}"
+                chunk_text = documents[idx]
+                # Handle None metadata gracefully
+                metadata = metadatas[idx] if idx < len(metadatas) and metadatas[idx] is not None else {}
+                
+                # Convert metadata dict to Chunk_metadata if needed
+                from byoeb_core.models.vector_stores.chunk import Chunk_metadata
+                chunk_metadata = None
+                if metadata:
+                    try:
+                        chunk_metadata = Chunk_metadata(
+                            source=metadata.get("source", "unknown"),
+                            creation_timestamp=metadata.get("creation_timestamp"),
+                            update_timestamp=metadata.get("update_timestamp")
+                        )
+                    except Exception as e:
+                        logger.warning(f"Error creating Chunk_metadata: {e}, using raw metadata")
+                        chunk_metadata = metadata
+                
+                chunk = Chunk(
+                    chunk_id=chunk_id,
+                    text=chunk_text,
+                    metadata=chunk_metadata
+                )
+                chunk_list.append(chunk)
+            
+            logger.info(f"Successfully created {len(chunk_list)} Chunk objects")
+            return chunk_list
+            
+        except Exception as e:
+            logger.error(f"Error retrieving chunks from ChromaDB: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
 
-        results = self.collection.query(query_texts=text, n_results=k)
-        chunk_list: List[Chunk] = []
-        for id, chunk_text in enumerate(results["documents"][0]):
-            chunk = Chunk(
-                chunk_id=results["ids"][0][id],
-                text=chunk_text,
-                metadata=results["metadatas"][0][id]
-            )
-            chunk_list.append(chunk)
-        return chunk_list
+    async def aretrieve_top_k_chunks(
+        self,
+        text: str,
+        k: int,
+        **kwargs
+    ) -> List[Chunk]:
+        """
+        Async wrapper for retrieve_top_k_chunks.
+        ChromaDB operations are synchronous, so we run them in an executor to avoid blocking.
+        
+        Note: Parameters like search_type, select, and vector_field (from Azure Vector Store)
+        are accepted via kwargs for compatibility but are ignored since ChromaDB doesn't support them.
+        
+        :param text: The query text to search for
+        :param k: Number of top results to retrieve
+        :param kwargs: Additional keyword arguments (for compatibility with Azure Vector Store interface)
+        :return: The top k data chunks and their corresponding metadata
+        """
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # Fallback if no event loop is running
+            loop = asyncio.get_event_loop()
+        # Run the synchronous method in an executor to avoid blocking the event loop
+        return await loop.run_in_executor(
+            None,
+            self.retrieve_top_k_chunks,
+            text,
+            k
+        )
 
     def get_client(self):
         """

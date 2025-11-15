@@ -100,10 +100,10 @@
     },
     "vector_store": {
         "chroma": {
-            "collection_name": "vector_collection"
+            "doc_index_name": "vector_collection"
         },
         "llama_index_chroma": {
-            "collection_name": "vector_collection"
+            "doc_index_name": "vector_collection"
         },
         "azure_vector_search": {
             "service_name": "khushi-baby-asha-search",

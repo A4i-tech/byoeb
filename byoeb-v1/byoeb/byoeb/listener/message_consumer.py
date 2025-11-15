@@ -3,6 +3,7 @@ import asyncio
 import byoeb.utils.utils as utils
 import uuid
 import traceback
+import time
 from datetime import datetime
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -166,6 +167,8 @@ class QueueConsumer:
                             consume_span.set_attribute("messaging.batch_size", len(message_content))
 
                             successfully_processed_messages = await message_consumer_svc.consume(message_content) or []
+                            
+                            self._logger.info(f"consume() returned {len(successfully_processed_messages)} successfully processed messages")
 
                             self._logger.info(f"Successfully processed {len(successfully_processed_messages)} messages")
                             utils.log_to_text_file(f"Successfully processed {len(successfully_processed_messages)} messages")

@@ -4,7 +4,7 @@ import httpx
 from typing import List, Dict, Any
 from datetime import datetime, timezone
 from byoeb.chat_app.configuration.config import bot_config
-from byoeb.chat_app.configuration.dependency_setup import embedding_fn, llm_translate_and_rewrite_client, llm_client, DefaultAzureCredential
+from byoeb.chat_app.configuration.dependency_setup import vector_store, llm_translate_and_rewrite_client, llm_client
 from byoeb.models.experiment import QueryInput, QueryOutput
 from byoeb_core.models.vector_stores.chunk import Chunk, Chunk_metadata
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
@@ -21,14 +21,6 @@ TIMESTAMP = "timestamp"
 
 conversations: Dict[str, List[Dict[str, str]]] = {}
 
-service_name = "khushi-baby-asha-search"
-doc_index_name = "khushi-baby-asha-doc-index-3"
-vector_store = AzureVectorStore(
-    service_name=service_name,
-    index_name=doc_index_name,
-    embedding_function=embedding_fn,
-    credential=DefaultAzureCredential()  # Assuming credential is set in the environment or elsewhere
-)
 def update_conversations(user_id, question, answer, history_length):
     """
     Update the conversation history for a user.
