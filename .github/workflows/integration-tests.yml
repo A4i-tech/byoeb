@@ -23,9 +23,6 @@ jobs:
       contents: read
       packages: read
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Determine receive endpoint
         id: receive-endpoint
         env:

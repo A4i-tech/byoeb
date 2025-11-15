@@ -34,9 +34,6 @@ jobs:
     outputs:
       image: ${{ steps.validate.outputs.image }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Validate deployment
         run: |
           IMAGE_TAG="${{ inputs.image_tag || 'production-latest' }}"
