@@ -20,11 +20,10 @@ Our CI/CD pipeline automatically handles:
 - **Monitoring**: Sends notifications to Teams for success/failure
 
 ### Pipeline Triggers:
-- **Push to `a4i/main`**: Deploys to production
-- **Push to `staging`**: Deploys to staging
-- **Pulls or pushes to `a4i/main` or `staging`**: Runs unit tests and integration tests
+- **Push to `a4i/main`**: Deploys to production, runs unit tests
+- **Push to `staging`**: Deploys to staging, runs unit and integration tests
+- **Pull to `a4i/main` or `staging`**: Runs unit tests
 - **Manual trigger**: Choose staging or production
-- **Tags (`v*.*.*`)**: Deploys to production
 
 ## 3) Environment Variables
 
@@ -80,7 +79,7 @@ APP_ENV=PROD
 ## 4) Docker Configuration
 
 A Dockerfile is already present in `/byoeb-v1/byoeb`. The CI/CD pipeline automatically:
-- Builds Docker images with environment-specific tags
+- Builds Docker images with environment-specific tags (see below)
 - Pushes to GitHub Container Registry (ghcr.io)
 - Deploys using the built image
 
@@ -94,14 +93,15 @@ A Dockerfile is already present in `/byoeb-v1/byoeb`. The CI/CD pipeline automat
 
 ### Automatic Deployment:
 1. **Push to `staging`**:
-   - Runs tests (unit and integration)
    - Builds Docker image with `staging-*` tags
+   - Runs unit tests
    - Deploys to staging environment
+   - Runs integration tests
    - Sends notification to Teams
 
 2. **Push to `a4i/main`**:
-   - Runs tests (unit and integration)
    - Builds Docker image with `production-*` tags
+   - Runs unit tests
    - Deploys to production environment
    - Sends notification to Teams
 
