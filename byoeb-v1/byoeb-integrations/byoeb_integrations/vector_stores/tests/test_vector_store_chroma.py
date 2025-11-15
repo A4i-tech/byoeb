@@ -13,6 +13,7 @@ import pytest
 
 load_dotenv(test_environment_path)
 
+os.environ["AZURE_OPENAI_API_KEY"] = "sk-xxxx"
 os.environ["CHROMA_TELEMETRY_DISABLED"] = "true"
 AZURE_ENDPOINT = "https://swasthyabot-oai-vision.openai.azure.com/"
 AZURE_COGNITIVE_ENDPOINT = "https://cognitiveservices.azure.com/.default"
