@@ -51,36 +51,3 @@ jobs:
           app-name: ${{ inputs.azure_webapp_name }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           images: ${{ steps.validate.outputs.image }}
-
-  notify-deploy-success:
-    needs: deploy
-    if: ${{ needs.deploy.result == 'success' }}
-    uses: ./.github/workflows/dispatch-teams-webhook.yml
-    secrets: inherit
-    with:
-      summary: '✅ Deploy to Production - Success'
-      activity_title: '✅ Deploy to Production - Success'
-      theme_color: '00FF00'
-      stage: 'Deploy to Production'
-      environment: 'production'
-      include_commit: false
-      include_actor: true
-      actor_label: 'Deployed by'
-      additional_facts: >-
-        [
-          {"name":"Image","value":"${{ needs.deploy.outputs.image }}"}
-        ]
-
-  notify-deploy-failure:
-    needs: deploy
-    if: ${{ always() && needs.deploy.result == 'failure' }}
-    uses: ./.github/workflows/dispatch-teams-webhook.yml
-    secrets: inherit
-    with:
-      summary: '❌ Pipeline Stage Failed'
-      activity_title: '❌ Pipeline Stage Failed'
-      theme_color: 'FF0000'
-      stage: 'Deploy to Production'
-      environment: 'production'
-      include_actor: true
-      actor_label: 'Deployed by'
