@@ -1,3 +1,4 @@
+import json
 import logging
 import traceback
 import byoeb_integrations.channel.whatsapp.validate_message as wa_validator
@@ -6,6 +7,7 @@ from typing import Any
 from byoeb.factory import QueueProducerFactory
 from byoeb.services.chat.message_producer import MessageProducerService
 from byoeb_core.models.byoeb.response import ByoebResponseModel, ByoebStatusCodes
+from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 
 class QueueProducerHandler:
     def __init__(
@@ -49,11 +51,22 @@ class QueueProducerHandler:
         channel, message_type = await self.__validate_channel_and_get_message_type(message)
         print(f"[handle] ← __validate...  out channel={channel}, message_type={message_type}")
 
+        if message_type is None:
+            print(f"[handle] ↳ branch: unsupported message type")
+            return ByoebResponseModel(status_code=ByoebStatusCodes.OK, message="unsupported message type")
+
         if message_type == "status":
             print("[handle] ↳ branch: status → return OK('status update')")
+            status = message["entry"][0]["changes"][0]["value"]["statuses"][0]
+            AppInsightsLogHandler.getLogger("wa_transmission_status").info(f"Received status {status['status']} for message {status['id']}", extra={AppInsightsLogHandler.DETAILS: {
+                "id": status["id"],
+                "status": status["status"],
+                "timestamp": str(status["timestamp"]),
+                "errors": json.dumps(status["errors"] if "errors" in status else [])
+            }})
             return ByoebResponseModel(
                 status_code=ByoebStatusCodes.OK,
-                message="status update"
+                message={"id": status["id"], "status": status["status"]}
             )
 
         if not channel:
@@ -91,4 +104,3 @@ class QueueProducerHandler:
             status_code=ByoebStatusCodes.OK,
             message=response
         )
-        

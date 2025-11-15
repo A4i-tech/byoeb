@@ -6,6 +6,7 @@ from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
 from byoeb_integrations.vector_stores.llama_index.llama_index_chroma_store import LlamaIndexChromaDBStore
 from llama_index.core.embeddings.mock_embed_model import MockEmbedding
 
+os.environ["AZURE_OPENAI_API_KEY"] = "sk-xxxx"
 os.environ["CHROMA_TELEMETRY_DISABLED"] = "true"
 
 class MockEmbeddingFunction(EmbeddingFunction):

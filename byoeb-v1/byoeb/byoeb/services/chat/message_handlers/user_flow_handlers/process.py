@@ -1,15 +1,14 @@
 import re
-import threading
 import byoeb.utils.utils as utils
 import byoeb.services.chat.constants as constants
-from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+from tenacity import retry, stop_after_attempt, wait_exponential
 from byoeb.chat_app.configuration.config import bot_config
 from datetime import datetime, timezone
 from typing import Dict, Any, List
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageTypes
 from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.models.message_category import MessageCategory
-from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
+from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 
 class ByoebUserProcess(Handler):
 
@@ -119,13 +118,10 @@ class ByoebUserProcess(Handler):
             audio_to_text = await speech_translator_whisper.aspeech_to_text(audio_message_wav, source_language)
             message.message_context.message_source_text = audio_to_text
             end_time = datetime.now(timezone.utc).timestamp()
-            app_insights_logger.add_log(
-                event_name="audio_to_text",
-                details={
-                    "message_id": message.message_context.message_id,
-                    "time_taken": end_time - start_time
-                }
-            )
+            AppInsightsLogHandler.getLogger("audio_to_text").info(f"Time taken for audio to text transcribe: {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {
+                "message_id": message.message_context.message_id,
+                "time_taken": end_time - start_time
+            }})
             utils.log_to_text_file(f"Time taken for audio to text transcribe: {end_time - start_time} seconds")
             # query_en, query_en_addcontext, query_type = await self.llm_translation_and_query_rewritting(message)
             # print("audio_to_text", audio_to_text)
@@ -140,15 +136,12 @@ class ByoebUserProcess(Handler):
                 start_time = datetime.now(timezone.utc).timestamp()
                 query_en, query_en_addcontext, query_type, tokens = await self.llm_translation_and_query_rewritting(message)
                 end_time = datetime.now(timezone.utc).timestamp()
-                app_insights_logger.add_log(
-                    event_name="query_rewritting",
-                    details={
-                        "message_id": message.message_context.message_id,
-                        "time_taken": end_time - start_time,
-                        "completion_tokens": tokens.get("completion_tokens"),
-                        "prompt_tokens": tokens.get("prompt_tokens")
-                    }
-                )
+                AppInsightsLogHandler.getLogger("query_rewriting").info(f"Rewrote queries for {message.message_context.message_id} in {end_time - start_time} using {tokens.get('completion_tokens')} completion and {tokens.get('prompt_tokens')} prompt tokens", extra={AppInsightsLogHandler.DETAILS: {
+                    "message_id": message.message_context.message_id,
+                    "time_taken": end_time - start_time,
+                    "completion_tokens": tokens.get("completion_tokens"),
+                    "prompt_tokens": tokens.get("prompt_tokens")
+                }})
                 # translated_en_text = await text_translator.atranslate_text(
                 #     input_text=source_text,
                 #     source_language=source_language,

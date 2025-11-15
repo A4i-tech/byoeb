@@ -1,13 +1,11 @@
-import logging
 import asyncio
 import json
 import hashlib
 import traceback
-import byoeb.utils.utils as utils
 import byoeb.services.chat.constants as constants
 from datetime import datetime, timezone
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from byoeb.models.message_category import MessageCategory
 from byoeb.factory import ChannelClientFactory
 from byoeb.chat_app.configuration.config import bot_config
@@ -15,7 +13,7 @@ from byoeb_core.models.byoeb.user import User
 from byoeb_core.models.byoeb.message_context import ReplyContext
 from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
-from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
+from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from byoeb.services.user.onboarding import handle_unknown_user
 
 class Conversation(BaseModel):
@@ -134,13 +132,10 @@ class MessageConsmerService:
                 conversation.message_category = MessageCategory.EXPERT_TO_BOT.value
 
             conversation.user = user
-            app_insights_logger.add_log(
-                event_name="create_conversations",
-                details={
-                    "message_id": m.message_context.message_id,
-                    "time_taken": end_time - start_time
-                }
-            )
+            AppInsightsLogHandler.getLogger("create_conversations").info(f"Creating conversation {m.message_context.message_id}", extra={AppInsightsLogHandler.DETAILS: {
+                "message_id": m.message_context.message_id,
+                "time_taken": end_time - start_time
+            }})
 
             if bot_message is None:
                 if user.user_type is None or user.user_language is None:
@@ -198,15 +193,12 @@ class MessageConsmerService:
             return queries, byoeb_message_copy, None
         except asyncio.TimeoutError:
             print(f"[__process_byoebuser_conversation] ✖ Timeout after {self.__timeout_seconds}s")
-            app_insights_logger.add_log(
-                event_name="timeout_error",
-                details={
-                    "user_type": byoeb_message.user.user_type,
-                    "message_id": byoeb_message.message_context.message_id,
-                    "message_text": byoeb_message.message_context.message_source_text,
-                    "timeout_seconds": self.__timeout_seconds
-                }
-            )
+            AppInsightsLogHandler.getLogger("timeout_error").info(f"Timeout after {self.__timeout_seconds}s", extra={AppInsightsLogHandler.DETAILS: {
+                "user_type": byoeb_message.user.user_type,
+                "message_id": byoeb_message.message_context.message_id,
+                "message_text": byoeb_message.message_context.message_source_text,
+                "timeout_seconds": self.__timeout_seconds
+            }})
             return None, byoeb_message_copy, "TimeoutError"
         except Exception as e:
             print(f"[__process_byoebuser_conversation] ✖ error: {e}")
@@ -229,15 +221,12 @@ class MessageConsmerService:
             return queries, byoeb_message_copy, None
         except asyncio.TimeoutError:
             print(f"[__process_byoebexpert_conversation] ✖ Timeout after {self.__timeout_seconds}s")
-            app_insights_logger.add_log(
-                event_name="timeout_error",
-                details={
-                    "user_type": byoeb_message.user.user_type,
-                    "message_id": byoeb_message.message_context.message_id,
-                    "message_text": byoeb_message.message_context.message_source_text,
-                    "timeout_seconds": self.__timeout_seconds
-                }
-            )
+            AppInsightsLogHandler.getLogger("timeout_error").info(f"Timeout after {self.__timeout_seconds}s", extra={AppInsightsLogHandler.DETAILS: {
+                "user_type": byoeb_message.user.user_type,
+                "message_id": byoeb_message.message_context.message_id,
+                "message_text": byoeb_message.message_context.message_source_text,
+                "timeout_seconds": self.__timeout_seconds
+            }})
             return None, byoeb_message_copy, "TimeoutError"
         except Exception as e:
             print(f"[__process_byoebexpert_conversation] ✖ error: {e}")
@@ -313,14 +302,11 @@ class MessageConsmerService:
 
         # metrics
         for m in byoeb_messages:
-            app_insights_logger.add_log(
-                event_name="write_to_db",
-                details={"message_id": m.message_context.message_id, "time_taken": end_time - start_time}
-            )
-            app_insights_logger.add_log(
-                event_name="overall_response_time",
-                details={"message_id": m.message_context.message_id, "time_taken": end_time - m.incoming_timestamp}
-            )
+            AppInsightsLogHandler.getLogger("write_to_db").info(f"Wrote message {m.message_context.message_id} to database", extra={AppInsightsLogHandler.DETAILS: {
+                "message_id": m.message_context.message_id,
+                "time_taken": end_time - start_time,
+                "overall_time_taken": end_time - m.incoming_timestamp
+            }})
 
         successfully_processed_messages.extend(onboard_convs)
         print(f"[consume] ◀ end success_count={len(successfully_processed_messages)}")

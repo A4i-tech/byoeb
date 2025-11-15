@@ -74,11 +74,11 @@ def create_apps():
     app.include_router(user_apis_router)
     app.include_router(admin_apis_router)
 
-    mcp = FastMCP(stateless_http=True)
+    mcp = FastMCP()
     health_mcps_router(mcp)
     chat_mcps_router(mcp)
     user_mcps_router(mcp)
-    mcp_app = mcp.http_app(path="/mcp")
+    mcp_app = mcp.http_app(path="/mcp", stateless_http=True)
     app.mount("/", mcp_app)
     return app, mcp_app
 
@@ -129,5 +129,6 @@ if __name__ == '__main__':
         uvicorn.run(
             f"{module_name}:app",
             host="0.0.0.0",
-            port=8000
+            port=8000,
+            ws="websockets-sansio"
         )

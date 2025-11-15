@@ -1,3 +1,6 @@
+import os
+os.environ["AZURE_OPENAI_API_KEY"] = "sk-xxxx"
+
 import hashlib
 from datetime import datetime
 from types import SimpleNamespace

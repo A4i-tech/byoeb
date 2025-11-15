@@ -12,7 +12,6 @@ aiocache = "0.12.3"
 byoeb-integrations = {path = "../byoeb-integrations", develop = true}
 azure-monitor-opentelemetry = "1.6.7"
 azure-monitor-events-extension = "0.1.0"
-notebook = "7.3.3"
 croniter = "6.0.0"
 rapidfuzz = "3.13.0"
 python-multipart = "0.0.20"
@@ -21,6 +20,7 @@ uvicorn = "^0.35.0"
 python-dotenv = "^1.1.1"
 fastmcp = "^2.12.3"
 apscheduler = "^3.11.0"
+jinja2 = "^3.1.6"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
