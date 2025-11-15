@@ -1,9 +1,9 @@
-name: Tests
+name: Unit Tests
 
 on:
   workflow_call:
     outputs:
-      unit-tests-passed:
+      passed:
         description: "Whether all unit tests passed successfully"
         value: ${{ jobs.unit-tests.outputs.tests-passed }}
 

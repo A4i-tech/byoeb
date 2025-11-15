@@ -16,7 +16,7 @@ on:
         required: true
         type: string
     outputs:
-      integration-tests-passed:
+      passed:
         description: "Whether integration tests passed"
         value: ${{ jobs.integration-tests.outputs.tests-passed }}
 
