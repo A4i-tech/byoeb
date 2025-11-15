@@ -32,11 +32,11 @@ def create_apps():
     app.include_router(user_apis_router)
     app.include_router(admin_apis_router)
 
-    mcp = FastMCP(stateless_http=True)
+    mcp = FastMCP()
     health_mcps_router(mcp)
     chat_mcps_router(mcp)
     user_mcps_router(mcp)
-    mcp_app = mcp.http_app(path="/mcp")
+    mcp_app = mcp.http_app(path="/mcp", stateless_http=True)
     app.mount("/", mcp_app)
     return app, mcp_app
 
@@ -87,15 +87,18 @@ if __name__ == '__main__':
             log_config = yaml.safe_load(file)
         logging.config.dictConfig(log_config)
         logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.CRITICAL)
+        logging.getLogger("azure.monitor.opentelemetry.exporter.export._base").setLevel(logging.WARNING)  # suppress 'Transmission succeeded' logs
         uvicorn.run(
             f"{module_name}:app",
             host="0.0.0.0",
-            port=8000
+            port=8000,
+            ws="websockets-sansio"
         )
     else:
         print(module_name)
         uvicorn.run(
             f"{module_name}:app",
             host="127.0.0.1",
-            port=5000
+            port=5000,
+            ws="websockets-sansio"
         )

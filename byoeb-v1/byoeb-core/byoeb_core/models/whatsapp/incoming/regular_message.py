@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 class Profile(BaseModel):
     name: Optional[str] = Field(None, description="Name of the contact's profile")
@@ -49,8 +49,7 @@ class Entry(BaseModel):
     id: Optional[str] = Field(None, description="ID of the entry")
 
 class WhatsAppRegularMessageBody(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     entry: Optional[List[Entry]] = Field(None, description="List of entries in the webhook payload")
     object: Optional[str] = Field(None, description="Type of object that generated the webhook (e.g., whatsapp_business_account)")
-
-    class Config:
-        populate_by_name = True

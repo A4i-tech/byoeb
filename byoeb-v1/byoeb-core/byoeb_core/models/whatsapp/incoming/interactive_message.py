@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 
 class ButtonReplyModel(BaseModel):
@@ -50,8 +50,7 @@ class EntryModel(BaseModel):
     changes: Optional[List[ChangeModel]] = Field(None, description="List of changes in the entry.")
 
 class WhatsAppInteractiveMessageBody(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     object: Optional[str] = Field(None, description="Object type, e.g., 'whatsapp_business_account'.")
     entry: Optional[List[EntryModel]] = Field(None, description="List of entries in the message.")
-
-    class Config:
-        populate_by_name = True
