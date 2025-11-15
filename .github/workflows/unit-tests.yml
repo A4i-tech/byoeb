@@ -2,6 +2,30 @@ name: Unit Tests
 
 on:
   workflow_call:
+    inputs:
+      directory:
+        description: "Relative path to the Poetry project"
+        required: true
+        type: string
+      tests_path:
+        description: "Path passed to pytest. Leave empty to skip running tests."
+        required: false
+        default: ""
+        type: string
+      coverage_artifact_name:
+        description: "Name for the uploaded HTML coverage artifact"
+        required: false
+        default: "coverage-html"
+        type: string
+      upload_html_coverage:
+        description: "Upload htmlcov directory as an artifact"
+        required: false
+        default: false
+        type: boolean
+    outputs:
+      coverage_pct:
+        description: "Rounded coverage percentage (when tests are executed)"
+        value: ${{ jobs.unit-tests.outputs.coverage_pct }}
 
 jobs:
   unit-tests:
@@ -10,15 +34,12 @@ jobs:
     env:
       POETRY_VIRTUALENVS_IN_PROJECT: "true"
 
+    outputs:
+      coverage_pct: ${{ steps.coverage.outputs.coverage_pct }}
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        id: setup-python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
 
       - name: Install ffmpeg (needed by pydub)
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
@@ -26,89 +47,51 @@ jobs:
       - name: Install Poetry
         run: pipx install poetry
 
-      # Cache Poetry/pip dependencies
-      - name: Cache Poetry/pip
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "poetry"
+          cache-dependency-path: |
+            ${{ inputs.directory }}/pyproject.toml
+
+      - name: Cache poetry.lock
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/pypoetry
-            ~/.cache/pip
-          key: poetry-pip-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}
+          path: ${{ inputs.directory }}/poetry.lock
+          key: lock-${{ runner.os }}-${{ hashFiles(format('{0}/pyproject.toml', inputs.directory)) }}
           restore-keys: |
-            poetry-pip-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}
-            poetry-pip-${{ runner.os }}-
-            poetry-pip-
+            lock-${{ runner.os }}-
 
-      # Cache virtual environments for each project
-      - name: Cache .venv (byoeb-core)
-        id: cache-byoeb-core
-        uses: actions/cache@v4
-        with:
-          path: ./byoeb-v1/byoeb-core/.venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-core-${{ hashFiles('byoeb-v1/byoeb-core/poetry.lock') }}
-          restore-keys: |
-            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-core-
-
-      - name: Cache .venv (byoeb)
-        id: cache-byoeb
-        uses: actions/cache@v4
-        with:
-          path: ./byoeb-v1/byoeb/.venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-${{ hashFiles('byoeb-v1/byoeb/poetry.lock') }}
-          restore-keys: |
-            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-
-
-      - name: Cache .venv (byoeb-integrations)
-        id: cache-byoeb-integrations
-        uses: actions/cache@v4
-        with:
-          path: ./byoeb-v1/byoeb-integrations/.venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-integrations-${{ hashFiles('byoeb-v1/byoeb-integrations/poetry.lock') }}
-          restore-keys: |
-            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-byoeb-integrations-
-
-      # Install dependencies for byoeb-core
-      - name: Install dependencies (byoeb-core)
-        working-directory: ./byoeb-v1/byoeb-core
+      - name: Install dependencies
+        working-directory: ${{ inputs.directory }}
         run: poetry install --no-interaction
 
-      # Install dependencies for byoeb
-      - name: Install dependencies (byoeb)
-        working-directory: ./byoeb-v1/byoeb
-        run: poetry install --no-interaction
+      - name: Run tests
+        if: ${{ inputs.tests_path != '' }}
+        working-directory: ${{ inputs.directory }}
+        run: poetry run pytest ${{ inputs.tests_path }}
 
-      # Install dependencies for byoeb-integrations
-      - name: Install dependencies (byoeb-integrations)
-        working-directory: ./byoeb-v1/byoeb-integrations
-        run: poetry install --no-interaction
+      - name: Generate coverage JSON
+        if: ${{ inputs.tests_path != '' }}
+        working-directory: ${{ inputs.directory }}
+        run: poetry run coverage json -o coverage.json
 
-      # Run tests for byoeb-integrations (MongoDB tests)
-      - name: Run tests (byoeb-integrations)
-        working-directory: ./byoeb-v1/byoeb-integrations
-        run: poetry run pytest
-        id: byoeb-integrations-tests
+      - name: Extract coverage percentage
+        if: ${{ inputs.tests_path != '' }}
+        id: coverage
+        working-directory: ${{ inputs.directory }}
+        run: |
+          COVERAGE=$(jq -r '.totals.percent_covered' coverage.json | awk '{print int($1+0.999)}')
+          echo "coverage_pct=$COVERAGE" >> $GITHUB_OUTPUT 
+          echo "Coverage: $COVERAGE%"
 
-      # Run tests for byoeb
-      - name: Run tests (byoeb)
-        working-directory: ./byoeb-v1/byoeb
-        run: poetry run pytest tests/unit
-        id: byoeb-tests
-
-      # Upload HTML coverage artifacts
-      - name: Upload HTML coverage (byoeb-integrations)
-        if: always()
+      - name: Upload HTML coverage
+        if: ${{ always() && inputs.upload_html_coverage && inputs.tests_path != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-html-byoeb-integrations
-          path: ./byoeb-v1/byoeb-integrations/htmlcov
-          if-no-files-found: ignore
-
-      - name: Upload HTML coverage (byoeb)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-html-byoeb
-          path: ./byoeb-v1/byoeb/htmlcov
+          name: ${{ inputs.coverage_artifact_name }}
+          path: ${{ inputs.directory }}/htmlcov
           if-no-files-found: ignore
 
       - name: Notify Teams of unit test failure
@@ -122,7 +105,7 @@ jobs:
             [
               {
                 "name": "Stage",
-                "value": "Unit Tests"
+                "value": "Unit Tests (${{ inputs.directory }})"
               }
             ]
           teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}

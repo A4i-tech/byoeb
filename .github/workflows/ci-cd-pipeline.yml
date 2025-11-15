@@ -12,9 +12,31 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Step 1: Run unit tests
-  unit-tests:
+  # Step 1a: Run byoeb-core checks (install only)
+  unit-tests-byoeb-core:
     uses: ./.github/workflows/unit-tests.yml
+    with:
+      directory: ./byoeb-v1/byoeb-core
+    secrets: inherit
+
+  # Step 1b: Run byoeb unit tests
+  unit-tests-byoeb:
+    uses: ./.github/workflows/unit-tests.yml
+    with:
+      directory: ./byoeb-v1/byoeb
+      tests_path: tests/unit
+      coverage_artifact_name: coverage-html-byoeb
+      upload_html_coverage: true
+    secrets: inherit
+
+  # Step 1c: Run byoeb-integrations unit tests
+  unit-tests-byoeb-integrations:
+    uses: ./.github/workflows/unit-tests.yml
+    with:
+      directory: ./byoeb-v1/byoeb-integrations
+      tests_path: .
+      coverage_artifact_name: coverage-html-byoeb-integrations
+      upload_html_coverage: true
     secrets: inherit
 
   # Step 2: Build (validates Dockerfile - uses Docker layer caching for fast builds)
@@ -64,7 +86,7 @@ jobs:
 
   # Step 4: Publish Docker Image (only if tests passed)
   publish-image:
-    needs: [build, unit-tests]
+    needs: [build, unit-tests-byoeb-core, unit-tests-byoeb, unit-tests-byoeb-integrations]
     if: success() && (github.ref_name == 'staging' || github.ref_name == 'a4i/main')
     runs-on: ubuntu-latest
     outputs:
