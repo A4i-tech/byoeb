@@ -150,7 +150,7 @@ jobs:
   deploy-staging:
     needs: publish-staging-image
     if: success() && needs.publish-staging-image.result == 'success'
-    uses: ./.github/workflows/render-deploy.yaml
+    uses: ./.github/workflows/render-deploy.yml
     with:
       service_id: ${{ vars.RENDER_SERVICE_ID }}
     secrets:
