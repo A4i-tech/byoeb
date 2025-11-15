@@ -5,14 +5,13 @@ from byoeb.models.message_category import MessageCategory
 from datetime import datetime, timezone
 from byoeb.chat_app.configuration.config import app_config
 from byoeb.services.chat import utils as chat_utils
-from byoeb.services.chat import mocks
 from typing import Any, Dict, List
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageTypes
 from byoeb.services.channel.base import BaseChannelService, MessageReaction
 from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.services.channel.base import MessageReaction
-from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
+from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 
 class ByoebUserSendResponse(Handler):
     __max_last_active_duration_seconds: int = app_config["app"]["max_last_active_duration_seconds"]
@@ -282,15 +281,10 @@ class ByoebUserSendResponse(Handler):
         print("[send] bot_to_user_convs_count=", len(bot_to_user_convs) if bot_to_user_convs else 0)
 
         end_time = datetime.now(timezone.utc).timestamp()
-        print("[send] end_time=", end_time, "duration=", end_time - start_time)
-        app_insights_logger.add_log(
-            event_name="message_send_workflow",
-            details={
-                "message_id": track_message_id,
-                "time_taken": end_time - start_time
-            }
-        )
-        print("[send] app_insights_logger.add_log called for message_send_workflow")
+        AppInsightsLogHandler.getLogger("message_send_workflow").info(f"end_time={end_time} duration={end_time - start_time}", extra={AppInsightsLogHandler.DETAILS: {
+            "message_id": track_message_id,
+            "time_taken": end_time - start_time
+        }})
 
         # byoeb_expert_verification_status = byoeb_expert_message.message_context.additional_info.get(verification_status)
         # byoeb_expert_message.message_context.additional_info = {

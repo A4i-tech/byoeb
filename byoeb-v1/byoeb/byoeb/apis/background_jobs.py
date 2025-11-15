@@ -1,24 +1,24 @@
-import logging
-import os
 import asyncio
-import pytz
 from datetime import datetime
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+from zoneinfo import ZoneInfo
 from typing import Any, Optional, Dict, List
+from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 
 from fastapi import APIRouter, Path
 from pydantic import BaseModel, Field
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 
-import byoeb.chat_app.configuration.dependency_setup as dependency_setup
-from byoeb.chat_app.configuration.dependency_setup import scheduler, start_scheduler, stop_scheduler
+from byoeb.chat_app.configuration.dependency_setup import scheduler
 
-# ---------------------------------------------------------
-# Router & logger setup
-# ---------------------------------------------------------
-REGISTER_API_NAME = "background_api"
-background_apis_router = APIRouter(tags=["Background Jobs"])
-_logger = logging.getLogger(REGISTER_API_NAME)
+REGISTER_API_NAME = 'background_api'
+TIMEZONE = ZoneInfo("Asia/Kolkata")
+
+background_apis_router = APIRouter()
+_logger = AppInsightsLogHandler.getLogger(REGISTER_API_NAME)
 
 # ---------------------------------------------------------
 # Shared API Response Model
@@ -47,31 +47,31 @@ JOB_CONFIGURATIONS = [
     {
         "id": "consensus_responder",
         "name": "Respond with Consensus",
-        "cron": "*/30 * * * *",  # Every 30 minutes
+        "trigger": CronTrigger.from_crontab("*/30 * * * *", timezone=TIMEZONE),  # Every 30 minutes
         "function": respond_with_consensus,
-        "enabled": True,
+        "enabled": True
     },
     {
         "id": "expert_query_sender",
         "name": "Send Query to Expert",
-        "cron": "0 8-20 * * *",  # Every hour from 8 AM to 8 PM
+        "trigger": CronTrigger.from_crontab("0 8-20 * * *", timezone=TIMEZONE),  # Every hour from 8 AM to 8 PM
         "function": send_query_to_expert,
-        "enabled": True,
+        "enabled": True
     },
     {
         "id": "message_leaderboard",
         "name": "Message Leaderboard",
-        "cron": "0 12 * * FRI",  # 12 PM every Friday
+        "trigger": CronTrigger.from_crontab("0 12 * * FRI", timezone=TIMEZONE),   # 12 PM every Friday
         "function": message_leaderboard,
-        "enabled": True,
+        "enabled": True
     },
-    {
+        {
         "id": "send_dyk",
         "name": "Send DYK",
-        "cron": "0 11 * * WED#2,WED#4",  # Every 2nd and 4th Wednesday
+        "trigger": IntervalTrigger(weeks=2, start_date=datetime(2025, 11, 5, 11, 0, tzinfo=TIMEZONE)),  # Biweekly 11 AM Wednesday
         "function": send_dyk,
-        "enabled": True,
-    },
+        "enabled": True
+    }
 ]
 
 # ---------------------------------------------------------
@@ -80,61 +80,78 @@ JOB_CONFIGURATIONS = [
 job_status: Dict[str, Dict[str, Any]] = {}
 
 def job_listener(event):
-    """Handle job execution events."""
+    """Handle job execution events"""
     if event.exception:
-        _logger.error(f"Job {event.job_id} failed: {event.exception}")
+        _logger.error(f"Job {event.job_id} failed: {event.exception}", extra={AppInsightsLogHandler.DETAILS: {
+            "context": job_listener.__name__,
+            "job_id": event.job_id
+        }})
         job_status[event.job_id] = {
             "status": "failed",
             "last_run": datetime.now().isoformat(),
-            "error": str(event.exception),
+            "error": str(event.exception)
         }
     else:
-        _logger.info(f"Job {event.job_id} executed successfully")
+        _logger.info(f"Job {event.job_id} executed successfully", extra={AppInsightsLogHandler.DETAILS: {
+            "context": job_listener.__name__,
+            "job_id": event.job_id
+        }})
         job_status[event.job_id] = {
             "status": "completed",
             "last_run": datetime.now().isoformat(),
-            "error": None,
+            "error": None
         }
 
+# Add event listeners
 scheduler.add_listener(job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
 
 async def execute_job_function(job_function):
-    """Execute a job function directly (async or sync)."""
+    """Execute a job function directly"""
     try:
         if asyncio.iscoroutinefunction(job_function):
             await job_function()
         else:
             job_function()
-        _logger.info(f"Executed job function {job_function.__name__}")
+        _logger.info(f"Successfully executed job function {job_function.__name__}")
     except Exception as e:
-        _logger.error(f"Error executing job function {job_function.__name__}: {str(e)}")
+        _logger.error(f"Failed to execute job function {job_function.__name__}: {str(e)}")
         raise
 
 def setup_scheduled_jobs():
-    """Register all enabled jobs with the scheduler."""
+    """Setup all scheduled jobs"""
     for job_config in JOB_CONFIGURATIONS:
         if job_config["enabled"]:
             try:
                 scheduler.add_job(
                     execute_job_function,
-                    CronTrigger.from_crontab(job_config["cron"], timezone=pytz.timezone("Asia/Kolkata")),
+                    job_config["trigger"],
                     args=[job_config["function"]],
                     id=job_config["id"],
                     name=job_config["name"],
                     replace_existing=True,
+                    misfire_grace_time=60
                 )
+
                 job_status[job_config["id"]] = {
                     "status": "scheduled",
                     "last_run": None,
-                    "error": None,
+                    "error": None
                 }
-                _logger.info(f"Added job '{job_config['name']}' → {job_config['cron']}")
+
+                _logger.info(f"Added job: {job_config['name']} with schedule: {job_config['trigger']}", extra={AppInsightsLogHandler.DETAILS: {
+                    "context": setup_scheduled_jobs.__name__,
+                    "job_id": job_config["id"]
+                }})
+
             except Exception as e:
-                _logger.error(f"Failed to setup job {job_config['id']}: {str(e)}")
+                _logger.error(f"Failed to setup job {job_config['id']}: {str(e)}", extra={AppInsightsLogHandler.DETAILS: {
+                    "context": setup_scheduled_jobs.__name__,
+                    "job_id": job_config["id"]
+                }})
                 job_status[job_config["id"]] = {
                     "status": "error",
                     "last_run": None,
-                    "error": str(e),
+                    "error": str(e)
                 }
 
 # ---------------------------------------------------------
@@ -242,7 +259,7 @@ async def list_jobs() -> APIResponse:
             jobs_info.append({
                 "id": job_id,
                 "name": job_config["name"],
-                "cron": job_config["cron"],
+                "trigger": str(job_config["trigger"]),
                 "enabled": job_config["enabled"],
                 "status": status_info.get("status", "not_scheduled"),
                 "last_run": status_info.get("last_run"),
@@ -264,76 +281,3 @@ async def list_jobs() -> APIResponse:
     except Exception as e:
         _logger.exception("Error in /jobs")
         return APIResponse(status="error", message=str(e))
-
-
-# Scheduler start/stop functions are now imported from dependency_setup
-# Use start_scheduler() and stop_scheduler() from dependency_setup
-
-# @background_apis_router.get("/asha_logs", response_class=HTMLResponse)
-# async def form_get(request: Request):
-#     return templates.TemplateResponse("index.html", {"request": request})
-
-# @background_apis_router.post("/asha_logs", response_class=HTMLResponse)
-# async def form_post(request: Request, start_datetime: str = Form(...), end_datetime: str = Form(...)):
-#     start = datetime.strptime(start_datetime, "%Y-%m-%dT%H:%M")
-#     end = datetime.strptime(end_datetime, "%Y-%m-%dT%H:%M")
-    
-#     start_unix = str(start.timestamp())
-#     end_unix = str(end.timestamp())
-#     media_storage = AsyncAzureBlobStorage(
-#         container_name=container_name,
-#         account_url=account_url,
-#         credentials=DefaultAzureCredential()
-#     )
-
-#     ashas_df = await fetch_daily_logs(
-#         start_timestamp=start_unix,
-#         end_timestamp=end_unix
-#     )
-    
-#     # Save to excel for download
-#     ashas_df.to_excel(file_path, index=False)
-#     blob_file_name = f"logs/{os.path.basename(file_path)}"
-#     await media_storage.adelete_file(
-#         file_name=blob_file_name
-#     )
-#     await media_storage.aupload_file(
-#         file_path=file_path,
-#         file_name=blob_file_name
-#     )
-#     await media_storage._close()
-#     # Render HTML
-#     df_html = ashas_df.to_html(classes="table table-bordered", index=False)
-#     return templates.TemplateResponse("index.html", {
-#         "request": request,
-#         "table": df_html,
-#         "show_download": True
-#     })
-
-# @background_apis_router.get("/download")
-# async def download_excel():
-#     media_storage = AsyncAzureBlobStorage(
-#         container_name=container_name,
-#         account_url=account_url,
-#         credentials=DefaultAzureCredential()
-#     )
-#     _, asha_data = await media_storage.adownload_file(
-#         file_name=f"logs/{os.path.basename(file_path)}"
-#     )
-#     await media_storage._close()
-#     stream = BytesIO(asha_data.data)  # or just use Filedata if already BytesIO
-#     return StreamingResponse(
-#         stream,
-#         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-#         headers={
-#             "Content-Disposition": "attachment; filename=downloaded.xlsx"
-#         }
-#     )
-#     # return FileResponse(
-#     #     path=file_path,
-#     #     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-#     #     filename="data.xlsx",
-#     # )
-
-# Manual start/stop endpoints removed - scheduler is now managed by FastAPI lifecycle
-
