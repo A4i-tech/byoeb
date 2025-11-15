@@ -11,6 +11,10 @@ on:
         description: 'Docker image tag to deploy (leave empty for latest production)'
         required: false
         type: string
+    outputs:
+      service_url:
+        description: "Azure WebApp service URL"
+        value: ${{ jobs.deploy.outputs.service_url }}
     secrets:
       AZURE_WEBAPP_PUBLISH_PROFILE:
         required: true
@@ -33,6 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.validate.outputs.image }}
+      service_url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     steps:
       - name: Validate deployment
         run: |

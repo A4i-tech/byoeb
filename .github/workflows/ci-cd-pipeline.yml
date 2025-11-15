@@ -192,122 +192,31 @@ jobs:
           }
         ]
 
-  # Step 5: Deploy image
-  deploy-image:
+  # Step 5a: Deploy staging via Render reusable workflow
+  deploy-staging:
     needs: publish-image
-    if: success() && needs.publish-image.result == 'success'
-    runs-on: ubuntu-latest
-    outputs:
-      service_url: ${{ steps.render-service.outputs.service_url }}
-      image-ref: ${{ needs.publish-image.outputs.image-ref }}
-      registry: ${{ needs.publish-image.outputs.registry }}
-      environment: ${{ needs.publish-image.outputs.environment }}
-    env:
-      TARGET_ENV: ${{ needs.publish-image.outputs.environment }}
-      IMAGE_TAG: ${{ needs.publish-image.outputs['image-tag'] }}
-    steps:
-      - name: Announce deployment target
-        run: echo "Deploying $TARGET_ENV image..."
+    if: success() && needs.publish-image.outputs.environment == 'staging'
+    uses: ./.github/workflows/render-deploy.yml
+    with:
+      service_id: ${{ vars.RENDER_SERVICE_ID }}
+      api_base_url: ${{ vars.RENDER_API_URL || 'https://api.render.com' }}
+    secrets:
+      render_api_key: ${{ secrets.RENDER_API_KEY }}
 
-      - name: Create Render deployment
-        if: env.TARGET_ENV == 'staging'
-        id: render-create
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
-          RENDER_API_URL: ${{ vars.RENDER_API_URL || 'https://api.render.com' }}
-        run: |
-          set -euo pipefail
-          AUTH="Authorization: Bearer $RENDER_API_KEY"
-          DEPLOY_JSON=$(curl -fsS -X POST -H "$AUTH" -H "Accept: application/json" \
-            "$RENDER_API_URL/v1/services/$RENDER_SERVICE_ID/deploys" \
-            -d '{}')
-          echo "$DEPLOY_JSON" | jq .
-          DEPLOY_ID=$(echo "$DEPLOY_JSON" | jq -r '.id')
-          echo "deploy_id=$DEPLOY_ID" >> "$GITHUB_OUTPUT"
-
-      - name: Watch Render deployment
-        if: env.TARGET_ENV == 'staging'
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
-          RENDER_API_URL: ${{ vars.RENDER_API_URL || 'https://api.render.com' }}
-        run: |
-          set -euo pipefail
-          AUTH="Authorization: Bearer $RENDER_API_KEY"
-          DEPLOY_ID="${{ steps.render-create.outputs.deploy_id }}"
-          START_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-          while :; do
-            get() {
-              local url=$1; shift
-              local out; out=$(mktemp)
-              local code
-              code=$(curl -fsS -w "%{http_code}" -o "$out" "$@" "$url" || true)
-              if [[ "$code" =~ ^5 ]]; then
-                echo "Render API error $code:"; cat "$out"; sleep 8; return 1
-              fi
-              cat "$out"
-            }
-
-            STATUS=$(get "$RENDER_API_URL/v1/services/$RENDER_SERVICE_ID/deploys/$DEPLOY_ID" \
-              -H "$AUTH" -H "Accept: application/json" | jq -r '.status' || continue)
-
-            RESP=$(get "$RENDER_API_URL/v1/logs" -G -H "$AUTH" -H "Accept: application/json" \
-              --data-urlencode "ownerId=$DEPLOY_ID" \
-              --data-urlencode "resource=$RENDER_SERVICE_ID" \
-              --data-urlencode "startTime=$START_TIME" \
-              --data-urlencode "direction=forward" \
-              --data-urlencode "limit=200") || continue
-
-            echo "$RESP" | jq -r '.logs[]?.message'
-            START_TIME=$(echo "$RESP" | jq -r '.nextStartTime // empty')
-
-            case "$STATUS" in
-              live|succeeded|completed) echo "Deploy complete."; break ;;
-              failed|update_failed|canceled|cancelled|error|deactivated) echo "Deploy failed."; exit 1 ;;
-              *) sleep 8 ;;
-            esac
-          done
-
-      - name: Get Render service URL
-        if: env.TARGET_ENV == 'staging'
-        id: render-service
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
-          RENDER_API_URL: ${{ vars.RENDER_API_URL || 'https://api.render.com' }}
-        run: |
-          set -euo pipefail
-          AUTH="Authorization: Bearer $RENDER_API_KEY"
-          SERVICE_URL=$(curl -fsS -H "$AUTH" -H "Accept: application/json" \
-            "$RENDER_API_URL/v1/services/$RENDER_SERVICE_ID" | jq -r '.serviceDetails.url')
-          echo "service_url=$SERVICE_URL" >> "$GITHUB_OUTPUT"
-
-      - name: Validate production deployment
-        if: env.TARGET_ENV == 'production'
-        id: production-validate
-        env:
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
-          REGISTRY: ${{ env.REGISTRY }}
-        run: |
-          set -euo pipefail
-          IMAGE_TAG="${IMAGE_TAG:-production-latest}"
-          FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
-          echo "Deploying ${FULL_IMAGE} to production"
-          echo "image=${FULL_IMAGE}" >> "$GITHUB_OUTPUT"
-
-      - name: Deploy to Azure Web App
-        if: env.TARGET_ENV == 'production'
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          images: ${{ steps.production-validate.outputs.image }}
+  # Step 5b: Deploy production via reusable workflow
+  deploy-production:
+    needs: publish-image
+    if: success() && needs.publish-image.outputs.environment == 'production'
+    uses: ./.github/workflows/deploy-production.yml
+    with:
+      azure_webapp_name: ${{ vars.AZURE_WEBAPP_NAME }}
+      image_tag: ${{ needs.publish-image.outputs['image-tag'] }}
+    secrets:
+      AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
 
   notify-deployment-failure:
-    needs: deploy-image
-    if: ${{ always() && needs.deploy-image.result == 'failure' }}
+    needs: [deploy-staging, deploy-production]
+    if: ${{ always() && (needs.deploy-staging.result == 'failure' || needs.deploy-production.result == 'failure') }}
     uses: ./.github/workflows/dispatch-teams-webhook.yml
     secrets: inherit
     with:
@@ -318,23 +227,23 @@ jobs:
         [
           {
             "name": "Stage",
-            "value": "${{ needs.deploy-image.outputs.environment == 'production' && 'Deploy (Production)' || 'Deploy (Staging)' }}"
+            "value": "${{ needs.deploy-production.result == 'failure' && 'Deploy (Production)' || 'Deploy (Staging)' }}"
           },
           {
             "name": "Environment",
-            "value": "${{ needs.deploy-image.outputs.environment }}"
+            "value": "${{ needs.deploy-production.result == 'failure' && 'production' || 'staging' }}"
           }
         ]
 
   # Step 5: Run integration tests
   integration-tests:
-    needs: deploy-image
-    if: needs.deploy-image.result == 'success' && needs.deploy-image.outputs.environment == 'staging'
+    needs: [deploy-staging, publish-image]
+    if: needs.deploy-staging.result == 'success'
     uses: ./.github/workflows/integration-tests.yml
     with:
-      service-url: ${{ needs.deploy-image.outputs.service_url }}
-      image-ref: ${{ needs.deploy-image.outputs['image-ref'] }}
-      registry: ${{ needs.deploy-image.outputs.registry }}
+      service-url: ${{ needs.deploy-staging.outputs.service_url }}
+      image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
+      registry: ${{ needs.publish-image.outputs.registry }}
     secrets: inherit
 
   notify-integration-tests-failure:
@@ -355,8 +264,15 @@ jobs:
         ]
 
   notify-workflow-success:
-    needs: [deploy-image, integration-tests]
-    if: ${{ needs.deploy-image.result == 'success' && (needs.integration-tests.result == 'success' || needs.integration-tests.result == 'skipped') }}
+    needs: [deploy-staging, deploy-production, publish-image, integration-tests]
+    if: >-
+      ${{
+        (
+          needs.deploy-staging.result == 'success' ||
+          needs.deploy-production.result == 'success'
+        ) &&
+        (needs.integration-tests.result == 'success' || needs.integration-tests.result == 'skipped')
+      }}
     uses: ./.github/workflows/dispatch-teams-webhook.yml
     secrets: inherit
     with:
@@ -365,16 +281,7 @@ jobs:
       theme_color: '00FF00'
       facts: |
         [
-          {
-            "name": "Stage",
-            "value": "Workflow Complete"
-          },
-          {
-            "name": "Environment",
-            "value": "${{ needs.deploy-image.outputs.environment }}"
-          },
-          {
-            "name": "Deployment",
-            "value": "${{ needs.deploy-image.outputs.service_url }}"
-          }
+          { "name": "Stage", "value": "Workflow Complete" },
+          { "name": "Environment", "value": "${{ needs.publish-image.outputs.environment }}" },
+          { "name": "Deployment", "value": "${{ needs.deploy-staging.outputs.service_url || needs.deploy-production.outputs.service_url || 'N/A' }}" }
         ]
