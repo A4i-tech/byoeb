@@ -15,10 +15,6 @@ on:
         description: "Registry hosting the container image"
         required: true
         type: string
-    outputs:
-      passed:
-        description: "Whether integration tests passed"
-        value: ${{ jobs.integration-tests.outputs.tests-passed }}
 
 jobs:
   integration-tests:
@@ -26,8 +22,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    outputs:
-      tests-passed: ${{ steps.test-results.outputs.tests-passed }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -83,18 +77,6 @@ jobs:
             -e PHONE_NUMBER_ID="$PHONE_NUMBER_ID" \
             "${{ inputs.image-ref }}" \
             poetry run pytest tests/integration
-
-      - name: Record test result
-        id: test-results
-        if: ${{ always() }}
-        env:
-          TEST_OUTCOME: ${{ steps.run-tests.outcome }}
-        run: |
-          if [ "$TEST_OUTCOME" = "success" ]; then
-            echo "tests-passed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "tests-passed=false" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Fail if tests failed
         if: ${{ steps.run-tests.outcome != 'success' }}

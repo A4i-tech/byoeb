@@ -68,7 +68,7 @@ jobs:
 
   notify-unit-tests-failure:
     needs: unit-tests
-    if: ${{ always() && github.event_name == 'push' && needs.unit-tests.outputs.passed == 'false' }}
+    if: ${{ always() && github.event_name == 'push' && needs.unit-tests.result == 'failure' }}
     uses: ./.github/workflows/dispatch-teams-webhook.yml
     secrets: inherit
     with:
@@ -79,7 +79,7 @@ jobs:
 
   notify-integration-tests-failure:
     needs: integration-tests
-    if: ${{ always() && github.event_name == 'push' && needs.integration-tests.result != 'skipped' && needs.integration-tests.outputs.passed == 'false' }}
+    if: ${{ always() && github.event_name == 'push' && needs.integration-tests.result == 'failure' }}
     uses: ./.github/workflows/dispatch-teams-webhook.yml
     secrets: inherit
     with:
@@ -92,7 +92,7 @@ jobs:
   # Uses Docker layer caching from build step for fast builds
   publish-staging-image:
     needs: unit-tests
-    if: success() && needs.unit-tests.outputs.passed == 'true' && github.event_name == 'push' && github.ref_name == 'staging'
+    if: success() && needs.unit-tests.result == 'success' && github.event_name == 'push' && github.ref_name == 'staging'
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
@@ -206,7 +206,7 @@ jobs:
   # Step 6: Publish Production Docker Image (only if integration tests passed)
   publish-production-image:
     needs: [unit-tests, integration-tests]
-    if: success() && needs.unit-tests.outputs.passed == 'true' && (needs.integration-tests.result == 'skipped' || needs.integration-tests.outputs.passed == 'true') && github.event_name == 'push' && github.ref_name == 'a4i/main'
+    if: success() && needs.unit-tests.result == 'success' && (needs.integration-tests.result == 'skipped' || needs.integration-tests.result == 'success') && github.event_name == 'push' && github.ref_name == 'a4i/main'
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.production-tag.outputs.tag }}

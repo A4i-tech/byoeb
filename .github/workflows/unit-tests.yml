@@ -2,16 +2,10 @@ name: Unit Tests
 
 on:
   workflow_call:
-    outputs:
-      passed:
-        description: "Whether all unit tests passed successfully"
-        value: ${{ jobs.unit-tests.outputs.tests-passed }}
 
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
-    outputs:
-      tests-passed: ${{ steps.test-results.outputs.tests-passed }}
 
     env:
       POETRY_VIRTUALENVS_IN_PROJECT: "true"
@@ -99,16 +93,6 @@ jobs:
         working-directory: ./byoeb-v1/byoeb
         run: poetry run pytest tests/unit
         id: byoeb-tests
-
-      # Set test results based on both test runs
-      - name: Set test results
-        id: test-results
-        run: |
-          if [ "${{ steps.byoeb-integrations-tests.outcome }}" == "success" ] && [ "${{ steps.byoeb-tests.outcome }}" == "success" ]; then
-            echo "tests-passed=true" >> $GITHUB_OUTPUT
-          else
-            echo "tests-passed=false" >> $GITHUB_OUTPUT
-          fi
 
       # Upload HTML coverage artifacts
       - name: Upload HTML coverage (byoeb-integrations)
