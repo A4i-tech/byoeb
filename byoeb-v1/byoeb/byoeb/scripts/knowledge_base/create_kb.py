@@ -14,7 +14,7 @@ from byoeb.kb_app.configuration.dependency_setup import (
     azure_openai_embed,
     llm_client
 )
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from azure.identity import DefaultAzureCredential
 from typing import List
 from datetime import datetime, timezone
 from byoeb_core.data_parser.llama_index_text_parser import LLamaIndexTextParser, LLamaIndexTextSplitterType
@@ -36,6 +36,14 @@ logger = logging.getLogger("kb_service")
 prefix_raw_documents = "raw_documents"
 prefix_raw_faq_documents = "raw_documents/FAQ"
 prefix_updated_documents = "expert_update_documents"
+
+## Azure Vector Search properties
+endpoint="byoebstage-search"
+index_name="byoebstage-doc-index-latest"
+key=os.getenv("AZURE_SEARCH_API_KEY")
+if key is None:
+    key=DefaultAzureCredential()
+search_index_client = SearchIndexingBufferedSender(endpoint=endpoint, index_name=index_name, credential=key,on_error=fails)
 
 @retry(
     stop=stop_after_attempt(3),  # Retry up to 3 times
@@ -543,7 +551,8 @@ abbreviations = {
     "SRH": "Sexual and Reproductive Health",
     "STIs": "Sexually Transmitted Infections",
     "VHSNC": "Village Health, Sanitation and Nutrition Committee",
-    "WIFS": "Weekly Iron Folic Acid Supplementation"
+    "WIFS": "Weekly Iron Folic Acid Supplementation",
+    "CS": "Caesarean Section"
 }
 def replace_abbreviations(text, abbrev_dict):
     # Sort by length of abbreviation to avoid partial matches
@@ -775,18 +784,12 @@ def fails(error: IndexAction):
             file.write(f"Action type: {error.action_type}\n")
             file.write(f"Properties: {error.additional_properties}\n")
             
-def uplodad_documents(documents: List[AzureSearchNode]):
+def upload_documents(documents: List[AzureSearchNode]):
     batch_size = 10
     for i in tqdm(range(0, len(documents), batch_size)):
         batch_documents = documents[i:i + batch_size]
         # current_documents = [doc.model_dump(exclude_none=True, exclude_defaults=True) for doc in batch_documents]
-        with SearchIndexingBufferedSender(
-            endpoint="https://khushi-baby-asha-search.search.windows.net",
-            index_name="khushi-baby-asha-doc-index",
-            credential=DefaultAzureCredential(),
-            on_error=fails
-        ) as batch_client:
-            batch_client.upload_documents(documents=batch_documents)
+        search_index_client.upload_documents(documents=batch_documents)
             
 async def main():
     faq_files, raw_files_without_faq, update_files = await aget_files_from_blob_store()
@@ -805,7 +808,7 @@ async def main():
         batch_size=4,
         llm_client=llm_client
     )
-    uplodad_documents(documents)
+    upload_documents(documents)
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -125,10 +125,9 @@ app, mcp_app = create_apps()
 # Issue with multiple workers in FastAPI
 # https://github.com/encode/uvicorn/discussions/2450
 if __name__ == '__main__':
-    module_name = "byoeb.chat_app.run"
-        uvicorn.run(
-            f"{module_name}:app",
-            host="0.0.0.0",
-            port=8000,
-            ws="websockets-sansio"
-        )
+    uvicorn.run(
+        "byoeb.chat_app.run:app",
+        host="0.0.0.0",
+        port=8000,
+        ws="websockets-sansio"
+    )
