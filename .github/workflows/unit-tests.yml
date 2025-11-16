@@ -22,6 +22,11 @@ on:
         required: false
         default: false
         type: boolean
+      coverage-gist-id:
+        description: "ID of the GitHub gist to update with the coverage badge JSON"
+        required: false
+        default: ""
+        type: string
     outputs:
       coverage-pct:
         description: "Rounded coverage percentage (when tests are executed)"
@@ -93,6 +98,28 @@ jobs:
           name: ${{ inputs.coverage-artifact-name }}
           path: ${{ inputs.directory }}/htmlcov
           if-no-files-found: ignore
+
+      - name: Prepare coverage badge metadata
+        if: ${{ inputs.coverage-gist-id != '' && inputs.tests-path != '' }}
+        id: coverage_badge_meta
+        run: |
+          set -euo pipefail
+          DIR="${{ inputs.directory }}"
+          CLEAN="${DIR#./}"
+          LEAF="${CLEAN##*/}"
+          echo "filename=${LEAF}.json" >> "$GITHUB_OUTPUT"
+          echo "label=coverage (${LEAF})" >> "$GITHUB_OUTPUT"
+
+      - name: Upload coverage badge
+        if: ${{ inputs.coverage-gist-id != '' && inputs.tests-path != '' }}
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.COVERAGE_GIST_TOKEN }}
+          gistID: ${{ inputs.coverage-gist-id }}
+          filename: ${{ steps.coverage_badge_meta.outputs.filename }}
+          label: ${{ steps.coverage_badge_meta.outputs.label }}
+          message: ${{ steps.coverage.outputs.coverage-pct }}%
+          color: ${{ steps.coverage.outputs.coverage-pct > 80 && 'brightgreen' || steps.coverage.outputs.coverage-pct > 60 && 'yellow' || 'red' }}
 
       - name: Notify Teams of unit test failure
         if: ${{ failure() }}
