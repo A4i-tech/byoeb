@@ -45,6 +45,8 @@ jobs:
   # Step 2: Build (validates Dockerfile - uses Docker layer caching for fast builds)
   build:
     name: Build Docker image
+    outputs:
+      image-name: ${{ steps.image-name.outputs.image_name }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -109,11 +111,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set lowercase image name
-        id: image-name
-        run: |
-          echo "image_name=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
       - name: Determine publish target
         id: target
         env:
@@ -149,7 +146,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ steps.image-name.outputs.image_name }}
+          images: ${{ env.REGISTRY }}/${{ needs.build.outputs['image-name'] }}
           tags: |
             type=raw,value=${{ steps.target.outputs.tag_prefix }}-{{sha}}
             type=raw,value=${{ steps.target.outputs.tag_prefix }}-latest
