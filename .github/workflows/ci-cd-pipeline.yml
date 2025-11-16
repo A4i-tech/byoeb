@@ -29,7 +29,7 @@ jobs:
       tests-path: tests/unit
       coverage-artifact-name: coverage-html-byoeb
       upload-html-coverage: true
-      coverage-gist-id: ${{ github.ref_name == 'a4i/main' && vars.COVERAGE_GIST_ID || '' }}
+      coverage-gist-id: ${{ github.event_name == 'push' && github.ref_name == 'a4i/main' && vars.COVERAGE_GIST_ID || '' }}
     secrets: inherit
 
   # Step 1c: Run byoeb-integrations unit tests
@@ -41,7 +41,7 @@ jobs:
       tests-path: .
       coverage-artifact-name: coverage-html-byoeb-integrations
       upload-html-coverage: true
-      coverage-gist-id: ${{ github.ref_name == 'a4i/main' && vars.COVERAGE_GIST_ID || '' }}
+      coverage-gist-id: ${{ github.event_name == 'push' && github.ref_name == 'a4i/main' && vars.COVERAGE_GIST_ID || '' }}
     secrets: inherit
 
   # Step 2: Build (validates Dockerfile - uses Docker layer caching for fast builds)
