@@ -1,20 +1,20 @@
-name: Deploy to Production
+name: Deploy to Azure WebApp
 
 on:
   workflow_call:
     inputs:
-      azure_webapp_name:
+      azure-webapp-name:
         description: 'Name of the Azure WebApp service'
         required: true
         type: string
-      image_tag:
+      image-tag:
         description: 'Docker image tag to deploy (leave empty for latest production)'
         required: false
         type: string
     outputs:
-      service_url:
+      service-url:
         description: "Azure WebApp service URL"
-        value: ${{ jobs.deploy.outputs.service_url }}
+        value: ${{ jobs.deploy.outputs['service-url'] }}
     secrets:
       AZURE_WEBAPP_PUBLISH_PROFILE:
         required: true
@@ -37,26 +37,26 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.validate.outputs.image }}
-      service_url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+      service-url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Validate deployment
         run: |
-          IMAGE_TAG="${{ inputs.image_tag || 'production-latest' }}"
+          IMAGE_TAG="${{ inputs.image-tag || 'production-latest' }}"
           FULL_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
           echo "🚀 Deploying to production: ${FULL_IMAGE}"
           echo "Deployment confirmed by: ${{ github.actor }}"
           echo "image=${FULL_IMAGE}" >> $GITHUB_OUTPUT
-          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "image-tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
         id: validate
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v2
         with:
-          app-name: ${{ inputs.azure_webapp_name }}
+          app-name: ${{ inputs.azure-webapp-name }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           images: ${{ steps.validate.outputs.image }}
 
@@ -65,8 +65,8 @@ jobs:
         uses: ./.github/actions/dispatch-teams-webhook
         with:
           summary: '❌ Deploy Failed'
-          activity_title: '❌ Deploy Failed'
-          theme_color: 'FF0000'
+          activity-title: '❌ Deploy Failed'
+          theme-color: 'FF0000'
           facts: |
             [
               {
@@ -78,19 +78,19 @@ jobs:
                 "value": "production"
               }
             ]
-          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
       - name: Notify Teams of workflow success (production)
         if: ${{ success() }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
           summary: '✅ Workflow Complete'
-          activity_title: '✅ Workflow Complete'
-          theme_color: '00FF00'
+          activity-title: '✅ Workflow Complete'
+          theme-color: '00FF00'
           facts: |
             [
               { "name": "Stage", "value": "Workflow Complete" },
               { "name": "Environment", "value": "production" },
               { "name": "Deployment", "value": "${{ steps.deploy-to-webapp.outputs.webapp-url || 'N/A' }}" }
             ]
-          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}

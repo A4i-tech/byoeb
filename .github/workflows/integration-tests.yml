@@ -99,8 +99,8 @@ jobs:
         uses: ./.github/actions/dispatch-teams-webhook
         with:
           summary: '❌ Pipeline Stage Failed'
-          activity_title: '❌ Pipeline Stage Failed'
-          theme_color: 'FF0000'
+          activity-title: '❌ Pipeline Stage Failed'
+          theme-color: 'FF0000'
           facts: |
             [
               {
@@ -108,19 +108,19 @@ jobs:
                 "value": "Integration Tests"
               }
             ]
-          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
       - name: Notify Teams of workflow success (staging)
         if: ${{ success() }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
           summary: '✅ Workflow Complete'
-          activity_title: '✅ Workflow Complete'
-          theme_color: '00FF00'
+          activity-title: '✅ Workflow Complete'
+          theme-color: '00FF00'
           facts: |
             [
               { "name": "Stage", "value": "Workflow Complete" },
               { "name": "Environment", "value": "${{ inputs.environment }}" },
               { "name": "Deployment", "value": "${{ inputs.deployment-url || 'N/A' }}" }
             ]
-          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}

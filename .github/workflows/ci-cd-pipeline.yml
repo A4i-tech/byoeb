@@ -13,34 +13,38 @@ env:
 
 jobs:
   # Step 1a: Run byoeb-core checks (install only)
-  unit-tests-byoeb-core:
+  unit-test-byoeb-core:
+    name: byoeb-core (build-test)
     uses: ./.github/workflows/unit-tests.yml
     with:
       directory: ./byoeb-v1/byoeb-core
     secrets: inherit
 
   # Step 1b: Run byoeb unit tests
-  unit-tests-byoeb:
+  unit-test-byoeb:
+    name: byoeb (build-test)
     uses: ./.github/workflows/unit-tests.yml
     with:
       directory: ./byoeb-v1/byoeb
-      tests_path: tests/unit
-      coverage_artifact_name: coverage-html-byoeb
-      upload_html_coverage: true
+      tests-path: tests/unit
+      coverage-artifact-name: coverage-html-byoeb
+      upload-html-coverage: true
     secrets: inherit
 
   # Step 1c: Run byoeb-integrations unit tests
-  unit-tests-byoeb-integrations:
+  unit-test-byoeb-integrations:
+    name: byoeb-integrations (build-test)
     uses: ./.github/workflows/unit-tests.yml
     with:
       directory: ./byoeb-v1/byoeb-integrations
-      tests_path: .
-      coverage_artifact_name: coverage-html-byoeb-integrations
-      upload_html_coverage: true
+      tests-path: .
+      coverage-artifact-name: coverage-html-byoeb-integrations
+      upload-html-coverage: true
     secrets: inherit
 
   # Step 2: Build (validates Dockerfile - uses Docker layer caching for fast builds)
   build:
+    name: Build Docker image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -69,8 +73,8 @@ jobs:
         uses: ./.github/actions/dispatch-teams-webhook
         with:
           summary: '❌ Pipeline Stage Failed'
-          activity_title: '❌ Pipeline Stage Failed'
-          theme_color: 'FF0000'
+          activity-title: '❌ Pipeline Stage Failed'
+          theme-color: 'FF0000'
           facts: |
             [
               {
@@ -82,11 +86,12 @@ jobs:
                 "value": "${{ github.actor }}"
               }
             ]
-          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
   # Step 4: Publish Docker Image (only if tests passed)
   publish-image:
-    needs: [build, unit-tests-byoeb-core, unit-tests-byoeb, unit-tests-byoeb-integrations]
+    name: Publish image
+    needs: [build, unit-test-byoeb-core, unit-test-byoeb, unit-test-byoeb-integrations]
     if: success() && github.event_name == 'push' && (github.ref_name == 'staging' || github.ref_name == 'a4i/main')
     runs-on: ubuntu-latest
     outputs:
@@ -180,8 +185,8 @@ jobs:
         uses: ./.github/actions/dispatch-teams-webhook
         with:
           summary: '❌ Pipeline Stage Failed'
-          activity_title: '❌ Pipeline Stage Failed'
-          theme_color: 'FF0000'
+          activity-title: '❌ Pipeline Stage Failed'
+          theme-color: 'FF0000'
           facts: |
             [
               {
@@ -193,41 +198,44 @@ jobs:
                 "value": "${{ github.ref_name == 'a4i/main' && 'production' || 'staging' }}"
               }
             ]
-          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
   # Step 5a: Deploy staging via Render reusable workflow
   deploy-staging:
+    name: Deploy (staging)
     needs: publish-image
     if: success() && needs.publish-image.outputs.environment == 'staging'
-    uses: ./.github/workflows/render-deploy.yml
+    uses: ./.github/workflows/deploy-render.yml
     with:
-      service_id: ${{ vars.RENDER_SERVICE_ID }}
-      api_base_url: ${{ vars.RENDER_API_URL || 'https://api.render.com' }}
+      service-id: ${{ vars.RENDER_SERVICE_ID }}
+      api-base-url: ${{ vars.RENDER_API_URL || 'https://api.render.com' }}
     secrets:
-      render_api_key: ${{ secrets.RENDER_API_KEY }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
   # Step 5b: Deploy production via reusable workflow
   deploy-production:
+    name: Deploy (production)
     needs: publish-image
     if: success() && needs.publish-image.outputs.environment == 'production'
-    uses: ./.github/workflows/deploy-production.yml
+    uses: ./.github/workflows/deploy-azure-webapp.yml
     with:
-      azure_webapp_name: ${{ vars.AZURE_WEBAPP_NAME }}
-      image_tag: ${{ needs.publish-image.outputs['image-tag'] }}
+      azure-webapp-name: ${{ vars.AZURE_WEBAPP_NAME }}
+      image-tag: ${{ needs.publish-image.outputs['image-tag'] }}
     secrets:
       AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
       TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
   # Step 5: Run integration tests
   integration-tests:
+    name: Run integration tests
     needs: [deploy-staging, publish-image]
     if: needs.deploy-staging.result == 'success'
     uses: ./.github/workflows/integration-tests.yml
     with:
-      service-url: ${{ needs.deploy-staging.outputs.service_url }}
+      service-url: ${{ needs.deploy-staging.outputs['service-url'] }}
       image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
       registry: ${{ needs.publish-image.outputs.registry }}
       environment: ${{ needs.publish-image.outputs.environment }}
-      deployment-url: ${{ needs.deploy-staging.outputs.service_url }}
+      deployment-url: ${{ needs.deploy-staging.outputs['service-url'] }}
     secrets: inherit

@@ -1,29 +1,29 @@
-name: CD Render
+name: Deploy to Render
 
 on:
   workflow_call:
     inputs:
-      service_id:
+      service-id:
         description: "Render service identifier"
         required: true
         type: string
-      deployment_payload:
+      deployment-payload:
         description: "JSON payload sent to Render deploy API"
         required: false
         type: string
-      api_base_url:
+      api-base-url:
         description: "Render API base URL"
         required: false
         type: string
     outputs:
-      deploy_id:
+      deploy-id:
         description: "Render deployment ID"
-        value: ${{ jobs.deploy.outputs.deploy_id }}
-      service_url:
+        value: ${{ jobs.deploy.outputs['deploy-id'] }}
+      service-url:
         description: "Render service URL"
-        value: ${{ jobs.deploy.outputs.service_url }}
+        value: ${{ jobs.deploy.outputs['service-url'] }}
     secrets:
-      render_api_key:
+      RENDER_API_KEY:
         description: "Render API key"
         required: true
       TEAMS_WEBHOOK_URL:
@@ -34,16 +34,16 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     outputs:
-      deploy_id: ${{ steps.create.outputs.deploy_id }}
-      service_url: ${{ steps.service.outputs.service_url }}
+      deploy-id: ${{ steps.create.outputs['deploy-id'] }}
+      service-url: ${{ steps.service.outputs['service-url'] }}
     environment:
       name: 'staging'
-      url: ${{ steps.service.outputs.service_url }}
+      url: ${{ steps.service.outputs['service-url'] }}
     env:
-      RENDER_API_KEY: ${{ secrets.render_api_key }}
-      RENDER_SERVICE_ID: ${{ inputs.service_id }}
-      RENDER_API_URL: ${{ inputs.api_base_url || 'https://api.render.com' }}
-      DEPLOY_PAYLOAD: ${{ inputs.deployment_payload || '{}' }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ inputs.service-id }}
+      RENDER_API_URL: ${{ inputs.api-base-url || 'https://api.render.com' }}
+      DEPLOY_PAYLOAD: ${{ inputs.deployment-payload || '{}' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -58,13 +58,13 @@ jobs:
             -d "$DEPLOY_PAYLOAD")
           echo "$DEPLOY_JSON" | jq .
           DEPLOY_ID=$(echo "$DEPLOY_JSON" | jq -r '.id')
-          echo "deploy_id=$DEPLOY_ID" >> "$GITHUB_OUTPUT"
+          echo "deploy-id=$DEPLOY_ID" >> "$GITHUB_OUTPUT"
 
       - name: Watching deployment
         run: |
           set -euo pipefail
           AUTH="Authorization: Bearer $RENDER_API_KEY"
-          DEPLOY_ID="${{ steps.create.outputs.deploy_id }}"
+          DEPLOY_ID="${{ steps.create.outputs['deploy-id'] }}"
           START_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
           while :; do
@@ -107,15 +107,15 @@ jobs:
           SERVICE_URL=$(curl -fsS -H "$AUTH" -H "Accept: application/json" \
             "$RENDER_API_URL/v1/services/$RENDER_SERVICE_ID" | jq -r '.serviceDetails.url')
           echo "Service URL: $SERVICE_URL"
-          echo "service_url=$SERVICE_URL" >> "$GITHUB_OUTPUT"
+          echo "service-url=$SERVICE_URL" >> "$GITHUB_OUTPUT"
 
       - name: Notify Teams of staging deploy failure
         if: ${{ failure() }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
           summary: '❌ Deploy Failed'
-          activity_title: '❌ Deploy Failed'
-          theme_color: 'FF0000'
+          activity-title: '❌ Deploy Failed'
+          theme-color: 'FF0000'
           facts: |
             [
               {
@@ -127,4 +127,4 @@ jobs:
                 "value": "staging"
               }
             ]
-          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}

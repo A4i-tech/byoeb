@@ -4,10 +4,10 @@ inputs:
   summary:
     description: Short summary shown in the Teams notification.
     required: true
-  activity_title:
+  activity-title:
     description: Main title rendered inside the Teams card.
     required: true
-  theme_color:
+  theme-color:
     description: Hex color used to highlight the notification.
     required: false
     default: '0076D7'
@@ -15,7 +15,7 @@ inputs:
     description: "JSON array of {\"name\": \"...\", \"value\": \"...\"} facts to append."
     required: false
     default: '[]'
-  teams_webhook_url:
+  teams-webhook-url:
     description: Incoming Microsoft Teams webhook URL (falls back to TEAMS_WEBHOOK_URL env var).
     required: false
     default: ''
@@ -26,7 +26,7 @@ runs:
       shell: bash
       env:
         FACTS_INPUT: ${{ inputs.facts }}
-        WEBHOOK_URL_INPUT: ${{ inputs.teams_webhook_url }}
+        WEBHOOK_URL_INPUT: ${{ inputs.teams-webhook-url }}
       run: |
         set -euo pipefail
 
@@ -59,8 +59,8 @@ runs:
 
         PAYLOAD="$(jq -cn \
           --arg summary "${{ inputs.summary }}" \
-          --arg activity "${{ inputs.activity_title }}" \
-          --arg color "${{ inputs.theme_color }}" \
+          --arg activity "${{ inputs.activity-title }}" \
+          --arg color "${{ inputs.theme-color }}" \
           --argjson facts "$FACTS" \
           '{ "@type":"MessageCard", "@context":"http://schema.org/extensions", "themeColor":$color, "summary":$summary, "sections":[{"activityTitle":$activity,"facts":$facts}] }' \
         )"

@@ -7,35 +7,35 @@ on:
         description: "Relative path to the Poetry project"
         required: true
         type: string
-      tests_path:
+      tests-path:
         description: "Path passed to pytest. Leave empty to skip running tests."
         required: false
         default: ""
         type: string
-      coverage_artifact_name:
+      coverage-artifact-name:
         description: "Name for the uploaded HTML coverage artifact"
         required: false
         default: "coverage-html"
         type: string
-      upload_html_coverage:
+      upload-html-coverage:
         description: "Upload htmlcov directory as an artifact"
         required: false
         default: false
         type: boolean
     outputs:
-      coverage_pct:
+      coverage-pct:
         description: "Rounded coverage percentage (when tests are executed)"
-        value: ${{ jobs.unit-tests.outputs.coverage_pct }}
+        value: ${{ jobs.build-test.outputs.coverage-pct }}
 
 jobs:
-  unit-tests:
+  build-test:
     runs-on: ubuntu-latest
 
     env:
       POETRY_VIRTUALENVS_IN_PROJECT: "true"
 
     outputs:
-      coverage_pct: ${{ steps.coverage.outputs.coverage_pct }}
+      coverage-pct: ${{ steps.coverage.outputs.coverage-pct }}
 
     steps:
       - name: Checkout repo
@@ -68,29 +68,29 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Run tests
-        if: ${{ inputs.tests_path != '' }}
+        if: ${{ inputs.tests-path != '' }}
         working-directory: ${{ inputs.directory }}
-        run: poetry run pytest ${{ inputs.tests_path }}
+        run: poetry run pytest ${{ inputs.tests-path }}
 
       - name: Generate coverage JSON
-        if: ${{ inputs.tests_path != '' }}
+        if: ${{ inputs.tests-path != '' }}
         working-directory: ${{ inputs.directory }}
         run: poetry run coverage json -o coverage.json
 
       - name: Extract coverage percentage
-        if: ${{ inputs.tests_path != '' }}
+        if: ${{ inputs.tests-path != '' }}
         id: coverage
         working-directory: ${{ inputs.directory }}
         run: |
           COVERAGE=$(jq -r '.totals.percent_covered' coverage.json | awk '{print int($1+0.999)}')
-          echo "coverage_pct=$COVERAGE" >> $GITHUB_OUTPUT 
+          echo "coverage-pct=$COVERAGE" >> $GITHUB_OUTPUT 
           echo "Coverage: $COVERAGE%"
 
       - name: Upload HTML coverage
-        if: ${{ always() && inputs.upload_html_coverage && inputs.tests_path != '' }}
+        if: ${{ always() && inputs.upload-html-coverage && inputs.tests-path != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.coverage_artifact_name }}
+          name: ${{ inputs.coverage-artifact-name }}
           path: ${{ inputs.directory }}/htmlcov
           if-no-files-found: ignore
 
@@ -99,8 +99,8 @@ jobs:
         uses: ./.github/actions/dispatch-teams-webhook
         with:
           summary: '❌ Pipeline Stage Failed'
-          activity_title: '❌ Pipeline Stage Failed'
-          theme_color: 'FF0000'
+          activity-title: '❌ Pipeline Stage Failed'
+          theme-color: 'FF0000'
           facts: |
             [
               {
@@ -108,4 +108,4 @@ jobs:
                 "value": "Unit Tests (${{ inputs.directory }})"
               }
             ]
-          teams_webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
