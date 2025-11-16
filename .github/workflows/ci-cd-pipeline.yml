@@ -87,7 +87,7 @@ jobs:
   # Step 4: Publish Docker Image (only if tests passed)
   publish-image:
     needs: [build, unit-tests-byoeb-core, unit-tests-byoeb, unit-tests-byoeb-integrations]
-    if: success() && (github.ref_name == 'staging' || github.ref_name == 'a4i/main')
+    if: success() && github.event_name == 'push' && (github.ref_name == 'staging' || github.ref_name == 'a4i/main')
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.image-info.outputs.tag }}
