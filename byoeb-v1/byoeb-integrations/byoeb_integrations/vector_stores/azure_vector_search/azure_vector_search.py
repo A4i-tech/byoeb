@@ -9,6 +9,21 @@ from byoeb_core.vector_stores.base import BaseVectorStore
 from byoeb_core.llms.base import BaseLLM
 from azure.search.documents import SearchClient, SearchIndexingBufferedSender
 from azure.search.documents.indexes import SearchIndexClient
+from azure.search.documents.indexes.models import (
+    SearchIndex,
+    SearchField,
+    SimpleField,
+    SearchableField,
+    ComplexField,
+    SearchFieldDataType,
+    VectorSearch,
+    HnswAlgorithmConfiguration,
+    HnswParameters,
+    VectorSearchAlgorithmKind,
+    VectorSearchAlgorithmMetric,
+    VectorSearchProfile,
+    BM25SimilarityAlgorithm,
+)
 from azure.search.documents.models import VectorizableTextQuery, IndexAction
 from byoeb_core.models.vector_stores.azure.azure_search import AzureSearchNode, Metadata
 from byoeb_integrations.vector_stores.related_questions import aget_related_questions
@@ -60,6 +75,44 @@ class AzureVectorStore(BaseVectorStore):
         self.search_index_client = SearchIndexClient(
             endpoint=self.__endpoint,
             credential=credential
+        )
+
+    def index_definition(self):
+        return SearchIndex(
+            name=self.__index_name,
+            fields=[
+                SimpleField(name="id", type=SearchFieldDataType.String, key=True, searchable=False, filterable=True, retrievable=True, stored=True, sortable=True, facetable=False),
+                SearchableField(name="text", type=SearchFieldDataType.String, analyzer_name="standard.lucene", searchable=True, filterable=False, retrievable=True, stored=True, sortable=False, facetable=False),
+                SearchField(
+                    name="text_vector_3072",
+                    type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
+                    searchable=True,
+                    filterable=False,
+                    retrievable=False,
+                    stored=True,
+                    sortable=False,
+                    facetable=False,
+                    vector_search_dimensions=3072,
+                    vector_search_profile_name="default-vector-profile"
+                ),
+                ComplexField(name="metadata", fields=[
+                    SimpleField(name="source", type=SearchFieldDataType.String, searchable=False, filterable=True, retrievable=True, stored=True, sortable=True, facetable=True),
+                    SimpleField(name="creation_timestamp", type=SearchFieldDataType.String, searchable=False, filterable=True, retrievable=True, stored=True, sortable=True, facetable=False),
+                    SimpleField(name="update_timestamp", type=SearchFieldDataType.String, searchable=False, filterable=True, retrievable=True, stored=True, sortable=True, facetable=False),
+                ]),
+                ComplexField(name="related_questions", fields=[
+                    SearchField(name=lang, type=SearchFieldDataType.Collection(SearchFieldDataType.String), searchable=False, filterable=False, retrievable=True, stored=True, sortable=False, facetable=False)
+                    for lang in ["en", "hi", "mr", "te"]
+                ]),
+            ],
+            similarity=BM25SimilarityAlgorithm(),
+            vector_search=VectorSearch(algorithms=[
+                HnswAlgorithmConfiguration(name="default-hnsw-config", kind=VectorSearchAlgorithmKind.HNSW, parameters=HnswParameters(
+                    metric=VectorSearchAlgorithmMetric.COSINE, m=4, ef_construction=400, ef_search=500
+                ))
+            ], profiles=[
+                VectorSearchProfile(name="default-vector-profile", algorithm_configuration_name="default-hnsw-config")
+            ])
         )
 
     def fails(self, error: IndexAction):
@@ -220,7 +273,8 @@ class AzureVectorStore(BaseVectorStore):
                 on_error=self.fails
             ) as batch_client:
                 batch_client.upload_documents(documents=current_documents)
-            logger.info(f"  ✅ Batch {batch_num}/{total_batches} uploaded successfully")
+
+            logger.info(f"  ✅ Batch {batch_num}/{total_batches} uploaded successfully to {self.__index_name}")
             progress_bar.update(1)
         
         progress_bar.close()
@@ -315,5 +369,6 @@ class AzureVectorStore(BaseVectorStore):
             chunk_list.append(chunk)
         return chunk_list
 
-    def delete_store(self):
+    def rebuild_store(self):
         self.search_index_client.delete_index(self.__index_name)
+        self.search_index_client.create_index(self.index_definition())

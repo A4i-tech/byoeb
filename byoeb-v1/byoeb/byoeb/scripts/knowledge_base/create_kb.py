@@ -14,6 +14,13 @@ from byoeb.kb_app.configuration.dependency_setup import (
     azure_openai_embed,
     llm_client
 )
+from byoeb.services.knowledge_base.kb_service import KBService
+
+
+async def abulk_download_files(all_files: List[FileMetadata]) -> List[FileData]:
+    """Compatibility wrapper that uses KBService's bulk download implementation."""
+    svc = KBService(vector_store=vector_store, media_storage=amedia_storage, llm_client=llm_client)
+    return await svc._abulk_download_files(all_files)
 from azure.identity import DefaultAzureCredential
 from typing import List
 from datetime import datetime, timezone
@@ -41,9 +48,7 @@ prefix_updated_documents = "expert_update_documents"
 endpoint="byoebstage-search"
 index_name="byoebstage-doc-index-latest"
 key=os.getenv("AZURE_SEARCH_API_KEY")
-if key is None:
-    key=DefaultAzureCredential()
-search_index_client = SearchIndexingBufferedSender(endpoint=endpoint, index_name=index_name, credential=key,on_error=fails)
+search_index_client=None
 
 @retry(
     stop=stop_after_attempt(3),  # Retry up to 3 times
@@ -792,23 +797,18 @@ def upload_documents(documents: List[AzureSearchNode]):
         search_index_client.upload_documents(documents=batch_documents)
             
 async def main():
-    faq_files, raw_files_without_faq, update_files = await aget_files_from_blob_store()
-    raw_ids, raw_texts, raw_metadatas = await create_raw_files_chunks(raw_files_without_faq)
-    update_ids, update_texts, update_metadatas = await create_update_files_chunk(update_files)
-    faq_ids, faq_texts, faq_metadatas = await create_faq_files_chunk(faq_files)
-
-    ids = raw_ids + update_ids + faq_ids
-    texts = raw_texts + update_texts + faq_texts
-    metadatas = raw_metadatas + update_metadatas + faq_metadatas
-
-    documents = await prepare_azure_nodes(
-        ids=ids,
-        data_chunks=texts,
-        metadata=metadatas,
-        batch_size=4,
-        llm_client=llm_client
-    )
-    upload_documents(documents)
+    # Use KBService for ingestion (delegates to configured vector_store)
+    svc = KBService(vector_store=vector_store, media_storage=amedia_storage, llm_client=llm_client)
+    try:
+        count = await svc.create_kb_from_blob_store()
+        logger.info(f"✅ KB ingestion complete - {count} chunks ingested")
+    finally:
+        # Close media storage if it exposes a close method
+        try:
+            await amedia_storage._close()
+        except Exception:
+            pass
+    
 
 if __name__ == "__main__":
     asyncio.run(main())

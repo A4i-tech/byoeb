@@ -112,17 +112,17 @@ class ChromaDBVectorStore(BaseVectorStore):
         """
         total_chunks = len(data_chunks)
         logger.info(f"📤 Adding {total_chunks} chunks to ChromaDB in batches of {batch_size}")
-        
+
         # Process in batches to avoid memory issues and show progress
         for i in range(0, total_chunks, batch_size):
             batch_end = min(i + batch_size, total_chunks)
             batch_chunks = data_chunks[i:batch_end]
             batch_metadata = metadata[i:batch_end]
             batch_ids = ids[i:batch_end]
-            
+
             batch_num = (i // batch_size) + 1
             total_batches = (total_chunks + batch_size - 1) // batch_size
-            
+
             # Log files in this batch
             from collections import defaultdict
             files_in_batch = defaultdict(int)
@@ -145,6 +145,41 @@ class ChromaDBVectorStore(BaseVectorStore):
                 raise
         
         logger.info(f"✅ Successfully added all {total_chunks} chunks to ChromaDB")
+
+    def prepare_data(self, nodes: List):
+        """Prepare data_chunks, metadata and ids lists from TextNode list."""
+        data_chunks = [node.text for node in nodes]
+        metadata = [node.metadata if node.metadata else {} for node in nodes]
+        ids = [node.node_id if hasattr(node, 'node_id') and node.node_id else hashlib.md5(node.text.encode()).hexdigest() for node in nodes]
+        return data_chunks, metadata, ids
+
+    async def aadd_chunks(
+        self,
+        data_chunks,
+        metadata,
+        ids,
+        batch_size: int = 100,
+        **kwargs
+    ):
+        """Async wrapper for add_chunks to run in executor to avoid blocking the event loop."""
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop is None:
+            # No running loop; safe to call synchronously
+            return self.add_chunks(data_chunks=data_chunks, metadata=metadata, ids=ids, batch_size=batch_size, **kwargs)
+        else:
+            return await loop.run_in_executor(
+                None,
+                self.add_chunks,
+                data_chunks,
+                metadata,
+                ids,
+                batch_size
+            )
 
     def update_chunks(
         self,
@@ -299,7 +334,7 @@ class ChromaDBVectorStore(BaseVectorStore):
             embedding_function=self.__embedding_function
         )
     
-    def delete_store(self):
+    def rebuild_store(self):
         """
         Delete the entire store and recreate the collection.
         Similar to Azure Vector Store pattern - always use fresh collection reference.

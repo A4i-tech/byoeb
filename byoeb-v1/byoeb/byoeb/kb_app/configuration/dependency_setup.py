@@ -65,6 +65,7 @@ if env_config.env_azure_storage_connection_string:
         credentials=None,
         connection_string=env_config.env_azure_storage_connection_string
     )
+    print("✅ Azure Storage API key set. Enabling Azure Blob Storage.")
 else:
     amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
         container_name=container_name,

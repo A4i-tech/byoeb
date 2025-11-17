@@ -2,6 +2,7 @@ import asyncio
 import json
 import hashlib
 import traceback
+import logging
 import byoeb.services.chat.constants as constants
 from datetime import datetime, timezone
 from pydantic import BaseModel

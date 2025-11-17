@@ -1,6 +1,6 @@
 import logging
 import json
-import byoeb.services.knowledge_base.local_chromadb as kb
+from byoeb.services.knowledge_base.kb_service import create_kb_from_blob_store as kb_create
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
@@ -13,7 +13,7 @@ _logger = logging.getLogger(KB_API_NAME)
 async def load_from_blob_store(request: Request):
     _logger.info("🚀 Starting knowledge base load from blob store")
     try:
-        count = await kb.create_kb_from_blob_store()
+        count = await kb_create()
         _logger.info(f"✅ Successfully loaded {count} documents into knowledge base")
         return JSONResponse(
             content={"message": f"Loaded {count} documents"},
