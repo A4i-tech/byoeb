@@ -133,9 +133,9 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
             )
             chunk_list.append(chunk)
         return chunk_list
-    
-    def delete_store(self):
+
+    def rebuild_store(self):
         if self.vector_store_index is not None:
-            self.chromadb.delete_store()
-        self.vector_store_index = None
-    
+            self.chromadb.rebuild_store()
+            self.vector_store_index = None
+            self.__get_or_create_store()

@@ -298,8 +298,8 @@ class ChromaDBVectorStore(BaseVectorStore):
             name=self.__collection_name,
             embedding_function=self.__embedding_function
         )
-    
-    def delete_store(self):
+
+    def rebuild_store(self):
         """
         Delete the entire store and recreate the collection.
         Similar to Azure Vector Store pattern - always use fresh collection reference.

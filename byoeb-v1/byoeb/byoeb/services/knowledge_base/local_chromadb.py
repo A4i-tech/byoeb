@@ -19,10 +19,10 @@ text_parser = LLamaIndexTextParser(
     )
 
 async def create_kb_from_blob_store():
-    logger.info("📦 Step 1: Deleting existing vector store")
+    logger.info("📦 Step 1: Format existing vector store")
     try:
-        vector_store.delete_store()
-        logger.info("✅ Successfully deleted existing store")
+        vector_store.rebuild_store()
+        logger.info("✅ Successfully formatted existing store")
     except Exception as e:
         logger.warning(f"⚠️  Error deleting store (may not exist): {str(e)}")
     
@@ -123,6 +123,3 @@ async def abulk_download_files(
     
     logger.info(f"✅ Successfully downloaded {len(files_data)}/{len(all_files)} files")
     return files_data
-
-def delete_kb():
-    vector_store.delete_store()

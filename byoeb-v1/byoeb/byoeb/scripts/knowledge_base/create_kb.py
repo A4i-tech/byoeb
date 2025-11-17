@@ -6,11 +6,10 @@ import asyncio
 import logging
 import hashlib
 import xml.etree.ElementTree as ET
-from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
-from byoeb.kb_app.configuration.config import prompt_config
+from pathlib import Path
+from tenacity import retry, stop_after_attempt, wait_exponential
 from byoeb.kb_app.configuration.dependency_setup import (
     amedia_storage,
-    vector_store,
     azure_openai_embed,
     llm_client
 )
@@ -18,31 +17,36 @@ from azure.identity import DefaultAzureCredential
 from typing import List
 from datetime import datetime, timezone
 from byoeb_core.data_parser.llama_index_text_parser import LLamaIndexTextParser, LLamaIndexTextSplitterType
-from byoeb_core.models.media_storage.file_data import FileMetadata, FileData
-from enum import Enum
+from byoeb_core.models.media_storage.file_data import FileData
 from typing import List
 from tqdm.asyncio import tqdm
 from datetime import datetime
-from byoeb_core.vector_stores.base import BaseVectorStore
 from byoeb_core.llms.base import BaseLLM
-from azure.search.documents import SearchClient, SearchIndexingBufferedSender
-from azure.search.documents.indexes import SearchIndexClient
-from azure.search.documents.models import VectorizableTextQuery, IndexAction
-from byoeb_core.models.vector_stores.azure.azure_search import AzureSearchNode, Metadata
-from byoeb_integrations.vector_stores.related_questions import aget_related_questions
-from byoeb_core.models.vector_stores.chunk import Chunk, Chunk_metadata
+from azure.search.documents import  SearchIndexingBufferedSender
+from azure.search.documents.models import IndexAction
+from byoeb.scripts.knowledge_base.upload_from_blob_to_azure_search_index import abulk_download_files
 
 logger = logging.getLogger("kb_service")
+KB_DIR = Path(__file__).resolve().parent
+FAILURES_PATH = KB_DIR / "failures.txt"
+STUCK_CHUNK_PATH = KB_DIR / "stuck_chunk.txt"
+CHECKPOINT_PATH = KB_DIR / "temp.pkl"
 prefix_raw_documents = "raw_documents"
 prefix_raw_faq_documents = "raw_documents/FAQ"
 prefix_updated_documents = "expert_update_documents"
 
 ## Azure Vector Search properties
 endpoint="byoebstage-search"
-index_name="byoebstage-doc-index-latest"
+index_name="byoebstage-doc-index-test-muqsit"
 key=os.getenv("AZURE_SEARCH_API_KEY")
 if key is None:
     key=DefaultAzureCredential()
+    
+def fails(error: IndexAction):
+        print("Failed to upload document")
+        with open(FAILURES_PATH, "a") as file:
+            file.write(f"Action type: {error.action_type}\n")
+            file.write(f"Properties: {error.additional_properties}\n")
 search_index_client = SearchIndexingBufferedSender(endpoint=endpoint, index_name=index_name, credential=key,on_error=fails)
 
 @retry(
@@ -391,7 +395,7 @@ async def agenerate_related_questions(
         if count > 13:
             print("Stuck in loop for 13 iterations")
             print(pairs_content)
-            with open("/home/rash598/Khushi/byoeb/byoeb-v1/byoeb/byoeb/scripts/knowledge_base/stuck_chunk.txt", "a") as file:
+            with open(STUCK_CHUNK_PATH, "a") as file:
                 print(f"Stuck in loop for {count} iterations")
                 file.write(f"{data_chunk}\n")
                 file.write(f"{pairs_content}\n")
@@ -480,7 +484,7 @@ async def agenerate_qas(
         if count > 13:
             print("Stuck in loop for 13 iterations")
             print(pairs_content)
-            with open("/home/rash598/Khushi/byoeb/byoeb-v1/byoeb/byoeb/scripts/knowledge_base/stuck_chunk.txt", "a") as file:
+            with open(STUCK_CHUNK_PATH, "a") as file:
                 print(f"Stuck in loop for {count} iterations")
                 file.write(f"{data_chunk}\n")
                 file.write(f"{pairs_content}\n")
@@ -720,13 +724,12 @@ async def prepare_azure_nodes(
     llm_client: BaseLLM = None
 ):
     documents = []
-    pkl_path = "/home/rash598/Khushi/byoeb/byoeb-v1/byoeb/byoeb/scripts/knowledge_base/temp.pkl"
     try:
-        with open(pkl_path, "rb") as file:
+        with open(CHECKPOINT_PATH, "rb") as file:
             documents = pickle.load(file)
     except:
         documents = []
-        with open(pkl_path, "wb") as file:
+        with open(CHECKPOINT_PATH, "wb") as file:
             pickle.dump(documents, file)
         print(f"Created checkpoint file")
     start = len(documents)
@@ -757,7 +760,7 @@ async def prepare_azure_nodes(
             if curr == checkpoint:
                 curr = 0
                 print(f"Saving checkpoint... {i+batch_size}/{len(data_chunks)}")
-                with open(pkl_path, "wb") as file:
+                with open(CHECKPOINT_PATH, "wb") as file:
                     pickle.dump(documents, file)
             curr += 1
             time.sleep(0.5)
@@ -766,7 +769,7 @@ async def prepare_azure_nodes(
             print(e)
             raise e
     print(f"Saving checkpoint...")
-    with open(pkl_path, "wb") as file:
+    with open(CHECKPOINT_PATH, "wb") as file:
         pickle.dump(documents, file)
     return documents
 
@@ -780,7 +783,7 @@ async def aget_files_from_blob_store():
     
 def fails(error: IndexAction):
         print("Failed to upload document")
-        with open("/home/rash598/Khushi/byoeb/byoeb-v1/byoeb/byoeb/scripts/knowledge_base/failures.txt", "a") as file:
+        with open(FAILURES_PATH, "a") as file:
             file.write(f"Action type: {error.action_type}\n")
             file.write(f"Properties: {error.additional_properties}\n")
             
