@@ -37,7 +37,7 @@ prefix_updated_documents = "expert_update_documents"
 
 ## Azure Vector Search properties
 endpoint="byoebstage-search"
-index_name="byoebstage-doc-index-test-muqsit"
+index_name="byoebstage-doc-index-latest"
 key=os.getenv("AZURE_SEARCH_API_KEY")
 if key is None:
     key=DefaultAzureCredential()
