@@ -5,7 +5,6 @@ from enum import Enum
 from typing import List, Optional
 from tqdm.asyncio import tqdm
 from datetime import datetime, timezone
-from byoeb.constants.user_enums import LanguageCode
 from byoeb_core.vector_stores.base import BaseVectorStore
 from byoeb_core.llms.base import BaseLLM
 from azure.search.documents import SearchClient, SearchIndexingBufferedSender
@@ -357,8 +356,8 @@ class AzureVectorStore(BaseVectorStore):
                     SimpleField(name="update_timestamp", type=SearchFieldDataType.String, searchable=False, filterable=True, retrievable=True, stored=True, sortable=True, facetable=False),
                 ]),
                 ComplexField(name="related_questions", fields=[
-                    SearchField(name=lang.value, type=SearchFieldDataType.Collection(SearchFieldDataType.String), searchable=False, filterable=False, retrievable=True, stored=True, sortable=False, facetable=False)
-                    for lang in LanguageCode
+                    SearchField(name=lang, type=SearchFieldDataType.Collection(SearchFieldDataType.String), searchable=False, filterable=False, retrievable=True, stored=True, sortable=False, facetable=False)
+                    for lang in ["en", "hi", "mr", "te"]
                 ]),
             ],
             similarity=BM25SimilarityAlgorithm(),
