@@ -20,6 +20,9 @@ WORKDIR /app
 # Copy project files
 COPY . .
 
+# Change directory to service's root
+WORKDIR /app/byoeb
+
 # Install dependencies via Poetry
 RUN poetry install --no-root --no-interaction --no-ansi
 
