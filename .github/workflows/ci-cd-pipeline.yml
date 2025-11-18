@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "a4i/main", "staging" ]
+    branches: [ "a4i/main-CD-1", "staging" ]
   pull_request:
-    branches: [ "a4i/main", "staging" ]
+    branches: [ "a4i/main-CD-1", "staging" ]
   workflow_dispatch:
 
 env:
@@ -29,7 +29,7 @@ jobs:
       tests-path: tests/unit
       coverage-artifact-name: coverage-html-byoeb
       upload-html-coverage: true
-      coverage-gist-id: ${{ github.event_name == 'push' && github.ref_name == 'a4i/main' && vars.COVERAGE_GIST_ID || '' }}
+      coverage-gist-id: ${{ github.event_name == 'push' && github.ref_name == 'a4i/main-CD-1' && vars.COVERAGE_GIST_ID || '' }}
     secrets: inherit
 
   # Step 1c: Run byoeb-integrations unit tests
@@ -41,7 +41,7 @@ jobs:
       tests-path: .
       coverage-artifact-name: coverage-html-byoeb-integrations
       upload-html-coverage: true
-      coverage-gist-id: ${{ github.event_name == 'push' && github.ref_name == 'a4i/main' && vars.COVERAGE_GIST_ID || '' }}
+      coverage-gist-id: ${{ github.event_name == 'push' && github.ref_name == 'a4i/main-CD-1' && vars.COVERAGE_GIST_ID || '' }}
     secrets: inherit
 
   # Step 2: Build (validates Dockerfile - uses Docker layer caching for fast builds)
@@ -96,7 +96,7 @@ jobs:
   publish-image:
     name: Publish image
     needs: [build, unit-test-byoeb-core, unit-test-byoeb, unit-test-byoeb-integrations]
-    if: success() && github.event_name == 'push' && (github.ref_name == 'staging' || github.ref_name == 'a4i/main')
+    if: success() && github.event_name == 'push' && (github.ref_name == 'staging' || github.ref_name == 'a4i/main-CD-1')
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.image-info.outputs.tag }}
@@ -124,7 +124,7 @@ jobs:
               echo "environment=staging" >> "$GITHUB_OUTPUT"
               echo "tag_prefix=staging" >> "$GITHUB_OUTPUT"
               ;;
-            a4i/main)
+            a4i/main-CD-1)
               echo "environment=production" >> "$GITHUB_OUTPUT"
               echo "tag_prefix=production" >> "$GITHUB_OUTPUT"
               ;;
@@ -180,7 +180,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Notify Teams of publish failure
-        if: ${{ failure() && github.event_name != 'pull_request' && (github.ref_name == 'staging' || github.ref_name == 'a4i/main') }}
+        if: ${{ failure() && github.event_name != 'pull_request' && (github.ref_name == 'staging' || github.ref_name == 'a4i/main-CD-1') }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
           summary: '❌ Pipeline Stage Failed'
@@ -190,11 +190,11 @@ jobs:
             [
               {
                 "name": "Stage",
-                "value": "${{ github.ref_name == 'a4i/main' && 'Publish Image (Production)' || 'Publish Image (Staging)' }}"
+                "value": "${{ github.ref_name == 'a4i/main-CD-1' && 'Publish Image (Production)' || 'Publish Image (Staging)' }}"
               },
               {
                 "name": "Environment",
-                "value": "${{ github.ref_name == 'a4i/main' && 'production' || 'staging' }}"
+                "value": "${{ github.ref_name == 'a4i/main-CD-1' && 'production' || 'staging' }}"
               }
             ]
           teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
