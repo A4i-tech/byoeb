@@ -29,10 +29,12 @@ class RepositoryFactory:
         """Get or create DYK repository instance."""
         if self._dyk_repository is None:
             mongo_db = await self._mongo_factory.get(app_config["app"]["db_provider"])
-            user_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["dyk_collection"])
+            queue_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["dyk_queue_collection"])
+            storage_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["dyk_storage_collection"])
             # Wrap with AsyncAzureCosmosMongoDBCollection like existing services
-            wrapped_collection = AsyncAzureCosmosMongoDBCollection(collection=user_collection)
-            self._dyk_repository = MongoDykRepository(wrapped_collection)
+            wrapped_queue_collection = AsyncAzureCosmosMongoDBCollection(collection=queue_collection)
+            wrapped_storage_collection = AsyncAzureCosmosMongoDBCollection(collection=storage_collection)
+            self._dyk_repository = MongoDykRepository(wrapped_queue_collection, wrapped_storage_collection)
         return self._dyk_repository
 
     async def get_message_repository(self) -> MessageRepository:
