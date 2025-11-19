@@ -3,6 +3,7 @@ import csv
 import json
 import random
 import uuid
+from random import sample
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from byoeb.background_jobs.did_you_know.config import bot_config, current_dir
 from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
@@ -179,10 +180,11 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
 
             phone_number = user.phone_number_id
 
-            # Build template parameter (1 param: the fact text)
-            # Use only the fact text (no decorative prefix) to avoid extra phrasing like "💡 क्या आपको पता है?"
-            fact_text = sheet[record.dyk_lang][str(record.dyk_id)]
-            template_parameters = [clean_template_param(fact_text)]
+            lang_entry = entry.languages[record.dyk_lang]
+            message = LANG_ENTRIES[record.dyk_lang].template.replace("{message}", lang_entry.fact)
+            button_titles = sample(lang_entry.related_questions, k=min(len(lang_entry.related_questions), 3)) if lang_entry.related_questions else []
+            additional_info = {"button_titles": button_titles} if button_titles else {}
+            message_type = MessageTypes.INTERACTIVE_BUTTON.value if button_titles else MessageTypes.REGULAR_TEXT.value
 
             # Create ByoebMessageContext for WhatsApp template message
             byoeb_message = ByoebMessageContext(
@@ -191,15 +193,11 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
                 user=user,
                 message_context=MessageContext(
                     message_id=f"did-you-know-{record.id}",
-                    message_type=MessageTypes.TEMPLATE_TEXT.value,
-                    message_source_text=None,
-                    message_english_text=None,
+                    message_type=message_type,
+                    message_source_text=message,
+                    message_english_text=message,
                     media_info=None,
-                    additional_info={
-                        constants.TEMPLATE_NAME: "did_you_know_v2",
-                        constants.TEMPLATE_LANGUAGE: record.dyk_lang.value,
-                        constants.TEMPLATE_PARAMETERS: template_parameters,
-                    },
+                    additional_info=additional_info,
                 ),
                 reply_context=None,
                 cross_conversation_id=None,

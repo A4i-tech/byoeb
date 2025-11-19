@@ -5,11 +5,12 @@ async def aget_related_questions(
     text,
     llm_client: BaseLLM,
     languages_translation_prompts: dict,
-    system_prompt = None
+    system_prompt = None,
+    length: int = 60
 ):
     related_questions_dict = {}
     if not system_prompt:
-        system_prompt = "Generate three related questions from the given text. Follow the instructions. 1. Each question MUST be **DISTINCT** i.e., intended to elicit different information. \n\n2. Each question's length MUST be **<character_limit>60</character_limit> CHARACTERS OR LESS**. \n\n3. Respond with the three questions in XML format.  \nSample output:  \n<related_questions> \n<q_1>Content of first question</q_1> \n<q_2>Content of second question</q_2> \n<q_3>Content of third question</q_3> \n</related_questions> \n\n</instructions>"
+        system_prompt = f"Generate three related questions from the given text. Follow the instructions. 1. Each question MUST be **DISTINCT** i.e., intended to elicit different information. \n\n2. Each question's length MUST be **<character_limit>{length}</character_limit> CHARACTERS OR LESS**. \n\n3. Respond with the three questions in XML format.  \nSample output:  \n<related_questions> \n<q_1>Content of first question</q_1> \n<q_2>Content of second question</q_2> \n<q_3>Content of third question</q_3> \n</related_questions> \n\n</instructions>"
 
     prompt = [{"role": "system", "content": system_prompt}]
     prompt.append({"role": "user", "content": text})
