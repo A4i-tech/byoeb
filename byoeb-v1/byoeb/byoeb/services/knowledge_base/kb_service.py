@@ -64,7 +64,7 @@ class KBService:
             cid = getattr(c, "chunk_id", None) or getattr(c, "node_id", None) or hashlib.md5(text.encode()).hexdigest()
             ids.append(cid)
 
-        bs = batch_size or 10
+        bs = batch_size or 1
 
         try:
             await self.vector_store.aadd_chunks(
