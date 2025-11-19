@@ -1,0 +1,70 @@
+name: Dispatch Teams Notification
+description: Send a message card to Microsoft Teams via an incoming webhook.
+inputs:
+  summary:
+    description: Short summary shown in the Teams notification.
+    required: true
+  activity-title:
+    description: Main title rendered inside the Teams card.
+    required: true
+  theme-color:
+    description: Hex color used to highlight the notification.
+    required: false
+    default: '0076D7'
+  facts:
+    description: "JSON array of {\"name\": \"...\", \"value\": \"...\"} facts to append."
+    required: false
+    default: '[]'
+  teams-webhook-url:
+    description: Incoming Microsoft Teams webhook URL (falls back to TEAMS_WEBHOOK_URL env var).
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Dispatch notification to Microsoft Teams
+      shell: bash
+      env:
+        FACTS_INPUT: ${{ inputs.facts }}
+        WEBHOOK_URL_INPUT: ${{ inputs.teams-webhook-url }}
+      run: |
+        set -euo pipefail
+
+        WEBHOOK_URL="${WEBHOOK_URL_INPUT:-${TEAMS_WEBHOOK_URL:-}}"
+
+        if [ -z "$WEBHOOK_URL" ]; then
+          echo "TEAMS_WEBHOOK_URL secret not provided. Skipping Teams notification."
+          exit 0
+        fi
+
+        FACTS='[]'
+
+        add_fact() {
+          local name="$1"
+          local value="$2"
+          if [ -z "$value" ]; then
+            return
+          fi
+          FACTS="$(jq --arg name "$name" --arg value "$value" '. + [{"name":$name,"value":$value}]' <<< "$FACTS")"
+        }
+
+        add_fact "Branch" "${{ github.ref_name }}"
+        add_fact "Commit" "${{ github.sha }}"
+        add_fact "Workflow" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        add_fact "Actor" "${{ github.actor }}"
+
+        if [ -n "$(echo "$FACTS_INPUT" | tr -d '[:space:]')" ]; then
+          FACTS="$(jq --argjson extra "$FACTS_INPUT" '. + $extra' <<< "$FACTS")"
+        fi
+
+        PAYLOAD="$(jq -cn \
+          --arg summary "${{ inputs.summary }}" \
+          --arg activity "${{ inputs.activity-title }}" \
+          --arg color "${{ inputs.theme-color }}" \
+          --argjson facts "$FACTS" \
+          '{ "@type":"MessageCard", "@context":"http://schema.org/extensions", "themeColor":$color, "summary":$summary, "sections":[{"activityTitle":$activity,"facts":$facts}] }' \
+        )"
+
+        curl -sS -X POST -H "Content-Type: application/json" \
+          -d "$PAYLOAD" \
+          "$WEBHOOK_URL" || true

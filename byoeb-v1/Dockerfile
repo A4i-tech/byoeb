@@ -17,14 +17,20 @@ RUN pip install "poetry==$POETRY_VERSION"
 # Set workdir
 WORKDIR /app
 
-# Copy project files
-COPY . .
+# Copy dependency manifests and local path packages first for better caching
+COPY byoeb/pyproject.toml ./byoeb/
+COPY byoeb/poetry.lock* ./byoeb/
+COPY byoeb-integrations ./byoeb-integrations
+COPY byoeb-core ./byoeb-core
 
-# Change directory to service's root
+# Change directory to service's root and install dependencies via Poetry
 WORKDIR /app/byoeb
-
-# Install dependencies via Poetry
 RUN poetry install --no-root --no-interaction --no-ansi
+
+# Copy the full project after dependencies are cached
+WORKDIR /app
+COPY . .
+WORKDIR /app/byoeb
 
 # Expose the port (Render expects 10000 internally, but you can set 5000)
 EXPOSE 8000
