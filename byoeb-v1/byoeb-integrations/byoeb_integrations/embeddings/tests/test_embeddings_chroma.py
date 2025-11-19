@@ -35,3 +35,24 @@ def test_llama_index_azure_openai(mocker):
     res = embedding_func(input=["This is it"])
     assert len(res) == 1
     assert res[0] == pytest.approx([0.1, 0.2, 0.3])
+
+
+def test_llama_index_azure_openai_with_existing_instance(mocker):
+    """Test that AzureOpenAIEmbeddingFunction can reuse an existing embedding instance"""
+    # Mock LlamaIndex embedding function
+    mock_get_text_embedding = mocker.Mock(return_value=[0.4, 0.5, 0.6])
+    mock_embedding_fn = mocker.Mock(
+        get_text_embedding=mock_get_text_embedding
+    )
+
+    # Test with existing LlamaIndex embedding function instance
+    embedding_func = AzureOpenAIEmbeddingFunction(
+        embedding_instance=mock_embedding_fn
+    )
+
+    res = embedding_func(input=["Reused embedding"])
+    assert len(res) == 1
+    assert res[0] == pytest.approx([0.4, 0.5, 0.6])
+    
+    # Verify the embedding function was called
+    mock_get_text_embedding.assert_called_once_with("Reused embedding")
