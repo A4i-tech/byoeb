@@ -60,13 +60,12 @@ async def populate_entry(entry: DykEntry, translation_prompts: Dict[str, str], l
     if not prompt_subset and LanguageCode.ENGLISH not in missing_langs:
         return []
 
-    related = await aget_related_questions(reference_record.fact, llm_client, prompt_subset)
+    related = await aget_related_questions(reference_record.fact, llm_client, prompt_subset, length=20)
     updated_payloads: List[Dict[str, object]] = []
     for lang in missing_langs:
-        key = "en" if lang == LanguageCode.ENGLISH else lang.value
-        questions = related.get(key)
+        questions = related.get(lang.value)
         if questions:
-            entry.languages[lang].related_questions = questions
+            entry.languages[lang].related_questions = [text[:20] for text in questions]
             updated_payloads.append({
                 "dyk_id": str(entry.id),
                 "language": lang.value,

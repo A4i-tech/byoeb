@@ -1,6 +1,7 @@
 import asyncio
 import json
 import uuid
+from random import sample
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from byoeb.background_jobs.did_you_know.config import bot_config
 from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
@@ -150,7 +151,11 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_
             if entry is None or record.dyk_lang not in entry.languages:
                 continue
 
-            message = LANG_ENTRIES[record.dyk_lang].template.replace("{message}", entry.languages[record.dyk_lang].fact)
+            lang_entry = entry.languages[record.dyk_lang]
+            message = LANG_ENTRIES[record.dyk_lang].template.replace("{message}", lang_entry.fact)
+            button_titles = sample(lang_entry.related_questions, k=min(len(lang_entry.related_questions), 3)) if lang_entry.related_questions else []
+            additional_info = {"button_titles": button_titles} if button_titles else {}
+            message_type = MessageTypes.INTERACTIVE_BUTTON.value if button_titles else MessageTypes.REGULAR_TEXT.value
 
             text_message = ByoebMessageContext(
                 channel_type="whatsapp",
@@ -158,11 +163,11 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_
                 user=user,
                 message_context=MessageContext(
                     message_id=f"did-you-know-{record.id}",
-                    message_type=MessageTypes.REGULAR_TEXT.value,
+                    message_type=message_type,
                     message_source_text=message,
                     message_english_text=message,
                     media_info=None,
-                    additional_info={},
+                    additional_info=additional_info,
                 ),
                 reply_context=None,
                 cross_conversation_id=None,

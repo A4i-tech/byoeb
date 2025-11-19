@@ -14,6 +14,8 @@ from byoeb.chat_app.configuration.config import app_config
 class MongoDykRepository(DykRepository):
     """MongoDB implementation of DykRepository."""
 
+    _MAX_BUTTON_TEXT_LENGTH = 20
+
     def __init__(self, queue_collection_client: BaseDocumentCollection, storage_collection_client: BaseDocumentCollection):
         self._queue_collection = queue_collection_client
         self._queue_collection_name = app_config["databases"]["mongo_db"]["dyk_queue_collection"]
@@ -21,6 +23,7 @@ class MongoDykRepository(DykRepository):
         self._storage_collection_name = app_config["databases"]["mongo_db"]["dyk_storage_collection"]
 
     async def add(self, entry: DykEntry):
+        self._validate_button_lengths(entry)
         document = json.loads(entry.model_dump_json())
         document["_id"] = str(entry.id)
         await self._storage_collection.aupdate_one({"_id": str(entry.id)}, {"$set": document}, upsert=True)
@@ -148,6 +151,15 @@ class MongoDykRepository(DykRepository):
     
     async def update_status(self, ids: List[str], status: str):
         await self._queue_collection.aupdate({"_id": {"$in": [ObjectId(id) for id in ids]}}, {"$set": {"status": status}})
+
+    def _validate_button_lengths(self, entry: DykEntry) -> None:
+        for lang, record in entry.languages.items():
+            for question in record.related_questions or []:
+                if len(question) > self._MAX_BUTTON_TEXT_LENGTH:
+                    raise ValueError(
+                        f"Related question '{question}' ({lang.value}) exceeds "
+                        f"{self._MAX_BUTTON_TEXT_LENGTH} characters."
+                    )
 
     def _doc_to_entry(self, document: Dict[str, Any]) -> DykEntry:
         doc = dict(document)
