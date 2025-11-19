@@ -10,9 +10,6 @@ from byoeb.kb_app.configuration.dependency_setup import (
 from typing import List
 from byoeb_core.data_parser.llama_index_text_parser import LLamaIndexTextParser, LLamaIndexTextSplitterType
 from byoeb_core.models.media_storage.file_data import FileMetadata, FileData
-from byoeb_integrations.vector_stores.llama_index.llama_index_chroma_store import LlamaIndexChromaDBStore
-from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
-from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 
 logger = logging.getLogger("kb_service")
 text_parser = LLamaIndexTextParser(
