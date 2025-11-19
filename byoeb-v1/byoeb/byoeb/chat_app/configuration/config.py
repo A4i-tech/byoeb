@@ -20,7 +20,8 @@ with open(bot_config_path, 'r', encoding="utf-8") as file:
 environment_path = os.path.join(current_dir, '../../..', 'keys.env')
 environment_path = os.path.normpath(environment_path)
 if os.path.exists(environment_path):
-    load_dotenv(environment_path)
+    # Use override=True to allow .env file values to override system environment variables
+    load_dotenv(environment_path, override=True)
 else:
     print(f"Warning: Environment file not found at {environment_path}")
 
@@ -52,4 +53,17 @@ env_azure_openai_whisper_key= os.getenv("AZURE_OPENAI_WHISPER_KEY")
 
 # Azure Search
 env_azure_search_api_key = os.getenv("AZURE_SEARCH_API_KEY")
+env_azure_search_service_name = os.getenv("AZURE_SEARCH_SERVICE_NAME")
+env_azure_search_index_name = os.getenv("AZURE_SEARCH_INDEX_NAME")
+
+# Azure OpenAI Configuration (optional - for staging/production switching)
+env_azure_openai_key = os.getenv("AZURE_OPENAI_KEY") or os.getenv("AZURE_OPENAI_WHISPER_KEY")
+env_azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+env_azure_openai_deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
+
+# Vector Store Type (optional - will fallback to app_config.json if not set)
+# Options: "azure_vector_search", "chroma", "llama_index_chroma"
+env_vector_store_type = os.getenv("VECTOR_STORE_TYPE")
+# ChromaDB persist directory (optional - for local ChromaDB stores)
+env_persist_directory = os.getenv("PERSIST_DIRECTORY")
 
