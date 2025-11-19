@@ -33,9 +33,12 @@
     },
     "vector_store": {
         "chroma": {
-            "store_name": "byoeb",
-            "doc_collection_name": "vector_collection",
-            "qa_collection_name": "qa_collection"
+            "service_name": "byoeb",
+            "doc_index_name": "vector_collection"
+        },
+        "llama_index_chroma": {
+            "service_name": "byoeb",
+            "doc_index_name": "vector_collection"
         },
         "azure_vector_search": {
             "service_name": "khushi-baby-asha-search",

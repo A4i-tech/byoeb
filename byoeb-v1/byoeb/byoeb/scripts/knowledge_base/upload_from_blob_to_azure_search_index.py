@@ -22,6 +22,7 @@ async def create_update_files_chunk(files: list):
     delimiter = "##"
     metadatas, texts = [], []
     files = [file for file in files if prefix_updated_documents in file.file_name]
+    logger.info(f"📄 Processing {len(files)} update files for chunking")
     files_data = await abulk_download_files(files)
     if isinstance(texts, list) and all(isinstance(item, FileData) for item in texts):
         texts = [d.data.decode("utf-8") for d in files_data]
@@ -30,8 +31,14 @@ async def create_update_files_chunk(files: list):
         raise ValueError("Invalid data")
     
     chunk_ids, chunk_texts, chunk_metadatas = [], [], []
+    from collections import defaultdict
+    chunks_per_file = defaultdict(int)
+    
     for text, metadata in zip(texts, metadatas):
+        file_name = metadata["file_name"]
         sections = [section.strip() for section in text.split(delimiter) if section.strip()]
+        chunks_per_file[file_name] = len(sections)
+        logger.info(f"  📄 {file_name}: {len(sections)} chunks")
         for section in sections:
             chunk_id = hashlib.md5(section.encode()).hexdigest()
             chunk_text = section
@@ -43,6 +50,9 @@ async def create_update_files_chunk(files: list):
             chunk_ids.append(chunk_id)
             chunk_texts.append(chunk_text)
             chunk_metadatas.append(chunk_metadata)
+    
+    total_chunks = len(chunk_ids)
+    logger.info(f"✅ Created {total_chunks} chunks from {len(files)} update files")
     return chunk_ids, chunk_texts, chunk_metadatas
 
 async def create_raw_files_chunks(files: list):
@@ -70,11 +80,16 @@ async def create_raw_files_chunks(files: list):
 
 async def create_kb_from_blob_store():
     files = await amedia_storage.aget_all_files_properties()
+    logger.info(f"📥 Starting KB ingestion for {len(files)} files")
+    
     raw_chunks_ids, raw_chunks_text, raw_chunks_metadata = await create_raw_files_chunks(files)
     update_chunks_ids, update_chunks_text, update_chunks_metadata = await create_update_files_chunk(files)
+    
     chunk_ids = raw_chunks_ids + update_chunks_ids
     chunk_texts = raw_chunks_text + update_chunks_text
     chunk_metadatas = raw_chunks_metadata + update_chunks_metadata
+    
+    logger.info(f"💾 Starting ingestion of {len(chunk_ids)} total chunks to vector store")
     await vector_store.aadd_chunks(
         ids=chunk_ids,
         data_chunks=chunk_texts,
@@ -84,6 +99,7 @@ async def create_kb_from_blob_store():
         batch_size=10,
         show_progress=True
     )
+    logger.info(f"✅ KB ingestion complete - {len(chunk_ids)} chunks ingested")
 
 async def abulk_download_files(
     all_files: List[FileMetadata]
@@ -110,9 +126,6 @@ async def abulk_download_files(
                 response=FileData(**response.model_dump())
                 files_data.append(response)
     return files_data
-
-def delete_kb():
-    vector_store.delete_store()
 
 async def main():
     await create_kb_from_blob_store()

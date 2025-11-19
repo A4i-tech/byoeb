@@ -61,3 +61,9 @@ env_azure_openai_key = os.getenv("AZURE_OPENAI_KEY") or os.getenv("AZURE_OPENAI_
 env_azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
 env_azure_openai_deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
 
+# Vector Store Type (optional - will fallback to app_config.json if not set)
+# Options: "azure_vector_search", "chroma", "llama_index_chroma"
+env_vector_store_type = os.getenv("VECTOR_STORE_TYPE")
+# ChromaDB persist directory (optional - for local ChromaDB stores)
+env_persist_directory = os.getenv("PERSIST_DIRECTORY")
+
