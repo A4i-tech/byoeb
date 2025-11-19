@@ -21,7 +21,10 @@ WORKDIR /app
 # This allows Docker to cache the dependency installation layer
 COPY pyproject.toml poetry.lock* ./
 
-# Install dependencies via Poetry (this layer will be cached if dependencies don't change)
+# Change directory to service's root
+WORKDIR /app/byoeb
+
+# Install dependencies via Poetry
 RUN poetry install --no-root --no-interaction --no-ansi
 
 # Copy the rest of the application code
