@@ -80,6 +80,33 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
             nodes.append(text_node)
         self.add_nodes(nodes)
 
+    async def aadd_chunks(
+        self,
+        data_chunks,
+        metadata,
+        ids,
+        batch_size: int = 100,
+        **kwargs
+    ):
+        """Async wrapper for add_chunks to avoid blocking the event loop."""
+        import asyncio
+        from functools import partial
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        # Use functools.partial to pass keyword arguments to add_chunks when
+        # running in an executor. Passing batch_size as a positional arg caused
+        # a TypeError in callers because add_chunks does not accept extra
+        # positional params.
+        func = partial(self.add_chunks, data_chunks=data_chunks, metadata=metadata, ids=ids, batch_size=batch_size, **kwargs)
+
+        if loop is None:
+            return func()
+        else:
+            return await loop.run_in_executor(None, func)
+
     def update_chunks(
         self,
         data_chunks: list,
@@ -134,8 +161,9 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
             chunk_list.append(chunk)
         return chunk_list
     
-    def delete_store(self):
+    def rebuild_store(self):
         if self.vector_store_index is not None:
-            self.chromadb.delete_store()
+            self.chromadb.rebuild_store()
         self.vector_store_index = None
+        self.__get_or_create_store()
     

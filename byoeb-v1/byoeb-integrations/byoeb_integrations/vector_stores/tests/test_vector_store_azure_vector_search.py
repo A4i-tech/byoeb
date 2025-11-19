@@ -1,3 +1,6 @@
+import os
+os.environ["AZURE_OPENAI_API_KEY"] = "sk-xxxx"
+
 import hashlib
 from datetime import datetime
 from types import SimpleNamespace
@@ -181,11 +184,11 @@ async def test_azure_vector_search_query(embedding_fn_stub):
         end_time = datetime.now().timestamp()
         print("Execution Time: ", end_time - start_time)
 
-def test_azure_vector_search_delete(embedding_fn_stub):
+def test_azure_vector_search_rebuild(embedding_fn_stub):
     azure_vector_search = AzureVectorStore(
         SERVICE_NAME,
         INDEX_NAME,
         embedding_fn_stub,
         credential=DefaultAzureCredential()
     )
-    azure_vector_search.delete_store()
+    azure_vector_search.rebuild_store()

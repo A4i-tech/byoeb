@@ -72,9 +72,6 @@ async def abulk_download_files(
                 files_data.append(response)
     return files_data
 
-def delete_kb():
-    vector_store.delete_store()
-
 async def main():
     await create_kb_from_blob_store()
     await amedia_storage._close()

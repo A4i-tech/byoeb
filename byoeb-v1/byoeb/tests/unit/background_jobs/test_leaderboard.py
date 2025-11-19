@@ -1,3 +1,6 @@
+import os
+os.environ["AZURE_OPENAI_API_KEY"] = "sk-xxxx"  # workaround for AzureOpenAIEmbedding requiring this env
+
 import pytest
 from byoeb.background_jobs.message_leaderboard import leaderboard
 from datetime import datetime, timezone, timedelta

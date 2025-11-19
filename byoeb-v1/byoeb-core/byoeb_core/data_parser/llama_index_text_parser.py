@@ -1,9 +1,12 @@
+import logging
 from typing import List
 from byoeb_core.models.media_storage.file_data import FileData, FileMetadata
 from enum import Enum
 from llama_index.core.schema import TextNode, Document
 from llama_index.core.text_splitter import SentenceSplitter
 from llama_index.core.node_parser import TokenTextSplitter
+
+logger = logging.getLogger(__name__)
 
 class LLamaIndexTextSplitterType(Enum):
     SENTENCE = "sentence"
@@ -56,16 +59,64 @@ class LLamaIndexTextParser:
         encoding: str = "utf-8",
         splitter_type=LLamaIndexTextSplitterType.SENTENCE
     ):
+        logger.info(f"🔤 Parsing {len(data)} items into chunks (encoding: {encoding})")
         metadatas = []
         texts = data
         if isinstance(texts, list) and all(isinstance(item, FileData) for item in texts):
-            texts = [d.data.decode(encoding) for d in data]
+            # Try to decode with multiple encodings if utf-8 fails
+            texts = []
+            for idx, d in enumerate(data):
+                file_name = d.metadata.file_name if hasattr(d, 'metadata') and d.metadata else f"file_{idx}"
+                logger.debug(f"  Decoding file {idx+1}/{len(data)}: {file_name}")
+                
+                try:
+                    text = d.data.decode(encoding)
+                    logger.debug(f"  ✅ Successfully decoded {file_name} with {encoding}")
+                except UnicodeDecodeError as e:
+                    logger.warning(f"  ⚠️  UTF-8 decode failed for {file_name} at position {e.start}: {str(e)}")
+                    # Try common encodings as fallback
+                    decoded = False
+                    for fallback_encoding in ['latin-1', 'cp1252', 'iso-8859-1']:
+                        try:
+                            text = d.data.decode(fallback_encoding)
+                            logger.info(f"  ✅ Successfully decoded {file_name} with fallback encoding: {fallback_encoding}")
+                            decoded = True
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                    
+                    if not decoded:
+                        # If all encodings fail, use errors='replace' to replace invalid bytes
+                        logger.warning(f"  ⚠️  All encodings failed for {file_name}, using errors='replace'")
+                        text = d.data.decode(encoding, errors='replace')
+                
+                texts.append(text)
             metadatas = [d.metadata.model_dump() for d in data]
+            logger.info(f"✅ Successfully decoded {len(texts)} files")
         else:
+            logger.info("Processing string data (not FileData objects)")
             metadatas = [{} for _ in data]
+        
+        logger.info(f"📝 Creating documents from {len(texts)} texts")
         documents = [Document(text=text, metadata=metadata) for text, metadata in zip(texts, metadatas)]
+        
+        logger.info(f"✂️  Splitting documents into chunks using {splitter_type.value}")
         splitter = self.get_splitter(splitter_type)
         nodes = splitter.get_nodes_from_documents(documents)
+        
+        # Log chunking details per file
+        if isinstance(data, list) and all(isinstance(item, FileData) for item in data):
+            from collections import defaultdict
+            chunks_per_file = defaultdict(int)
+            for node in nodes:
+                file_name = node.metadata.get("file_name", "unknown") if node.metadata else "unknown"
+                chunks_per_file[file_name] += 1
+            
+            logger.info(f"📊 Chunking summary by file:")
+            for file_name, chunk_count in sorted(chunks_per_file.items()):
+                logger.info(f"  📄 {file_name}: {chunk_count} chunks")
+        
+        logger.info(f"✅ Created {len(nodes)} chunks from {len(documents)} documents")
         return nodes
     
     def get_chunks_from_text(
@@ -77,7 +128,19 @@ class LLamaIndexTextParser:
         metadata = {}
         text = data
         if isinstance(data, FileData):
-            text = data.data.decode(encoding)
+            try:
+                text = data.data.decode(encoding)
+            except UnicodeDecodeError:
+                # Try common encodings as fallback
+                for fallback_encoding in ['latin-1', 'cp1252', 'iso-8859-1']:
+                    try:
+                        text = data.data.decode(fallback_encoding)
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                else:
+                    # If all encodings fail, use errors='replace' to replace invalid bytes
+                    text = data.data.decode(encoding, errors='replace')
             metadata = data.metadata.model_dump()
         document = Document(
             text=text,
