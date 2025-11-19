@@ -1,8 +1,10 @@
 import logging
 import asyncio
+from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 import byoeb.utils.utils as utils
 import uuid
 import traceback
+import time
 from datetime import datetime
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -11,7 +13,6 @@ from byoeb.factory import ChannelClientFactory
 from byoeb.services.chat.message_consumer import MessageConsmerService
 from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from byoeb_integrations.message_queue.azure.async_azure_storage_queue import AsyncAzureStorageQueue
-from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
 
 class QueueConsumer:
 
@@ -36,6 +37,7 @@ class QueueConsumer:
         self._message_db_service = message_db_service
         self._channel_client_factory = channel_client_factory
         self._tracer = trace.get_tracer(__name__)
+        self._batch_message_consumer_logger = AppInsightsLogHandler.getLogger("batch_message_consumer")
     
     async def __create_azure_storage_queue_client(
         self,
@@ -166,6 +168,8 @@ class QueueConsumer:
                             consume_span.set_attribute("messaging.batch_size", len(message_content))
 
                             successfully_processed_messages = await message_consumer_svc.consume(message_content) or []
+                            
+                            self._logger.info(f"consume() returned {len(successfully_processed_messages)} successfully processed messages")
 
                             self._logger.info(f"Successfully processed {len(successfully_processed_messages)} messages")
                             utils.log_to_text_file(f"Successfully processed {len(successfully_processed_messages)} messages")
@@ -196,24 +200,15 @@ class QueueConsumer:
                     span.set_attribute("messaging.success_count", len(successfully_processed_messages))
                     span.set_attribute("messaging.failure_count", len(messages) - len(successfully_processed_messages) - dlq_count)
 
-                    try:
-                        if app_insights_logger:
-                            app_insights_logger.add_log(
-                                event_name="batch_message_consumer",
-                                details={
-                                    "batch_id": str(uuid.uuid4()),
-                                    "duration": duration,
-                                    "message_count": len(messages),
-                                    "success_count": len(successfully_processed_messages),
-                                    "dlq_count": dlq_count,
-                                    "queue_name": self._queue_name
-                                }
-                            )
-                    except Exception as e:
-                        self._logger.error(f"Error logging to app insights: {e}")
-                        traceback.print_exc()
+                    self._batch_message_consumer_logger.info(f"Processed batch of {len(messages)} messages for queue {self._queue_name} in {duration} seconds", extra={AppInsightsLogHandler.DETAILS: {
+                        "batch_id": str(uuid.uuid4()),
+                        "duration": duration,
+                        "message_count": len(messages),
+                        "success_count": len(successfully_processed_messages),
+                        "dlq_count": dlq_count,
+                        "queue_name": self._queue_name
+                    }})
 
-                    self._logger.info(f"Processing time: {duration} seconds")
                     utils.log_to_text_file(f"Processed {len(messages)} message in: {duration} seconds")
 
                     span.set_status(Status(StatusCode.OK))

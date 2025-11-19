@@ -15,6 +15,48 @@ from byoeb.apis.background_jobs import background_apis_router
 from byoeb.apis.admin import admin_apis_router
 
 logger = logging.getLogger(__name__)
+
+# Configure logging early - this ensures it works when uvicorn imports the module
+def _setup_logging():
+    """Setup logging configuration"""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    log_config_path = os.path.join(current_dir, 'logging.yaml')
+    log_config_path = os.path.normpath(log_config_path)
+    
+    # Try to load logging.yaml, fallback to basicConfig if not available
+    if os.path.exists(log_config_path):
+        try:
+            with open(log_config_path, 'r') as file:
+                log_config = yaml.safe_load(file)
+                logging.config.dictConfig(log_config)
+        except Exception as e:
+            print(f"Warning: Failed to load logging.yaml: {e}. Using basicConfig.")
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S',
+            )
+    else:
+        # Only setup basicConfig if no root handler exists
+        if not logging.root.handlers:
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S',
+            )
+    
+    # Ensure specific loggers are set to INFO level for visibility
+    logging.getLogger("byoeb.listener.message_consumer").setLevel(logging.INFO)
+    logging.getLogger("byoeb.services.chat.message_consumer").setLevel(logging.INFO)
+    logging.getLogger("byoeb.services.chat").setLevel(logging.INFO)
+    # Reduce httpx logging noise (only show warnings/errors)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("azure.monitor.opentelemetry").setLevel(logging.WARNING)
+    logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.CRITICAL)
+
+# Setup logging at module import time
+_setup_logging()
+
 asyncio.get_event_loop().set_debug(True)
 def create_apps():
     """
@@ -32,11 +74,11 @@ def create_apps():
     app.include_router(user_apis_router)
     app.include_router(admin_apis_router)
 
-    mcp = FastMCP(stateless_http=True)
+    mcp = FastMCP()
     health_mcps_router(mcp)
     chat_mcps_router(mcp)
     user_mcps_router(mcp)
-    mcp_app = mcp.http_app(path="/mcp")
+    mcp_app = mcp.http_app(path="/mcp", stateless_http=True)
     app.mount("/", mcp_app)
     return app, mcp_app
 
@@ -53,8 +95,14 @@ async def lifespan(app: FastAPI):
     from byoeb.apis.background_jobs import setup_scheduled_jobs
     from byoeb.chat_app.configuration.dependency_setup import start_scheduler, stop_scheduler
 
-    await message_consumer.initialize()
-    asyncio.create_task(message_consumer.listen())
+    try:
+        await message_consumer.initialize()
+        asyncio.create_task(message_consumer.listen())
+    except Exception as e:
+        logger.error(f"Failed to initialize message consumer: {e}")
+        logger.warning("Application will continue without message queue consumer")
+        import traceback
+        logger.error(traceback.format_exc())
 
     setup_scheduled_jobs()
     start_scheduler()
@@ -77,25 +125,9 @@ app, mcp_app = create_apps()
 # Issue with multiple workers in FastAPI
 # https://github.com/encode/uvicorn/discussions/2450
 if __name__ == '__main__':
-    module_name = "byoeb.chat_app.run"
-    if os.getenv("APP_ENV") == "PROD":
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        log_config_path = os.path.join(current_dir, 'logging.yaml')
-        log_config_path = os.path.normpath(log_config_path)
-        log_config = None
-        with open(log_config_path, 'r') as file:
-            log_config = yaml.safe_load(file)
-        logging.config.dictConfig(log_config)
-        logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.CRITICAL)
-        uvicorn.run(
-            f"{module_name}:app",
-            host="0.0.0.0",
-            port=8000
-        )
-    else:
-        print(module_name)
-        uvicorn.run(
-            f"{module_name}:app",
-            host="127.0.0.1",
-            port=5000
-        )
+    uvicorn.run(
+        "byoeb.chat_app.run:app",
+        host="0.0.0.0",
+        port=8000,
+        ws="websockets-sansio"
+    )
