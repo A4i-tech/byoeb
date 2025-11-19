@@ -78,7 +78,7 @@ APP_ENV=PROD
 
 ## 4) Docker Configuration
 
-A Dockerfile is already present in `/byoeb-v1/byoeb`. The CI/CD pipeline automatically:
+A Dockerfile is already present in `/byoeb-v1`. The CI/CD pipeline automatically:
 - Builds Docker images with environment-specific tags (see below)
 - Pushes to GitHub Container Registry (ghcr.io)
 - Deploys using the built image
