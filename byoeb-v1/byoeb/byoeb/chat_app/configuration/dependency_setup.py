@@ -224,7 +224,6 @@ else:
 import os
 from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
-from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
 from byoeb_integrations.vector_stores.llama_index.llama_index_chroma_store import LlamaIndexChromaDBStore
 from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
 from byoeb_core.vector_stores.base import BaseVectorStore
@@ -312,6 +311,7 @@ elif vector_store_type == "chroma":
         embedding_instance=llama_index_embedding
     )
     
+    from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
     vector_store = ChromaDBVectorStore(
         persist_directory=persist_directory,
         collection_name=collection_name,
