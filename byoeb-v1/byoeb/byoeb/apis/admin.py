@@ -1,27 +1,20 @@
-import logging
 import os
-import subprocess
-import pytz
 from byoeb.models.experiment import QueryInput
 from io import BytesIO
-from azure.identity import DefaultAzureCredential
 from datetime import datetime
 from fastapi import APIRouter, Request
-from croniter import croniter
 from fastapi.responses import JSONResponse
 from fastapi import Form, Request
-from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import StreamingResponse
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
-from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
 from byoeb.services.admin.message_process import process_message, clear_history
 from byoeb.chat_app.configuration.dependency_setup import media_storage
 
 REGISTER_API_NAME = 'admin_apis'
 
 admin_apis_router = APIRouter()
-_logger = logging.getLogger(REGISTER_API_NAME)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 jobs_path = os.path.join(current_dir, '..', 'background_jobs')

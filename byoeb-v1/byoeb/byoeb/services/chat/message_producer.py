@@ -1,14 +1,11 @@
 import logging
-import json
-import time
 import traceback
 import byoeb.utils.utils as utils
 from byoeb.services.chat import constants
 from datetime import datetime, timezone
-from byoeb_core.models.byoeb.message_status import ByoebMessageStatus
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb_core.message_queue.base import BaseQueue
-from byoeb.chat_app.configuration.dependency_setup import app_insights_logger
+from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
 
 class MessageProducerService:
@@ -22,6 +19,7 @@ class MessageProducerService:
         self._config = config
         self.__queue_client = queue_client
         self.__message_db_service = message_db_service
+        self._message_pub_logger = AppInsightsLogHandler.getLogger("message_published")
 
     def __convert_whatsapp_to_byoeb_message(
         self,
@@ -116,14 +114,10 @@ class MessageProducerService:
             print(f"[apublish_message] ← queue result id={getattr(result, 'id', None)}")
 
             # app insights log (no print needed, but keep one-liner)
-            print(f"[apublish_message] log app_insights message_id={mid} phone_number_id={getattr(byoeb_message.user, 'phone_number_id', None)}")
-            app_insights_logger.add_log(
-                event_name="message_published",
-                details={
-                    "message_id": mid,
-                    "phone_number_id": getattr(byoeb_message.user, "phone_number_id", None)
-                }
-            )
+            self._message_pub_logger.info(f"Published message_id={mid} phone_number_id={getattr(byoeb_message.user, 'phone_number_id', None)}", extra={AppInsightsLogHandler.DETAILS: {
+                "message_id": mid,
+                "phone_number_id": getattr(byoeb_message.user, "phone_number_id", None)
+            }})
 
             # db write
             print("[apublish_message] → message_db_service.execute_queries(CREATE)")

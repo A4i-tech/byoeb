@@ -426,12 +426,17 @@ def test_interactive_message():
     wa_convert.convert_interactive_message(message_1)
     assert is_wa is True
     assert message_type == "interactive"
+
     message_2 = '{"object": "whatsapp_business_account", "entry": [{"id": "423299570870294", "changes": [{"value": {"messaging_product": "whatsapp", "metadata": {"display_phone_number": "15551355272", "phone_number_id": "421395191063010"}, "contacts": [{"profile": {"name": "rahul5982439"}, "wa_id": "918837701828"}], "messages": [{"context": {"from": "15551355272", "id": "wamid.HBgMOTE4ODM3NzAxODI4FQIAERgSMzU5QTYwNzNBQUUzNjdDNjAwAA=="}, "from": "918837701828", "id": "wamid.HBgMOTE4ODM3NzAxODI4FQIAEhggNURBMjI2MUI1REREOUU1RTk0OTRDNzY4NkJEMjQxM0UA", "timestamp": "1732167786", "type": "interactive", "interactive": {"type": "list_reply", "list_reply": {"id": "f79a74e4-3d50-4cc3-ae50-86efff88f3f3", "title": " ", "description": "O1"}}}]}, "field": "messages"}]}]}'
     is_wa, message_type = wa_validate.validate_whatsapp_message(message_2)
     byoeb_message = wa_convert.convert_interactive_message(message_2)
     assert byoeb_message.reply_context.reply_id == "wamid.HBgMOTE4ODM3NzAxODI4FQIAERgSMzU5QTYwNzNBQUUzNjdDNjAwAA=="
     assert is_wa is True
     assert message_type == "interactive"
+
+    message_3 = '{"object": "whatsapp_business_account", "entry": [{"id": "200000000000001", "changes": [{"value": {"messaging_product": "whatsapp", "metadata": {"display_phone_number": "910000123456", "phone_number_id": "180000000000001"}, "contacts": [{"profile": {"name": "John Doe"}, "wa_id": "910000987654"}], "messages": [{"context": {"from": "910000123456", "id": "wamid.HBgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}, "from": "910000987654", "id": "wamid.HBgBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", "timestamp": "1763169977", "errors": [{"code": 131000, "title": "Something went wrong", "message": "Something went wrong", "error_data": {"details": "Unsupported webhook payload"}}], "type": "interactive"}]}, "field": "messages"}]}]}'
+    is_wa, message_type = wa_validate.validate_whatsapp_message(message_3)
+    assert is_wa is False
 
 def test_status_message():
     message = '{"object": "whatsapp_business_account", "entry": [{"id": "423299570870294", "changes": [{"value": {"messaging_product": "whatsapp", "metadata": {"display_phone_number": "15551355272", "phone_number_id": "421395191063010"}, "statuses": [{"id": "wamid.HBgMOTE4ODM3NzAxODI4FQIAERgSQjM1RjY0M0QyMkU4OUU3OTc3AA==", "status": "delivered", "timestamp": "1733170072", "recipient_id": "918837701828", "conversation": {"id": "bbc3027b762dec0714d75f270a6e9e9e", "origin": {"type": "service"}}, "pricing": {"billable": true, "pricing_model": "CBP", "category": "service"}}]}, "field": "messages"}]}]}'
@@ -441,6 +446,12 @@ def test_status_message():
     assert is_wa is True
     assert byoeb_message.message_id == "wamid.HBgMOTE4ODM3NzAxODI4FQIAERgSQjM1RjY0M0QyMkU4OUU3OTc3AA=="
     assert message_type == "status"
+
+def test_bogus_message():
+    message = '{"object": true}'
+    is_wa, message_type = wa_validate.validate_whatsapp_message(message)
+    assert is_wa is False
+    assert message_type is None
 
 import byoeb_integrations.channel.whatsapp.request_payload as wa_request_payload
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
