@@ -14,7 +14,14 @@ from byoeb.kb_app.configuration.dependency_setup import (
     azure_openai_embed,
     llm_client
 )
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from byoeb.services.knowledge_base.kb_service import KBService
+
+
+async def abulk_download_files(all_files: List[FileMetadata]) -> List[FileData]:
+    """Compatibility wrapper that uses KBService's bulk download implementation."""
+    svc = KBService(vector_store=vector_store, media_storage=amedia_storage, llm_client=llm_client)
+    return await svc._abulk_download_files(all_files)
+from azure.identity import DefaultAzureCredential
 from typing import List
 from datetime import datetime, timezone
 from byoeb_core.data_parser.llama_index_text_parser import LLamaIndexTextParser, LLamaIndexTextSplitterType
@@ -36,6 +43,12 @@ logger = logging.getLogger("kb_service")
 prefix_raw_documents = "raw_documents"
 prefix_raw_faq_documents = "raw_documents/FAQ"
 prefix_updated_documents = "expert_update_documents"
+
+## Azure Vector Search properties
+endpoint="byoebstage-search"
+index_name="byoebstage-doc-index-latest"
+key=os.getenv("AZURE_SEARCH_API_KEY")
+search_index_client=None
 
 @retry(
     stop=stop_after_attempt(3),  # Retry up to 3 times
@@ -543,7 +556,8 @@ abbreviations = {
     "SRH": "Sexual and Reproductive Health",
     "STIs": "Sexually Transmitted Infections",
     "VHSNC": "Village Health, Sanitation and Nutrition Committee",
-    "WIFS": "Weekly Iron Folic Acid Supplementation"
+    "WIFS": "Weekly Iron Folic Acid Supplementation",
+    "CS": "Caesarean Section"
 }
 def replace_abbreviations(text, abbrev_dict):
     # Sort by length of abbreviation to avoid partial matches
@@ -775,37 +789,26 @@ def fails(error: IndexAction):
             file.write(f"Action type: {error.action_type}\n")
             file.write(f"Properties: {error.additional_properties}\n")
             
-def uplodad_documents(documents: List[AzureSearchNode]):
+def upload_documents(documents: List[AzureSearchNode]):
     batch_size = 10
     for i in tqdm(range(0, len(documents), batch_size)):
         batch_documents = documents[i:i + batch_size]
         # current_documents = [doc.model_dump(exclude_none=True, exclude_defaults=True) for doc in batch_documents]
-        with SearchIndexingBufferedSender(
-            endpoint="https://khushi-baby-asha-search.search.windows.net",
-            index_name="khushi-baby-asha-doc-index",
-            credential=DefaultAzureCredential(),
-            on_error=fails
-        ) as batch_client:
-            batch_client.upload_documents(documents=batch_documents)
+        search_index_client.upload_documents(documents=batch_documents)
             
 async def main():
-    faq_files, raw_files_without_faq, update_files = await aget_files_from_blob_store()
-    raw_ids, raw_texts, raw_metadatas = await create_raw_files_chunks(raw_files_without_faq)
-    update_ids, update_texts, update_metadatas = await create_update_files_chunk(update_files)
-    faq_ids, faq_texts, faq_metadatas = await create_faq_files_chunk(faq_files)
-
-    ids = raw_ids + update_ids + faq_ids
-    texts = raw_texts + update_texts + faq_texts
-    metadatas = raw_metadatas + update_metadatas + faq_metadatas
-
-    documents = await prepare_azure_nodes(
-        ids=ids,
-        data_chunks=texts,
-        metadata=metadatas,
-        batch_size=4,
-        llm_client=llm_client
-    )
-    uplodad_documents(documents)
+    # Use KBService for ingestion (delegates to configured vector_store)
+    svc = KBService(vector_store=vector_store, media_storage=amedia_storage, llm_client=llm_client)
+    try:
+        count = await svc.create_kb_from_blob_store()
+        logger.info(f"✅ KB ingestion complete - {count} chunks ingested")
+    finally:
+        # Close media storage if it exposes a close method
+        try:
+            await amedia_storage._close()
+        except Exception:
+            pass
+    
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -75,7 +75,7 @@ class BaseVectorStore(ABC):
         return NotImplementedError
     
     @abstractmethod
-    def delete_store(self):
+    def rebuild_store(self):
         pass
 
 

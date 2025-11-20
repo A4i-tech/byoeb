@@ -1,0 +1,240 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "a4i/main", "staging" ]
+  pull_request:
+    branches: [ "a4i/main", "staging" ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Step 1a: Run byoeb-core checks (install only)
+  unit-test-byoeb-core:
+    name: byoeb-core (build-test)
+    uses: ./.github/workflows/unit-tests.yml
+    with:
+      directory: ./byoeb-v1/byoeb-core
+    secrets: inherit
+
+  # Step 1b: Run byoeb unit tests
+  unit-test-byoeb:
+    name: byoeb (build-test)
+    uses: ./.github/workflows/unit-tests.yml
+    with:
+      directory: ./byoeb-v1/byoeb
+      tests-path: tests/unit
+      coverage-artifact-name: coverage-html-byoeb
+      upload-html-coverage: true
+      coverage-gist-id: ${{ github.event_name == 'push' && github.ref_name == 'a4i/main' && vars.COVERAGE_GIST_ID || '' }}
+    secrets: inherit
+
+  # Step 1c: Run byoeb-integrations unit tests
+  unit-test-byoeb-integrations:
+    name: byoeb-integrations (build-test)
+    uses: ./.github/workflows/unit-tests.yml
+    with:
+      directory: ./byoeb-v1/byoeb-integrations
+      tests-path: .
+      coverage-artifact-name: coverage-html-byoeb-integrations
+      upload-html-coverage: true
+      coverage-gist-id: ${{ github.event_name == 'push' && github.ref_name == 'a4i/main' && vars.COVERAGE_GIST_ID || '' }}
+    secrets: inherit
+
+  # Step 2: Build (validates Dockerfile - uses Docker layer caching for fast builds)
+  build:
+    name: Build Docker image
+    outputs:
+      image-name: ${{ steps.image-name.outputs.image_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set lowercase image name
+        id: image-name
+        run: |
+          echo "image_name=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (validation only, no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./byoeb-v1
+          file: ./byoeb-v1/Dockerfile
+          push: false
+          tags: ${{ env.REGISTRY }}/${{ steps.image-name.outputs.image_name }}:build-validation
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Notify Teams of build failure
+        if: ${{ failure() && github.event_name != 'pull_request' }}
+        uses: ./.github/actions/dispatch-teams-webhook
+        with:
+          summary: '❌ Pipeline Stage Failed'
+          activity-title: '❌ Pipeline Stage Failed'
+          theme-color: 'FF0000'
+          facts: |
+            [
+              {
+                "name": "Stage",
+                "value": "Build"
+              },
+              {
+                "name": "Actor",
+                "value": "${{ github.actor }}"
+              }
+            ]
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
+  # Step 4: Publish Docker Image (only if tests passed)
+  publish-image:
+    name: Publish image
+    needs: [build, unit-test-byoeb-core, unit-test-byoeb, unit-test-byoeb-integrations]
+    if: success() && github.event_name == 'push' && (github.ref_name == 'staging' || github.ref_name == 'a4i/main')
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.image-info.outputs.tag }}
+      image-ref: ${{ steps.image-info.outputs.ref }}
+      image-digest: ${{ steps.build.outputs.digest }}
+      registry: ${{ env.REGISTRY }}
+      environment: ${{ steps.target.outputs.environment }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine publish target
+        id: target
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          case "$REF_NAME" in
+            staging)
+              echo "environment=staging" >> "$GITHUB_OUTPUT"
+              echo "tag_prefix=staging" >> "$GITHUB_OUTPUT"
+              ;;
+            a4i/main)
+              echo "environment=production" >> "$GITHUB_OUTPUT"
+              echo "tag_prefix=production" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unsupported publish target for ref: $REF_NAME" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ needs.build.outputs['image-name'] }}
+          tags: |
+            type=raw,value=${{ steps.target.outputs.tag_prefix }}-{{sha}}
+            type=raw,value=${{ steps.target.outputs.tag_prefix }}-latest
+
+      - name: Capture image reference
+        id: image-info
+        env:
+          META_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          first="$(printf '%s\n' "$META_TAGS" | head -n 1)"
+          if [ -z "$first" ]; then
+            echo "Unable to determine image tag from metadata output" >&2
+            exit 1
+          fi
+          printf 'ref=%s\n' "$first" >> "$GITHUB_OUTPUT"
+          printf 'tag=%s\n' "${first##*:}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./byoeb-v1
+          file: ./byoeb-v1/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Notify Teams of publish failure
+        if: ${{ failure() && github.event_name != 'pull_request' && (github.ref_name == 'staging' || github.ref_name == 'a4i/main') }}
+        uses: ./.github/actions/dispatch-teams-webhook
+        with:
+          summary: '❌ Pipeline Stage Failed'
+          activity-title: '❌ Pipeline Stage Failed'
+          theme-color: 'FF0000'
+          facts: |
+            [
+              {
+                "name": "Stage",
+                "value": "${{ github.ref_name == 'a4i/main' && 'Publish Image (Production)' || 'Publish Image (Staging)' }}"
+              },
+              {
+                "name": "Environment",
+                "value": "${{ github.ref_name == 'a4i/main' && 'production' || 'staging' }}"
+              }
+            ]
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
+  # Step 5a: Deploy staging via Render reusable workflow
+  deploy-staging:
+    name: Deploy (staging)
+    needs: publish-image
+    if: success() && needs.publish-image.outputs.environment == 'staging'
+    uses: ./.github/workflows/deploy-render.yml
+    with:
+      service-id: ${{ vars.RENDER_SERVICE_ID }}
+      api-base-url: ${{ vars.RENDER_API_URL || 'https://api.render.com' }}
+    secrets:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
+  # Step 5b: Deploy production via reusable workflow
+  deploy-production:
+    name: Deploy (production)
+    needs: publish-image
+    if: success() && needs.publish-image.outputs.environment == 'production'
+    uses: ./.github/workflows/deploy-azure-webapp.yml
+    with:
+      azure-webapp-name: ${{ vars.AZURE_WEBAPP_NAME }}
+      image-tag: ${{ needs.publish-image.outputs['image-tag'] }}
+    secrets:
+      AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
+  # Step 5: Run integration tests
+  integration-tests:
+    name: Run integration tests
+    needs: [deploy-staging, publish-image]
+    if: needs.deploy-staging.result == 'success'
+    uses: ./.github/workflows/integration-tests.yml
+    with:
+      service-url: ${{ needs.deploy-staging.outputs['service-url'] }}
+      image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
+      registry: ${{ needs.publish-image.outputs.registry }}
+      environment: ${{ needs.publish-image.outputs.environment }}
+      deployment-url: ${{ needs.deploy-staging.outputs['service-url'] }}
+    secrets: inherit
