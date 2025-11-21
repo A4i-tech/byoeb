@@ -1,6 +1,6 @@
 import logging
 from typing import Any, List, Optional, Dict
-from byoeb_core.models.byoeb.user import User
+from byoeb_core.models.byoeb.user import PhoneNumberId, User
 from fastapi import APIRouter, Body, Request, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -35,7 +35,7 @@ class APIResponse(BaseModel):
 
 
 class UserRegister(BaseModel):
-    phone_number_id: str = Field(..., description="Phone number ID of the user", json_schema_extra="9982674531")
+    phone_number_id: PhoneNumberId = Field(..., description="Phone number ID of the user", json_schema_extra="9982674531")
     user_location: Optional[UserLocation] = Field(..., description="Location details (district is mandatory)")
     user_type: str = Field(..., description="Type of user (asha, anm, etc.)", json_schema_extra="asha")
     user_language: str = Field(..., description="Language code (hi, en, te, etc.)", json_schema_extra="hi")
@@ -45,18 +45,13 @@ class UserRegister(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    phone_number_id: str = Field(..., description="Phone number ID of the user", json_schema_extra="9982674531")
+    phone_number_id: PhoneNumberId = Field(..., description="Phone number ID of the user", json_schema_extra="9982674531")
     user_name: Optional[str] = Field(None, description="Updated name of the user", json_schema_extra="John Doe")
     user_location: Optional[Dict[str, Any]] = Field(None, description="Updated location details")
     user_language: Optional[str] = Field(None, description="Updated language code", json_schema_extra="en")
     user_type: Optional[str] = Field(None, description="Updated type of user", json_schema_extra="anm")
     user_name: Optional[str] = Field(None, description="Name of the user", json_schema_extra="Sita Devi")
     test_user: Optional[bool] = Field(None, description="Flag to mark test users", json_schema_extra=False)
-
-
-
-class User_Phone(BaseModel):
-    phone_number_id: str = Field(..., description="Phone number ID of the user", json_schema_extra="9982674531")
 
 
 # -----------------------------
@@ -156,7 +151,7 @@ async def update_users(
     summary="Delete one or more users",
     response_model=APIResponse,
 )
-async def delete_users(users: List[str] = Body(
+async def delete_users(users: List[PhoneNumberId] = Body(
         ...,
         description="List of phone_number_ids (must be numeric).",
         json_schema_extra=["9982674531", "9876543210"]    )) -> APIResponse:
@@ -181,7 +176,7 @@ async def delete_users(users: List[str] = Body(
     tags=["Users"],
 )
 async def get_users(
-    phone_number_ids: List[str] = Query(
+    phone_number_ids: List[PhoneNumberId] = Query(
         ...,
         description="List of phone_number_ids (must be numeric).",
         json_schema_extra=["9982674531", "9876543210"]    )
