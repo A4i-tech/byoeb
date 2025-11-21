@@ -181,7 +181,7 @@ async def delete_users(users: List[str] = Body(
     tags=["Users"],
 )
 async def get_users(
-    phone_number_ids: List[str] = Body(
+    phone_number_ids: List[str] = Query(
         ...,
         description="List of phone_number_ids (must be numeric).",
         json_schema_extra=["9982674531", "9876543210"]    )
