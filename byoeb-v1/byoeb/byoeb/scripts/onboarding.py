@@ -44,7 +44,8 @@ def main():
     
     response = requests.get(
     API_URL,
-    params={"phone_number_ids": phone_numbers}
+	headers={"Accept": "application/json"},
+    params=phone_numbers
 )
 	#add items from users to user_onboarded such that we don't overwrite imp exisistin information
     if response.status_code != 200:
@@ -72,7 +73,8 @@ def main():
     if args.sheet:
     	response = requests.get(
     API_URL,
-    params={"phone_number_ids": phone_numbers}
+	headers={"Accept": "application/json"},
+    params=phone_numbers
 )
     	if response.status_code != 200:
     		print(f"Error: {response.status_code} - {response.text}")

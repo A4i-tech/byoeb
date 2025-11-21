@@ -95,9 +95,9 @@ async def delete_users(users: List[PhoneNumberId] = Body(..., description="List 
         content=response.message if isinstance(response.message, str) else str(response.message),
     )
 
-@user_apis_router.get("/get_users", summary="Retrieve one or more users by phone_number_id", tags=["Users"])
+@user_apis_router.post("/get_users", summary="Retrieve one or more users by phone_number_id", tags=["Users"])
 async def get_users(
-    phone_number_ids: List[PhoneNumberId] = Query(..., description="List of phone_number_ids (must be numeric).")
+    phone_number_ids: List[PhoneNumberId] = Body(..., description="List of phone_number_ids.")
 ) -> List[User]:
     """
     Retrieve user information for one or more users.
