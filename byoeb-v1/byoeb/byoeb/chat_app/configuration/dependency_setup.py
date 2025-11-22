@@ -224,26 +224,23 @@ else:
 import os
 from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
-
-# Azure Search configuration: use environment variables if set, otherwise fall back to config file
-azure_search_service_name = env_config.env_azure_search_service_name or app_config["vector_store"]["azure_vector_search"]["service_name"]
-azure_search_doc_index_name = env_config.env_azure_search_index_name or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
-# git_root_dir = byoeb_utils.get_git_root_path()
-# vector_db_path = os.path.join(git_root_dir, "../vector_db")
+from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
+from byoeb_core.vector_stores.base import BaseVectorStore
 
 # Use environment variables for Azure OpenAI endpoint and deployment if set, otherwise fallback to app_config.json
 azure_openai_endpoint = env_config.env_azure_openai_endpoint or app_config["embeddings"]["azure"]["endpoint"]
 azure_openai_deployment_name = env_config.env_azure_openai_deployment_name or app_config["embeddings"]["azure"]["deployment_name"]
 
+# Azure OpenAI Embed - try API key first, fallback to token provider
 if env_config.env_azure_openai_whisper_key or env_config.env_azure_openai_key:
     print("✅ Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
     azure_openai_key = env_config.env_azure_openai_key or env_config.env_azure_openai_whisper_key
     azure_openai_embed = AzureOpenAIEmbed(
-    model=app_config["embeddings"]["azure"]["model"],
-    deployment_name=azure_openai_deployment_name,
-    azure_endpoint=azure_openai_endpoint,
-    api_key=azure_openai_key,
-    api_version=app_config["embeddings"]["azure"]["api_version"]
+        model=app_config["embeddings"]["azure"]["model"],
+        deployment_name=azure_openai_deployment_name,
+        azure_endpoint=azure_openai_endpoint,
+        api_key=azure_openai_key,
+        api_version=app_config["embeddings"]["azure"]["api_version"]
     )
 else:
     from azure.identity import get_bearer_token_provider, DefaultAzureCredential
@@ -252,33 +249,104 @@ else:
         DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
     )
     azure_openai_embed = AzureOpenAIEmbed(
-    model=app_config["embeddings"]["azure"]["model"],
-    deployment_name=azure_openai_deployment_name,
-    azure_endpoint=azure_openai_endpoint,
-    token_provider=token_provider,
-    api_version=app_config["embeddings"]["azure"]["api_version"]
-)
-embedding_fn = azure_openai_embed.get_embedding_function()
+        model=app_config["embeddings"]["azure"]["model"],
+        deployment_name=azure_openai_deployment_name,
+        azure_endpoint=azure_openai_endpoint,
+        token_provider=token_provider,
+        api_version=app_config["embeddings"]["azure"]["api_version"]
+    )
 
-# vector_store = LlamaIndexChromaDBStore(
-#     vector_db_path,
-#     app_config["vector_store"]["chroma"]["collection_name"],
-#     embedding_function=embedding_fn
-# )
-if env_config.env_azure_search_api_key:
-    from azure.core.credentials import AzureKeyCredential
-    print("✅ Azure Search API key set. Enabling Azure vector store.")
-    credential = AzureKeyCredential(env_config.env_azure_search_api_key)
+# Vector Store Type Configuration - use environment variable if set, otherwise fallback to app_config.json
+# Default to "azure_vector_search" if not specified (for backward compatibility)
+vector_store_type = env_config.env_vector_store_type or "azure_vector_search"
+
+# Initialize vector store based on configuration
+vector_store: BaseVectorStore = None
+
+if vector_store_type == "azure_vector_search":
+    # Azure Search Service Configuration - use environment variables if set, otherwise fallback to app_config.json
+    azure_search_service_name = env_config.env_azure_search_service_name or app_config["vector_store"]["azure_vector_search"]["service_name"]
+    azure_search_doc_index_name = env_config.env_azure_search_index_name or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
+    
+    if env_config.env_azure_search_api_key:
+        from azure.core.credentials import AzureKeyCredential
+        print("✅ Azure Search API key set. Enabling Azure vector store.")
+        credential = AzureKeyCredential(env_config.env_azure_search_api_key)
+    else:
+        from azure.identity import DefaultAzureCredential
+        credential = DefaultAzureCredential()   
+        print("⚠️ Azure Search API key not set. Defaulting to DefaultAzureCredential")
+    
+    # Azure Vector Store uses LlamaIndex embedding function
+    embedding_function = azure_openai_embed.get_embedding_function()
+    
+    vector_store = AzureVectorStore(
+        service_name=azure_search_service_name,
+        index_name=azure_search_doc_index_name,
+        embedding_function=embedding_function,
+        credential=credential
+    )
+    print(f"✅ Initialized Azure Vector Store: {azure_search_service_name}/{azure_search_doc_index_name}")
+
+elif vector_store_type == "chroma":
+    # ChromaDB Vector Store - needs ChromaDB-compatible embedding function
+    collection_name = app_config["vector_store"]["chroma"]["doc_index_name"]
+    persist_directory = env_config.env_persist_directory
+    
+    if not persist_directory:
+        # Default persist directory if not specified
+        git_root_dir = byoeb_utils.get_git_root_path()
+        persist_directory = os.path.join(git_root_dir, "../vector_db")
+    
+    # Ensure persist directory exists
+    os.makedirs(persist_directory, exist_ok=True)
+    
+    # Reuse the existing azure_openai_embed instance to create ChromaDB-compatible wrapper
+    # This avoids creating a duplicate AzureOpenAIEmbed instance
+    llama_index_embedding = azure_openai_embed.get_embedding_function()
+    
+    # Use the reusable ChromaDB embedding function wrapper from byoeb_integrations
+    chroma_embedding_function = AzureOpenAIEmbeddingFunction(
+        embedding_instance=llama_index_embedding
+    )
+    
+    from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
+    vector_store = ChromaDBVectorStore(
+        persist_directory=persist_directory,
+        collection_name=collection_name,
+        embedding_function=chroma_embedding_function
+    )
+    print(f"✅ Initialized ChromaDB Vector Store: {persist_directory}/{collection_name}")
+
+elif vector_store_type == "llama_index_chroma":
+    # LlamaIndex ChromaDB Vector Store - uses LlamaIndex embedding function
+    collection_name = app_config["vector_store"]["llama_index_chroma"]["doc_index_name"]
+    persist_directory = env_config.env_persist_directory
+    
+    if not persist_directory:
+        # Default persist directory if not specified
+        git_root_dir = byoeb_utils.get_git_root_path()
+        persist_directory = os.path.join(git_root_dir, "../vector_db")
+    
+    # Ensure persist directory exists
+    os.makedirs(persist_directory, exist_ok=True)
+    
+    # LlamaIndex ChromaDB Store uses LlamaIndex embed model
+    embedding_function = azure_openai_embed.get_embedding_function()
+    
+    from byoeb_integrations.vector_stores.llama_index.llama_index_chroma_store import LlamaIndexChromaDBStore
+    vector_store = LlamaIndexChromaDBStore(
+        persist_directory=persist_directory,
+        collection_name=collection_name,
+        embedding_function=embedding_function
+    )
+    print(f"✅ Initialized LlamaIndex ChromaDB Vector Store: {persist_directory}/{collection_name}")
+
 else:
-    credential = DefaultAzureCredential()   
-    print("⚠️ Azure Search API key not set. Defaulting to DefaultAzureCredential")
-
-vector_store = AzureVectorStore(
-    service_name=azure_search_service_name,
-    index_name=azure_search_doc_index_name,
-    embedding_function=embedding_fn,
-    credential=credential
-)
+    raise ValueError(
+        f"Invalid vector_store type: {vector_store_type}. "
+        f"Supported types: 'azure_vector_search', 'chroma', 'llama_index_chroma'"
+    )
 
 # llm
 # from byoeb_integrations.llms.llama_index.llama_index_azure_openai import AsyncLLamaIndexAzureOpenAILLM

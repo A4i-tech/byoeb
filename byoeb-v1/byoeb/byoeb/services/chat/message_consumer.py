@@ -2,6 +2,7 @@ import asyncio
 import json
 import hashlib
 import traceback
+import logging
 import byoeb.services.chat.constants as constants
 from datetime import datetime, timezone
 from pydantic import BaseModel
@@ -32,6 +33,9 @@ class MessageConsmerService:
         channel_client_factory: ChannelClientFactory
     ):
         self._config = config
+        # Use module path for logger to ensure proper configuration
+        self._logger = logging.getLogger(__name__)
+        self._logger.setLevel(logging.INFO)  # Ensure INFO level
         self._user_db_service = user_db_service
         self._message_db_service = message_db_service
         self._channel_client_factory = channel_client_factory
@@ -234,7 +238,7 @@ class MessageConsmerService:
         self,
         messages: list
     ) -> List[ByoebMessageContext]:
-        print("[consume] ▶ start")
+        self._logger.info(f"[consume] Processing {len(messages)} raw message(s)")
         byoeb_messages: List[ByoebMessageContext] = []
 
         for raw in messages:
@@ -242,7 +246,6 @@ class MessageConsmerService:
             print("raw", raw)
             byoeb_message = ByoebMessageContext.model_validate(json_message)
             byoeb_messages.append(byoeb_message)
-        print(f"[consume] parsed_messages={len(byoeb_messages)}")
         print("byoeb_messages", byoeb_messages)
 
         start_time = datetime.now(timezone.utc).timestamp()
