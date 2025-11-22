@@ -47,7 +47,7 @@ class UserUpdate(BaseModel):
 # Endpoints
 # -----------------------------
 
-@user_apis_router.post("/register_users", summary="Register one or more users", tags=["Users"])
+@user_apis_router.post("/register_users", summary="Register one or more users")
 async def register_users(
     users: List[UserRegister] = Body(..., description="List of users to register. Mandatory fields: `user_type`, `user_location` and `phone_number_id`. `district` inside `user_location` is mandatory.")
 ) -> List[User]:
@@ -66,7 +66,7 @@ async def register_users(
     return JSONResponse(content=response.message, status_code=response.status_code)
 
 
-@user_apis_router.post("/update_users", summary="Update one or more users", tags=["Users"])
+@user_apis_router.post("/update_users", summary="Update one or more users")
 async def update_users(
     users: List[UserUpdate] = Body(..., description="List of users to update. Only include fields that need updating.")
 ) -> JSONResponse:
@@ -84,7 +84,7 @@ async def update_users(
         status_code=response.status_code
     )
        
-@user_apis_router.delete("/delete_users", summary="Delete one or more users", tags=["Users"])
+@user_apis_router.delete("/delete_users", summary="Delete one or more users")
 async def delete_users(users: List[PhoneNumberId] = Body(..., description="List of phone_number_ids (must be numeric).")) -> JSONResponse:
     """
     Deletes users matching the provided phone_number_ids.
@@ -95,7 +95,7 @@ async def delete_users(users: List[PhoneNumberId] = Body(..., description="List 
         content=response.message if isinstance(response.message, str) else str(response.message),
     )
 
-@user_apis_router.post("/get_users", summary="Retrieve one or more users by phone_number_id", tags=["Users"])
+@user_apis_router.post("/get_users", summary="Retrieve one or more users by phone_number_id")
 async def get_users(
     phone_number_ids: List[PhoneNumberId] = Body(..., description="List of phone_number_ids.")
 ) -> List[User]:

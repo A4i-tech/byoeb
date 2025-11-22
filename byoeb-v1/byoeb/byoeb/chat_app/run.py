@@ -67,12 +67,12 @@ def create_apps():
     """
 
     app = FastAPI(lifespan=lifespan)
+    app.include_router(admin_apis_router)
     app.include_router(background_apis_router)
-    app.include_router(health_apis_router)
-    app.include_router(register_apis_router)
     app.include_router(chat_apis_router)
     app.include_router(user_apis_router)
-    app.include_router(admin_apis_router)
+    app.include_router(register_apis_router)
+    app.include_router(health_apis_router)
 
     mcp = FastMCP()
     health_mcps_router(mcp)

@@ -14,7 +14,7 @@ from byoeb.chat_app.configuration.dependency_setup import media_storage
 
 REGISTER_API_NAME = 'admin_apis'
 
-admin_apis_router = APIRouter()
+admin_apis_router = APIRouter(tags=["Administrative"])
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 jobs_path = os.path.join(current_dir, '..', 'background_jobs')

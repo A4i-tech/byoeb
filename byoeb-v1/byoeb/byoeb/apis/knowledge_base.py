@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 
 KB_API_NAME = 'kb_api'
 
-kb_apis_router = APIRouter()
+kb_apis_router = APIRouter(tags=["Knowledge Base"])
 _logger = logging.getLogger(KB_API_NAME)
 
 @kb_apis_router.get("/load")

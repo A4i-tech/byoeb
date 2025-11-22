@@ -17,7 +17,7 @@ from byoeb.chat_app.configuration.dependency_setup import scheduler
 REGISTER_API_NAME = 'background_api'
 TIMEZONE = ZoneInfo("Asia/Kolkata")
 
-background_apis_router = APIRouter()
+background_apis_router = APIRouter(tags=["Background Jobs"])
 _logger = AppInsightsLogHandler.getLogger(REGISTER_API_NAME)
 
 # ---------------------------------------------------------
@@ -143,7 +143,7 @@ def setup_scheduled_jobs():
 # ---------------------------------------------------------
 # API Endpoints
 # ---------------------------------------------------------
-@background_apis_router.post("/jobs/{job_id}", summary="Run a background job manually", tags=["Background Jobs"])
+@background_apis_router.post("/jobs/{job_id}", summary="Run a background job manually")
 async def run_job_manually(job_id: str = Path(..., description="Job ID to trigger")) -> JSONResponse:
     """
     Manually triggers a background job by its job_id.
@@ -155,7 +155,7 @@ async def run_job_manually(job_id: str = Path(..., description="Job ID to trigge
     await execute_job_function(job_config.function)
     return JSONResponse(content=f"Job '{job_id}' executed successfully", status_code=status.HTTP_200_OK)
 
-@background_apis_router.get("/jobs", summary="List configured jobs and schedules", tags=["Background Jobs"])
+@background_apis_router.get("/jobs", summary="List configured jobs and schedules")
 async def list_jobs() -> List[JobStatus]:
     """
     Returns a list of all configured jobs with status, schedule, and next run info.
