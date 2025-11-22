@@ -22,8 +22,6 @@ jobs_path = os.path.normpath(jobs_path)
 template_dir = os.path.join(current_dir, 'ui_templates')
 templates = Jinja2Templates(directory=template_dir)
 file_path = "asha_data.xlsx"
-account_url = "https://khushibabyashastorage.blob.core.windows.net"
-container_name = "ashacontainer"
 
 @admin_apis_router.get("/asha_logs")
 async def form_get(request: Request) -> HTMLResponse:

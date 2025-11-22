@@ -1,5 +1,4 @@
 import logging
-import json
 from byoeb.services.knowledge_base.kb_service import create_kb_from_blob_store as kb_create
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse

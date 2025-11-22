@@ -1,6 +1,6 @@
 from typing import Any, List, Optional, Dict
 from byoeb_core.models.byoeb.user import PhoneNumberId, User
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from byoeb_core.models.byoeb.response import ByoebStatusCodes
