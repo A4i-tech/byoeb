@@ -19,7 +19,7 @@ class MongoMessageRepository(MessageRepository, BaseRepository):
 
     async def find_all(self, filter_dict: Optional[Dict[str, Any]] = None, 
                       projection: Optional[Dict[str, Any]] = None,
-                      sort: Optional[List[tuple]] = None,
+                      sort: Optional[List[Tuple[str, int]]] = None,
                       limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Find multiple messages with optional filtering, projection, sorting, and limiting."""
         cursor = self._collection.find(filter_dict or {}, projection=projection)

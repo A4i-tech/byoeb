@@ -88,12 +88,15 @@ class DykRepository(ABC):
         ...
 
     @abstractmethod
-    async def update_status(self, ids: List[str], status: str):
+    async def update_status(self, ids: List[str], status: str) -> int:
         """
         Update the status of multiple DYK records.
 
         Args:
             ids (List[str]): Record IDs to update.
             status (str): New status value.
+
+        Returns:
+            int: Number of records updated.
         """
         ...

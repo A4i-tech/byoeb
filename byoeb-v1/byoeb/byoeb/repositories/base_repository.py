@@ -17,7 +17,7 @@ class BaseRepository(ABC):
     @abstractmethod
     async def find_all(self, filter_dict: Optional[Dict[str, Any]] = None, 
                       projection: Optional[Dict[str, Any]] = None,
-                      sort: Optional[List[tuple]] = None,
+                      sort: Optional[List[Tuple[str, int]]] = None,
                       limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Find multiple documents with optional filtering, projection, sorting, and limiting."""
         pass

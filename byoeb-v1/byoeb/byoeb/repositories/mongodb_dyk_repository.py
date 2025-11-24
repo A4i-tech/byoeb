@@ -82,5 +82,9 @@ class MongoDykRepository(DykRepository):
             raise AssertionError("Failed to insert records (expected %d, got %d)" % (len(records), len(inserted_ids)))
         return inserted_ids
     
-    async def update_status(self, ids: List[str], status: str):
-        await self._collection.update_many({"_id": {"$in": [ObjectId(id) for id in ids]}}, {"$set": {"status": status}})
+    async def update_status(self, ids: List[str], status: str) -> int:
+        result = await self._collection.update_many(
+            {"_id": {"$in": [ObjectId(id) for id in ids]}},
+            {"$set": {"status": status}}
+        )
+        return result.modified_count
