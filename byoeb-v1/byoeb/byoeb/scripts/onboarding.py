@@ -29,21 +29,17 @@ def main():
     response.raise_for_status()
     print("Successfully registered")
 
-    response = requests.post(args.url + "/get_users", headers={"Accept": "application/json", "Content-Type": "application/json"}, json=phone_numbers)
-    response.raise_for_status()
-    print("Successfully extracted")
-
-    users = response.json()
     if args.update:
         update_response = requests.post(args.url + "/update_users", headers={"Content-Type": "application/json"}, json=users_onboarded)
         update_response.raise_for_status()
+        print("Successfully updated")
 
     if args.sheet:
         response = requests.post(args.url + "/get_users", headers={"Accept": "application/json", "Content-Type": "application/json"}, json=phone_numbers)
         response.raise_for_status()
-        print("Successfully updated")
-
         users = response.json()
+        print("Successfully extracted")
+
         df = pd.DataFrame([{
         	"user_id": user_data.get("user_id"),
         	"user_name": user_data.get("user_name"),
