@@ -115,29 +115,22 @@ async def execute_job_function(job_function):
 def setup_scheduled_jobs():
     """Setup all scheduled jobs"""
     for job_config in JOB_CONFIGURATIONS:
-        if job_config.enabled:
-            try:
-                scheduler.add_job(
-                    execute_job_function,
-                    job_config.trigger,
-                    args=[job_config.function],
-                    id=job_config.id,
-                    name=job_config.name,
-                    replace_existing=True,
-                    misfire_grace_time=60
-                )
+        if not job_config.enabled:
+            continue
 
-                job_errors[job_config.id] = None
-                _logger.info(f"Added job: {job_config.name} with schedule: {job_config.trigger}", extra={AppInsightsLogHandler.DETAILS: {
-                    "context": setup_scheduled_jobs.__name__,
-                    "job_id": job_config.id
-                }})
-            except Exception as e:
-                _logger.error(f"Failed to setup job {job_config.id}: {str(e)}", extra={AppInsightsLogHandler.DETAILS: {
-                    "context": setup_scheduled_jobs.__name__,
-                    "job_id": job_config.id
-                }})
-                job_errors[job_config.id] = str(e)
+        scheduler.add_job(
+            execute_job_function,
+            job_config.trigger,
+            args=[job_config.function],
+            id=job_config.id,
+            name=job_config.name,
+            replace_existing=True,
+            misfire_grace_time=60
+        )
+        _logger.info(f"Added job: {job_config.name} with schedule: {job_config.trigger}", extra={AppInsightsLogHandler.DETAILS: {
+            "context": setup_scheduled_jobs.__name__,
+            "job_id": job_config.id
+        }})
 
 
 # ---------------------------------------------------------
