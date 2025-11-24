@@ -5,7 +5,6 @@ from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from byoeb.factory import MongoDBFactory
 from byoeb.services.databases.mongo_db.base import BaseMongoDBService
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
-from byoeb_integrations.databases.mongo_db.azure.async_azure_cosmos_mongo_db import AsyncAzureCosmosMongoDBCollection
 from byoeb.repositories.repository_factory import get_repository_factory
 from collections import Counter, defaultdict
 from zoneinfo import ZoneInfo
@@ -609,9 +608,7 @@ class MessageMongoDBService(BaseMongoDBService):
         """Delete the message collection."""
         try:
             message_client = await self._get_collection_client(self.collection_name)
-            if isinstance(message_client, AsyncAzureCosmosMongoDBCollection):
-                await message_client.adelete_collection()
-                return True, None
-            return False, None
+            await message_client.drop()
+            return True, None
         except Exception as e:
             return False, e

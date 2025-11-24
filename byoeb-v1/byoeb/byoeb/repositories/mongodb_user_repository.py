@@ -1,10 +1,9 @@
-"""
-MongoDB implementation of UserRepository.
-"""
+"""MongoDB implementation of UserRepository."""
 from typing import List, Dict, Any, Optional, Tuple
+from pymongo import UpdateOne
+from pymongo.asynchronous.collection import AsyncCollection
 from byoeb.repositories.user_repository import UserRepository
 from byoeb.repositories.base_repository import BaseRepository
-from byoeb_core.databases.mongo_db.base import BaseDocumentCollection
 from byoeb.chat_app.configuration.config import app_config
 import os
 
@@ -12,59 +11,69 @@ import os
 class MongoUserRepository(UserRepository, BaseRepository):
     """MongoDB implementation of UserRepository."""
 
-    def __init__(self, collection_client: BaseDocumentCollection):
+    def __init__(self, collection_client: AsyncCollection):
         self._collection = collection_client
         self._collection_name = app_config["databases"]["mongo_db"]["user_collection"]
 
     async def find_by_id(self, id: str) -> Optional[Dict[str, Any]]:
         """Find a single user by their ID."""
-        return await self._collection.afetch_one({"_id": id})
+        return await self._collection.find_one({"_id": id})
 
     async def find_all(self, filter_dict: Optional[Dict[str, Any]] = None, 
                       projection: Optional[Dict[str, Any]] = None,
                       sort: Optional[List[tuple]] = None,
                       limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Find multiple users with optional filtering, projection, sorting, and limiting."""
-        params = {k: v for k, v in {
-            "projection": projection,
-            "sort": sort,
-            "limit": limit
-        }.items() if v is not None}
-        return await self._collection.afetch_all(filter_dict or {}, **params)
+        cursor = self._collection.find(filter_dict or {}, projection=projection)
+        if sort:
+            cursor = cursor.sort(sort)
+        if limit is not None:
+            cursor = cursor.limit(limit)
+        return await cursor.to_list(length=None)
 
     async def count(self, filter_dict: Optional[Dict[str, Any]] = None) -> int:
         """Count users matching the filter criteria."""
-        return await self._collection.acount(filter_dict or {})
+        return await self._collection.count_documents(filter_dict or {})
 
     async def insert_one(self, document: Dict[str, Any]) -> str:
         """Insert a single user and return their ID."""
-        return await self._collection.ainsert_one(document)
+        result = await self._collection.insert_one(document)
+        return str(result.inserted_id)
 
     async def insert_many(self, documents: List[Dict[str, Any]]) -> List[str]:
         """Insert multiple users and return their IDs."""
-        return await self._collection.ainsert(documents)
+        result = await self._collection.insert_many(documents, ordered=False)
+        return [str(doc_id) for doc_id in result.inserted_ids]
 
     async def update_one(self, filter_dict: Dict[str, Any], 
                         update_dict: Dict[str, Any]) -> bool:
         """Update a single user matching the filter criteria."""
-        return await self._collection.aupdate_one(filter_dict, update_dict)
+        result = await self._collection.update_one(filter_dict, update_dict)
+        return result.modified_count > 0
 
     async def update_many(self, filter_dict: Dict[str, Any], 
                          update_dict: Dict[str, Any]) -> int:
         """Update multiple users matching the filter criteria."""
-        return await self._collection.aupdate_many(filter_dict, update_dict)
+        result = await self._collection.update_many(filter_dict, update_dict)
+        return result.modified_count
 
     async def delete_one(self, filter_dict: Dict[str, Any]) -> bool:
         """Delete a single user matching the filter criteria."""
-        return await self._collection.adelete_one(filter_dict)
+        result = await self._collection.delete_one(filter_dict)
+        return result.deleted_count > 0
 
     async def delete_many(self, filter_dict: Dict[str, Any]) -> int:
         """Delete multiple users matching the filter criteria."""
-        return await self._collection.adelete_many(filter_dict)
+        result = await self._collection.delete_many(filter_dict)
+        return result.deleted_count
 
     async def bulk_update(self, bulk_queries: List[Tuple[Dict[str, Any], Dict[str, Any]]]) -> int:
         """Execute heterogeneous user update queries in bulk."""
-        return await self._collection.aupdate(bulk_queries=bulk_queries)
+        if not bulk_queries:
+            return 0
+        operations = [UpdateOne(filter=query, update=update) for query, update in bulk_queries]
+        result = await self._collection.bulk_write(operations)
+        return result.modified_count
 
     async def find_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Find a user by their ID."""
@@ -73,7 +82,7 @@ class MongoUserRepository(UserRepository, BaseRepository):
     async def find_user_by_phone_number(self, phone_number: str) -> Optional[Dict[str, Any]]:
         """Find a user by their phone number."""
         filter_dict = {"User.phone_number_id": phone_number}
-        return await self._collection.afetch_one(filter_dict)
+        return await self._collection.find_one(filter_dict)
 
     async def find_users_by_type(self, user_type: str) -> List[Dict[str, Any]]:
         """Find users by their type (e.g., 'asha', 'anm', 'others')."""
