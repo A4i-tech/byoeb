@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import List
 
@@ -8,6 +9,8 @@ from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core import VectorStoreIndex
 from llama_index.core.schema import TextNode
+
+logger = logging.getLogger(__name__)
 
 class LlamaIndexChromaDBStore(BaseVectorStore):
     collection: Collection
@@ -118,9 +121,16 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         ids: list,
         **kwargs
     ):
-        raise NotImplementedError
+        self.collection.update(documents=data_chunks, metadatas=metadata, ids=ids)
     
     def delete_chunks(
+        self,
+        ids: list,
+        **kwargs
+    ):
+        self.delete_nodes(ids)
+    
+    async def adelete_chunks(
         self,
         ids: list,
         **kwargs
@@ -132,7 +142,7 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         text: str,
         k: int,
         **kwargs
-    ):
+    ) -> List[Chunk]:
         vector_store_index = self.__get_or_create_store()
         retriever = vector_store_index.as_retriever(similarity_top_k=k)
         nodes = retriever.retrieve(text)
@@ -151,7 +161,7 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         text: str,
         k: int,
         **kwargs
-    ):
+    ) -> List[Chunk]:
         vector_store_index = self.__get_or_create_store()
         retriever = vector_store_index.as_retriever(similarity_top_k=k)
         nodes = await retriever.aretrieve(text)

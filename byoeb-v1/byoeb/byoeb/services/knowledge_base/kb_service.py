@@ -13,9 +13,9 @@ from byoeb_core.llms.base import BaseLLM
 from byoeb_core.media_storage.base import BaseMediaStorage
 from byoeb_core.models.media_storage.file_data import FileMetadata, FileData
 from byoeb_core.vector_stores.base import BaseVectorStore
-from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
-from byoeb_integrations.vector_stores.llama_index.llama_index_chroma_store import LlamaIndexChromaDBStore
 from llama_index.core.schema import BaseNode, TextNode
+
+from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorSearchType
 
 logger = logging.getLogger("kb_service")
 text_parser = LLamaIndexTextParser(
@@ -29,7 +29,7 @@ class KBService:
         self.llm_client = llm_client
         self.text_parser = text_parser_instance or text_parser
 
-    async def _add_nodes_to_vector_store(self, chunks: List[BaseNode] | List[str], llm_client: Optional[BaseLLM] = None, batch_size: Optional[int] = None, show_progress: bool = True):
+    async def _add_nodes_to_vector_store(self, chunks: List[BaseNode] | List[str], llm_client: Optional[BaseLLM] = None, batch_size: Optional[int] = None, show_progress: bool = True, upsert_t: float = 1.00):
         from byoeb.kb_app.configuration.config import prompt_config
 
         if not chunks:
@@ -40,51 +40,74 @@ class KBService:
 
         data_chunks = []
         metadata_list = []
-        ids = []
-        for c in chunks:
-            text = c.text if isinstance(c, TextNode) else str(c)
-            data_chunks.append(text)
+        insert_ids = []
+        delete_ids = []
 
+        upsert_matches = []
+        if upsert_t < 1.00:
+            for c in chunks:
+                text = c.text if isinstance(c, TextNode) else str(c)
+                upsert_matches.append(self.vector_store.aretrieve_top_k_chunks(text=text, k=1, search_type=AzureVectorSearchType.DENSE.value, select=["id"], vector_field="text_vector_3072"))
+            upsert_match_results = await asyncio.gather(*upsert_matches)
+        else:
+            upsert_match_results = [[]] * len(chunks)
+
+        for c, match in zip(chunks, upsert_match_results):
+            text = c.text if isinstance(c, TextNode) else str(c)
             file_name = c.metadata.get("file_name", c.metadata.get("source", "unknown")) if isinstance(c, BaseNode) else "unknown"
             md = {
                 "source": file_name,
                 "creation_timestamp": now_ts,
                 "update_timestamp": now_ts,
             }
-            metadata_list.append(md)
 
             cid = getattr(c, "chunk_id", None) or getattr(c, "node_id", None) or hashlib.md5(text.encode()).hexdigest()
-            ids.append(cid)
+
+            for duplicate in match:
+                if duplicate.similarity >= upsert_t:
+                    logger.info(f"Similarity for chunk {cid} -> {duplicate.similarity:.2f}")
+                    delete_ids.append(duplicate.chunk_id)
+
+            data_chunks.append(text)
+            metadata_list.append(md)
+            insert_ids.append(cid)
+
+        if delete_ids:
+            try:
+                await self.vector_store.adelete_chunks(ids=delete_ids)
+            except NotImplementedError:
+                logger.info("Vector store does not support deletes; inserting matched chunks instead")
 
         bs = batch_size or 1
-
-        try:
-            await self.vector_store.aadd_chunks(
-                data_chunks=data_chunks,
-                metadata=metadata_list,
-                ids=ids,
-                llm_client=llm_client or self.llm_client,
-                languages_translation_prompts=prompt_config.get("languages_translation_prompts", {}),
-                batch_size=bs,
-                show_progress=show_progress
-            )
-        except AttributeError:
-            logger.debug("vector_store has no aadd_chunks; falling back to sync add_chunks")
-            self.vector_store.add_chunks(data_chunks=data_chunks, metadata=metadata_list, ids=ids, batch_size=bs)
+        if insert_ids:
+            try:
+                await self.vector_store.aadd_chunks(
+                    data_chunks=data_chunks,
+                    metadata=metadata_list,
+                    ids=insert_ids,
+                    llm_client=llm_client or self.llm_client,
+                    languages_translation_prompts=prompt_config.get("languages_translation_prompts", {}),
+                    batch_size=bs,
+                    show_progress=show_progress
+                )
+            except AttributeError:
+                logger.debug("vector_store has no aadd_chunks; falling back to sync add_chunks")
+                self.vector_store.add_chunks(data_chunks=data_chunks, metadata=metadata_list, ids=insert_ids, batch_size=bs)
+        else:
+            logger.info("No new chunks to insert after applying upsert threshold")
 
         collection_count = None
         try:
-            if isinstance(self.vector_store, LlamaIndexChromaDBStore):
-                collection_count = self.vector_store.chromadb.collection.count()
-            elif isinstance(self.vector_store, ChromaDBVectorStore):
-                collection_count = self.vector_store.collection.count()
+            collection = getattr(self.vector_store, "collection", None)
+            if collection and hasattr(collection, "count"):
+                collection_count = collection.count()
         except Exception:
             pass
 
         if collection_count is None:
-            collection_count = len(ids)
+            collection_count = len(insert_ids)
 
-        logger.info(f"✅ Uploaded {len(ids)} chunks to {type(self.vector_store).__name__}")
+        logger.info(f"✅ Uploaded {len(insert_ids)} chunks to {type(self.vector_store).__name__} (upserted {len(delete_ids)})")
         return collection_count
 
     async def _abulk_download_files(self, all_files: List[FileMetadata]) -> List[FileData]:
@@ -150,13 +173,13 @@ class KBService:
             logger.error(f"❌ Error parsing chunks: {str(e)}", exc_info=True)
             raise
 
-        logger.info("💾 Step 4: Adding chunks to vector store")
+        logger.info("💾 Step 4: Upserting chunks to vector store")
         try:
-            collection_count = await self._add_nodes_to_vector_store(chunks)
+            collection_count = await self._add_nodes_to_vector_store(chunks, upsert_t=0.95)
             logger.info(f"📊 Final collection count: {collection_count}")
             return collection_count
         except Exception as e:
-            logger.error(f"❌ Error adding nodes to vector store: {str(e)}", exc_info=True)
+            logger.error(f"❌ Error upserting nodes to vector store: {str(e)}", exc_info=True)
             raise
 
 

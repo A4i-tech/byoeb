@@ -2,6 +2,7 @@ import logging
 from typing import List
 import chromadb
 import hashlib
+from chromadb.api.types import IncludeEnum
 from chromadb.config import Settings
 from byoeb_core.vector_stores.base import BaseVectorStore
 from byoeb_core.models.vector_stores.chunk import Chunk
@@ -209,12 +210,19 @@ class ChromaDBVectorStore(BaseVectorStore):
         """
         self.collection.delete(ids=ids)
 
+    async def adelete_chunks(
+        self,
+        ids: list,
+        **kwargs
+    ):
+        self.collection.delete(ids=ids)
+
     def retrieve_top_k_chunks(
         self,
         text: str,
         k: int,
         **kwargs
-    ):
+    ) -> List[Chunk]:
         """
         Retrieve the top k data chunks from the collection based on similarity to the query text.
         
@@ -266,7 +274,7 @@ class ChromaDBVectorStore(BaseVectorStore):
                     except Exception as e:
                         logger.warning(f"Error creating Chunk_metadata: {e}, using raw metadata")
                         chunk_metadata = metadata
-                
+
                 chunk = Chunk(
                     chunk_id=chunk_id,
                     text=chunk_text,

@@ -2,11 +2,12 @@ import asyncio
 import hashlib
 import logging
 from enum import Enum
-from typing import List
+from typing import List, Optional
 from tqdm.asyncio import tqdm
 from datetime import datetime, timezone
 from byoeb_core.vector_stores.base import BaseVectorStore
 from byoeb_core.llms.base import BaseLLM
+from azure.core.exceptions import HttpResponseError
 from azure.search.documents import SearchClient, SearchIndexingBufferedSender
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import (
@@ -25,6 +26,7 @@ from azure.search.documents.indexes.models import (
     BM25SimilarityAlgorithm,
 )
 from azure.search.documents.models import VectorizableTextQuery, IndexAction
+from azure.search.documents.indexes.models import AzureOpenAIVectorizer, AzureOpenAIVectorizerParameters
 from byoeb_core.models.vector_stores.azure.azure_search import AzureSearchNode, Metadata
 from byoeb_integrations.vector_stores.related_questions import aget_related_questions
 from byoeb_core.models.vector_stores.chunk import Chunk, Chunk_metadata
@@ -46,8 +48,9 @@ class AzureVectorStore(BaseVectorStore):
         service_name: str,
         index_name: str,
         embedding_function,
-        api_key: str = None,
+        api_key: Optional[str] = None,
         credential = None,
+        vectorizer_params: Optional[AzureOpenAIVectorizerParameters] = None  # used when creating a new index
     ):
         if not service_name:
             raise ValueError("service_name is required")
@@ -76,6 +79,7 @@ class AzureVectorStore(BaseVectorStore):
             endpoint=self.__endpoint,
             credential=credential
         )
+        self.vectorizer_params = vectorizer_params
 
     def index_definition(self):
         return SearchIndex(
@@ -111,7 +115,9 @@ class AzureVectorStore(BaseVectorStore):
                     metric=VectorSearchAlgorithmMetric.COSINE, m=4, ef_construction=400, ef_search=500
                 ))
             ], profiles=[
-                VectorSearchProfile(name="default-vector-profile", algorithm_configuration_name="default-hnsw-config")
+                VectorSearchProfile(name="default-vector-profile", algorithm_configuration_name="default-hnsw-config", vectorizer_name="azure-openai-vectorizer")
+            ], vectorizers=[
+                AzureOpenAIVectorizer(vectorizer_name="azure-openai-vectorizer", parameters=self.vectorizer_params)
             ])
         )
 
@@ -283,50 +289,83 @@ class AzureVectorStore(BaseVectorStore):
 
     def update_chunks(
         self,
-        data_chunks: list,
+        data_chunks: list, 
         metadata: list,
         ids: list,
         **kwargs
     ):
+        return NotImplementedError
+
+    def delete_chunks(self, ids: list, batch_size: int = 100, **kwargs):
         raise NotImplementedError
-    
-    def delete_chunks(
-        self,
-        ids: list,
-        **kwargs
-    ):
-        raise NotImplementedError
+
+    async def adelete_chunks(self, ids: list, batch_size: int = 100, **kwargs):
+        if not ids:
+            logger.info("No chunk ids supplied for deletion; skipping")
+            return 0
+
+        total_batches = (len(ids) + batch_size - 1) // batch_size
+        logger.info(f"Deleting {len(ids)} chunks from Azure index '{self.__index_name}' in {total_batches} batches")
+
+        deleted = 0
+
+        def on_error(error: IndexAction):
+            try:
+                doc_ref = getattr(error, "key", None) or getattr(error, "document", None) or "unknown"
+                logger.error(f"Failed to delete document {doc_ref}: {getattr(error, 'additional_properties', None)}")
+            except Exception:
+                logger.error(f"Failed to delete document: {error}")
+
+        try:
+            with SearchIndexingBufferedSender(
+                endpoint=self.__endpoint,
+                index_name=self.__index_name,
+                credential=self.__credential,
+                on_error=on_error
+            ) as batch_client:
+                for i in range(0, len(ids), batch_size):
+                    batch_ids = ids[i:i + batch_size]
+                    batch_client.delete_documents(documents=[{"id": chunk_id} for chunk_id in batch_ids])
+                    deleted += len(batch_ids)
+                    batch_num = (i // batch_size) + 1
+                    logger.debug(f"Deleted batch {batch_num}/{total_batches} ({len(batch_ids)} chunks)")
+        except HttpResponseError as e:
+            logger.error(f"Error while deleting chunks from Azure index '{self.__index_name}': {e}", exc_info=True)
+            raise
+
+        logger.info(f"✅ Deleted {deleted} chunks from Azure index '{self.__index_name}'")
+        return deleted
 
     def retrieve_top_k_chunks(
         self,
         text: str,
         k: int,
         **kwargs
-    ):
+    ) -> List[Chunk]:
         raise NotImplementedError
     
     async def aretrieve_top_k_chunks(
         self,
-        query_text: str,
+        text: str,
         k: int,
         search_type=AzureVectorSearchType.HYBRID.value,
         select=None,
         vector_field=None,
         **kwargs
-    ):
+    ) -> List[Chunk]:
         chunk_list: List[Chunk] = []
         results = []
         if (search_type == AzureVectorSearchType.HYBRID or search_type == AzureVectorSearchType.DENSE) and vector_field is None:
             raise ValueError("vector_field is required for dense and hybrid search types")
         if search_type == AzureVectorSearchType.BM25.value:
             results = self.search_client.search(
-                search_text=query_text,
+                search_text=text,
                 select=select,
                 top=k
             )
         elif search_type == AzureVectorSearchType.DENSE.value:
             vector_query = VectorizableTextQuery(
-                text=query_text,
+                text=text,
                 k_nearest_neighbors=10,
                 fields=vector_field
             )
@@ -337,12 +376,12 @@ class AzureVectorStore(BaseVectorStore):
             )
         elif search_type == AzureVectorSearchType.HYBRID.value:
             vector_query = VectorizableTextQuery(
-                text=query_text,
+                text=text,
                 k_nearest_neighbors=10,
                 fields=vector_field
             )
             results = self.search_client.search(
-                search_text=query_text,
+                search_text=text,
                 vector_queries=[vector_query],
                 select=select,
                 top=k
@@ -364,13 +403,19 @@ class AzureVectorStore(BaseVectorStore):
                 chunk_id=azure_search_result.id,
                 text=azure_search_result.text,
                 metadata=metadata,
-                related_questions=azure_search_result.related_questions
+                related_questions=azure_search_result.related_questions,
+                similarity=result.get("@search.score", 0.0)
             )
             chunk_list.append(chunk)
         return chunk_list
 
     def create_store(self):
-        self.search_index_client.create_index(self.index_definition())
+        try:
+            self.search_index_client.create_index(self.index_definition())
+        except HttpResponseError as e:
+            if "(ResourceNameAlreadyInUse)" not in e.message:
+                # there has to be a better way to do this... 
+                raise
 
     def delete_store(self):
         self.search_index_client.delete_index(self.__index_name)

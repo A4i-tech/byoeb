@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 
 class Chunk_metadata(BaseModel):
@@ -24,3 +24,4 @@ class Chunk(BaseModel):
     text: Optional[str] = Field(None, description="Content of the chunk")
     metadata: Optional[Chunk_metadata] = Field(None, description="Metadata associated with the chunk")
     related_questions: Optional[dict] = Field({}, description="Related questions for the chunk")
+    similarity: float = Field(default=0.0, description="Similarity with the text")

@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, List
+
+from byoeb_core.models.vector_stores.chunk import Chunk
 
 
 class BaseVectorStore(ABC):
@@ -21,7 +23,7 @@ class BaseVectorStore(ABC):
         ids: list,
         **kwargs
     ) -> Any:
-        return NotImplementedError
+        raise NotImplementedError
 
     @abstractmethod
     def update_chunks(
@@ -40,7 +42,7 @@ class BaseVectorStore(ABC):
         ids: list,
         **kwargs
     ) -> Any:
-        return NotImplementedError
+        raise NotImplementedError
     
     @abstractmethod
     def delete_chunks(
@@ -55,7 +57,7 @@ class BaseVectorStore(ABC):
         ids: list,
         **kwargs
     ) -> Any:
-        return NotImplementedError
+        raise NotImplementedError
 
     @abstractmethod
     def retrieve_top_k_chunks(
@@ -63,7 +65,7 @@ class BaseVectorStore(ABC):
         text: str,
         k: int,
         **kwargs
-    ) -> Any:
+    ) -> List[Chunk]:
         pass
     
     async def aretrieve_top_k_chunks(
@@ -71,8 +73,8 @@ class BaseVectorStore(ABC):
         text: str,
         k: int,
         **kwargs
-    ) -> Any:
-        return NotImplementedError
+    ) -> List[Chunk]:
+        raise NotImplementedError
 
     @abstractmethod
     def create_store(self):
@@ -84,5 +86,4 @@ class BaseVectorStore(ABC):
     @abstractmethod
     def delete_store(self):
         pass
-
 

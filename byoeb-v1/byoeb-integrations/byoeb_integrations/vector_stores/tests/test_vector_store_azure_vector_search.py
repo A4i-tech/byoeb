@@ -174,7 +174,7 @@ async def test_azure_vector_search_query(embedding_fn_stub):
     for query_text in query_texts:
         start_time = datetime.now().timestamp()
         results = await azure_vector_search.aretrieve_top_k_chunks(
-            query_text=query_text,
+            text=query_text,
             k=3,
             search_type=AzureVectorSearchType.DENSE.value,
             select=["id", "text", "metadata", "related_questions"],
