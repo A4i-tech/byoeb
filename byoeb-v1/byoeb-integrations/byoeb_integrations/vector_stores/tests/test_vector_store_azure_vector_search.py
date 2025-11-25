@@ -111,8 +111,19 @@ def mock_search_clients(mocker):
     mock_search_client.upload_documents.return_value = [{"key": "doc-1", "status": True}]
 
     # Search returns hits; ensure related_questions is a dict (model expects dict)
+
+    class FakeAsyncPaged:
+        def __init__(self, items: list[dict]): self._items = items
+
+        def __aiter__(self): return self._async_generator()
+
+        async def _async_generator(self):
+            for item in self._items:
+                yield item
+
+
     def _fake_search(*args, **kwargs):
-        return [
+        async def wrapper(): return FakeAsyncPaged([
             {
                 "id": "1",
                 "text": "Photosynthesis basics",
@@ -125,7 +136,8 @@ def mock_search_clients(mocker):
                 "metadata": {"source": "1"},
                 "related_questions": {},
             },
-        ]
+        ])
+        return wrapper()
 
     mock_search_client.search.side_effect = _fake_search
     return mock_index_client, mock_search_client
