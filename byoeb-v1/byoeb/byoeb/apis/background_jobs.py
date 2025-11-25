@@ -42,7 +42,6 @@ from byoeb.background_jobs.consensus.respond_with_consensus import main as respo
 from byoeb.background_jobs.consensus.send_query_to_expert import main as send_query_to_expert
 from byoeb.background_jobs.message_leaderboard.leaderboard import main as message_leaderboard
 from byoeb.background_jobs.did_you_know.send_dyk import run as send_dyk
-from byoeb.background_jobs.monthly_logs.compile_monthly_logs import run as compile_monthly_logs
 
 JOB_CONFIGURATIONS = [
     {
@@ -66,18 +65,11 @@ JOB_CONFIGURATIONS = [
         "function": message_leaderboard,
         "enabled": True
     },
-        {
+    {
         "id": "send_dyk",
         "name": "Send DYK",
         "trigger": IntervalTrigger(weeks=2, start_date=datetime(2025, 11, 5, 11, 0, tzinfo=TIMEZONE)),  # Biweekly 11 AM Wednesday
         "function": send_dyk,
-        "enabled": True
-    },
-    {
-        "id": "compile_monthly_logs",
-        "name": "Compile Monthly Logs",
-        "trigger": CronTrigger.from_crontab("0 2 1 * *", timezone=TIMEZONE),  # 2 AM on the 1st of each month
-        "function": compile_monthly_logs,
         "enabled": True
     }
 ]
