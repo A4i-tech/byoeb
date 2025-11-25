@@ -118,18 +118,79 @@ def fetch_users(collection, language: str) -> list[Dict[str, Any]]:
     return list(cursor)
 
 
+def normalize_phone_number(raw: Any) -> Optional[str]:
+    if raw is None:
+        return None
+    phone = str(raw).strip()
+    return phone[-10:]
+
+
+def split_location(raw_location: Any) -> Dict[str, Optional[str]]:
+    """
+    Extract structured location columns.
+
+    Expected keys: district (mandatory in data), block, sector, sub_center.
+    Any extra keys are captured as a JSON string in location_other.
+    """
+    if not raw_location:
+        return {
+            "district": None,
+            "block": None,
+            "sector": None,
+            "sub_center": None,
+            "location_other": None,
+        }
+
+    location = raw_location
+    if isinstance(raw_location, str):
+        try:
+            location = json.loads(raw_location)
+        except Exception:
+            location = {}
+
+    district = None
+    block = None
+    sector = None
+    sub_center = None
+    extras = {}
+
+    if isinstance(location, dict):
+        for key, value in location.items():
+            key_lower = key.lower()
+            if key_lower == "district":
+                district = value
+            elif key_lower == "block":
+                block = value
+            elif key_lower == "sector":
+                sector = value
+            elif key_lower == "sub_center":
+                sub_center = value
+            else:
+                extras[key] = value
+
+    extras_json = json.dumps(extras, ensure_ascii=False) if extras else None
+    return {
+        "district": district,
+        "block": block,
+        "sector": sector,
+        "sub_center": sub_center,
+        "location_other": extras_json,
+    }
+
+
 def build_rows(documents: Iterable[Dict[str, Any]]) -> list[Dict[str, Any]]:
     """Transform Mongo documents into flat rows for export."""
     rows: list[Dict[str, Any]] = []
     for doc in documents:
         user = doc.get("User", {})
+        location_parts = split_location(user.get("user_location"))
         row = {
-            "phone_number": user.get("phone_number_id"),
+            "phone_number": normalize_phone_number(user.get("phone_number_id")),
             "user_id": user.get("user_id") or doc.get("_id"),
             "language": user.get("user_language"),
             "onboarding_timestamp": user.get("created_timestamp"),
             "onboarding_date": safe_date(user.get("created_timestamp")),
-            "location": json.dumps(user.get("user_location") or {}, ensure_ascii=False),
+            **location_parts,
         }
         rows.append(row)
     return rows
@@ -210,4 +271,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
