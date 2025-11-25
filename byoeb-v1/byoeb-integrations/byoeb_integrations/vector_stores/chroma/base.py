@@ -323,6 +323,9 @@ class ChromaDBVectorStore(BaseVectorStore):
             k
         )
 
+    async def aretrieve_similar_chunks(self, text: str) -> List[Chunk]:
+        return await self.aretrieve_top_k_chunks(text=text, k=1)
+
     def get_client(self):
         """
         Get the underlying ChromaDB client.

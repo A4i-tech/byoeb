@@ -15,8 +15,6 @@ from byoeb_core.models.media_storage.file_data import FileMetadata, FileData
 from byoeb_core.vector_stores.base import BaseVectorStore
 from llama_index.core.schema import BaseNode, TextNode
 
-from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorSearchType
-
 logger = logging.getLogger("kb_service")
 text_parser = LLamaIndexTextParser(
         chunk_size=300,
@@ -47,7 +45,7 @@ class KBService:
         if upsert_t < 1.00:
             for c in chunks:
                 text = c.text if isinstance(c, TextNode) else str(c)
-                upsert_matches.append(self.vector_store.aretrieve_top_k_chunks(text=text, k=1, search_type=AzureVectorSearchType.DENSE.value, select=["id"], vector_field="text_vector_3072"))
+                upsert_matches.append(self.vector_store.aretrieve_similar_chunks(text=text))
             upsert_match_results = await asyncio.gather(*upsert_matches)
         else:
             upsert_match_results = [[]] * len(chunks)

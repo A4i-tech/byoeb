@@ -343,7 +343,10 @@ class AzureVectorStore(BaseVectorStore):
         **kwargs
     ) -> List[Chunk]:
         raise NotImplementedError
-    
+
+    async def aretrieve_similar_chunks(self, text: str) -> List[Chunk]:
+        return await self.aretrieve_top_k_chunks(text=text, k=1, search_type=AzureVectorSearchType.DENSE.value, select=["id"], vector_field="text_vector_3072")
+
     async def aretrieve_top_k_chunks(
         self,
         text: str,
