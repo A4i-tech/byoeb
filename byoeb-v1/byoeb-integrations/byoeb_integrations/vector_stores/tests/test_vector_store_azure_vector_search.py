@@ -191,4 +191,5 @@ def test_azure_vector_search_rebuild(embedding_fn_stub):
         embedding_fn_stub,
         credential=DefaultAzureCredential()
     )
-    azure_vector_search.rebuild_store()
+    azure_vector_search.delete_store()
+    azure_vector_search.create_store()

@@ -73,9 +73,16 @@ class BaseVectorStore(ABC):
         **kwargs
     ) -> Any:
         return NotImplementedError
-    
+
     @abstractmethod
-    def rebuild_store(self):
+    def create_store(self):
+        """
+        Create vector store if it does not exist.
+        """
+        pass
+
+    @abstractmethod
+    def delete_store(self):
         pass
 
 

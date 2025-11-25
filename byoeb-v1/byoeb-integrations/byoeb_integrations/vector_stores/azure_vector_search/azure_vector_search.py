@@ -369,6 +369,8 @@ class AzureVectorStore(BaseVectorStore):
             chunk_list.append(chunk)
         return chunk_list
 
-    def rebuild_store(self):
-        self.search_index_client.delete_index(self.__index_name)
+    def create_store(self):
         self.search_index_client.create_index(self.index_definition())
+
+    def delete_store(self):
+        self.search_index_client.delete_index(self.__index_name)

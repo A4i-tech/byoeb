@@ -333,12 +333,16 @@ class ChromaDBVectorStore(BaseVectorStore):
             name=self.__collection_name,
             embedding_function=self.__embedding_function
         )
-    
-    def rebuild_store(self):
-        """
-        Delete the entire store and recreate the collection.
-        Similar to Azure Vector Store pattern - always use fresh collection reference.
-        """
+
+    def create_store(self):
+        logger.info(f"🔄 Creating collection: {self.__collection_name}")
+        self.collection = self.client.get_or_create_collection(
+            name=self.__collection_name,
+            embedding_function=self.__embedding_function
+        )
+        logger.info(f"✅ Collection '{self.__collection_name}' created and ready for use")
+
+    def delete_store(self):
         try:
             collection_name = self.collection.name if hasattr(self, 'collection') and self.collection else self.__collection_name
             self.client.delete_collection(collection_name)
@@ -348,14 +352,4 @@ class ChromaDBVectorStore(BaseVectorStore):
             logger.info(f"ℹ️  Collection {self.__collection_name} doesn't exist, nothing to delete")
         except Exception as e:
             logger.warning(f"⚠️  Error deleting collection: {str(e)}")
-        
-        # Recreate the collection after deletion (like Azure Vector Store creates fresh clients)
-        # This ensures self.collection points to a valid collection object with a valid UUID
-        logger.info(f"🔄 Recreating collection: {self.__collection_name}")
-        self.collection = self.client.get_or_create_collection(
-            name=self.__collection_name,
-            embedding_function=self.__embedding_function
-        )
-        logger.info(f"✅ Collection '{self.__collection_name}' recreated and ready for use")
-
     

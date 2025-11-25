@@ -7,9 +7,15 @@ from byoeb.kb_app.configuration.dependency_setup import (
     vector_store,
     llm_client
 )
-from typing import List
+from typing import List, Optional
 from byoeb_core.data_parser.llama_index_text_parser import LLamaIndexTextParser, LLamaIndexTextSplitterType
+from byoeb_core.llms.base import BaseLLM
+from byoeb_core.media_storage.base import BaseMediaStorage
 from byoeb_core.models.media_storage.file_data import FileMetadata, FileData
+from byoeb_core.vector_stores.base import BaseVectorStore
+from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
+from byoeb_integrations.vector_stores.llama_index.llama_index_chroma_store import LlamaIndexChromaDBStore
+from llama_index.core.schema import BaseNode, TextNode
 
 logger = logging.getLogger("kb_service")
 text_parser = LLamaIndexTextParser(
@@ -17,13 +23,13 @@ text_parser = LLamaIndexTextParser(
         chunk_overlap=50,
     )
 class KBService:
-    def __init__(self, vector_store, media_storage, llm_client=None, text_parser_instance=None):
+    def __init__(self, vector_store: BaseVectorStore, media_storage: BaseMediaStorage, llm_client: Optional[BaseLLM] = None, text_parser_instance=None):
         self.vector_store = vector_store
         self.media_storage = media_storage
         self.llm_client = llm_client
         self.text_parser = text_parser_instance or text_parser
 
-    async def _add_nodes_to_vector_store(self, chunks, llm_client=None, batch_size: int = None, show_progress: bool = True):
+    async def _add_nodes_to_vector_store(self, chunks: List[BaseNode] | List[str], llm_client: Optional[BaseLLM] = None, batch_size: Optional[int] = None, show_progress: bool = True):
         from byoeb.kb_app.configuration.config import prompt_config
 
         if not chunks:
@@ -36,21 +42,10 @@ class KBService:
         metadata_list = []
         ids = []
         for c in chunks:
-            text = getattr(c, "text", c if isinstance(c, str) else str(c))
+            text = c.text if isinstance(c, TextNode) else str(c)
             data_chunks.append(text)
 
-            try:
-                raw_md = getattr(c, "metadata", None)
-                if raw_md:
-                    if isinstance(raw_md, dict):
-                        file_name = raw_md.get("file_name") or raw_md.get("source") or "unknown"
-                    else:
-                        file_name = getattr(raw_md, "file_name", None) or (raw_md.get("file_name") if hasattr(raw_md, "get") else None) or "unknown"
-                else:
-                    file_name = getattr(c, "source", getattr(c, "file_name", "unknown"))
-            except Exception:
-                file_name = "unknown"
-
+            file_name = c.metadata.get("file_name", c.metadata.get("source", "unknown")) if isinstance(c, BaseNode) else "unknown"
             md = {
                 "source": file_name,
                 "creation_timestamp": now_ts,
@@ -79,12 +74,12 @@ class KBService:
 
         collection_count = None
         try:
-            if hasattr(self.vector_store, "collection") and hasattr(self.vector_store.collection, "count"):
-                collection_count = self.vector_store.collection.count()
-            elif hasattr(self.vector_store, "chromadb") and hasattr(self.vector_store.chromadb, "collection") and hasattr(self.vector_store.chromadb.collection, "count"):
+            if isinstance(self.vector_store, LlamaIndexChromaDBStore):
                 collection_count = self.vector_store.chromadb.collection.count()
+            elif isinstance(self.vector_store, ChromaDBVectorStore):
+                collection_count = self.vector_store.collection.count()
         except Exception:
-            collection_count = None
+            pass
 
         if collection_count is None:
             collection_count = len(ids)
@@ -134,22 +129,17 @@ class KBService:
         return files_data
 
     async def create_kb_from_blob_store(self):
-        logger.info("📦 Step 1: Deleting existing vector store")
-        try:
-            self.vector_store.rebuild_store()
-            logger.info("✅ Successfully did not delete existing store")
-        except Exception as e:
-            logger.warning(f"⚠️  Error deleting store (may not exist): {str(e)}")
+        self.vector_store.create_store()
 
-        logger.info("📥 Step 2: Fetching file properties from blob store")
+        logger.info("📥 Step 1: Fetching file properties from blob store")
         files = await self.media_storage.aget_all_files_properties()
         logger.info(f"📄 Found {len(files)} files in blob store")
 
-        logger.info("⬇️  Step 3: Downloading files from blob store")
+        logger.info("⬇️  Step 2: Downloading files from blob store")
         files_data = await self._abulk_download_files(files)
         logger.info(f"✅ Downloaded {len(files_data)} files successfully")
 
-        logger.info("🔤 Step 4: Parsing files into chunks")
+        logger.info("🔤 Step 3: Parsing files into chunks")
         try:
             chunks = self.text_parser.get_chunks_from_collection(
                 files_data,
@@ -160,7 +150,7 @@ class KBService:
             logger.error(f"❌ Error parsing chunks: {str(e)}", exc_info=True)
             raise
 
-        logger.info("💾 Step 5: Adding chunks to vector store")
+        logger.info("💾 Step 4: Adding chunks to vector store")
         try:
             collection_count = await self._add_nodes_to_vector_store(chunks)
             logger.info(f"📊 Final collection count: {collection_count}")

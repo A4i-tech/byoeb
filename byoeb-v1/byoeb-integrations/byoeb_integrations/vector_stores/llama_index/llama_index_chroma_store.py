@@ -1,5 +1,7 @@
 import os
 from typing import List
+
+from chromadb import Collection
 from byoeb_core.models.vector_stores.chunk import Chunk
 from byoeb_core.vector_stores.base import BaseVectorStore
 from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
@@ -8,6 +10,8 @@ from llama_index.core import VectorStoreIndex
 from llama_index.core.schema import TextNode
 
 class LlamaIndexChromaDBStore(BaseVectorStore):
+    collection: Collection
+
     def __init__(
         self,
         persist_directory: str,
@@ -160,10 +164,11 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
             )
             chunk_list.append(chunk)
         return chunk_list
-    
-    def rebuild_store(self):
-        if self.vector_store_index is not None:
-            self.chromadb.rebuild_store()
-        self.vector_store_index = None
+
+    def create_store(self):
         self.__get_or_create_store()
+
+    def delete_store(self):
+        self.chromadb.delete_store()
+        self.vector_store_index = None
     
