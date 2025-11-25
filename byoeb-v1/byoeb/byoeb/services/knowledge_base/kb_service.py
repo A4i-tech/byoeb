@@ -24,14 +24,15 @@ text_parser = LLamaIndexTextParser(
         chunk_overlap=50,
     )
 class KBService:
-    def __init__(self, vector_store: BaseVectorStore, media_storage: BaseMediaStorage, llm_client: Optional[BaseLLM] = None, text_parser_instance=None):
+    def __init__(self, vector_store: BaseVectorStore, media_storage: BaseMediaStorage, llm_client: Optional[BaseLLM] = None, text_parser_instance=None, upsert_t: float = 0.95):
         self.vector_store = vector_store
         self.media_storage = media_storage
         self.llm_client = llm_client
         self.text_parser = text_parser_instance or text_parser
+        self.upsert_t = upsert_t
 
-    async def _gather_similar_chunks(self, chunks: List[BaseNode] | List[str], out: List[str], upsert_t: float = 1.00) -> AsyncGenerator[None, None]:
-        if upsert_t >= 1.00:
+    async def _gather_similar_chunks(self, chunks: List[BaseNode] | List[str], out: List[str]) -> AsyncGenerator[None, None]:
+        if self.upsert_t >= 1.00:
             for _ in range(len(chunks)):
                 yield None
             return
@@ -44,7 +45,7 @@ class KBService:
         for task in asyncio.as_completed(tasks):
             for chunk in await task:
                 assert isinstance(chunk, Chunk)
-                if chunk.similarity >= upsert_t:
+                if chunk.similarity >= self.upsert_t:
                     out.append(chunk.chunk_id)
             yield None
 
@@ -169,7 +170,7 @@ class KBService:
         logger.info("Step 4: Retrieving similar chunks for upserting")
         similar_chunks: List[str] = []
         progress_bar = tqdm(total=len(chunks), desc="Retrieving similar chunks")
-        async for _ in self._gather_similar_chunks(chunks, similar_chunks, upsert_t=0.95):
+        async for _ in self._gather_similar_chunks(chunks, similar_chunks):
             progress_bar.update(1)
 
         logger.info("💾 Step 5: Upserting chunks to vector store")
