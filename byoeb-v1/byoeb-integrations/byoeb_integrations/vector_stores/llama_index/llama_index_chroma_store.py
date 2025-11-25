@@ -151,7 +151,8 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
             chunk = Chunk(
                 chunk_id=node.node.node_id,
                 text=node.node.text,
-                metadata=node.node.metadata
+                metadata=node.node.metadata,
+                similarity=node.score
             )
             chunk_list.append(chunk)
         return chunk_list
@@ -170,7 +171,8 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
             chunk = Chunk(
                 chunk_id=node.node.node_id,
                 text=node.node.text,
-                metadata=node.node.metadata
+                metadata=node.node.metadata,
+                similarity=node.score
             )
             chunk_list.append(chunk)
         return chunk_list

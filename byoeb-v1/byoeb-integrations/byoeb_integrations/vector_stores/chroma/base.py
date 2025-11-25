@@ -247,6 +247,7 @@ class ChromaDBVectorStore(BaseVectorStore):
                 return chunk_list
             
             documents = results["documents"][0]
+            distances = (results["distances"] or [[]])[0]
             ids = results.get("ids", [[]])[0] if results.get("ids") else []
             metadatas = results.get("metadatas", [[]])[0] if results.get("metadatas") else []
             
@@ -258,6 +259,7 @@ class ChromaDBVectorStore(BaseVectorStore):
             for idx in range(min_length):
                 chunk_id = ids[idx] if idx < len(ids) else f"chunk_{idx}"
                 chunk_text = documents[idx]
+                chunk_similarity = 1 - distances[idx]
                 # Handle None metadata gracefully
                 metadata = metadatas[idx] if idx < len(metadatas) and metadatas[idx] is not None else {}
                 
@@ -278,7 +280,8 @@ class ChromaDBVectorStore(BaseVectorStore):
                 chunk = Chunk(
                     chunk_id=chunk_id,
                     text=chunk_text,
-                    metadata=chunk_metadata
+                    metadata=chunk_metadata,
+                    similarity=chunk_similarity
                 )
                 chunk_list.append(chunk)
             
