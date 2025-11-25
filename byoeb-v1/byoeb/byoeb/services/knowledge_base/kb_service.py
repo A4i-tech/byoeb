@@ -76,7 +76,7 @@ class KBService:
             except NotImplementedError:
                 logger.info("Vector store does not support deletes; inserting matched chunks instead")
 
-        bs = batch_size or 1
+        bs = batch_size or 16
         if insert_ids:
             try:
                 await self.vector_store.aadd_chunks(

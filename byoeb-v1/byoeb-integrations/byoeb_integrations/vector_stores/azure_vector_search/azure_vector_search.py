@@ -260,17 +260,19 @@ class AzureVectorStore(BaseVectorStore):
             files_summary = ", ".join([f"{name}({count})" for name, count in sorted(files_in_batch.items())])
             logger.info(f"  Processing batch {batch_num}/{total_batches} ({len(batch_chunks)} chunks) - Files: {files_summary}")
 
-            # Process batch concurrently
-            batch_nodes = await asyncio.gather(*[
-                self.__prepare_azure_node(
+            # Process batch sequentially so we do not deplete llm call limit
+            batch_nodes = []
+            for idx in range(len(batch_chunks)):
+                node = await self.__prepare_azure_node(
                     id=batch_ids[idx],
                     chunk=batch_chunks[idx],
                     metadata=batch_metadata[idx],
                     llm_client=llm_client,
                     languages_translation_prompts=languages_translation_prompts,
                     system_prompt=system_prompt
-                ) for idx in range(len(batch_chunks))
-            ])
+                )
+                batch_nodes.append(node)
+
             current_documents = [node.model_dump(exclude_none=True, exclude_defaults=True) for node in batch_nodes]
             with SearchIndexingBufferedSender(
                 endpoint=self.__endpoint,
