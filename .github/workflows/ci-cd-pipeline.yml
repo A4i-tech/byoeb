@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "a4i/main", "muqsit/docker-azure-env" ]
+    branches: [ "a4i/main", "staging" ]
   pull_request:
-    branches: [ "a4i/main", "muqsit/docker-azure-env" ]
+    branches: [ "a4i/main", "staging" ]
   workflow_dispatch:
 
 env:
@@ -96,7 +96,7 @@ jobs:
   publish-image:
     name: Publish image
     needs: [build, unit-test-byoeb-core, unit-test-byoeb, unit-test-byoeb-integrations]
-    if: success() && github.event_name == 'push' && (github.ref_name == 'muqsit/docker-azure-env' || github.ref_name == 'a4i/main')
+    if: success() && github.event_name == 'push' && (github.ref_name == 'staging' || github.ref_name == 'a4i/main')
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.image-info.outputs.tag }}
@@ -120,7 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           case "$REF_NAME" in
-            muqsit/docker-azure-env)
+            staging)
               echo "environment=staging" >> "$GITHUB_OUTPUT"
               echo "tag_prefix=staging" >> "$GITHUB_OUTPUT"
               ;;
@@ -180,7 +180,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Notify Teams of publish failure
-        if: ${{ failure() && github.event_name != 'pull_request' && (github.ref_name == 'muqsit/docker-azure-env' || github.ref_name == 'a4i/main') }}
+        if: ${{ failure() && github.event_name != 'pull_request' && (github.ref_name == 'staging' || github.ref_name == 'a4i/main') }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
           summary: '❌ Pipeline Stage Failed'
