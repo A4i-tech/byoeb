@@ -416,6 +416,9 @@ class AzureVectorStore(BaseVectorStore):
             chunk_list.append(chunk)
         return chunk_list
 
+    async def get_count(self) -> int:
+        return await self.search_client.get_document_count()
+
     def create_store(self):
         try:
             self.search_index_client.create_index(self.index_definition())

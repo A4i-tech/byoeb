@@ -100,19 +100,8 @@ class KBService:
         else:
             logger.info("No new chunks to insert after applying upsert threshold")
 
-        collection_count = None
-        try:
-            collection = getattr(self.vector_store, "collection", None)
-            if collection and hasattr(collection, "count"):
-                collection_count = collection.count()
-        except Exception:
-            pass
-
-        if collection_count is None:
-            collection_count = len(insert_ids)
-
         logger.info(f"✅ Uploaded {len(insert_ids)} chunks to {type(self.vector_store).__name__} (upserted {len(similar_chunks)})")
-        return collection_count
+        return await self.vector_store.get_count()
 
     async def _abulk_download_files(self, all_files: List[FileMetadata]) -> List[FileData]:
         def create_batches(batch_size=5):

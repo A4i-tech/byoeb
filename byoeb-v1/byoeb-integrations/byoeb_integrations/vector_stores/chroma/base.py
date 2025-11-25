@@ -345,6 +345,9 @@ class ChromaDBVectorStore(BaseVectorStore):
             embedding_function=self.__embedding_function
         )
 
+    async def get_count(self) -> int:
+        return self.collection.count()
+
     def create_store(self):
         logger.info(f"🔄 Creating collection: {self.__collection_name}")
         self.collection = self.client.get_or_create_collection(

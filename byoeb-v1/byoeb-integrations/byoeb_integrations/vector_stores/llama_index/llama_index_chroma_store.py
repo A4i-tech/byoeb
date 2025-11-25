@@ -178,6 +178,9 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
     async def aretrieve_similar_chunks(self, text: str) -> List[Chunk]:
         return await self.aretrieve_top_k_chunks(text=text, k=1)
 
+    async def get_count(self) -> int:
+        return self.collection.count()
+
     def create_store(self):
         self.__get_or_create_store()
 

@@ -76,8 +76,13 @@ class BaseVectorStore(ABC):
     ) -> List[Chunk]:
         raise NotImplementedError
 
+    @abstractmethod
     async def aretrieve_similar_chunks(self, text: str) -> List[Chunk]:
-        raise NotImplementedError
+        pass
+
+    @abstractmethod
+    async def get_count(self) -> int:
+        pass
 
     @abstractmethod
     def create_store(self):
