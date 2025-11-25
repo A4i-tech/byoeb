@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from byoeb_core.vector_stores.base import BaseVectorStore
 from byoeb_core.llms.base import BaseLLM
 from azure.core.exceptions import HttpResponseError
-from azure.search.documents import SearchClient, SearchIndexingBufferedSender
+from azure.search.documents.aio import SearchClient, SearchIndexingBufferedSender
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import (
     SearchIndex,
@@ -262,6 +262,7 @@ class AzureVectorStore(BaseVectorStore):
 
             # Process batch sequentially so we do not deplete llm call limit
             batch_nodes = []
+            progress_bar_prepare = tqdm(total=len(batch_chunks), desc="Preparing nodes", disable=not show_progress)
             for idx in range(len(batch_chunks)):
                 node = await self.__prepare_azure_node(
                     id=batch_ids[idx],
@@ -272,9 +273,10 @@ class AzureVectorStore(BaseVectorStore):
                     system_prompt=system_prompt
                 )
                 batch_nodes.append(node)
+                progress_bar_prepare.update(1)
 
             current_documents = [node.model_dump(exclude_none=True, exclude_defaults=True) for node in batch_nodes]
-            with SearchIndexingBufferedSender(
+            async with SearchIndexingBufferedSender(
                 endpoint=self.__endpoint,
                 index_name=self.__index_name,
                 credential=self.__credential,
@@ -319,7 +321,7 @@ class AzureVectorStore(BaseVectorStore):
                 logger.error(f"Failed to delete document: {error}")
 
         try:
-            with SearchIndexingBufferedSender(
+            async with SearchIndexingBufferedSender(
                 endpoint=self.__endpoint,
                 index_name=self.__index_name,
                 credential=self.__credential,
@@ -363,7 +365,7 @@ class AzureVectorStore(BaseVectorStore):
         if (search_type == AzureVectorSearchType.HYBRID or search_type == AzureVectorSearchType.DENSE) and vector_field is None:
             raise ValueError("vector_field is required for dense and hybrid search types")
         if search_type == AzureVectorSearchType.BM25.value:
-            results = self.search_client.search(
+            results = await self.search_client.search(
                 search_text=text,
                 select=select,
                 top=k
@@ -374,7 +376,7 @@ class AzureVectorStore(BaseVectorStore):
                 k_nearest_neighbors=10,
                 fields=vector_field
             )
-            results = self.search_client.search(
+            results = await self.search_client.search(
                 vector_queries=[vector_query],
                 select=select,
                 top=k
@@ -385,7 +387,7 @@ class AzureVectorStore(BaseVectorStore):
                 k_nearest_neighbors=10,
                 fields=vector_field
             )
-            results = self.search_client.search(
+            results = await self.search_client.search(
                 search_text=text,
                 vector_queries=[vector_query],
                 select=select,
@@ -394,7 +396,7 @@ class AzureVectorStore(BaseVectorStore):
         else:
             raise ValueError("Invalid search type")
 
-        for result in results:
+        async for result in results:
             azure_search_result = AzureSearchNode(**result)
             if azure_search_result.metadata is None:
                 metadata = None

@@ -22,6 +22,7 @@ logging.getLogger("byoeb_integrations.vector_stores.chroma.base").setLevel(loggi
 
 # Reduce httpx logging noise (only show warnings/errors)
 logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
 
 # Set event loop debug mode (only if event loop exists)
 try:

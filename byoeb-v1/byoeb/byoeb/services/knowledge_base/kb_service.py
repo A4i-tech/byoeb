@@ -7,11 +7,14 @@ from byoeb.kb_app.configuration.dependency_setup import (
     vector_store,
     llm_client
 )
-from typing import List, Optional
+from typing import AsyncGenerator, List, Optional
+
+from tqdm import tqdm
 from byoeb_core.data_parser.llama_index_text_parser import LLamaIndexTextParser, LLamaIndexTextSplitterType
 from byoeb_core.llms.base import BaseLLM
 from byoeb_core.media_storage.base import BaseMediaStorage
 from byoeb_core.models.media_storage.file_data import FileMetadata, FileData
+from byoeb_core.models.vector_stores.chunk import Chunk
 from byoeb_core.vector_stores.base import BaseVectorStore
 from llama_index.core.schema import BaseNode, TextNode
 
@@ -27,7 +30,25 @@ class KBService:
         self.llm_client = llm_client
         self.text_parser = text_parser_instance or text_parser
 
-    async def _add_nodes_to_vector_store(self, chunks: List[BaseNode] | List[str], llm_client: Optional[BaseLLM] = None, batch_size: Optional[int] = None, show_progress: bool = True, upsert_t: float = 1.00):
+    async def _gather_similar_chunks(self, chunks: List[BaseNode] | List[str], out: List[str], upsert_t: float = 1.00) -> AsyncGenerator[None, None]:
+        if upsert_t >= 1.00:
+            for _ in range(len(chunks)):
+                yield None
+            return
+
+        tasks = []
+        for c in chunks:
+            text = c.text if isinstance(c, TextNode) else str(c)
+            tasks.append(self.vector_store.aretrieve_similar_chunks(text=text))
+
+        for task in asyncio.as_completed(tasks):
+            for chunk in await task:
+                assert isinstance(chunk, Chunk)
+                if chunk.similarity >= upsert_t:
+                    out.append(chunk.chunk_id)
+            yield None
+
+    async def _add_nodes_to_vector_store(self, chunks: List[BaseNode] | List[str], similar_chunks: List[str], llm_client: Optional[BaseLLM] = None, batch_size: Optional[int] = None, show_progress: bool = True):
         from byoeb.kb_app.configuration.config import prompt_config
 
         if not chunks:
@@ -39,18 +60,8 @@ class KBService:
         data_chunks = []
         metadata_list = []
         insert_ids = []
-        delete_ids = []
 
-        upsert_matches = []
-        if upsert_t < 1.00:
-            for c in chunks:
-                text = c.text if isinstance(c, TextNode) else str(c)
-                upsert_matches.append(self.vector_store.aretrieve_similar_chunks(text=text))
-            upsert_match_results = await asyncio.gather(*upsert_matches)
-        else:
-            upsert_match_results = [[]] * len(chunks)
-
-        for c, match in zip(chunks, upsert_match_results):
+        for c in chunks:
             text = c.text if isinstance(c, TextNode) else str(c)
             file_name = c.metadata.get("file_name", c.metadata.get("source", "unknown")) if isinstance(c, BaseNode) else "unknown"
             md = {
@@ -61,18 +72,13 @@ class KBService:
 
             cid = getattr(c, "chunk_id", None) or getattr(c, "node_id", None) or hashlib.md5(text.encode()).hexdigest()
 
-            for duplicate in match:
-                if duplicate.similarity >= upsert_t:
-                    logger.info(f"Similarity for chunk {cid} -> {duplicate.similarity:.2f}")
-                    delete_ids.append(duplicate.chunk_id)
-
             data_chunks.append(text)
             metadata_list.append(md)
             insert_ids.append(cid)
 
-        if delete_ids:
+        if similar_chunks:
             try:
-                await self.vector_store.adelete_chunks(ids=delete_ids)
+                await self.vector_store.adelete_chunks(ids=similar_chunks)
             except NotImplementedError:
                 logger.info("Vector store does not support deletes; inserting matched chunks instead")
 
@@ -105,7 +111,7 @@ class KBService:
         if collection_count is None:
             collection_count = len(insert_ids)
 
-        logger.info(f"✅ Uploaded {len(insert_ids)} chunks to {type(self.vector_store).__name__} (upserted {len(delete_ids)})")
+        logger.info(f"✅ Uploaded {len(insert_ids)} chunks to {type(self.vector_store).__name__} (upserted {len(similar_chunks)})")
         return collection_count
 
     async def _abulk_download_files(self, all_files: List[FileMetadata]) -> List[FileData]:
@@ -171,9 +177,15 @@ class KBService:
             logger.error(f"❌ Error parsing chunks: {str(e)}", exc_info=True)
             raise
 
-        logger.info("💾 Step 4: Upserting chunks to vector store")
+        logger.info("Step 4: Retrieving similar chunks for upserting")
+        similar_chunks: List[str] = []
+        progress_bar = tqdm(total=len(chunks), desc="Retrieving similar chunks")
+        async for _ in self._gather_similar_chunks(chunks, similar_chunks, upsert_t=0.95):
+            progress_bar.update(1)
+
+        logger.info("💾 Step 5: Upserting chunks to vector store")
         try:
-            collection_count = await self._add_nodes_to_vector_store(chunks, upsert_t=0.95)
+            collection_count = await self._add_nodes_to_vector_store(chunks, similar_chunks)
             logger.info(f"📊 Final collection count: {collection_count}")
             return collection_count
         except Exception as e:
