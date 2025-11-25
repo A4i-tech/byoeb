@@ -1,12 +1,11 @@
 import logging
-import json
 from byoeb.services.knowledge_base.kb_service import create_kb_from_blob_store as kb_create
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 KB_API_NAME = 'kb_api'
 
-kb_apis_router = APIRouter()
+kb_apis_router = APIRouter(tags=["Knowledge Base"])
 _logger = logging.getLogger(KB_API_NAME)
 
 @kb_apis_router.get("/load")
