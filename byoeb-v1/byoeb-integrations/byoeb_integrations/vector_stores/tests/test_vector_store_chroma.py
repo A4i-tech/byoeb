@@ -43,6 +43,3 @@ def test_llama_index_chroma_vector_store_ops(tmp_path):
     chromavs.add_chunks(["hello", "world"], [{"a": 1}, {"b": 2}], ["1", "2"])
     count_after = chromavs.collection.count()
     assert count_after == count_before
-
-if __name__ == "__main__":
-    test_llama_index_chroma_vector_store_ops()

@@ -2,7 +2,6 @@ import logging
 from typing import List
 import chromadb
 import hashlib
-from chromadb.api.types import IncludeEnum
 from chromadb.config import Settings
 from byoeb_core.vector_stores.base import BaseVectorStore
 from byoeb_core.models.vector_stores.chunk import Chunk

@@ -4,27 +4,12 @@ from typing import Dict
 from uuid import uuid4
 
 import pytest
+from llama_index.core.embeddings.mock_embed_model import MockEmbedding
 
 from byoeb.services.knowledge_base.kb_service import KBService
 from byoeb_core.media_storage.base import BaseMediaStorage
 from byoeb_core.models.media_storage.file_data import FileData, FileMetadata
 from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
-
-
-class ConstantEmbeddingFunction:
-    """Minimal embedding function to avoid network calls in tests."""
-
-    def __init__(self, value: float = 0.0, dims: int = 4):
-        self.vector = [float(value)] * dims
-
-    def __call__(self, input):
-        return [self.vector for _ in input]
-
-    def embed_documents(self, texts):
-        return self.__call__(texts)
-
-    def embed_query(self, text):
-        return self.vector
 
 
 class InMemoryMediaStorage(BaseMediaStorage):
@@ -56,11 +41,7 @@ def chroma_store():
     base_dir.mkdir(parents=True, exist_ok=True)
     persist_dir = base_dir / f"chroma-{uuid4().hex}"
     persist_dir.mkdir(parents=True, exist_ok=True)
-    store = ChromaDBVectorStore(
-        persist_directory=str(persist_dir),
-        collection_name=f"kb-{uuid4().hex}",
-        embedding_function=ConstantEmbeddingFunction(),
-    )
+    store = ChromaDBVectorStore(persist_directory=str(persist_dir), collection_name=f"kb-{uuid4().hex}", embedding_function=MockEmbedding(embed_dim=4))
     try:
         yield store
     finally:
@@ -69,14 +50,7 @@ def chroma_store():
 
 
 def _file_data(text: str, name: str) -> FileData:
-    return FileData(
-        data=text.encode("utf-8"),
-        metadata=FileMetadata(
-            file_name=name,
-            file_type=".txt",
-            creation_time="2024-01-01T00:00:00Z",
-        ),
-    )
+    return FileData(data=text.encode("utf-8"), metadata=FileMetadata(file_name=name, file_type=".txt", creation_time="2024-01-01T00:00:00Z"))
 
 
 @pytest.mark.asyncio
