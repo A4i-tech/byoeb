@@ -54,7 +54,9 @@ def _answer_lookup(embedding: list, thresh: float) -> Tuple[Optional[int], Any]:
     emb = np.array(embedding, dtype=np.float32).reshape(1, -1)
     labels, dists = index.knn_query(emb, k=1)
     sim = 1 - dists[0][0]
-    print(sim)
+    print()
+    print("sim=", sim)
+    print()
     return (labels[0][0], answer_store[labels[0][0]]) if sim >= thresh else (None, None)
 
 class ByoebUserGenerateResponse(Handler):
@@ -659,14 +661,14 @@ class ByoebUserGenerateResponse(Handler):
 
             if embedding_fn:
                 start_time = datetime.now(timezone.utc).timestamp()
-                embedding = await embedding_fn.aget_text_embedding(user_language + "\n" + message_english)
+                embedding = await embedding_fn.aget_text_embedding(message_english)
                 end_time = datetime.now(timezone.utc).timestamp()
                 print(f"Generated cache embeddings in {end_time - start_time}s")
             else:
                 embedding = None
 
             start_time = datetime.now(timezone.utc).timestamp()
-            cache_id, cache_val = _answer_lookup(embedding, 0.85) if embedding else (None, None)
+            cache_id, cache_val = _answer_lookup(embedding, 0.8) if embedding else (None, None)
             if cache_val and "answer" in cache_val:
                 response_en, response_source, related_questions, tokens, tokens_backup = cache_val["answer"]
             else:
