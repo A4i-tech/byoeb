@@ -106,8 +106,8 @@
             "doc_index_name": "vector_collection"
         },
         "azure_vector_search": {
-            "service_name": "byoebstage-search",
-            "doc_index_name": "byoebstage-doc-index-latest"
+            "service_name": "khushi-baby-asha-search",
+            "doc_index_name": "khushi-baby-asha-doc-index"
         }
     },
     "app_logger": {
