@@ -54,7 +54,7 @@ async def pick_candidates(dyk_repo: DykRepository, user_repo: UserRepository, la
             potential_candidates = await user_repo.find_test_users()
         else:
             run_logger.debug(f"{pick_candidates.__name__}: no user_types provided - selecting all users")
-            potential_candidates = await user_repo.find_all({})
+            potential_candidates = [doc async for doc in user_repo.find_all({})]
     
     filtern_user_ids = set(record.user_id for record in await dyk_repo.find_pending_of_langs(langs))
     users = map(lambda x: User(**x["User"]), potential_candidates)

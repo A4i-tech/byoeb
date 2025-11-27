@@ -112,7 +112,7 @@ class UserMongoDBService(BaseMongoDBService):
         """Fetch multiple users from the database using repository."""
         repository_factory = await self._get_repository_factory()
         user_repository = await repository_factory.get_user_repository()
-        users_obj = await user_repository.find_all({"_id": {"$in": user_ids}})
+        users_obj = [doc async for doc in user_repository.find_all({"_id": {"$in": user_ids}})]
         try:
             return [User(**user_obj["User"]) for user_obj in users_obj]
         except Exception:

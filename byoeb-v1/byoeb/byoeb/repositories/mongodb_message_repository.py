@@ -21,22 +21,22 @@ class MongoMessageRepository(MessageRepository, MongoBaseRepository):
 
         if message_categories:
             filter_dict["message_data.message_category"] = {"$in": message_categories}
-        
-        return await self.find_all(filter_dict, projection)
+
+        return [doc async for doc in self.find_all(filter_dict, projection)]
 
     async def find_messages_by_user_ids(self, 
                                       user_ids: List[str],
                                       projection: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Find messages by a list of user IDs."""
         filter_dict = {"message_data.user.user_id": {"$in": user_ids}}
-        return await self.find_all(filter_dict, projection)
+        return [doc async for doc in self.find_all(filter_dict, projection)]
 
     async def find_messages_by_message_ids(self, 
                                          message_ids: List[str],
                                          projection: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Find messages by a list of message IDs."""
         filter_dict = {"message_data.message_context.message_id": {"$in": message_ids}}
-        return await self.find_all(filter_dict, projection)
+        return [doc async for doc in self.find_all(filter_dict, projection)]
 
     async def count_messages_by_time_range(self, 
                                          start_timestamp: int, 
@@ -71,8 +71,8 @@ class MongoMessageRepository(MessageRepository, MongoBaseRepository):
 
         if message_categories:
             filter_dict["message_data.message_category"] = {"$in": message_categories}
-        
-        return await self.find_all(filter_dict)
+
+        return [doc async for doc in self.find_all(filter_dict)]
 
     async def get_message_statistics_by_district(self, 
                                                start_timestamp: int, 
@@ -89,11 +89,11 @@ class MongoMessageRepository(MessageRepository, MongoBaseRepository):
         """Find recent messages for a specific user."""
         filter_dict = {"message_data.user.user_id": user_id}
         sort = [("message_data.incoming_timestamp", -1)]  # Sort by timestamp descending
-        return await self.find_all(filter_dict, sort=sort, limit=limit)
+        return [doc async for doc in self.find_all(filter_dict, sort=sort, limit=limit)]
 
     async def find_messages_by_category(self, 
                                       category: str,
                                       limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Find messages by category."""
         filter_dict = {"message_data.message_category": category}
-        return await self.find_all(filter_dict, limit=limit)
+        return [doc async for doc in self.find_all(filter_dict, limit=limit)]

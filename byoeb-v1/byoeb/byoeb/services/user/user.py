@@ -216,7 +216,7 @@ class UserService(BaseUserService):
         user_ids: List[str],
     ) -> List[User]:
         query = {"_id": {"$in": user_ids}}
-        documents = await self.__user_repository.find_all(query)
+        documents = [doc async for doc in self.__user_repository.find_all(query)]
         print(f"Documents: {documents}")
         users_data: List[User] = []
         for document in documents:
@@ -315,5 +315,5 @@ class UserService(BaseUserService):
         await self.__user_repository.bulk_update([update_query])
 
     async def __get_all_user_ids(self) -> List[str]:
-        documents = await self.__user_repository.find_all({}, projection={"_id": 1})
+        documents = [doc async for doc in self.__user_repository.find_all({}, projection={"_id": 1})]
         return [doc["_id"] for doc in documents]

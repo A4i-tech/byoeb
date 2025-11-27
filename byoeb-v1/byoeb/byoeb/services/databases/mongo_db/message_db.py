@@ -231,7 +231,7 @@ class MessageMongoDBService(BaseMongoDBService):
                 "$lte": end_timestamp
             }
 
-        return await message_repository.find_all(query, limit=limit)
+        return [doc async for doc in message_repository.find_all(query, limit=limit)]
 
     async def get_message_count_by_category(
         self,
@@ -414,21 +414,21 @@ class MessageMongoDBService(BaseMongoDBService):
         """Fetch multiple bot messages from the database via repository."""
         repository_factory = await self._get_repository_factory()
         message_repository = await repository_factory.get_message_repository()
-        messages_obj = await message_repository.find_all({"_id": {"$in": bot_message_ids}})
+        messages_obj = [doc async for doc in message_repository.find_all({"_id": {"$in": bot_message_ids}})]
         return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
     
     async def get_bot_messages_by_status(self, status: str) -> List[ByoebMessageContext]:
         """Fetch bot messages with the given status via repository."""
         repository_factory = await self._get_repository_factory()
         message_repository = await repository_factory.get_message_repository()
-        messages_obj = await message_repository.find_all({"message_data.message_context.additional_info.status": status})
+        messages_obj = [doc async for doc in message_repository.find_all({"message_data.message_context.additional_info.status": status})]
         return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
 
     async def get_latest_bot_messages_by_timestamp(self, timestamp: str):
         """Fetch bot messages with timestamps greater than the given timestamp; preserve prior in-Python sort behavior."""
         repository_factory = await self._get_repository_factory()
         message_repository = await repository_factory.get_message_repository()
-        messages_obj = await message_repository.find_all({"timestamp": {"$gt": timestamp}})
+        messages_obj = [doc async for doc in message_repository.find_all({"timestamp": {"$gt": timestamp}})]
         messages_obj_sorted = sorted(messages_obj, key=lambda msg: msg.get("timestamp"), reverse=True)
         return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj_sorted]
 

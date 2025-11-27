@@ -20,12 +20,12 @@ class MongoUserRepository(UserRepository, MongoBaseRepository):
     async def find_users_by_type(self, user_type: str) -> List[Dict[str, Any]]:
         """Find users by their type (e.g., 'asha', 'anm', 'others')."""
         filter_dict = {"User.user_type": user_type}
-        return await self.find_all(filter_dict)
+        return [doc async for doc in self.find_all(filter_dict)]
 
     async def find_users_by_types(self, user_types: List[str]) -> List[Dict[str, Any]]:
         """Find users by multiple types."""
         filter_dict = {"User.user_type": {"$in": user_types}}
-        return await self.find_all(filter_dict)
+        return [doc async for doc in self.find_all(filter_dict)]
 
     async def find_test_users_by_types(self, user_types: List[str]) -> List[Dict[str, Any]]:
         """Find users by types; when TEST_USERS_ONLY=true restrict to test users only, else return all users of those types."""
@@ -35,15 +35,15 @@ class MongoUserRepository(UserRepository, MongoBaseRepository):
         }
         if test_only:
             filter_dict["User.test_user"] = True
-        return await self.find_all(filter_dict)
+        return [doc async for doc in self.find_all(filter_dict)]
 
     async def find_users_by_district(self, district: str) -> List[Dict[str, Any]]:
         """Find users by district."""
         filter_dict = {"User.user_location.district": district}
-        return await self.find_all(filter_dict)
+        return [doc async for doc in self.find_all(filter_dict)]
 
     async def find_test_users(self) -> List[Dict[str, Any]]:
-        return await self.find_all({"User.test_user": True})
+        return [doc async for doc in self.find_all({"User.test_user": True})]
 
     async def find_asha_and_test_users(self) -> List[Dict[str, Any]]:
         """Find all ASHA workers and test users."""
@@ -54,17 +54,17 @@ class MongoUserRepository(UserRepository, MongoBaseRepository):
             ]
         }
         projection = {"_id": 0, "User.phone_number_id": 1}
-        return await self.find_all(filter_dict, projection)
+        return [doc async for doc in self.find_all(filter_dict, projection)]
 
     async def find_users_by_phone_numbers(self, phone_numbers: List[str]) -> List[Dict[str, Any]]:
         """Find users by a list of phone numbers."""
         filter_dict = {"User.phone_number_id": {"$in": phone_numbers}}
-        return await self.find_all(filter_dict)
+        return [doc async for doc in self.find_all(filter_dict)]
 
     async def find_users_by_ids(self, user_ids: List[str]) -> List[Dict[str, Any]]:
         """Find users by a list of user IDs."""
         filter_dict = {"User.user_id": {"$in": user_ids}}
-        return await self.find_all(filter_dict)
+        return [doc async for doc in self.find_all(filter_dict)]
 
     async def count_users_by_type(self, user_type: str) -> int:
         """Count users by type."""
@@ -92,7 +92,7 @@ class MongoUserRepository(UserRepository, MongoBaseRepository):
                 "$lte": end_timestamp
             }
         }
-        return await self.find_all(filter_dict)
+        return [doc async for doc in self.find_all(filter_dict)]
 
     async def update_user_activity_timestamp(self, user_id: str, timestamp: int) -> bool:
         """Update user's activity timestamp."""

@@ -2,7 +2,7 @@
 Base repository interface for abstracting data access patterns.
 """
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, AsyncIterator
 
 
 class BaseRepository(ABC):
@@ -14,8 +14,8 @@ class BaseRepository(ABC):
         pass
 
     @abstractmethod
-    async def find_all(self, filter_dict: Optional[Dict[str, Any]] = None,  projection: Optional[Dict[str, Any]] = None, sort: Optional[List[Tuple[str, int]]] = None, limit: int = 0) -> List[Dict[str, Any]]:
-        """Find multiple documents with optional filtering, projection, sorting, and limiting."""
+    async def find_all(self, filter_dict: Optional[Dict[str, Any]] = None,  projection: Optional[Dict[str, Any]] = None, sort: Optional[List[Tuple[str, int]]] = None, limit: int = 0) -> AsyncIterator[Dict[str, Any]]:
+        """Stream multiple documents with optional filtering, projection, sorting, and limiting."""
         pass
 
     @abstractmethod

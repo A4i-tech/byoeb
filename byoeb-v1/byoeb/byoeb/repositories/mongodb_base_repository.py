@@ -1,5 +1,5 @@
 """MongoDB implementation of MessageRepository."""
-from typing import List, Dict, Any, Optional, Tuple, final
+from typing import List, Dict, Any, Optional, Tuple, final, AsyncIterator
 from pymongo import UpdateOne
 from pymongo.asynchronous.collection import AsyncCollection
 from byoeb.repositories.base_repository import BaseRepository
@@ -16,9 +16,10 @@ class MongoBaseRepository(BaseRepository, ABC):
         return await self._collection.find_one({"_id": id})
 
     @final
-    async def find_all(self, filter_dict: Optional[Dict[str, Any]] = None,  projection: Optional[Dict[str, Any]] = None, sort: Optional[List[Tuple[str, int]]] = None, limit: int = 0) -> List[Dict[str, Any]]:
+    async def find_all(self, filter_dict: Optional[Dict[str, Any]] = None,  projection: Optional[Dict[str, Any]] = None, sort: Optional[List[Tuple[str, int]]] = None, limit: int = 0) -> AsyncIterator[Dict[str, Any]]:
         cursor = self._collection.find(filter_dict or {}, projection=projection, sort=sort, limit=limit)
-        return await cursor.to_list(length=None)
+        async for doc in cursor:
+            yield doc
 
     @final
     async def count(self, filter_dict: Optional[Dict[str, Any]] = None) -> int:
