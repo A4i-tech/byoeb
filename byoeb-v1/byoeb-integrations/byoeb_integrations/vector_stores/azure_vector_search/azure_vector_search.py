@@ -297,7 +297,7 @@ class AzureVectorStore(BaseVectorStore):
         ids: list,
         **kwargs
     ):
-        return NotImplementedError
+        raise NotImplementedError
 
     def delete_chunks(self, ids: list, batch_size: int = 100, **kwargs):
         raise NotImplementedError
