@@ -28,7 +28,10 @@ from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.chat_app.configuration.dependency_setup import llm_client
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 
-embedding_fn = OpenAIEmbed(model="text-embedding-3-large", api_endpoint="?", api_key=env_config.env_openai_api_key).get_embedding_function()
+embedding_fn = (
+    OpenAIEmbed(model="text-embedding-3-large", api_endpoint="?", api_key=env_config.env_openai_api_key).get_embedding_function()
+    if env_config.env_openai_api_key else None
+)
 
 index = hnswlib.Index(space="cosine", dim=3072)
 index.init_index(max_elements=10000, ef_construction=300, M=32)
@@ -654,13 +657,16 @@ class ByoebUserGenerateResponse(Handler):
             user_language = message.user.user_language
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
 
-            start_time = datetime.now(timezone.utc).timestamp()
-            embedding = await embedding_fn.aget_text_embedding(user_language + "\n" + message_english)
-            end_time = datetime.now(timezone.utc).timestamp()
-            print(f"Generated cache embeddings in {end_time - start_time}s")
+            if embedding_fn:
+                start_time = datetime.now(timezone.utc).timestamp()
+                embedding = await embedding_fn.aget_text_embedding(user_language + "\n" + message_english)
+                end_time = datetime.now(timezone.utc).timestamp()
+                print(f"Generated cache embeddings in {end_time - start_time}s")
+            else:
+                embedding = None
 
             start_time = datetime.now(timezone.utc).timestamp()
-            cache_id, cache_val = _answer_lookup(embedding, 0.85)
+            cache_id, cache_val = _answer_lookup(embedding, 0.85) if embedding else (None, None)
             if cache_val and "answer" in cache_val:
                 response_en, response_source, related_questions, tokens, tokens_backup = cache_val["answer"]
             else:
@@ -700,7 +706,8 @@ class ByoebUserGenerateResponse(Handler):
                     response_source = response_en
                 related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
 
-                cache_id = _answer_store(embedding, {"answer": (response_en, response_source, related_questions, tokens, tokens_backup)})
+                if embedding:
+                    cache_id = _answer_store(embedding, {"answer": (response_en, response_source, related_questions, tokens, tokens_backup)})
             end_time = datetime.now(timezone.utc).timestamp()
             AppInsightsLogHandler.getLogger("generate_answer_and_related_questions").info(f"Generated related questions for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
                 "message_id": message.message_context.message_id,
