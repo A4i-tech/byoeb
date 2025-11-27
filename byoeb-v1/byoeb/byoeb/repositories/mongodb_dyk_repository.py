@@ -3,19 +3,14 @@ import json
 from typing import Dict, Iterable, List, Set
 
 from bson import ObjectId
-from pymongo.asynchronous.collection import AsyncCollection
+from byoeb.repositories.mongodb_base_repository import MongoBaseRepository
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.models.dyk import DykRecord
 from byoeb.repositories.dyk_repository import DykRepository
-from byoeb.chat_app.configuration.config import app_config
 
 
-class MongoDykRepository(DykRepository):
+class MongoDykRepository(DykRepository, MongoBaseRepository):
     """MongoDB implementation of DykRepository."""
-
-    def __init__(self, collection_client: AsyncCollection):
-        self._collection = collection_client
-        self._collection_name = app_config["databases"]["mongo_db"]["dyk_collection"]
 
     async def synchronize(self, records: Dict[LanguageCode, List[str]]) -> int:
         tasks = []
