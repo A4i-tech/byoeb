@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Iterable, List, Set
+from typing import AsyncIterator, Dict, Iterable, List, Set
 
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.models.dyk import DykRecord
+from byoeb.repositories.mongodb_base_repository import MongoBaseRepository
 
-class DykRepository(ABC):
+class DykRepository(MongoBaseRepository, ABC):
     """Repository interface for DYK-related database operations."""
 
     @abstractmethod
@@ -25,7 +26,7 @@ class DykRepository(ABC):
         ...
 
     @abstractmethod
-    async def find_pending_of_langs(self, langs: Iterable[LanguageCode]) -> List[DykRecord]:
+    def find_pending_of_langs(self, langs: Iterable[LanguageCode]) -> AsyncIterator[DykRecord]:
         """
         Get all pending DYKs for the given languages.
 
@@ -38,7 +39,7 @@ class DykRepository(ABC):
         ...
 
     @abstractmethod
-    async def find_pending_of_batches(self, langs: Iterable[LanguageCode], batch_ids: List[str]) -> List[DykRecord]:
+    def find_pending_of_batches(self, langs: Iterable[LanguageCode], batch_ids: List[str]) -> AsyncIterator[DykRecord]:
         """
         Get pending DYKs for the given languages and batch IDs.
 
@@ -52,7 +53,7 @@ class DykRepository(ABC):
         ...
 
     @abstractmethod
-    async def find_pending_batch_ids(self) -> List[str]:
+    def find_pending_batch_ids(self) -> AsyncIterator[str]:
         """
         Get all unique batch IDs with pending DYKs.
 
@@ -62,7 +63,7 @@ class DykRepository(ABC):
         ...
 
     @abstractmethod
-    async def find_sent_dyk_ids(self, user_ids: List[str]) -> List[Set[str]]:
+    def find_sent_dyk_ids(self, user_ids: List[str]) -> AsyncIterator[Set[str]]:
         """
         Get sets of DYK IDs already sent to the given users.
 

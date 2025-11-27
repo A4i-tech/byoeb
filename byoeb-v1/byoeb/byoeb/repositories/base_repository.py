@@ -14,7 +14,7 @@ class BaseRepository(ABC):
         pass
 
     @abstractmethod
-    async def find_all(self, filter_dict: Optional[Dict[str, Any]] = None,  projection: Optional[Dict[str, Any]] = None, sort: Optional[List[Tuple[str, int]]] = None, limit: int = 0) -> AsyncIterator[Dict[str, Any]]:
+    def find_all(self, filter_dict: Optional[Dict[str, Any]] = None,  projection: Optional[Dict[str, Any]] = None, sort: Optional[List[Tuple[str, int]]] = None, limit: int = 0) -> AsyncIterator[Dict[str, Any]]:
         """Stream multiple documents with optional filtering, projection, sorting, and limiting."""
         pass
 

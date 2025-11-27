@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Dict, Iterable, List, Set
+from typing import AsyncIterator, Dict, Iterable, List, Set
 
 from bson import ObjectId
 from byoeb.repositories.mongodb_base_repository import MongoBaseRepository
@@ -34,38 +34,38 @@ class MongoDykRepository(DykRepository, MongoBaseRepository):
             updated += result.deleted_count
         return updated
 
-    async def find_pending_of_langs(self, langs: Iterable[LanguageCode]) -> List[DykRecord]:
+    async def find_pending_of_langs(self, langs: Iterable[LanguageCode]) -> AsyncIterator[DykRecord]:
         cursor = self._collection.find({"status": "pending", "dyk_lang": {"$in": [x.value for x in langs]}})
-        results = await cursor.to_list(length=None)
-        return [DykRecord.model_validate({"id": str(result.pop("_id")), **result}) for result in results]
+        async for result in cursor:
+            yield DykRecord.model_validate({"id": str(result.pop("_id")), **result})
 
-    async def find_pending_of_batches(self, langs: Iterable[LanguageCode], batch_ids: List[str]) -> List[DykRecord]:
+    async def find_pending_of_batches(self, langs: Iterable[LanguageCode], batch_ids: List[str]) -> AsyncIterator[DykRecord]:
         cursor = self._collection.find({
             "status": "pending",
             "dyk_lang": {"$in": [x.value for x in langs]},
             "batch_id": {"$in": batch_ids}
         })
-        results = await cursor.to_list(length=None)
-        return [DykRecord.model_validate({"id": str(result.pop("_id")), **result}) for result in results]
+        async for result in cursor:
+            yield DykRecord.model_validate({"id": str(result.pop("_id")), **result})
 
-    async def find_pending_batch_ids(self) -> List[str]:
-        cursor = self._collection.aggregate([
+    async def find_pending_batch_ids(self) -> AsyncIterator[str]:
+        cursor = await self._collection.aggregate([
             {"$match": {"status": "pending"}},
             {"$group": {"_id": "$batch_id"}}
         ])
-        results = await cursor.to_list(length=None)
-        return [result["_id"] for result in results]
+        async for result in cursor:
+            yield result["_id"]
 
-    async def find_sent_dyk_ids(self, user_ids: List[str]) -> List[Set[str]]:
+    async def find_sent_dyk_ids(self, user_ids: List[str]) -> AsyncIterator[Set[str]]:
         result_map = {uid: set() for uid in user_ids}
         cursor = self._collection.find(
             {"user_id": {"$in": user_ids}},
             projection={"user_id": 1, "dyk_id": 1, "_id": 0}
         )
-        results = await cursor.to_list(length=None)
-        for doc in results:
+        async for doc in cursor:
             result_map[doc["user_id"]].add(doc["dyk_id"])
-        return [result_map[uid] for uid in user_ids]
+        for uid in user_ids:
+            yield result_map[uid]
     
     async def insert(self, records: List[DykRecord]) -> List[str]:
         result = await self._collection.insert_many(

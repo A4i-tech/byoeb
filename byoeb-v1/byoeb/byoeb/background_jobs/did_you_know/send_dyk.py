@@ -9,7 +9,6 @@ from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
 from byoeb.models.dyk import DykFactSheet, DykRecord
 from byoeb.repositories.dyk_repository import DykRepository
 from byoeb.repositories.user_repository import UserRepository
-from byoeb.utils.utils import chunked
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.repositories.repository_factory import get_repository_factory
 from byoeb.services.channel.whatsapp import WhatsAppService
@@ -45,24 +44,33 @@ async def pick_candidates(dyk_repo: DykRepository, user_repo: UserRepository, la
     select_test_only = os.getenv("TEST_USERS_ONLY", "false").lower() == "true"
     if len(user_types) > 0:
         if select_test_only and hasattr(user_repo, "find_test_users_by_types"):
-            potential_candidates = await user_repo.find_test_users_by_types(user_types)
+            potential_candidates = user_repo.find_test_users_by_types(user_types)
         else:
-            potential_candidates = await user_repo.find_users_by_types(user_types)
+            potential_candidates = user_repo.find_users_by_types(user_types)
     else:
         if select_test_only:
             run_logger.debug(f"{pick_candidates.__name__}: TEST_USERS_ONLY enabled - selecting test users")
-            potential_candidates = await user_repo.find_test_users()
+            potential_candidates = user_repo.find_test_users()
         else:
             run_logger.debug(f"{pick_candidates.__name__}: no user_types provided - selecting all users")
-            potential_candidates = [doc async for doc in user_repo.find_all({})]
+            potential_candidates = user_repo.find_all({})
     
-    filtern_user_ids = set(record.user_id for record in await dyk_repo.find_pending_of_langs(langs))
-    users = map(lambda x: User(**x["User"]), potential_candidates)
-    users = filter(lambda x: x.user_id not in filtern_user_ids, users)
-
-    for chunk in chunked(users, batch_size):
-        dyk_id_sets = await dyk_repo.find_sent_dyk_ids([str(u.user_id) for u in chunk])
-        yield zip(chunk, dyk_id_sets)
+    filtern_user_ids = set()
+    async for record in dyk_repo.find_pending_of_langs(langs):
+        filtern_user_ids.add(record.user_id)
+    buffer: List[User] = []
+    async for doc in potential_candidates:
+        user = User(**doc["User"])
+        if user.user_id in filtern_user_ids:
+            continue
+        buffer.append(user)
+        if len(buffer) == batch_size:
+            dyk_id_sets = [s async for s in dyk_repo.find_sent_dyk_ids([str(u.user_id) for u in buffer])]
+            yield zip(buffer, dyk_id_sets)
+            buffer = []
+    if buffer:
+        dyk_id_sets = [s async for s in dyk_repo.find_sent_dyk_ids([str(u.user_id) for u in buffer])]
+        yield zip(buffer, dyk_id_sets)
 
 
 async def queue(dyk_repo: DykRepository, sheet: DykFactSheet, candidates: DykBatch) -> Tuple[str, int, int]:
@@ -131,10 +139,10 @@ async def queue(dyk_repo: DykRepository, sheet: DykFactSheet, candidates: DykBat
 async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: DykFactSheet, whatsapp_service: WhatsAppService, batch_id: str) -> Tuple[int, int]:
     """ Dispatches queued DYK messages to WhatsApp. Returns number of successful and unsuccessful operations. """
 
-    pending = await dyk_repo.find_pending_of_batches(sheet.keys(), [batch_id])
+    pending = [p async for p in dyk_repo.find_pending_of_batches(sheet.keys(), [batch_id])]
     users: dict[str, Optional[User]] = {p.user_id: None for p in pending}
-    for user in await user_repo.find_users_by_ids(list(users.keys())):
-        user = User(**user["User"])
+    async for user_doc in user_repo.find_users_by_ids(list(users.keys())):
+        user = User(**user_doc["User"])
         users[str(user.user_id)] = user
 
     ts = int(datetime.now(timezone.utc).timestamp())
@@ -239,7 +247,7 @@ async def main(sheet: DykFactSheet, user_types: List[str], batch_size: int) -> N
 
         # dispatch (...to whatsapp. pick a batch of candidates and send them their assigned dyks)
         whatsapp_service = WhatsAppService(channel_client_factory)
-        batch_ids = await dyk_repo.find_pending_batch_ids()
+        batch_ids = [b async for b in dyk_repo.find_pending_batch_ids()]
         retries = 0
         while True:
             if retries > 0:
