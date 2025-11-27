@@ -1,9 +1,10 @@
 import asyncio
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.kb_app.configuration.config import prompt_config
+from byoeb.kb_app.configuration.dependency_setup import vector_store
 from byoeb.models.dyk import DykEntry
 from byoeb.repositories.repository_factory import get_repository_factory
 from byoeb_integrations.vector_stores.related_questions import aget_related_questions
@@ -60,7 +61,7 @@ async def populate_entry(entry: DykEntry, translation_prompts: Dict[str, str], l
     if not prompt_subset and LanguageCode.ENGLISH not in missing_langs:
         return []
 
-    related = await aget_related_questions(reference_record.fact, llm_client, prompt_subset, length=20)
+    related = await aget_related_questions(reference_record.fact, llm_client, prompt_subset, vector_store, length=20)
     updated_payloads: List[Dict[str, object]] = []
     for lang in missing_langs:
         questions = related.get(lang.value)
