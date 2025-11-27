@@ -358,4 +358,5 @@ class ChromaDBVectorStore(BaseVectorStore):
         )
         logger.info(f"✅ Collection '{self.__collection_name}' recreated and ready for use")
 
-    
+    async def agenerate_embedding(self, text: str) -> list:
+        return await self.__embedding_function.aget_text_embedding(text)

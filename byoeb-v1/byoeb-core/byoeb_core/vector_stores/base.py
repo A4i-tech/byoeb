@@ -78,4 +78,6 @@ class BaseVectorStore(ABC):
     def rebuild_store(self):
         pass
 
-
+    @abstractmethod
+    async def agenerate_embedding(self, text: str) -> list:
+        pass

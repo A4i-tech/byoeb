@@ -167,3 +167,5 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         self.vector_store_index = None
         self.__get_or_create_store()
     
+    async def agenerate_embedding(self, text: str) -> list:
+        return await self.__embedding_function.aget_text_embedding(text)
