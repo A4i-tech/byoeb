@@ -28,11 +28,11 @@ class UserMongoDBService(BaseMongoDBService):
         user_repository = await repository_factory.get_user_repository()
 
         # Delegate selection logic (including TEST_USERS_ONLY handling) to repository
-        # users = await user_repository.find_test_users_by_types(["others", "asha"]) # all users for future reference
-        users = await user_repository.find_test_users_by_types(["others"]) # only others users for now
+        # users = user_repository.find_test_users_by_types(["others", "asha"]) # all users for future reference
+        users = user_repository.find_test_users_by_types(["others"]) # only others users for now
 
         numbers: List[str] = []
-        for user_document in users:
+        async for user_document in users:
             phone_number = user_document.get("User", {}).get("phone_number_id")
             if phone_number:
                 numbers.append(phone_number)
@@ -69,10 +69,10 @@ class UserMongoDBService(BaseMongoDBService):
         user_repository = await repository_factory.get_user_repository()
 
         # Fetch users from database
-        users_data = await user_repository.find_users_by_ids(list(user_ids))
+        users_data = user_repository.find_users_by_ids(list(user_ids))
 
         # Convert to user objects and cache them
-        for user_document in users_data:
+        async for user_document in users_data:
             user_data = user_document.get("User", {})
             user_id = user_data.get("user_id")
             if user_id:
@@ -122,8 +122,8 @@ class UserMongoDBService(BaseMongoDBService):
         """Fetch users by type using repository."""
         repository_factory = await self._get_repository_factory()
         user_repository = await repository_factory.get_user_repository()
-        users_obj = await user_repository.find_users_by_type(user_type)
-        return [User(**user_obj["User"]) for user_obj in users_obj]
+        users_obj = user_repository.find_users_by_type(user_type)
+        return [User(**user_obj["User"]) async for user_obj in users_obj]
     
     def user_activity_update_query(self, user: User, qa: Dict[str, Any] = None, skip_timestamp: bool = False):
         """Generate update query for user activity."""

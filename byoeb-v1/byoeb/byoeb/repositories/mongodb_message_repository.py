@@ -41,7 +41,7 @@ class MongoMessageRepository(MessageRepository, MongoBaseRepository):
     async def count_messages_by_time_range(self, 
                                          start_timestamp: int, 
                                          end_timestamp: int,
-                                         message_categories: Optional[List[str]] = None) -> int:
+                                         message_categories: Optional[list[str]] = None) -> int:
         """Count messages within a specific time range with optional category filtering."""
         filter_dict = {
             "message_data.incoming_timestamp": {
@@ -99,4 +99,4 @@ class MongoMessageRepository(MessageRepository, MongoBaseRepository):
                                       limit: Optional[int] = None) -> AsyncIterator[Dict[str, Any]]:
         """Stream messages by category."""
         filter_dict = {"message_data.message_category": category}
-        return self.find_all(filter_dict, limit=limit)
+        return self.find_all(filter_dict, limit=limit or 0)

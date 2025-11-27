@@ -46,13 +46,19 @@ def use_mongomock(monkeypatch, docs_by_collection):
         def __init__(self, collection):
             self._collection = collection
 
-        async def find_users_by_ids(self, user_ids):
-            if not user_ids:
-                return []
-            return list(self._collection.find({"_id": {"$in": user_ids}}))
+        def find_users_by_ids(self, user_ids):
+            async def _iter():
+                if not user_ids:
+                    return
+                for doc in self._collection.find({"_id": {"$in": user_ids}}):
+                    yield doc
+            return _iter()
 
-        async def find_test_users_by_types(self, user_types):
-            return list(self._collection.find({"User.user_type": {"$in": user_types}}))
+        def find_test_users_by_types(self, user_types):
+            async def _iter():
+                for doc in self._collection.find({"User.user_type": {"$in": user_types}}):
+                    yield doc
+            return _iter()
 
     async def fake_get_message_repository(self):
         if getattr(self, "_message_repository", None) is None:

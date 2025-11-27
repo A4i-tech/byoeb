@@ -1,7 +1,7 @@
 from byoeb.models.consensus import Consensus
 import byoeb.services.chat.constants as constants
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import List, Dict, Any, Optional, TYPE_CHECKING, AsyncIterator
 from byoeb.factory import MongoDBFactory
 from byoeb.services.databases.mongo_db.base import BaseMongoDBService
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
@@ -180,14 +180,13 @@ class MessageMongoDBService(BaseMongoDBService):
             end_timestamp=end_timestamp,
             message_categories=message_categories
         )
-        message_documents = [doc async for doc in message_iterator]
 
         # Process statistics
-        total_messages = len(message_documents)
+        total_messages = 0
         unique_users = set()
-        districts = set()
 
-        for message_document in message_documents:
+        async for message_document in message_iterator:
+            total_messages += 1
             message_data = message_document.get("message_data", {})
             user_id = message_data.get("user", {}).get("user_id")
             if user_id:
@@ -209,9 +208,9 @@ class MessageMongoDBService(BaseMongoDBService):
         start_timestamp: Optional[int] = None,
         end_timestamp: Optional[int] = None,
         limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> AsyncIterator[Dict[str, Any]]:
         """
-        Get messages for a specific user within a time range.
+        Stream messages for a specific user within a time range.
 
         Args:
             user_id: The user ID to query
@@ -220,7 +219,7 @@ class MessageMongoDBService(BaseMongoDBService):
             limit: Maximum number of messages to return
 
         Returns:
-            List[Dict[str, Any]]: List of message documents
+            AsyncIterator[Dict[str, Any]]: Stream of message documents
         """
         repository_factory = await self._get_repository_factory()
         message_repository = await repository_factory.get_message_repository()
@@ -233,7 +232,8 @@ class MessageMongoDBService(BaseMongoDBService):
                 "$lte": end_timestamp
             }
 
-        return [doc async for doc in message_repository.find_all(query, limit=limit)]
+        async for doc in message_repository.find_all(query, limit=limit):
+            yield doc
 
     async def get_message_count_by_category(
         self,
@@ -258,10 +258,9 @@ class MessageMongoDBService(BaseMongoDBService):
             start_timestamp=start_timestamp,
             end_timestamp=end_timestamp
         )
-        message_documents = [doc async for doc in message_iterator]
 
         category_counts = Counter()
-        for message_document in message_documents:
+        async for message_document in message_iterator:
             message_data = message_document.get("message_data", {})
             category = message_data.get("message_category", "unknown")
             category_counts[category] += 1
@@ -420,20 +419,19 @@ class MessageMongoDBService(BaseMongoDBService):
         messages_obj = [doc async for doc in message_repository.find_all({"_id": {"$in": bot_message_ids}})]
         return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
     
-    async def get_bot_messages_by_status(self, status: str) -> List[ByoebMessageContext]:
+    async def get_bot_messages_by_status(self, status: str) -> AsyncIterator[ByoebMessageContext]:
         """Fetch bot messages with the given status via repository."""
         repository_factory = await self._get_repository_factory()
         message_repository = await repository_factory.get_message_repository()
-        messages_obj = [doc async for doc in message_repository.find_all({"message_data.message_context.additional_info.status": status})]
-        return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
+        async for msg_obj in message_repository.find_all({"message_data.message_context.additional_info.status": status}):
+            yield ByoebMessageContext(**msg_obj["message_data"])
 
-    async def get_latest_bot_messages_by_timestamp(self, timestamp: str):
+    async def get_latest_bot_messages_by_timestamp(self, timestamp: str) -> AsyncIterator[ByoebMessageContext]:
         """Fetch bot messages with timestamps greater than the given timestamp; preserve prior in-Python sort behavior."""
         repository_factory = await self._get_repository_factory()
         message_repository = await repository_factory.get_message_repository()
-        messages_obj = [doc async for doc in message_repository.find_all({"timestamp": {"$gt": timestamp}})]
-        messages_obj_sorted = sorted(messages_obj, key=lambda msg: msg.get("timestamp"), reverse=True)
-        return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj_sorted]
+        async for msg_obj in message_repository.find_all({"timestamp": {"$gt": timestamp}},sort=[("timestamp", -1)]):
+            yield ByoebMessageContext(**msg_obj["message_data"])
 
     def correction_update_query(
         self,

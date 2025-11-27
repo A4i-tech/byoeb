@@ -27,11 +27,11 @@ async def example_usage():
     print(f"Found {len(messages)} messages")
 
     # Example 2: Find users by type
-    asha_users = await user_repository.find_users_by_type("asha")
+    asha_users = [doc async for doc in user_repository.find_users_by_type("asha")]
     print(f"Found {len(asha_users)} ASHA users")
 
     # Example 3: Find ASHA and test users
-    asha_and_test_users = await user_repository.find_asha_and_test_users()
+    asha_and_test_users = [doc async for doc in user_repository.find_asha_and_test_users()]
     print(f"Found {len(asha_and_test_users)} ASHA and test users")
 
     # Example 4: Count messages by category
