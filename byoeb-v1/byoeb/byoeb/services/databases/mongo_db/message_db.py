@@ -72,12 +72,13 @@ class MessageMongoDBService(BaseMongoDBService):
         required_fields_only = {"_id": 0, "message_data.user.user_id": 1, "message_data.incoming_timestamp": 1}
 
         # Get messages using repository
-        message_documents = await message_repository.find_messages_by_time_range(
+        message_iterator = await message_repository.find_messages_by_time_range(
             start_timestamp=start_timestamp,
             end_timestamp=end_timestamp,
             message_categories=message_categories,
             projection=required_fields_only
         )
+        message_documents = [doc async for doc in message_iterator]
 
         # Sort messages by timestamp (descending)
         message_documents.sort(key=lambda x: x.get("message_data", {}).get("incoming_timestamp", 0), reverse=True)
@@ -174,11 +175,12 @@ class MessageMongoDBService(BaseMongoDBService):
         message_repository = await repository_factory.get_message_repository()
 
         # Get messages using repository
-        message_documents = await message_repository.find_messages_by_time_range(
+        message_iterator = await message_repository.find_messages_by_time_range(
             start_timestamp=start_timestamp,
             end_timestamp=end_timestamp,
             message_categories=message_categories
         )
+        message_documents = [doc async for doc in message_iterator]
 
         # Process statistics
         total_messages = len(message_documents)
@@ -252,10 +254,11 @@ class MessageMongoDBService(BaseMongoDBService):
         message_repository = await repository_factory.get_message_repository()
 
         # Get all messages in the time range
-        message_documents = await message_repository.find_messages_by_time_range(
+        message_iterator = await message_repository.find_messages_by_time_range(
             start_timestamp=start_timestamp,
             end_timestamp=end_timestamp
         )
+        message_documents = [doc async for doc in message_iterator]
 
         category_counts = Counter()
         for message_document in message_documents:

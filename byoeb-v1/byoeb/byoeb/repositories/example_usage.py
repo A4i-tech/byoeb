@@ -19,11 +19,11 @@ async def example_usage():
     user_repository: UserRepository = await repository_factory.get_user_repository()
 
     # Example 1: Find messages by time range
-    messages = await message_repository.find_messages_by_time_range(
+    messages = [doc async for doc in await message_repository.find_messages_by_time_range(
         start_timestamp=1640995200,  # Jan 1, 2022
         end_timestamp=1641081600,    # Jan 2, 2022
         message_categories=["asha_work_related"]
-    )
+    )]
     print(f"Found {len(messages)} messages")
 
     # Example 2: Find users by type
@@ -43,10 +43,10 @@ async def example_usage():
     print(f"Found {message_count} small talk messages")
 
     # Example 5: Find recent messages for a user
-    recent_messages = await message_repository.find_recent_messages_by_user(
+    recent_messages = [doc async for doc in await message_repository.find_recent_messages_by_user(
         user_id="some_user_id",
         limit=5
-    )
+    )]
     print(f"Found {len(recent_messages)} recent messages for user")
 
 

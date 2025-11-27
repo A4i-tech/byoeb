@@ -37,7 +37,10 @@ def use_mongomock(monkeypatch, docs_by_collection):
             }
             if message_categories:
                 filter_dict["message_data.message_category"] = {"$in": message_categories}
-            return list(self._collection.find(filter_dict, projection))
+            async def _iter():
+                for doc in self._collection.find(filter_dict, projection):
+                    yield doc
+            return _iter()
 
     class InMemoryUserRepository:
         def __init__(self, collection):
