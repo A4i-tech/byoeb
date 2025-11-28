@@ -10,43 +10,47 @@ from byoeb.repositories.repository_factory import get_repository_factory
 from byoeb_integrations.vector_stores.related_questions import aget_related_questions
 from tqdm import tqdm
 
-DEFAULT_PAGE_SIZE = 50
 
-
-async def populate_missing_related_questions(page_size: int = DEFAULT_PAGE_SIZE) -> Dict[str, int]:
+async def populate_missing_related_questions(concurrency: int) -> Dict[str, int]:
     """Populate related questions only for languages that do not have them."""
     from byoeb.kb_app.configuration.dependency_setup import llm_client
 
-    translation_prompts: Dict[str, str] = prompt_config.get("languages_translation_prompts", {})
-    factory = await get_repository_factory()
-    repository = await factory.get_dyk_repository()
+    prompts = prompt_config.get("languages_translation_prompts", {})
+    repo = await (await get_repository_factory()).get_dyk_repository()
 
-    offset = 0
-    entries_updated = 0
-    languages_populated = 0
-
+    updated = 0
+    populated = 0
+    sem = asyncio.Semaphore(concurrency)
     progress = tqdm(desc="Processing DYK entries", unit="entry")
+
+    async def run(entry):
+        nonlocal updated, populated
+        async with sem:
+            langs = await populate_entry(entry, prompts, llm_client)
+            progress.update(1)
+            if langs:
+                await repo.add(entry)
+                updated += 1
+                populated += len(langs)
+                for p in langs:
+                    print(json.dumps(p))
+
+    tasks = []
+    offset = 0
+
     try:
         while True:
-            entries = await repository.find_all(offset, page_size)
-            if not entries:
+            batch = await repo.find_all(offset, concurrency)
+            if not batch:
                 break
-
-            for entry in entries:
-                updated_languages = await populate_entry(entry, translation_prompts, llm_client)
-                progress.update(1)
-                if updated_languages:
-                    await repository.add(entry)
-                    entries_updated += 1
-                    languages_populated += len(updated_languages)
-                    for payload in updated_languages:
-                        print(json.dumps(payload))
-
-            offset += len(entries)
+            for e in batch:
+                tasks.append(asyncio.create_task(run(e)))
+            offset += len(batch)
+        await asyncio.gather(*tasks)
     finally:
         progress.close()
 
-    return {"entries_updated": entries_updated, "languages_populated": languages_populated}
+    return {"entries_updated": updated, "languages_populated": populated}
 
 
 async def populate_entry(entry: DykEntry, translation_prompts: Dict[str, str], llm_client) -> List[Dict[str, object]]:
@@ -82,7 +86,7 @@ async def populate_entry(entry: DykEntry, translation_prompts: Dict[str, str], l
 
 
 def main() -> None:
-    summary = asyncio.run(populate_missing_related_questions())
+    summary = asyncio.run(populate_missing_related_questions(concurrency=5))
     print(json.dumps(summary))
 
 
