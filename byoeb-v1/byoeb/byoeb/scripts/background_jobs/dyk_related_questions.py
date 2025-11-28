@@ -8,6 +8,7 @@ from byoeb.kb_app.configuration.dependency_setup import vector_store
 from byoeb.models.dyk import DykEntry
 from byoeb.repositories.repository_factory import get_repository_factory
 from byoeb_integrations.vector_stores.related_questions import aget_related_questions
+from tqdm import tqdm
 
 DEFAULT_PAGE_SIZE = 50
 
@@ -24,21 +25,26 @@ async def populate_missing_related_questions(page_size: int = DEFAULT_PAGE_SIZE)
     entries_updated = 0
     languages_populated = 0
 
-    while True:
-        entries = await repository.find_all(offset, page_size)
-        if not entries:
-            break
+    progress = tqdm(desc="Processing DYK entries", unit="entry")
+    try:
+        while True:
+            entries = await repository.find_all(offset, page_size)
+            if not entries:
+                break
 
-        for entry in entries:
-            updated_languages = await populate_entry(entry, translation_prompts, llm_client)
-            if updated_languages:
-                await repository.add(entry)
-                entries_updated += 1
-                languages_populated += len(updated_languages)
-                for payload in updated_languages:
-                    print(json.dumps(payload))
+            for entry in entries:
+                updated_languages = await populate_entry(entry, translation_prompts, llm_client)
+                progress.update(1)
+                if updated_languages:
+                    await repository.add(entry)
+                    entries_updated += 1
+                    languages_populated += len(updated_languages)
+                    for payload in updated_languages:
+                        print(json.dumps(payload))
 
-        offset += len(entries)
+            offset += len(entries)
+    finally:
+        progress.close()
 
     return {"entries_updated": entries_updated, "languages_populated": languages_populated}
 
