@@ -29,10 +29,10 @@ async def _aget_search_queries(text: str, llm_client: BaseLLM) -> List[str]:
 
 async def _aget_related_questions(llm_client: BaseLLM, system_prompt: str, user_prompt: str, length: int) -> List[str]:
     resp = None
-    error = None
-    for _ in range(3):
+    error = ""
+    for _ in range(5):
         prompts = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": system_prompt + f"\n\nEach question must be strictly <= {length} characters."},
             {"role": "user", "content": user_prompt}
         ]
         if error:
@@ -42,18 +42,16 @@ async def _aget_related_questions(llm_client: BaseLLM, system_prompt: str, user_
             prompts.append({"role": "user", "content": error})
 
         _, resp = await llm_client.agenerate_response(prompts)
-
         related_questions = re.findall(r"<q_\d+>(.*?)</q_\d+>", resp)
+        error = ""
         for question in related_questions:
             if len(question) > length:
-                error = f"Related question too long: {len(question)} > {length}"
-                continue
+                error += f"- Related question '{question}' too long: {len(question)} > {length}\n"
 
-        error = None
-        break
+        if not error:
+            return related_questions
 
-    if error is not None: raise ValueError(error)
-    return related_questions
+    raise ValueError(error)
 
 
 async def aget_related_questions(
