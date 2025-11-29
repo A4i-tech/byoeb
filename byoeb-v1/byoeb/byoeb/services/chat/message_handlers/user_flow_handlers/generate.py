@@ -378,14 +378,17 @@ class ByoebUserGenerateResponse(Handler):
         start_time = datetime.now(timezone.utc).timestamp()
         user_language = message.user.user_language
 
-        media_info = answer_store[cache_id]["media_info"] if cache_id is not None and "media_info" in answer_store[cache_id] else None
+        media_info = answer_store[cache_id].get("media_info", {}).get(user_language) if cache_id is not None else None
         if media_info is None:
             media_info = await self.__create_source_audio(
                 message_source_text=message_source_text,
                 user_language=user_language
             )
             if cache_id is not None:
-                answer_store[cache_id]["media_info"] = media_info
+                if "media_info" not in answer_store[cache_id]:
+                    answer_store[cache_id]["media_info"] = {user_language: media_info}
+                else:
+                    answer_store[cache_id][user_language] = media_info
 
         end_time = datetime.now(timezone.utc).timestamp()
         AppInsightsLogHandler.getLogger("text_to_audio").info(f"Created audio response message in {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {
