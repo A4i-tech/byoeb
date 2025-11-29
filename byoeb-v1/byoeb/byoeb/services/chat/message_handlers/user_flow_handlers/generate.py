@@ -29,11 +29,11 @@ from byoeb.chat_app.configuration.dependency_setup import llm_client
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 
 embedding_fn = (
-    OpenAIEmbed(model="text-embedding-3-large", api_endpoint="?", api_key=env_config.env_openai_api_key).get_embedding_function()
+    OpenAIEmbed(model="text-embedding-3-small", dimensions=768, api_key=env_config.env_openai_api_key).get_embedding_function()
     if env_config.env_openai_api_key else None
 )
 
-index = hnswlib.Index(space="cosine", dim=3072)
+index = hnswlib.Index(space="cosine", dim=768)
 index.init_index(max_elements=10000, ef_construction=300, M=32)
 index.set_ef(50)
 answer_store = []
@@ -54,9 +54,6 @@ def _answer_lookup(embedding: list, thresh: float) -> Tuple[Optional[int], Any]:
     emb = np.array(embedding, dtype=np.float32).reshape(1, -1)
     labels, dists = index.knn_query(emb, k=1)
     sim = 1 - dists[0][0]
-    print()
-    print("sim=", sim)
-    print()
     return (labels[0][0], answer_store[labels[0][0]]) if sim >= thresh else (None, None)
 
 class ByoebUserGenerateResponse(Handler):
@@ -628,7 +625,7 @@ class ByoebUserGenerateResponse(Handler):
     
     async def handle_message_generate_workflow(
         self,
-        messages: ByoebMessageContext
+        messages: List[ByoebMessageContext]
     ) -> List[ByoebMessageContext]:
         byoeb_messages = []
         message: ByoebMessageContext = messages[0].model_copy(deep=True)
@@ -671,7 +668,7 @@ class ByoebUserGenerateResponse(Handler):
                 embedding = None
 
             start_time = datetime.now(timezone.utc).timestamp()
-            cache_id, cache_val = _answer_lookup(embedding, 0.8) if embedding else (None, None)
+            cache_id, cache_val = _answer_lookup(embedding, 0.9) if embedding else (None, None)
             if cache_val and "answer" in cache_val:
                 response_en, response_source, related_questions, tokens, tokens_backup = cache_val["answer"]
             else:
@@ -702,7 +699,8 @@ class ByoebUserGenerateResponse(Handler):
                 response_en, response_source, tokens = response_result
                 response_en_backup, response_source_backup, tokens_backup = response_backup_result
 
-                if utils.is_idk(response_en):
+                is_idk = utils.is_idk(response_en)
+                if is_idk:
                     response_en = response_en_backup
                     response_source = response_source_backup
                 # response_en, response_source, tokens = await self.agenerate_answer(user_language, message_english, query_type, retrieved_chunks)
@@ -711,7 +709,7 @@ class ByoebUserGenerateResponse(Handler):
                     response_source = response_en
                 related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
 
-                if embedding:
+                if not is_idk and embedding:
                     cache_id = _answer_store(embedding, {"answer": (response_en, response_source, related_questions, tokens, tokens_backup)})
             end_time = datetime.now(timezone.utc).timestamp()
             AppInsightsLogHandler.getLogger("generate_answer_and_related_questions").info(f"Generated related questions for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
