@@ -35,11 +35,11 @@ def test_store_and_query_round_trip(new_cache):
     embed_model = MockEmbedding(embed_dim=4)
 
     embedding = embed_model.get_text_embedding("hello-world")
-    stored_id = cache.store(embedding, {"text": "hello"})
+    stored_id = cache.store(embedding, {"text": "hello"})[1]
 
     assert cache.get(stored_id) == {"text": "hello"}
 
-    queried_id, value = cache.query(embedding, thresh=0)
+    _, queried_id, value = cache.query(embedding, thresh=0)
     assert queried_id == stored_id
     assert value == {"text": "hello"}
 
@@ -52,9 +52,11 @@ def test_query_below_threshold_returns_none(new_cache):
     cache.store(embedding, {"text": "hello"})
 
     res = cache._search(embedding)
-    thresh = (res["distance"] + 0.1) if res else 1.0
+    thresh = res["distance"] + 0.1
 
-    assert cache.query(embedding, thresh=thresh) is None
+    q = cache.query(embedding, thresh=thresh)
+    assert q[1] is None
+    assert q[2] is None
 
 
 def test_store_reuses_existing_embedding(new_cache):
@@ -62,8 +64,8 @@ def test_store_reuses_existing_embedding(new_cache):
     embed_model = MockEmbedding(embed_dim=4)
     embedding = embed_model.get_text_embedding("duplicate-entry")
 
-    first_id = cache.store(embedding, {"count": 1})
-    second_id = cache.store(embedding, {"count": 2})
+    first_id = cache.store(embedding, {"count": 1})[1]
+    second_id = cache.store(embedding, {"count": 2})[1]
 
     assert cache.get(second_id) == {"count": 2}
 
@@ -73,7 +75,7 @@ def test_update_overwrites_existing_value(new_cache):
     embed_model = MockEmbedding(embed_dim=4)
     embedding = embed_model.get_text_embedding("update-me")
 
-    stored_id = cache.store(embedding, {"value": "old"})
+    stored_id = cache.store(embedding, {"value": "old"})[1]
     cache.update(stored_id, {"value": "new"})
 
     assert cache.get(stored_id) == {"value": "new"}
@@ -87,17 +89,17 @@ def test_update_marks_item_recent_for_eviction(new_cache):
     emb_two = embed_model.get_text_embedding("two")
     emb_three = embed_model.get_text_embedding("three")
 
-    id_one = cache.store(emb_one, {"value": "one"})
-    id_two = cache.store(emb_two, {"value": "two"})
+    id_one = cache.store(emb_one, {"value": "one"})[1]
+    id_two = cache.store(emb_two, {"value": "two"})[1]
 
     cache.update(id_one, {"value": "one-updated"})
 
-    id_three = cache.store(emb_three, {"value": "three"})
+    id_three = cache.store(emb_three, {"value": "three"})[1]
 
     assert cache.get(id_one) == {"value": "one-updated"}
     assert str(id_two) not in cache.kv.keys()
     result = cache.query(emb_two, thresh=0)
-    assert result is None or result[0] != id_two
+    assert result[1] != id_two
 
 
 def test_eviction_removes_least_recently_used(new_cache):
@@ -108,13 +110,13 @@ def test_eviction_removes_least_recently_used(new_cache):
     emb_two = embed_model.get_text_embedding("two")
     emb_three = embed_model.get_text_embedding("three")
 
-    id_one = cache.store(emb_one, {"value": "one"})
-    id_two = cache.store(emb_two, {"value": "two"})
+    id_one = cache.store(emb_one, {"value": "one"})[1]
+    id_two = cache.store(emb_two, {"value": "two"})[1]
 
     # Touch first entry so the second becomes LRU.
     assert cache.get(id_one) == {"value": "one"}
 
-    id_three = cache.store(emb_three, {"value": "three"})
+    id_three = cache.store(emb_three, {"value": "three"})[1]
 
     assert str(id_two) not in cache.kv.keys()
     assert cache.get(id_one) == {"value": "one"}
@@ -122,7 +124,7 @@ def test_eviction_removes_least_recently_used(new_cache):
 
     # Evicted embedding should not be returned by query.
     result = cache.query(emb_two, thresh=0)
-    assert result is None or result[0] != id_two
+    assert result[1] != id_two
 
 
 def test_traverse_lists_all_entries(new_cache):
