@@ -649,7 +649,7 @@ class ByoebUserGenerateResponse(Handler):
                 embedding = None
 
             start_time = datetime.now(timezone.utc).timestamp()
-            cache_id, cache_val = embedding_cache.query(embedding, 0.9) or (None, None)
+            cache_id, cache_val = (embedding_cache.query(embedding, 0.9) or (None, None)) if embedding else (None, None)
             if cache_val and "answer" in cache_val:
                 response_en, response_source, related_questions, tokens, tokens_backup = cache_val["answer"]
             else:
