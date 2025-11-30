@@ -31,7 +31,6 @@ embedding_fn = (
     OpenAIEmbed(model="text-embedding-3-small", dimensions=768, api_key=env_config.env_openai_api_key).get_embedding_function()
     if env_config.env_openai_api_key else None
 )
-embedding_cache = EmbeddingCache("message-consumer", dim=768, capacity=64)
 
 class ByoebUserGenerateResponse(Handler):
     AUDIO_MODALITY = "audio"
@@ -43,6 +42,7 @@ class ByoebUserGenerateResponse(Handler):
     _asha_work_related = "asha_work_related"
     _small_talk = "small_talk"
     _incomprehensible = "incomprehensible"
+    embedding_cache = EmbeddingCache("message-consumer", dim=768, capacity=64)
 
     async def __aretrieve_chunks(
         self,
@@ -372,7 +372,7 @@ class ByoebUserGenerateResponse(Handler):
                     cache["media_info"] = {user_language: media_info}
                 else:
                     cache[user_language] = media_info
-                embedding_cache.update(cache_id, cache)
+                self.embedding_cache.update(cache_id, cache)
 
         end_time = datetime.now(timezone.utc).timestamp()
         AppInsightsLogHandler.getLogger("text_to_audio").info(f"Created audio response message in {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {
@@ -656,7 +656,7 @@ class ByoebUserGenerateResponse(Handler):
                 embedding = None
 
             start_time = datetime.now(timezone.utc).timestamp()
-            cache_result = embedding_cache.query(embedding, 0.9)
+            cache_result = self.embedding_cache.query(embedding, 0.9)
             cache_val = cache_result[2]
             if cache_val and "answer" in cache_val:
                 response_en, response_source, related_questions, tokens, tokens_backup = cache_val["answer"]
@@ -699,7 +699,7 @@ class ByoebUserGenerateResponse(Handler):
                 related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
 
                 if not is_idk and embedding:
-                    cache_result = embedding_cache.store(embedding, {"answer": (response_en, response_source, related_questions, tokens, tokens_backup)})
+                    cache_result = self.embedding_cache.store(embedding, {"answer": (response_en, response_source, related_questions, tokens, tokens_backup)})
                 else:
                     cache_result = None, None, None
             end_time = datetime.now(timezone.utc).timestamp()

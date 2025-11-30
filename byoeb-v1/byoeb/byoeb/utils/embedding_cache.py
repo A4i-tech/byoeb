@@ -92,3 +92,16 @@ class EmbeddingCache:
     def traverse(self):
         for key in self.kv.keys():
             yield int(key), pickle.loads(self.kv[key])
+
+    def purge(self) -> int:
+        n = len(self.lru)
+        self.lru = {}
+        if self.col is not None:
+            self.col.drop()
+            self.col = None
+        if hasattr(self, "kv"):
+            for key in self.kv.keys():
+                del self.kv[key]
+            self.kv.close()
+            delattr(self, "kv")
+        return n
