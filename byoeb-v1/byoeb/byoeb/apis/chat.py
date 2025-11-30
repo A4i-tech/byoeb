@@ -1,8 +1,9 @@
+import base64
 import logging
 import json
 import time
 import uuid
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Literal, Set
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from pydantic import BaseModel, Field
 from byoeb_core.models.byoeb.message_context import (
@@ -68,7 +69,7 @@ def chat_mcps_router(mcp):
         additional_info: list[tuple[str, Any]] = Field(default=[], description="Additional info pertaining to the query and response")
 
     @mcp.tool
-    async def asha_chat(message: str) -> AshaChatResponse:
+    async def asha_chat(message: str, features: Set[Literal["audio", "history"]] = set()) -> AshaChatResponse:
         """
         Ask any health-related query and get a response.
         """
@@ -120,11 +121,20 @@ def chat_mcps_router(mcp):
                 continue
             if resp.message_category not in preferred_categories:
                 continue
+
             response_text = resp.message_context.message_source_text
-            additional_info = []
             info = resp.message_context.additional_info or {}
+            additional_info = []
+            if resp.reply_context and resp.reply_context.reply_english_text:
+                additional_info.append(("Internal query", resp.reply_context.reply_english_text))
             if "description" in info and "row_texts" in info:
                 additional_info.append((info["description"], info["row_texts"]))
+            if "cache_score" in info:
+                additional_info.append(("Cache hit", info["cache_score"]))
+            if "history" in features and resp.reply_context and resp.reply_context.additional_info and "conversation_history" in resp.reply_context.additional_info:
+                additional_info.append(("Conversation history", resp.reply_context.additional_info["conversation_history"]))
+            if "audio" in features and "mime_type" in info and "data" in info:
+                additional_info.append(("Audio", (info["mime_type"], base64.b64encode(info["data"]))))
 
             # persist QA for conversation continuity
             qa = {

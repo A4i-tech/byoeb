@@ -3,13 +3,13 @@ import hashlib
 from byoeb.services.chat.utils import clean_message_for_console
 import byoeb.services.chat.constants as constants
 import re
-from byoeb.utils.embedding_cache import EmbeddingCache
+from byoeb.utils.embedding_cache import CacheResult, EmbeddingCache
 import byoeb.utils.utils as utils
 import random
 from rapidfuzz.fuzz import ratio
 from datetime import datetime, timezone
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from byoeb.chat_app.configuration.config import bot_config, app_config
 import byoeb.chat_app.configuration.config as env_config
 from byoeb.models.message_category import MessageCategory
@@ -327,7 +327,7 @@ class ByoebUserGenerateResponse(Handler):
         related_questions: List[str] = None,
         emoji = None,
         status = None,
-        cache_id: Optional[int] = None  # used for audio cache
+        cache_details: CacheResult = (None, None, None)  # used for audio cache
     ) -> ByoebMessageContext:
         start_time = datetime.now(timezone.utc).timestamp()
         if response_source is None:
@@ -352,9 +352,15 @@ class ByoebUserGenerateResponse(Handler):
         start_time = datetime.now(timezone.utc).timestamp()
         user_language = message.user.user_language
 
-        cache = embedding_cache.get(cache_id) if cache_id is not None else None
-        media_info = cache.get("media_info", {}).get(user_language) if cache is not None else None
+        if cache_details[1] is not None:
+            cache_id = cache_details[1]
+            cache = cache_details[2]
+            cache_info = {"cache_score": cache_details[0]} if cache_details[0] is not None else {}
+        else:
+            cache_id, cache = None, None
+            cache_info = {}
 
+        media_info = cache.get("media_info", {}).get(user_language) if cache is not None else None
         if media_info is None:
             media_info = await self.__create_source_audio(
                 message_source_text=message_source_text,
@@ -451,7 +457,8 @@ class ByoebUserGenerateResponse(Handler):
                     **button_reply_additional_info,
                     **interactive_list_additional_info,
                     **text_additional_info,
-                    **idk_status
+                    **idk_status,
+                    **cache_info
                 }
             ),
             reply_context=reply_context,
@@ -649,7 +656,8 @@ class ByoebUserGenerateResponse(Handler):
                 embedding = None
 
             start_time = datetime.now(timezone.utc).timestamp()
-            cache_id, cache_val = (embedding_cache.query(embedding, 0.9) or (None, None)) if embedding else (None, None)
+            cache_result = embedding_cache.query(embedding, 0.9)
+            cache_val = cache_result[2]
             if cache_val and "answer" in cache_val:
                 response_en, response_source, related_questions, tokens, tokens_backup = cache_val["answer"]
             else:
@@ -691,7 +699,9 @@ class ByoebUserGenerateResponse(Handler):
                 related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
 
                 if not is_idk and embedding:
-                    cache_id = embedding_cache.store(embedding, {"answer": (response_en, response_source, related_questions, tokens, tokens_backup)})
+                    cache_result = embedding_cache.store(embedding, {"answer": (response_en, response_source, related_questions, tokens, tokens_backup)})
+                else:
+                    cache_result = None, None, None
             end_time = datetime.now(timezone.utc).timestamp()
             AppInsightsLogHandler.getLogger("generate_answer_and_related_questions").info(f"Generated related questions for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
                 "message_id": message.message_context.message_id,
@@ -709,7 +719,7 @@ class ByoebUserGenerateResponse(Handler):
                 emoji=self.USER_PENDING_EMOJI,
                 status=constants.PENDING,
                 related_questions=related_questions,
-                cache_id=cache_id
+                cache_details=cache_result
             )
         print("Created user message")
         byoeb_expert_message = None

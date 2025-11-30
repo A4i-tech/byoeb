@@ -1,10 +1,12 @@
 import dbm
 import os
 import pickle
-from typing import Any, Optional
+from typing import Any, Optional, TypeAlias, Union
 from pymilvus import connections, FieldSchema, CollectionSchema, DataType, Collection
 from pymilvus.orm.future import SearchResult
 from byoeb.chat_app.configuration.config import app_tempdir
+
+CacheResult: TypeAlias = Union[tuple[float, int, Any], tuple[float, None, None], tuple[None, int, Any], tuple[None, None, None]]
 
 class EmbeddingCache:
     FIELD_ID = "id"
@@ -51,7 +53,7 @@ class EmbeddingCache:
         assert isinstance(res, SearchResult)
         return res[0][0] if res and res[0] else None
 
-    def store(self, emb: list, val: Any) -> int:
+    def store(self, emb: list, val: Any) -> CacheResult:
         res = self._search(emb)
         assert self.col is not None
 
@@ -66,17 +68,17 @@ class EmbeddingCache:
         self.kv[str(id)] = pickle.dumps(val)
         self._touch(id)
         self._evict()
-        return id
+        return None, id, val
 
-    def query(self, emb: Any, thresh: float) -> Optional[tuple[int, Any]]:
+    def query(self, emb: Any, thresh: float) -> CacheResult:
         res = self._search(emb)
         if res is None:
-            return None
+            return None, None, None
         if res["distance"] < thresh:
-            return None
+            return res["distance"], None, None
         id = res["entity"][self.FIELD_ID]
         self._touch(id)
-        return id, pickle.loads(self.kv[str(id)])
+        return res["distance"], id, pickle.loads(self.kv[str(id)])
 
     def update(self, id: int, val: Any):
         self.kv[str(id)] = pickle.dumps(val)
