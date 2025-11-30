@@ -1,6 +1,6 @@
+import asyncio
 import os
 import json
-import yaml
 from dotenv import load_dotenv
 
 # Get the directory of the current script
@@ -10,6 +10,8 @@ app_config_path = os.path.normpath(app_config_path)
 app_config = None
 with open(app_config_path, 'r', encoding="utf-8") as file:
     app_config = json.load(file)
+
+app_tempdir: asyncio.Future[str] = asyncio.Future()
 
 bot_config_path = os.path.join(current_dir, '..', 'bot_config.json')
 bot_config_path = os.path.normpath(bot_config_path)

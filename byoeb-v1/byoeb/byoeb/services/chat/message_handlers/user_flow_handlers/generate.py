@@ -3,14 +3,13 @@ import hashlib
 from byoeb.services.chat.utils import clean_message_for_console
 import byoeb.services.chat.constants as constants
 import re
+from byoeb.utils.embedding_cache import EmbeddingCache
 import byoeb.utils.utils as utils
 import random
-import hnswlib
-import numpy as np
 from rapidfuzz.fuzz import ratio
 from datetime import datetime, timezone
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from byoeb.chat_app.configuration.config import bot_config, app_config
 import byoeb.chat_app.configuration.config as env_config
 from byoeb.models.message_category import MessageCategory
@@ -32,29 +31,7 @@ embedding_fn = (
     OpenAIEmbed(model="text-embedding-3-small", dimensions=768, api_key=env_config.env_openai_api_key).get_embedding_function()
     if env_config.env_openai_api_key else None
 )
-
-index = hnswlib.Index(space="cosine", dim=768)
-index.init_index(max_elements=10000, ef_construction=300, M=32)
-index.set_ef(50)
-answer_store = []
-
-def _answer_store(embedding: list, answer: Any) -> int:
-    # make sure it's 1D float32
-    emb = np.array(embedding, dtype=np.float32).reshape(1, -1)
-    i = len(answer_store)
-    index.add_items(emb, np.array([i]))
-    answer_store.append(answer)
-    return i
-
-def _answer_lookup(embedding: list, thresh: float) -> Tuple[Optional[int], Any]:
-    # if nothing cached yet, don't query hnswlib
-    if not answer_store or index.get_current_count() == 0:
-        return None, None
-
-    emb = np.array(embedding, dtype=np.float32).reshape(1, -1)
-    labels, dists = index.knn_query(emb, k=1)
-    sim = 1 - dists[0][0]
-    return (labels[0][0], answer_store[labels[0][0]]) if sim >= thresh else (None, None)
+embedding_cache = EmbeddingCache("message-consumer", dim=768, capacity=64)
 
 class ByoebUserGenerateResponse(Handler):
     AUDIO_MODALITY = "audio"
@@ -375,17 +352,21 @@ class ByoebUserGenerateResponse(Handler):
         start_time = datetime.now(timezone.utc).timestamp()
         user_language = message.user.user_language
 
-        media_info = answer_store[cache_id].get("media_info", {}).get(user_language) if cache_id is not None else None
+        cache = embedding_cache.get(cache_id) if cache_id is not None else None
+        media_info = cache.get("media_info", {}).get(user_language) if cache is not None else None
+
         if media_info is None:
             media_info = await self.__create_source_audio(
                 message_source_text=message_source_text,
                 user_language=user_language
             )
             if cache_id is not None:
-                if "media_info" not in answer_store[cache_id]:
-                    answer_store[cache_id]["media_info"] = {user_language: media_info}
+                assert cache is not None
+                if "media_info" not in cache:
+                    cache["media_info"] = {user_language: media_info}
                 else:
-                    answer_store[cache_id][user_language] = media_info
+                    cache[user_language] = media_info
+                embedding_cache.update(cache_id, cache)
 
         end_time = datetime.now(timezone.utc).timestamp()
         AppInsightsLogHandler.getLogger("text_to_audio").info(f"Created audio response message in {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {
@@ -668,7 +649,7 @@ class ByoebUserGenerateResponse(Handler):
                 embedding = None
 
             start_time = datetime.now(timezone.utc).timestamp()
-            cache_id, cache_val = _answer_lookup(embedding, 0.9) if embedding else (None, None)
+            cache_id, cache_val = embedding_cache.query(embedding, 0.9) or (None, None)
             if cache_val and "answer" in cache_val:
                 response_en, response_source, related_questions, tokens, tokens_backup = cache_val["answer"]
             else:
@@ -710,7 +691,7 @@ class ByoebUserGenerateResponse(Handler):
                 related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
 
                 if not is_idk and embedding:
-                    cache_id = _answer_store(embedding, {"answer": (response_en, response_source, related_questions, tokens, tokens_backup)})
+                    cache_id = embedding_cache.store(embedding, {"answer": (response_en, response_source, related_questions, tokens, tokens_backup)})
             end_time = datetime.now(timezone.utc).timestamp()
             AppInsightsLogHandler.getLogger("generate_answer_and_related_questions").info(f"Generated related questions for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
                 "message_id": message.message_context.message_id,
