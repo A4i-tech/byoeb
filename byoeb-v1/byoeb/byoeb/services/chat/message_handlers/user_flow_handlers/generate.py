@@ -658,8 +658,8 @@ class ByoebUserGenerateResponse(Handler):
             start_time = datetime.now(timezone.utc).timestamp()
             cache_result = self.embedding_cache.query(embedding, 0.9)
             cache_val = cache_result[2]
-            if cache_val and "answer" in cache_val:
-                response_en, response_source, related_questions, tokens, tokens_backup = cache_val["answer"]
+            if cache_val and "answer" in cache_val and user_language in cache_val["answer"]:
+                response_en, response_source, related_questions, tokens, tokens_backup = cache_val["answer"][user_language]
             else:
                 retrieved_chunks_task = self.__aretrieve_chunks(message_english, k=3)
                 retrieved_chunks_backup_task = self.__aretrieve_chunks(
@@ -699,7 +699,10 @@ class ByoebUserGenerateResponse(Handler):
                 related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
 
                 if not is_idk and embedding:
-                    cache_result = self.embedding_cache.store(embedding, {"answer": (response_en, response_source, related_questions, tokens, tokens_backup)})
+                    cache_val = cache_val or {}
+                    cache_val["answer"] = cache_val.get("answer", {})
+                    cache_val["answer"][user_language] = response_en, response_source, related_questions, tokens, tokens_backup
+                    cache_result = self.embedding_cache.store(embedding, cache_val)
                 else:
                     cache_result = None, None, None
             end_time = datetime.now(timezone.utc).timestamp()
