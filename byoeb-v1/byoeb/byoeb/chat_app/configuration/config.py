@@ -69,3 +69,5 @@ env_vector_store_type = os.getenv("VECTOR_STORE_TYPE")
 # ChromaDB persist directory (optional - for local ChromaDB stores)
 env_persist_directory = os.getenv("PERSIST_DIRECTORY")
 
+# Others
+env_ashabot_message_cache_capacity = os.getenv("ASHABOT_MESSAGE_CACHE_CAPACITY")

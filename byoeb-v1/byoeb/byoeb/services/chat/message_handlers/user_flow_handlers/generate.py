@@ -25,11 +25,13 @@ from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search im
 from byoeb_core.models.byoeb.user import User
 from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.chat_app.configuration.dependency_setup import llm_client
+from byoeb.chat_app.configuration.config import env_ashabot_message_cache_capacity
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 
+embedding_cap = int(env_ashabot_message_cache_capacity or 64)
 embedding_fn = (
     OpenAIEmbed(model="text-embedding-3-small", dimensions=768, api_key=env_config.env_openai_api_key).get_embedding_function()
-    if env_config.env_openai_api_key else None
+    if env_config.env_openai_api_key and embedding_cap > 0 else None
 )
 
 class ByoebUserGenerateResponse(Handler):
@@ -42,7 +44,7 @@ class ByoebUserGenerateResponse(Handler):
     _asha_work_related = "asha_work_related"
     _small_talk = "small_talk"
     _incomprehensible = "incomprehensible"
-    embedding_cache = EmbeddingCache("message-consumer", dim=768, capacity=64)
+    embedding_cache = EmbeddingCache("message-consumer", dim=768, capacity=embedding_cap)
 
     async def __aretrieve_chunks(
         self,
