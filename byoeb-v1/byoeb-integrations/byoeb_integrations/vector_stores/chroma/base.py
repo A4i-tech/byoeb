@@ -43,57 +43,6 @@ class ChromaDBVectorStore(BaseVectorStore):
             embedding_function=embedding_function
         )
 
-    def add_nodes(
-        self,
-        nodes: List,
-        show_progress: bool = False,
-        batch_size: int = 100,
-        **kwargs
-    ):
-        """
-        Add TextNode objects to the collection.
-        
-        :param nodes: List of TextNode objects from LlamaIndex
-        :param show_progress: Whether to show progress
-        :param batch_size: Number of nodes to add per batch (default: 100)
-        """
-        if TextNode is None:
-            raise ImportError("llama_index is required for add_nodes method")
-        
-        logger.info(f"📥 Converting {len(nodes)} TextNodes to chunks format")
-        
-        # Log files being ingested
-        from collections import defaultdict
-        files_ingested = defaultdict(int)
-        for node in nodes:
-            file_name = node.metadata.get("file_name", "unknown") if node.metadata else "unknown"
-            files_ingested[file_name] += 1
-        
-        logger.info(f"📋 Files to be ingested ({len(files_ingested)} files):")
-        for file_name, chunk_count in sorted(files_ingested.items()):
-            logger.info(f"  📄 {file_name}: {chunk_count} chunks")
-        
-        # Convert TextNodes to chunks format
-        data_chunks = [node.text for node in nodes]
-        metadata = [
-            node.metadata if node.metadata else {}
-            for node in nodes
-        ]
-        ids = [
-            node.node_id if hasattr(node, 'node_id') and node.node_id 
-            else hashlib.md5(node.text.encode()).hexdigest()
-            for node in nodes
-        ]
-        
-        logger.info(f"✅ Converted {len(data_chunks)} nodes, starting batch insertion")
-        
-        self.add_chunks(
-            data_chunks=data_chunks,
-            metadata=metadata,
-            ids=ids,
-            batch_size=batch_size
-        )
-
     def add_chunks(
         self,
         data_chunks: list, 

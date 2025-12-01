@@ -47,17 +47,6 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         )
         return self.vector_store_index
     
-    def add_nodes(
-        self,
-        nodes: List[TextNode],
-        show_progress: bool = False
-    ):
-        vector_store_index = self.__get_or_create_store()
-        vector_store_index.insert_nodes(
-            nodes,
-            show_progress=show_progress
-        )
-
     def delete_nodes(
         self,
         ids: List[str],
@@ -74,6 +63,7 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         data_chunks: list, 
         metadata: list,
         ids: list = None,
+        show_progress: bool = False,
         **kwargs
     ):
         if len(data_chunks) != len(metadata):
@@ -85,7 +75,8 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
                 metadata=metadata[i],
             )
             nodes.append(text_node)
-        self.add_nodes(nodes)
+        vector_store_index = self.__get_or_create_store()
+        vector_store_index.insert_nodes(nodes, show_progress=show_progress)
 
     async def aadd_chunks(
         self,
