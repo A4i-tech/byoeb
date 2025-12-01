@@ -9,6 +9,7 @@ from byoeb.kb_app.configuration.dependency_setup import (
 )
 from typing import AsyncGenerator, List, Optional
 
+from tenacity import retry, stop_after_attempt, wait_fixed
 from tqdm import tqdm
 from byoeb_core.data_parser.llama_index_text_parser import LLamaIndexTextParser, LLamaIndexTextSplitterType
 from byoeb_core.llms.base import BaseLLM
@@ -31,16 +32,23 @@ class KBService:
         self.text_parser = text_parser_instance or text_parser
         self.upsert_t = upsert_t
 
-    async def _gather_similar_chunks(self, chunks: List[BaseNode] | List[str], out: List[str]) -> AsyncGenerator[None, None]:
+    async def _gather_similar_chunks(self, chunks: List[BaseNode] | List[str], out: List[str], n_concurrency=4) -> AsyncGenerator[None, None]:
         if self.upsert_t >= 1.00:
             for _ in range(len(chunks)):
                 yield None
             return
 
+        sem = asyncio.Semaphore(n_concurrency)
+
+        @retry(stop=stop_after_attempt(5), wait=wait_fixed(15))
+        async def run(text: str):
+            async with sem:
+                return await self.vector_store.aretrieve_similar_chunks(text=text)
+
         tasks = []
         for c in chunks:
             text = c.text if isinstance(c, TextNode) else str(c)
-            tasks.append(self.vector_store.aretrieve_similar_chunks(text=text))
+            tasks.append(run(text))
 
         for task in asyncio.as_completed(tasks):
             for chunk in await task:
@@ -83,7 +91,7 @@ class KBService:
             except NotImplementedError:
                 logger.info("Vector store does not support deletes; inserting matched chunks instead")
 
-        bs = batch_size or 16
+        bs = batch_size or 32
         if insert_ids:
             try:
                 await self.vector_store.aadd_chunks(
@@ -92,7 +100,6 @@ class KBService:
                     ids=insert_ids,
                     llm_client=llm_client or self.llm_client,
                     languages_translation_prompts=prompt_config.get("languages_translation_prompts", {}),
-                    batch_size=bs,
                     show_progress=show_progress
                 )
             except AttributeError:
@@ -169,9 +176,9 @@ class KBService:
 
         logger.info("Step 4: Retrieving similar chunks for upserting")
         similar_chunks: List[str] = []
-        progress_bar = tqdm(total=len(chunks), desc="Retrieving similar chunks")
-        async for _ in self._gather_similar_chunks(chunks, similar_chunks):
-            progress_bar.update(1)
+        with tqdm(total=len(chunks), desc="Retrieving similar chunks") as progress_bar:
+            async for _ in self._gather_similar_chunks(chunks, similar_chunks):
+                progress_bar.update(1)
 
         logger.info("💾 Step 5: Upserting chunks to vector store")
         try:

@@ -1,11 +1,14 @@
+import asyncio
 import logging
 from enum import Enum
-from typing import List, Optional
+from typing import Any, Coroutine, List, Optional
+from tenacity import retry, stop_after_attempt, stop_after_delay, wait_exponential, wait_fixed
 from tqdm.asyncio import tqdm
 from byoeb_core.vector_stores.base import BaseVectorStore
 from byoeb_core.llms.base import BaseLLM
 from azure.core.exceptions import HttpResponseError
-from azure.search.documents.aio import SearchClient, SearchIndexingBufferedSender
+from azure.search.documents import SearchIndexingBufferedSender
+from azure.search.documents.aio import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import (
     SearchIndex,
@@ -165,60 +168,72 @@ class AzureVectorStore(BaseVectorStore):
         llm_client: BaseLLM =None,
         languages_translation_prompts: dict = None,
         system_prompt = None,
-        batch_size = 10,
         show_progress=False
     ):
         if languages_translation_prompts is not None and llm_client is None:
             raise ValueError("llm_client is required when languages are provided")
         
-        total_batches = (len(data_chunks) + batch_size - 1) // batch_size  # Calculate total batches
-    
-        # Initialize tqdm progress bar if enabled
-        progress_bar = tqdm(total=total_batches, desc="Started uploading documents to Azure vector search", disable=not show_progress)
-        for i in range(0, len(data_chunks), batch_size):
-            batch_chunks = data_chunks[i:i+batch_size]
-            batch_ids = ids[i:i+batch_size]
-            batch_metadata = metadata[i:i+batch_size]
+        sem = asyncio.Semaphore(16)
+        lock = asyncio.Lock()
+        locking_id = None
 
-            # Log files in this batch
-            from collections import defaultdict
-            files_in_batch = defaultdict(int)
-            for meta in batch_metadata:
-                file_name = meta.get("source", "unknown") if meta else "unknown"
-                files_in_batch[file_name] += 1
-            
-            batch_num = (i // batch_size) + 1
-            files_summary = ", ".join([f"{name}({count})" for name, count in sorted(files_in_batch.items())])
-            logger.info(f"  Processing batch {batch_num}/{total_batches} ({len(batch_chunks)} chunks) - Files: {files_summary}")
+        @retry(stop=stop_after_attempt(5), wait=wait_fixed(15))
+        async def run(id: Any, coro: Coroutine):
+            # any error causes run() to be blocked until the errored task
+            # succeeds to a retry. this is needed so we dont bog down due
+            # to several tasks retrying all at once.
+            nonlocal locking_id
+            if locking_id != id:
+                async with lock: ...
+            async with sem:
+                try:
+                    result = await coro
+                except:
+                    if locking_id != id:
+                        await lock.acquire()
+                        locking_id = id
+                    raise
+                if locking_id == id:
+                    locking_id = None
+                    lock.release()
+                return result
 
-            # Process batch sequentially so we do not deplete llm call limit
-            batch_nodes = []
-            progress_bar_prepare = tqdm(total=len(batch_chunks), desc="Preparing nodes", disable=not show_progress)
-            for idx in range(len(batch_chunks)):
-                node = await self.__prepare_azure_node(
-                    id=batch_ids[idx],
-                    chunk=batch_chunks[idx],
-                    metadata=batch_metadata[idx],
-                    llm_client=llm_client,
-                    languages_translation_prompts=languages_translation_prompts,
-                    system_prompt=system_prompt
-                )
-                batch_nodes.append(node)
-                progress_bar_prepare.update(1)
-
-            current_documents = [node.model_dump(exclude_none=True, exclude_defaults=True) for node in batch_nodes]
-            async with SearchIndexingBufferedSender(
+        def flush(nodes: list[Chunk]):
+            with SearchIndexingBufferedSender(
                 endpoint=self.__endpoint,
                 index_name=self.__index_name,
                 credential=self.__credential,
                 on_error=self.fails
             ) as batch_client:
+                current_documents = [node.model_dump(exclude_none=True, exclude_defaults=True) for node in nodes]
                 batch_client.upload_documents(documents=current_documents)
 
-            logger.info(f"  ✅ Batch {batch_num}/{total_batches} uploaded successfully to {self.__index_name}")
-            progress_bar.update(1)
-        
-        progress_bar.close()
+        tasks = [run(id, self.__prepare_azure_node(
+            id=id,
+            chunk=chunk,
+            metadata=metadata,
+            llm_client=llm_client,
+            languages_translation_prompts=languages_translation_prompts,
+            system_prompt=system_prompt
+        )) for id, chunk, metadata in zip(ids, data_chunks, metadata)]
+
+        with tqdm(total=len(tasks), desc="Uploading documents", disable=not show_progress) as preparing_progress:
+            batch_nodes = []
+            uploaded = 0
+            for task in asyncio.as_completed(tasks):
+                batch_nodes.append(await task)
+                if len(batch_nodes) >= 16:
+                    flush(batch_nodes)
+                    uploaded += len(batch_nodes)
+                    batch_nodes = []
+                    preparing_progress.set_description("Uploading documents (%d)" % uploaded)
+                preparing_progress.update(1)
+            if len(batch_nodes) > 0:
+                flush(batch_nodes)
+                uploaded += len(batch_nodes)
+                batch_nodes = []
+                preparing_progress.set_description("Uploading documents (%d)" % uploaded)
+
         logger.info(f"✅ Uploading process complete - {len(data_chunks)} chunks ingested")
         # return True
 
