@@ -235,7 +235,6 @@ class AzureVectorStore(BaseVectorStore):
         batch_size = 10,
         show_progress=False
     ):
-        documents = []
         if languages_translation_prompts is not None and llm_client is None:
             raise ValueError("llm_client is required when languages are provided")
         
