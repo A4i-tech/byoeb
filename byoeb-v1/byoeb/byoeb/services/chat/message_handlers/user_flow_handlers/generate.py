@@ -354,13 +354,12 @@ class ByoebUserGenerateResponse(Handler):
         start_time = datetime.now(timezone.utc).timestamp()
         user_language = message.user.user_language
 
+        cache_info = {"cache_score": cache_details[0]} if cache_details[0] is not None else {}
         if cache_details[1] is not None:
             cache_id = cache_details[1]
             cache = cache_details[2]
-            cache_info = {"cache_score": cache_details[0]} if cache_details[0] is not None else {}
         else:
             cache_id, cache = None, None
-            cache_info = {}
 
         media_info = cache.get("media_info", {}).get(user_language) if cache is not None else None
         if media_info is None:
@@ -704,7 +703,9 @@ class ByoebUserGenerateResponse(Handler):
                     cache_val = cache_val or {}
                     cache_val["answer"] = cache_val.get("answer", {})
                     cache_val["answer"][user_language] = response_en, response_source, related_questions, tokens, tokens_backup
+                    miss_thresh = cache_result[0] if cache_result is not None else None
                     cache_result = self.embedding_cache.store(embedding, cache_val)
+                    cache_result = miss_thresh, *cache_result[1:]
                 else:
                     cache_result = None, None, None
             end_time = datetime.now(timezone.utc).timestamp()
