@@ -68,6 +68,43 @@ def chat_mcps_router(mcp):
         text: str = Field(description="Response to the query")
         additional_info: list[tuple[str, Any]] = Field(default=[], description="Additional info pertaining to the query and response")
 
+    class AdditionalInfoBuilder:
+        def __init__(self):
+            self._items: list[tuple[str, Any]] = []
+
+        def add_internal_query(self, resp):
+            if resp.reply_context and resp.reply_context.reply_english_text:
+                self._items.append(("Internal query", resp.reply_context.reply_english_text))
+            return self
+
+        def add_description_rows(self, info):
+            if "description" in info and "row_texts" in info:
+                self._items.append((info["description"], info["row_texts"]))
+            return self
+
+        def add_cache_score(self, info):
+            if "cache_score" in info:
+                self._items.append(("Cache hit", info["cache_score"]))
+            return self
+
+        def add_history(self, features, resp):
+            if (
+                "history" in features
+                and resp.reply_context
+                and resp.reply_context.additional_info
+                and "conversation_history" in resp.reply_context.additional_info
+            ):
+                self._items.append(("Conversation history", resp.reply_context.additional_info["conversation_history"]))
+            return self
+
+        def add_audio(self, features, info):
+            if "audio" in features and "mime_type" in info and "data" in info:
+                self._items.append(("Audio", (info["mime_type"], base64.b64encode(info["data"]))))
+            return self
+
+        def build(self) -> list[tuple[str, Any]]:
+            return self._items
+
     @mcp.tool
     async def asha_chat(message: str, features: Set[Literal["audio", "history"]] = set()) -> AshaChatResponse:
         """
@@ -124,17 +161,13 @@ def chat_mcps_router(mcp):
 
             response_text = resp.message_context.message_source_text
             info = resp.message_context.additional_info or {}
-            additional_info = []
-            if resp.reply_context and resp.reply_context.reply_english_text:
-                additional_info.append(("Internal query", resp.reply_context.reply_english_text))
-            if "description" in info and "row_texts" in info:
-                additional_info.append((info["description"], info["row_texts"]))
-            if "cache_score" in info:
-                additional_info.append(("Cache hit", info["cache_score"]))
-            if "history" in features and resp.reply_context and resp.reply_context.additional_info and "conversation_history" in resp.reply_context.additional_info:
-                additional_info.append(("Conversation history", resp.reply_context.additional_info["conversation_history"]))
-            if "audio" in features and "mime_type" in info and "data" in info:
-                additional_info.append(("Audio", (info["mime_type"], base64.b64encode(info["data"]))))
+            additional_info = (AdditionalInfoBuilder()
+                .add_internal_query(resp)
+                .add_description_rows(info)
+                .add_cache_score(info)
+                .add_history(features, resp)
+                .add_audio(features, info)
+                .build())
 
             # persist QA for conversation continuity
             qa = {
