@@ -24,4 +24,4 @@ class Chunk(BaseModel):
     text: Optional[str] = Field(default=None, description="Content of the chunk")
     metadata: Optional[Chunk_metadata] = Field(default=None, description="Metadata associated with the chunk")
     related_questions: Optional[dict] = Field(default={}, description="Related questions for the chunk")
-    similarity: float = Field(default=0.0, description="Similarity with the text")
+    similarity: float = Field(default=0.0, description="Similarity against the text that yielded this chunk")
