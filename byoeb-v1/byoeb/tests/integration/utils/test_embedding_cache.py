@@ -4,15 +4,13 @@ from fastmcp import Client
 import os
 import pytest
 import requests
-import sys
 
 
 BASE_URL = os.getenv("RECIEVE_URL")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 USER_NAME = os.getenv("USER_NAME", "byoeb-user")
 if BASE_URL is None or PHONE_NUMBER_ID is None:
-    print("Environment variables are missing")
-    sys.exit(1)
+    raise RuntimeError("Environment variables are missing")
 
 BASE_URL = BASE_URL.replace("receive", "")
 MCP_URL = BASE_URL + "mcp?phone_number=" + PHONE_NUMBER_ID
