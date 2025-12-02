@@ -94,6 +94,7 @@ class ChromaDBVectorStore(BaseVectorStore):
                 raise
         
         logger.info(f"✅ Successfully added all {total_chunks} chunks to ChromaDB")
+        return ids
 
     def prepare_data(self, nodes: List):
         """Prepare data_chunks, metadata and ids lists from TextNode list."""
@@ -119,9 +120,9 @@ class ChromaDBVectorStore(BaseVectorStore):
 
         if loop is None:
             # No running loop; safe to call synchronously
-            return self.add_chunks(data_chunks=data_chunks, metadata=metadata, ids=ids, batch_size=batch_size, **kwargs)
+            result = self.add_chunks(data_chunks=data_chunks, metadata=metadata, ids=ids, batch_size=batch_size, **kwargs)
         else:
-            return await loop.run_in_executor(
+            result = await loop.run_in_executor(
                 None,
                 self.add_chunks,
                 data_chunks,
@@ -129,6 +130,8 @@ class ChromaDBVectorStore(BaseVectorStore):
                 ids,
                 batch_size
             )
+        for id in result:
+            yield id
 
     def update_chunks(
         self,

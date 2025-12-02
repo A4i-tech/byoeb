@@ -6,6 +6,7 @@ from byoeb.services.knowledge_base.kb_service import KBService
 from byoeb_core.media_storage.base import BaseMediaStorage
 from byoeb_core.models.media_storage.file_data import FileData, FileMetadata
 from byoeb_core.vector_stores.base import BaseVectorStore
+from llama_index.core.schema import TextNode
 
 
 class InMemoryMediaStorage(BaseMediaStorage):
@@ -44,11 +45,15 @@ class DummyVectorStore(BaseVectorStore):
         self.chunks.clear()
 
     def add_chunks(self, data_chunks, metadata, ids, **kwargs):
-        for text, md, cid in zip(data_chunks, metadata, ids):
+        inserted_ids = []
+        for text, md, cid in zip(data_chunks, metadata, ids or []):
             self.chunks.append({"id": cid, "text": text, "metadata": md})
+            inserted_ids.append(cid)
+        return inserted_ids
 
     async def aadd_chunks(self, data_chunks, metadata, ids, **kwargs):
-        self.add_chunks(data_chunks=data_chunks, metadata=metadata, ids=ids, **kwargs)
+        for id in self.add_chunks(data_chunks=data_chunks, metadata=metadata, ids=ids, **kwargs):
+            yield id
 
     def update_chunks(self, data_chunks, metadata, ids, **kwargs):
         raise NotImplementedError
@@ -135,7 +140,7 @@ async def test_gather_similar_chunks_short_circuits_when_threshold_one():
     service = KBService(vector_store=vector_store, media_storage=storage, upsert_t=1.0)
 
     similar_chunks: List[str] = []
-    chunks = ["alpha", "beta"]
+    chunks = [TextNode(text="alpha"), TextNode(text="beta")]
 
     progress = 0
     async for _ in service._gather_similar_chunks(chunks, similar_chunks):

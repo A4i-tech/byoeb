@@ -160,14 +160,14 @@ async def test_azure_vector_search_upload_documents(embedding_fn_stub, llm_clien
         embedding_fn_stub,
         credential=DefaultAzureCredential()
     )
-    await azure_vector_search.aadd_chunks(
+    async for _ in azure_vector_search.aadd_chunks(
         ids=ids,
         data_chunks=texts,
         metadata=metadatas,
         llm_client=llm_client_stub,
         languages_translation_prompts=languages_translation_prompts,
         show_progress=True
-    )
+    ): ...
 
 @pytest.mark.asyncio
 async def test_azure_vector_search_query(embedding_fn_stub):

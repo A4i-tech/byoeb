@@ -7,7 +7,7 @@ from byoeb.kb_app.configuration.dependency_setup import (
     vector_store,
     llm_client
 )
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncIterator, List, Optional
 
 from tenacity import retry, stop_after_attempt, wait_fixed
 from tqdm import tqdm
@@ -32,37 +32,40 @@ class KBService:
         self.text_parser = text_parser_instance or text_parser
         self.upsert_t = upsert_t
 
-    async def _gather_similar_chunks(self, chunks: List[BaseNode] | List[str], out: List[str], n_concurrency=4) -> AsyncGenerator[None, None]:
+    async def _gather_similar_chunks(self, chunks: List[BaseNode], out: List[str], n_concurrency=4) -> AsyncIterator[tuple[str, list[Chunk], int]]:
         if self.upsert_t >= 1.00:
-            for _ in range(len(chunks)):
-                yield None
+            for c in chunks:
+                yield c.node_id, [], 0
             return
 
         sem = asyncio.Semaphore(n_concurrency)
 
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(15))
-        async def run(text: str):
+        async def run(id: str, text: str):
             async with sem:
-                return await self.vector_store.aretrieve_similar_chunks(text=text)
+                return id, await self.vector_store.aretrieve_similar_chunks(text=text)
 
         tasks = []
         for c in chunks:
             text = c.text if isinstance(c, TextNode) else str(c)
-            tasks.append(run(text))
+            tasks.append(run(c.node_id, text))
 
         for task in asyncio.as_completed(tasks):
-            for chunk in await task:
+            id, chunks = await task
+            n_evicted = 0
+            for chunk in chunks:
                 assert isinstance(chunk, Chunk)
                 if chunk.similarity >= self.upsert_t:
                     out.append(chunk.chunk_id)
-            yield None
+                    n_evicted += 1
+            yield id, chunks, n_evicted
 
-    async def _add_nodes_to_vector_store(self, chunks: List[BaseNode] | List[str], similar_chunks: List[str], llm_client: Optional[BaseLLM] = None, batch_size: Optional[int] = None, show_progress: bool = True):
+    async def _add_nodes_to_vector_store(self, chunks: List[BaseNode], similar_chunks: List[str], llm_client: Optional[BaseLLM] = None, batch_size: Optional[int] = None) -> AsyncIterator[str]:
         from byoeb.kb_app.configuration.config import prompt_config
 
         if not chunks:
             logger.info("No chunks to ingest")
-            return 0
+            return
 
         now_ts = str(int(datetime.now(timezone.utc).timestamp()))
 
@@ -91,25 +94,25 @@ class KBService:
             except NotImplementedError:
                 logger.info("Vector store does not support deletes; inserting matched chunks instead")
 
-        bs = batch_size or 32
-        if insert_ids:
-            try:
-                await self.vector_store.aadd_chunks(
-                    data_chunks=data_chunks,
-                    metadata=metadata_list,
-                    ids=insert_ids,
-                    llm_client=llm_client or self.llm_client,
-                    languages_translation_prompts=prompt_config.get("languages_translation_prompts", {}),
-                    show_progress=show_progress
-                )
-            except AttributeError:
-                logger.debug("vector_store has no aadd_chunks; falling back to sync add_chunks")
-                self.vector_store.add_chunks(data_chunks=data_chunks, metadata=metadata_list, ids=insert_ids, batch_size=bs)
-        else:
+        if not insert_ids:
             logger.info("No new chunks to insert after applying upsert threshold")
+            return
 
-        logger.info(f"✅ Uploaded {len(insert_ids)} chunks to {type(self.vector_store).__name__} (upserted {len(similar_chunks)})")
-        return await self.vector_store.get_count()
+        bs = batch_size or 32
+        try:
+            async for id in self.vector_store.aadd_chunks(
+                data_chunks=data_chunks,
+                metadata=metadata_list,
+                ids=insert_ids,
+                llm_client=llm_client or self.llm_client,
+                languages_translation_prompts=prompt_config.get("languages_translation_prompts", {})
+            ):
+                yield id
+            logger.info(f"✅ Uploaded {len(insert_ids)} chunks to {type(self.vector_store).__name__} (upserted {len(similar_chunks)})")
+        except AttributeError:
+            logger.debug("vector_store has no aadd_chunks; falling back to sync add_chunks")
+            for id in self.vector_store.add_chunks(data_chunks=data_chunks, metadata=metadata_list, ids=insert_ids, batch_size=bs):
+                yield id
 
     async def _abulk_download_files(self, all_files: List[FileMetadata]) -> List[FileData]:
         def create_batches(batch_size=5):
@@ -174,20 +177,42 @@ class KBService:
             logger.error(f"❌ Error parsing chunks: {str(e)}", exc_info=True)
             raise
 
+
+        chunk_filenames = {chunk.node_id: chunk.metadata["file_name"] for chunk in chunks}
+        progress_values = {f.metadata.file_name if f.metadata else "Unknown": 0 for f in files_data}
+        for chunk in chunks:
+            progress_values[chunk_filenames[chunk.node_id]] += 1
+
         logger.info("Step 4: Retrieving similar chunks for upserting")
         similar_chunks: List[str] = []
-        with tqdm(total=len(chunks), desc="Retrieving similar chunks") as progress_bar:
-            async for _ in self._gather_similar_chunks(chunks, similar_chunks):
-                progress_bar.update(1)
+        progress = {k: tqdm(total=v, desc=k, position=i) for i, (k, v) in enumerate(progress_values.items())}
+        try:
+            evicted_totals = {k: 0 for k in progress_values.keys()}
+            async for id, buf, n_evicted in self._gather_similar_chunks(chunks, similar_chunks):
+                file_name = chunk_filenames[id]
+                bar = progress[file_name]
+                evicted_totals[file_name] += n_evicted
+                bar.set_description("%s (%d found)" % (file_name, evicted_totals[file_name]))
+                bar.update(len(buf))
+        finally:
+            for bar in progress.values():
+                bar.close()
 
         logger.info("💾 Step 5: Upserting chunks to vector store")
+        progress = {k: tqdm(total=v, desc=k, position=i) for i, (k, v) in enumerate(progress_values.items())}
         try:
-            collection_count = await self._add_nodes_to_vector_store(chunks, similar_chunks)
-            logger.info(f"📊 Final collection count: {collection_count}")
-            return collection_count
+            async for id in self._add_nodes_to_vector_store(chunks, similar_chunks):
+                progress[chunk_filenames[id]].update(1)
         except Exception as e:
             logger.error(f"❌ Error upserting nodes to vector store: {str(e)}", exc_info=True)
             raise
+        finally:
+            for bar in progress.values():
+                bar.close()
+
+        collection_count = await self.vector_store.get_count()
+        logger.info(f"📊 Final collection count: {collection_count}")
+        return collection_count
 
 
 def _get_default_kb_service():

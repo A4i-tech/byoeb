@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any, AsyncIterator, List
 
 from byoeb_core.models.vector_stores.chunk import Chunk
 
@@ -13,16 +13,16 @@ class BaseVectorStore(ABC):
         metadata: list,
         ids: list,
         **kwargs
-    ) -> Any:
+    ) -> List[str]:
         pass
 
-    async def aadd_chunks(
+    def aadd_chunks(
         self,
         data_chunks: list, 
         metadata: list,
         ids: list,
         **kwargs
-    ) -> Any:
+    ) -> AsyncIterator[str]:
         raise NotImplementedError
 
     @abstractmethod

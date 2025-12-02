@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from enum import Enum
-from typing import Any, Coroutine, List, Optional
+from typing import Any, AsyncIterator, Coroutine, List, Optional
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_exponential, wait_fixed
 from tqdm.asyncio import tqdm
 from byoeb_core.vector_stores.base import BaseVectorStore
@@ -162,14 +162,14 @@ class AzureVectorStore(BaseVectorStore):
 
     async def aadd_chunks(
         self,
-        data_chunks,
-        metadata,
-        ids,
+        data_chunks: list,
+        metadata: list,
+        ids: list,
         llm_client: BaseLLM =None,
         languages_translation_prompts: dict = None,
         system_prompt = None,
-        show_progress=False
-    ):
+        **kwargs
+    ) -> AsyncIterator[str]:
         if languages_translation_prompts is not None and llm_client is None:
             raise ValueError("llm_client is required when languages are provided")
         
@@ -217,25 +217,21 @@ class AzureVectorStore(BaseVectorStore):
             system_prompt=system_prompt
         )) for id, chunk, metadata in zip(ids, data_chunks, metadata)]
 
-        with tqdm(total=len(tasks), desc="Uploading documents", disable=not show_progress) as preparing_progress:
-            batch_nodes = []
-            uploaded = 0
-            for task in asyncio.as_completed(tasks):
-                batch_nodes.append(await task)
-                if len(batch_nodes) >= 16:
-                    flush(batch_nodes)
-                    uploaded += len(batch_nodes)
-                    batch_nodes = []
-                    preparing_progress.set_description("Uploading documents (%d)" % uploaded)
-                preparing_progress.update(1)
-            if len(batch_nodes) > 0:
+        batch_nodes = []
+        uploaded = 0
+        for task in asyncio.as_completed(tasks):
+            chunk = await task
+            assert isinstance(chunk, AzureSearchNode)
+            batch_nodes.append(chunk)
+            if len(batch_nodes) >= 16:
                 flush(batch_nodes)
                 uploaded += len(batch_nodes)
                 batch_nodes = []
-                preparing_progress.set_description("Uploading documents (%d)" % uploaded)
-
-        logger.info(f"✅ Uploading process complete - {len(data_chunks)} chunks ingested")
-        # return True
+            yield str(chunk.id)
+        if len(batch_nodes) > 0:
+            flush(batch_nodes)
+            uploaded += len(batch_nodes)
+            batch_nodes = []
 
     def update_chunks(
         self,
@@ -267,7 +263,7 @@ class AzureVectorStore(BaseVectorStore):
                 logger.error(f"Failed to delete document: {error}")
 
         try:
-            async with SearchIndexingBufferedSender(
+            with SearchIndexingBufferedSender(
                 endpoint=self.__endpoint,
                 index_name=self.__index_name,
                 credential=self.__credential,

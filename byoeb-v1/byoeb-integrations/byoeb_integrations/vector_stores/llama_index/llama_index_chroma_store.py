@@ -77,6 +77,7 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
             nodes.append(text_node)
         vector_store_index = self.__get_or_create_store()
         vector_store_index.insert_nodes(nodes, show_progress=show_progress)
+        return [c.node_id for c in nodes]
 
     async def aadd_chunks(
         self,
@@ -101,9 +102,11 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         func = partial(self.add_chunks, data_chunks=data_chunks, metadata=metadata, ids=ids, batch_size=batch_size, **kwargs)
 
         if loop is None:
-            return func()
+            result = func()
         else:
-            return await loop.run_in_executor(None, func)
+            result = await loop.run_in_executor(None, func)
+        for id in result:
+            yield id
 
     def update_chunks(
         self,
