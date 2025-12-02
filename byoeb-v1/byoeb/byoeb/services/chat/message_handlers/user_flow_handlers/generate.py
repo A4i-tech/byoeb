@@ -358,6 +358,7 @@ class ByoebUserGenerateResponse(Handler):
         if cache_details[1] is not None:
             cache_id = cache_details[1]
             cache = cache_details[2]
+            cache_info["cache_hit"] = True
         else:
             cache_id, cache = None, None
 
