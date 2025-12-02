@@ -351,7 +351,6 @@ class ByoebUserGenerateResponse(Handler):
         print("Options: ", options)
         end_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Translated response message in {end_time - start_time} seconds")
-        start_time = datetime.now(timezone.utc).timestamp()
         user_language = message.user.user_language
 
         cache_info = {"cache_score": cache_details[0]} if cache_details[0] is not None else {}
@@ -364,10 +363,16 @@ class ByoebUserGenerateResponse(Handler):
 
         media_info = cache.get("media_info", {}).get(user_language) if cache is not None else None
         if media_info is None:
+            start_time = datetime.now(timezone.utc).timestamp()
             media_info = await self.__create_source_audio(
                 message_source_text=message_source_text,
                 user_language=user_language
             )
+            end_time = datetime.now(timezone.utc).timestamp()
+            AppInsightsLogHandler.getLogger("text_to_audio").info(f"Created audio response message in {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {
+                "message_id": message.message_context.message_id,
+                "time_taken": end_time - start_time
+            }})
             if cache_id is not None:
                 assert cache is not None
                 if "media_info" not in cache:
@@ -376,11 +381,6 @@ class ByoebUserGenerateResponse(Handler):
                     cache[user_language] = media_info
                 self.embedding_cache.update(cache_id, cache)
 
-        end_time = datetime.now(timezone.utc).timestamp()
-        AppInsightsLogHandler.getLogger("text_to_audio").info(f"Created audio response message in {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {
-            "message_id": message.message_context.message_id,
-            "time_taken": end_time - start_time
-        }})
         utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
         description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
         message_type = None
@@ -709,15 +709,16 @@ class ByoebUserGenerateResponse(Handler):
                     cache_result = miss_thresh, *cache_result[1:]
                 else:
                     cache_result = None, None, None
-            end_time = datetime.now(timezone.utc).timestamp()
-            AppInsightsLogHandler.getLogger("generate_answer_and_related_questions").info(f"Generated related questions for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
-                "message_id": message.message_context.message_id,
-                "time_taken": end_time - start_time,
-                "completion_tokens": tokens.get("completion_tokens"),
-                "backup_completion_tokens": tokens_backup.get("completion_tokens"),
-                "prompt_tokens": tokens.get("prompt_tokens"),
-                "backup_prompt_tokens": tokens_backup.get("prompt_tokens")
-            }})
+
+                end_time = datetime.now(timezone.utc).timestamp()
+                AppInsightsLogHandler.getLogger("generate_answer_and_related_questions").info(f"Generated related questions for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
+                    "message_id": message.message_context.message_id,
+                    "time_taken": end_time - start_time,
+                    "completion_tokens": tokens.get("completion_tokens"),
+                    "backup_completion_tokens": tokens_backup.get("completion_tokens"),
+                    "prompt_tokens": tokens.get("prompt_tokens"),
+                    "backup_prompt_tokens": tokens_backup.get("prompt_tokens")
+                }})
             byoeb_user_message = await self.__create_user_message(
                 message=message,
                 response_en=response_en,
