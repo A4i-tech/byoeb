@@ -3,7 +3,7 @@ from typing import List
 import chromadb
 import hashlib
 from chromadb.config import Settings
-from byoeb_core.vector_stores.base import BaseVectorStore
+from byoeb_core.vector_stores.base import BaseVectorStore, VectorStoreMetadata
 from byoeb_core.models.vector_stores.chunk import Chunk
 from chromadb.utils import embedding_functions
 
@@ -290,6 +290,17 @@ class ChromaDBVectorStore(BaseVectorStore):
 
     async def get_count(self) -> int:
         return self.collection.count()
+
+    async def get_metadata(self) -> VectorStoreMetadata:
+        return VectorStoreMetadata(
+            store_type="chroma",
+            collection=self.__collection_name,
+            count=await self.get_count(),
+            capabilities={
+                "vector_search": True,
+                "metadata_filters": True,
+            },
+        )
 
     def create_store(self):
         logger.info(f"🔄 Creating collection: {self.__collection_name}")

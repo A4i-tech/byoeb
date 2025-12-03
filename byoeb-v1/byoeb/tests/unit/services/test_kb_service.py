@@ -5,7 +5,7 @@ import pytest
 from byoeb.services.knowledge_base.kb_service import KBService
 from byoeb_core.media_storage.base import BaseMediaStorage
 from byoeb_core.models.media_storage.file_data import FileData, FileMetadata
-from byoeb_core.vector_stores.base import BaseVectorStore
+from byoeb_core.vector_stores.base import BaseVectorStore, VectorStoreMetadata
 from llama_index.core.schema import TextNode
 
 
@@ -36,6 +36,9 @@ class DummyVectorStore(BaseVectorStore):
         self.chunks: List[dict] = []
         self.create_called = False
         self.retrieve_calls = 0
+
+    async def get_metadata(self) -> VectorStoreMetadata:
+        return VectorStoreMetadata(store_type="dummy", collection="dummy-collection", count=len(self.chunks), capabilities={})
 
     def create_store(self):
         self.create_called = True

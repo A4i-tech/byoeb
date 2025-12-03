@@ -1,10 +1,21 @@
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterator, List
+from typing import Any, AsyncIterator, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 from byoeb_core.models.vector_stores.chunk import Chunk
 
+class VectorStoreMetadata(BaseModel):
+    store_type: str
+    collection: str
+    count: Optional[int] = None
+    capabilities: Dict[str, bool] = Field(default_factory=dict)
 
 class BaseVectorStore(ABC):
+
+    @abstractmethod
+    async def get_metadata(self) -> VectorStoreMetadata:
+        pass
 
     @abstractmethod
     def add_chunks(
@@ -94,4 +105,3 @@ class BaseVectorStore(ABC):
     @abstractmethod
     def delete_store(self):
         pass
-

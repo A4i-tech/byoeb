@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Any, AsyncIterator, Coroutine, List, Optional
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_exponential, wait_fixed
 from tqdm.asyncio import tqdm
-from byoeb_core.vector_stores.base import BaseVectorStore
+from byoeb_core.vector_stores.base import BaseVectorStore, VectorStoreMetadata
 from byoeb_core.llms.base import BaseLLM
 from azure.core.exceptions import HttpResponseError
 from azure.search.documents import SearchIndexingBufferedSender
@@ -360,6 +360,18 @@ class AzureVectorStore(BaseVectorStore):
 
     async def get_count(self) -> int:
         return await self.search_client.get_document_count()
+
+    async def get_metadata(self):
+        return VectorStoreMetadata(
+            store_type="azure_search",
+            collection=self.__index_name,
+            count=await self.get_count(),
+            capabilities={
+                "hybrid_search": True,
+                "vector_search": True,
+                "bm25_search": True,
+            },
+        )
 
     def create_store(self):
         try:

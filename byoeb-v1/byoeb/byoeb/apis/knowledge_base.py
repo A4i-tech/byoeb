@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from byoeb_core.models.media_storage.file_data import FileMetadata
 from byoeb_core.models.vector_stores.chunk import Chunk
+from byoeb_core.vector_stores.base import VectorStoreMetadata
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorSearchType
 
 KB_API_NAME = 'kb_api'
@@ -62,9 +63,9 @@ async def search_chunks(
     """
     return await vector_store.aretrieve_top_k_chunks(text=query, k=k, search_type=search_type.value, select=["id", "text", "metadata"], vector_field="text_vector_3072")
 
-@kb_vector_apis_router.get("/count")
-async def count_chunks() -> int:
+@kb_vector_apis_router.get("/metadata")
+async def get_metadata() -> VectorStoreMetadata:
     """
-    Count the number of chunks in the store.
+    Get metadata properties of the store.
     """
-    return await vector_store.get_count()
+    return await vector_store.get_metadata()

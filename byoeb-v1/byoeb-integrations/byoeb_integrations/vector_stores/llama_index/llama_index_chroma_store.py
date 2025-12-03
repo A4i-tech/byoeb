@@ -4,7 +4,7 @@ from typing import List
 
 from chromadb import Collection
 from byoeb_core.models.vector_stores.chunk import Chunk
-from byoeb_core.vector_stores.base import BaseVectorStore
+from byoeb_core.vector_stores.base import BaseVectorStore, VectorStoreMetadata
 from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core import VectorStoreIndex
@@ -165,6 +165,17 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
 
     async def get_count(self) -> int:
         return self.collection.count()
+
+    async def get_metadata(self) -> VectorStoreMetadata:
+        return VectorStoreMetadata(
+            store_type="llama_index_chroma",
+            collection=self.__collection_name,
+            count=await self.get_count(),
+            capabilities={
+                "vector_search": True,
+                "metadata_filters": True,
+            },
+        )
 
     def create_store(self):
         self.__get_or_create_store()
