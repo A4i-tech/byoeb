@@ -1,9 +1,10 @@
 from io import BytesIO
 import logging
+import tempfile
 from byoeb.kb_app.configuration.dependency_setup import amedia_storage, vector_store
 from byoeb.services.knowledge_base.kb_service import upload as kb_upload
-from fastapi import APIRouter, HTTPException, Query, status
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from byoeb_core.models.media_storage.file_data import FileMetadata
 from byoeb_core.models.vector_stores.chunk import Chunk
@@ -23,7 +24,7 @@ async def list_files() -> list[FileMetadata]:
     """
     return await amedia_storage.aget_all_files_properties()
 
-@kb_media_apis_router.get("/file")
+@kb_media_apis_router.get("/file/info")
 async def get_file(file_name: str = Query(description="Path to the file")) -> FileMetadata:
     """
     Lists properties of the given file in the store.
@@ -32,7 +33,7 @@ async def get_file(file_name: str = Query(description="Path to the file")) -> Fi
     if result is None: raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
     return result
 
-@kb_media_apis_router.get("/download")
+@kb_media_apis_router.get("/file")
 async def download_file(file_name: str = Query(description="Path to the file")) -> StreamingResponse:
     """
     Download a given file from the store.
@@ -43,8 +44,39 @@ async def download_file(file_name: str = Query(description="Path to the file")) 
         "Content-Disposition": f'attachment; filename="{result.metadata.file_name if result.metadata else file_name}"'
     })
 
-@kb_vector_apis_router.get("/upload")
-async def upload_chunks(files: set[str] = Query(description="Path to files to load")):
+@kb_media_apis_router.post("/file")
+async def upload_file(file: UploadFile = File(description="Upload a .txt file", media_type="text/plain")):
+    """
+    Upload a given file to the store.
+    """
+    if file.content_type != "text/plain":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Only TXT is allowed.")
+
+    if file.filename is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file must have a filename")
+
+    with tempfile.NamedTemporaryFile(prefix="ashabot-kb-app-") as tmp:
+        tmp.write(await file.read())
+        tmp.seek(0)
+        code, _ = await amedia_storage.aupload_file(file.filename, tmp.name)
+
+    return Response(status_code=code)
+
+@kb_media_apis_router.delete("/file")
+async def delete_file(file_name: str = Query(description="Path to the file")) -> FileMetadata:
+    """
+    Delete a given file from the store.
+    """
+    result = await amedia_storage.aget_file_properties(file_name)
+    if result is None: raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    await amedia_storage.adelete_file(file_name)
+    return result
+
+@kb_vector_apis_router.get("/index")
+async def index_file(files: set[str] = Query(description="Path to files to load")):
+    """
+    Index a file from media storage into the vector storage.
+    """
     _logger.info("🚀 Starting knowledge base load from blob store")
     existing = await amedia_storage.aget_all_files_properties()
     selected = [file for file in existing if file.file_name in files]
