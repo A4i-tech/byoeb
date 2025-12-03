@@ -17,6 +17,14 @@ kb_media_apis_router = APIRouter(prefix="/storage", tags=["Media storage"])
 kb_vector_apis_router = APIRouter(prefix="/vector", tags=["Vector storage"])
 _logger = logging.getLogger(KB_API_NAME)
 
+# valid MIME types and their corresponding labels - used to validate files being uploaded to media store
+ALLOWED_MIME_TYPES = {
+    "text/csv": "CSV (.csv)",
+    "text/markdown": "Markdown (.md)",
+    "application/json": "JSON (.json)",
+    "text/plain": "TXT (.txt)",
+}
+
 @kb_media_apis_router.get("/list")
 async def list_files() -> list[FileMetadata]:
     """
@@ -49,8 +57,8 @@ async def upload_file(file: UploadFile = File(description="Upload a .txt file", 
     """
     Upload a given file to the store.
     """
-    if file.content_type != "text/plain":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Only TXT is allowed.")
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type, allowed types: %s" % ", ".join(ALLOWED_MIME_TYPES.values()))
 
     if file.filename is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file must have a filename")
