@@ -1,6 +1,6 @@
 import logging
 import json
-from typing import Any, Optional, List, Dict
+from typing import Any, List, Dict
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from byoeb_core.models.byoeb.message_context import (
@@ -13,7 +13,6 @@ from byoeb.models.message_category import MessageCategory
 from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
 from byoeb.utils.utils import mcp_get_phone_number
 from fastapi import APIRouter, Query, Body
-from pydantic import BaseModel, Field
 from fastapi.responses import JSONResponse
 
 # ---------------------------------------------------------
@@ -24,102 +23,35 @@ CHAT_API_NAME = "chat_api"
 chat_apis_router = APIRouter(tags=["Chat"])
 _logger = logging.getLogger(CHAT_API_NAME)
 
-
-# ---------------------------------------------------------
-# Shared API Response Model
-# ---------------------------------------------------------
-
-class APIResponse(BaseModel):
-    status: str = Field(
-        ..., description="Response status — 'success' or 'error'",
-        json_schema_extra={"example": "success"}
-    )
-    message: str = Field(
-        ..., description="Response message or summary",
-        json_schema_extra={"example": "Message processed successfully"}
-    )
-    content: Optional[Any] = Field(None, description="Optional payload or response data")
-
-
 # ---------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------
-@chat_apis_router.post(
-    "/receive",
-    summary="Handle incoming WhatsApp messages",
-    response_model=APIResponse,
-)
-async def receive(body: Dict[str, Any] = Body(..., description="Raw WhatsApp webhook payload")) -> APIResponse:
+@chat_apis_router.post("/receive", summary="Handle incoming WhatsApp messages")
+async def receive(body: Dict[str, Any] = Body(..., description="Raw WhatsApp webhook payload")) -> JSONResponse:
     """
     Handles an incoming WhatsApp message from a user.
     The message is processed by the message_producer_handler.
     """
-    try:
-        _logger.info(f"Received WhatsApp request: {json.dumps(body, ensure_ascii=False)}")
-
-        response = await dependency_setup.message_producer_handler.handle(body)
-        _logger.info(f"Handler response: {response}")
-
-        return APIResponse(
-            status="success" if 200 <= response.status_code < 300 else "error",
-            message=response.message if isinstance(response.message, str) else str(response.message),
-            content=body,
-        )
-
-    except Exception as e:
-        _logger.exception(f"Error in /receive: {str(e)}")
-        return APIResponse(status="error", message=str(e))
-
-
-
-@chat_apis_router.get(
-    "/get_bot_messages",
-    summary="Fetch bot messages after a given timestamp",
-)
-async def get_bot_messages(
-    timestamp: str = Query(
-        ..., description="Unix timestamp string to fetch messages since that time",
-        json_schema_extra={"example": "1730960200"}
+    _logger.info(f"Received WhatsApp request: {json.dumps(body, ensure_ascii=False)}")
+    response = await dependency_setup.message_producer_handler.handle(body)
+    _logger.info(f"Handler response: {response}")
+    return JSONResponse(
+        status_code=response.status_code,
+        content=response.message if isinstance(response.message, str) else str(response.message)
     )
+
+
+@chat_apis_router.get("/get_bot_messages", summary="Fetch bot messages after a given timestamp")
+async def get_bot_messages(
+    timestamp: int = Query(..., description="Unix timestamp to fetch messages since")
 ) -> List[ByoebMessageContext]:
     """
     Retrieves all bot messages stored in the database
     after the specified timestamp.
     """
-    responses = await dependency_setup.message_db_service.get_latest_bot_messages_by_timestamp(timestamp)
+    responses = await dependency_setup.message_db_service.get_latest_bot_messages_by_timestamp(str(timestamp))
     return responses
 
-
-
-@chat_apis_router.delete(
-    "/delete_message_collection",
-    summary="Delete all message collections from the database",
-)
-async def delete_collection() -> JSONResponse:
-    """
-    Deletes the message collection from the message database.
-    Returns whether the deletion was successful.
-    """
-    
-    response, e = await dependency_setup.message_db_service.delete_message_collection()
-
-    if response == True:
-        return JSONResponse(
-            content="Successfully deleted",
-            status_code=200
-        )
-    elif response == False and e is None:
-        return JSONResponse(
-            content="Failed to delete",
-            status_code=500
-        )
-    elif e is not None:
-        return JSONResponse(
-            content=f"Error: {e}",
-            status_code=500
-        )
-
-    
 
 # ---------------------------------------------------------
 # MCP Tool
