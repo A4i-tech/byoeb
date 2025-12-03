@@ -155,18 +155,21 @@ class KBService:
         logger.info(f"✅ Successfully downloaded {len(files_data)}/{len(all_files)} files")
         return files_data
 
-    async def create_kb_from_blob_store(self):
+    async def upload(self, files: List[FileMetadata]):
         self.vector_store.create_store()
 
-        logger.info("📥 Step 1: Fetching file properties from blob store")
-        files = await self.media_storage.aget_all_files_properties()
-        logger.info(f"📄 Found {len(files)} files in blob store")
+        logger.info(f"📥 Starting KB upload for {len(files)} files")
+        if not files:
+            logger.info("📄 No files provided for upload")
+            return 0
 
-        logger.info("⬇️  Step 2: Downloading files from blob store")
         files_data = await self._abulk_download_files(files)
         logger.info(f"✅ Downloaded {len(files_data)} files successfully")
+        if not files_data:
+            logger.info("📄 No files downloaded successfully; skipping ingestion")
+            return 0
 
-        logger.info("🔤 Step 3: Parsing files into chunks")
+        logger.info("🔤 Parsing files into chunks")
         try:
             chunks = self.text_parser.get_chunks_from_collection(
                 files_data,
@@ -183,7 +186,7 @@ class KBService:
         for chunk in chunks:
             progress_values[chunk_filenames[chunk.node_id]] += 1
 
-        logger.info("Step 4: Retrieving similar chunks for upserting")
+        logger.info("🔄 Retrieving similar chunks for upserting")
         similar_chunks: List[str] = []
         progress = {k: tqdm(total=v, desc=k, position=i) for i, (k, v) in enumerate(progress_values.items())}
         try:
@@ -198,7 +201,7 @@ class KBService:
             for bar in progress.values():
                 bar.close()
 
-        logger.info("💾 Step 5: Upserting chunks to vector store")
+        logger.info("💾 Upserting chunks to vector store")
         progress = {k: tqdm(total=v, desc=k, position=i) for i, (k, v) in enumerate(progress_values.items())}
         try:
             async for id in self._add_nodes_to_vector_store(chunks, similar_chunks):
@@ -219,6 +222,6 @@ def _get_default_kb_service():
     return KBService(vector_store=vector_store, media_storage=amedia_storage, llm_client=llm_client)
 
 
-async def create_kb_from_blob_store():
+async def upload(files: List[FileMetadata]):
     svc = _get_default_kb_service()
-    return await svc.create_kb_from_blob_store()
+    return await svc.upload(files)

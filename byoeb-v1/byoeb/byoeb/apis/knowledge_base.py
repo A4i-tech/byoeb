@@ -1,6 +1,7 @@
 import logging
 import json
-from byoeb.services.knowledge_base.kb_service import create_kb_from_blob_store as kb_create
+from byoeb.kb_app.configuration.dependency_setup import amedia_storage
+from byoeb.services.knowledge_base.kb_service import upload as kb_upload
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
@@ -13,7 +14,8 @@ _logger = logging.getLogger(KB_API_NAME)
 async def load_from_blob_store(request: Request):
     _logger.info("🚀 Starting knowledge base load from blob store")
     try:
-        count = await kb_create()
+        files = await amedia_storage.aget_all_files_properties()
+        count = await kb_upload(files)
         _logger.info(f"✅ Successfully loaded {count} documents into knowledge base")
         return JSONResponse(
             content={"message": f"Loaded {count} documents"},

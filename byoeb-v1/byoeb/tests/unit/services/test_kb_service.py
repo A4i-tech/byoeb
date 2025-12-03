@@ -108,7 +108,7 @@ async def test_create_kb_with_no_files_returns_zero():
     storage = InMemoryMediaStorage({})
     service = KBService(vector_store=vector_store, media_storage=storage)
 
-    count = await service.create_kb_from_blob_store()
+    count = await service.upload(files=[])
 
     assert count == 0
     assert vector_store.create_called is True
@@ -125,7 +125,7 @@ async def test_create_kb_skips_failed_downloads_and_ingests_successful_files():
     vector_store = DummyVectorStore()
     service = KBService(vector_store=vector_store, media_storage=storage)
 
-    count = await service.create_kb_from_blob_store()
+    count = await service.upload(files=[f.metadata for f in files.values()])
 
     assert count == 1
     assert len(vector_store.chunks) == 1

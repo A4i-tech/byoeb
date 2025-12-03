@@ -67,7 +67,7 @@ async def test_upsert_replaces_similar_chunks(chroma_store: ChromaDBVectorStore)
     storage = InMemoryMediaStorage({"doc.txt": _file_data(new_text, "doc.txt")})
     service = KBService(vector_store=vector_store, media_storage=storage, upsert_t=0.95)
 
-    count = await service.create_kb_from_blob_store()
+    count = await service.upload(files=[file.metadata for file in storage._files.values()])
     assert count == 1
 
     chunks = vector_store.retrieve_top_k_chunks(text=new_text, k=1)
@@ -89,7 +89,7 @@ async def test_upsert_threshold_one_keeps_existing_chunks(chroma_store: ChromaDB
     storage = InMemoryMediaStorage({"doc.txt": _file_data(new_text, "doc.txt")})
     service = KBService(vector_store=vector_store, media_storage=storage, upsert_t=1.0)
 
-    count = await service.create_kb_from_blob_store()
+    count = await service.upload(files=[file.metadata for file in storage._files.values()])
     assert count == 2
 
     chunks = vector_store.retrieve_top_k_chunks(text=new_text, k=2)
