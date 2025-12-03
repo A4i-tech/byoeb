@@ -4,9 +4,9 @@ Message repository interface for abstracting message-related database operations
 from abc import ABC, abstractmethod
 from typing import AsyncIterator, Dict, Any, Optional
 
-from byoeb.repositories.mongodb_base_repository import MongoBaseRepository
+from byoeb.repositories.base_repository import BaseRepository
 
-class MessageRepository(MongoBaseRepository, ABC):
+class MessageRepository(BaseRepository, ABC):
     """Repository interface for message-related database operations."""
 
     @abstractmethod

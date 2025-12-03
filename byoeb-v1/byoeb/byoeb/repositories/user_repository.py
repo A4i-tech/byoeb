@@ -2,9 +2,9 @@
 from abc import ABC, abstractmethod
 from typing import AsyncIterator, Dict, Any, Optional, List
 
-from byoeb.repositories.mongodb_base_repository import MongoBaseRepository
+from byoeb.repositories.base_repository import BaseRepository
 
-class UserRepository(MongoBaseRepository, ABC):
+class UserRepository(BaseRepository, ABC):
     """Repository interface for user-related database operations."""
 
     @abstractmethod

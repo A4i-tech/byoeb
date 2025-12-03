@@ -3,9 +3,9 @@ from typing import AsyncIterator, Dict, Iterable, List, Set
 
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.models.dyk import DykRecord
-from byoeb.repositories.mongodb_base_repository import MongoBaseRepository
+from byoeb.repositories.base_repository import BaseRepository
 
-class DykRepository(MongoBaseRepository, ABC):
+class DykRepository(BaseRepository, ABC):
     """Repository interface for DYK-related database operations."""
 
     @abstractmethod
