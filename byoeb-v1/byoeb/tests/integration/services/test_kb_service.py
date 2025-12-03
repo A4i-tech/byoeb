@@ -17,18 +17,18 @@ class InMemoryMediaStorage(BaseMediaStorage):
         self._files = files
 
     async def aget_all_files_properties(self):
-        return [file.metadata for file in self._files.values()]
+        return [file.metadata for file in self._files.values() if file.metadata is not None]
 
     async def aupload_file(self, file_name: str, file_path: str):
         return 201
 
     async def adownload_file(self, file_name: str):
         file = self._files[file_name]
-        return 200, file
+        return file
 
     async def aget_file_properties(self, file_name: str):
         file = self._files.get(file_name)
-        return (200, file.metadata) if file else (404, None)
+        return file.metadata if file else None
 
     async def adelete_file(self, blob_name: str):
         self._files.pop(blob_name, None)

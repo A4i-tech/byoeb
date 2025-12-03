@@ -1,11 +1,8 @@
 import logging
-import os
 import asyncio
 import uvicorn
-from uvicorn.config import LOGGING_CONFIG
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
-from byoeb.apis.knowledge_base import kb_apis_router
+from byoeb.apis.knowledge_base import kb_media_apis_router, kb_vector_apis_router
 
 # Configure logging
 logging.basicConfig(
@@ -45,7 +42,8 @@ def create_app():
     """
 
     app = FastAPI()
-    app.include_router(kb_apis_router)
+    app.include_router(kb_media_apis_router)
+    app.include_router(kb_vector_apis_router)
     return app
 
 app = create_app()

@@ -134,23 +134,18 @@ class KBService:
             logger.info(f"  Processing batch {batch_idx}/{len(batches)} ({len(batch)} files)")
             batch_results = await get_batch_results(batch)
 
-            for idx, result in enumerate(batch_results):
-                status, response = result
+            for idx, response in enumerate(batch_results):
                 file_name = batch[idx].file_name if idx < len(batch) else "unknown"
-
-                if status != 200:
-                    logger.warning(f"  ⚠️  Failed to download {file_name}: status {status}")
+                if response is None:
+                    logger.warning(f"  ⚠️  Failed to download {file_name}: (file not found)")
                     continue
 
-                if isinstance(response, FileData):
-                    try:
-                        response = FileData(**response.model_dump())
-                        files_data.append(response)
-                        logger.debug(f"  ✅ Downloaded {file_name} ({len(response.data)} bytes)")
-                    except Exception as e:
-                        logger.error(f"  ❌ Error processing {file_name}: {str(e)}")
-                else:
-                    logger.warning(f"  ⚠️  Unexpected response type for {file_name}: {type(response)}")
+                try:
+                    response = FileData(**response.model_dump())
+                    files_data.append(response)
+                    logger.debug(f"  ✅ Downloaded {file_name} ({len(response.data)} bytes)")
+                except Exception as e:
+                    logger.error(f"  ❌ Error processing {file_name}: {str(e)}")
 
         logger.info(f"✅ Successfully downloaded {len(files_data)}/{len(all_files)} files")
         return files_data

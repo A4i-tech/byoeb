@@ -56,7 +56,7 @@ class BaseVectorStore(ABC):
         self,
         ids: list,
         **kwargs
-    ) -> Any:
+    ) -> int:
         raise NotImplementedError
 
     @abstractmethod

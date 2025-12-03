@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any, List, Optional
 
-from byoeb_core.models.media_storage.file_data import FileMetadata
+from byoeb_core.models.media_storage.file_data import FileData, FileMetadata
 
 class BaseMediaStorage(ABC):
 
@@ -23,14 +23,14 @@ class BaseMediaStorage(ABC):
     async def adownload_file(
         self,
         file_name: str,
-    ) -> Any:
+    ) -> Optional[FileData]:
         pass
 
     @abstractmethod
     async def aget_file_properties(
         self,
         file_name: str,
-    ) -> Any:
+    ) -> Optional[FileMetadata]:
         pass
     
     @abstractmethod

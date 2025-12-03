@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pytest
 
@@ -13,19 +13,18 @@ class InMemoryMediaStorage(BaseMediaStorage):
     def __init__(self, files: Dict[str, FileData]):
         self._files = files
 
-    async def aget_all_files_properties(self):
-        return [file.metadata for file in self._files.values()]
+    async def aget_all_files_properties(self) -> List[FileMetadata]:
+        return [file.metadata for file in self._files.values() if file.metadata is not None]
 
     async def aupload_file(self, file_name: str, file_path: str):
         return 201
 
-    async def adownload_file(self, file_name: str):
-        file = self._files[file_name]
-        return 200, file
+    async def adownload_file(self, file_name: str) -> Optional[FileData]:
+        return self._files[file_name] if file_name in self._files else None
 
     async def aget_file_properties(self, file_name: str):
         file = self._files.get(file_name)
-        return (200, file.metadata) if file else (404, None)
+        return file.metadata if file else None
 
     async def adelete_file(self, blob_name: str):
         self._files.pop(blob_name, None)
@@ -59,10 +58,12 @@ class DummyVectorStore(BaseVectorStore):
         raise NotImplementedError
 
     def delete_chunks(self, ids, **kwargs):
+        n = len([None for chunk in self.chunks if chunk["id"] in ids])
         self.chunks = [chunk for chunk in self.chunks if chunk["id"] not in ids]
+        return n
 
     async def adelete_chunks(self, ids, **kwargs):
-        self.delete_chunks(ids, **kwargs)
+        return self.delete_chunks(ids, **kwargs)
 
     def retrieve_top_k_chunks(self, text, k, **kwargs):
         return []
@@ -84,10 +85,10 @@ class PartiallyFailingMediaStorage(InMemoryMediaStorage):
         self.fail_names = set(fail_names)
         self.download_attempts: Dict[str, int] = {name: 0 for name in files}
 
-    async def adownload_file(self, file_name: str):
+    async def adownload_file(self, file_name: str) -> Optional[FileData]:
         self.download_attempts[file_name] = self.download_attempts.get(file_name, 0) + 1
         if file_name in self.fail_names:
-            return 500, None
+            return None
         return await super().adownload_file(file_name)
 
 
@@ -125,7 +126,7 @@ async def test_create_kb_skips_failed_downloads_and_ingests_successful_files():
     vector_store = DummyVectorStore()
     service = KBService(vector_store=vector_store, media_storage=storage)
 
-    count = await service.upload(files=[f.metadata for f in files.values()])
+    count = await service.upload(files=[f.metadata for f in files.values() if f.metadata is not None])
 
     assert count == 1
     assert len(vector_store.chunks) == 1

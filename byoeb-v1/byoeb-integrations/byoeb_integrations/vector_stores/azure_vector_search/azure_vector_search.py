@@ -245,7 +245,7 @@ class AzureVectorStore(BaseVectorStore):
     def delete_chunks(self, ids: list, batch_size: int = 100, **kwargs):
         raise NotImplementedError
 
-    async def adelete_chunks(self, ids: list, batch_size: int = 100, **kwargs):
+    async def adelete_chunks(self, ids: list, batch_size: int = 100, **kwargs) -> int:
         if not ids:
             logger.info("No chunk ids supplied for deletion; skipping")
             return 0

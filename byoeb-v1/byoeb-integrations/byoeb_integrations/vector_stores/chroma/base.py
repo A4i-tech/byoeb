@@ -6,10 +6,6 @@ from chromadb.config import Settings
 from byoeb_core.vector_stores.base import BaseVectorStore
 from byoeb_core.models.vector_stores.chunk import Chunk
 from chromadb.utils import embedding_functions
-try:
-    from llama_index.core.schema import TextNode
-except ImportError:
-    TextNode = None
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +56,7 @@ class ChromaDBVectorStore(BaseVectorStore):
         :param batch_size: Number of chunks to add per batch (default: 100)
         """
         total_chunks = len(data_chunks)
-        logger.info(f"📤 Adding {total_chunks} chunks to ChromaDB in batches of {batch_size}")
+        logger.debug(f"📤 Adding {total_chunks} chunks to ChromaDB in batches of {batch_size}")
 
         # Process in batches to avoid memory issues and show progress
         for i in range(0, total_chunks, batch_size):
@@ -80,7 +76,7 @@ class ChromaDBVectorStore(BaseVectorStore):
                 files_in_batch[file_name] += 1
             
             files_summary = ", ".join([f"{name}({count})" for name, count in sorted(files_in_batch.items())])
-            logger.info(f"  Processing batch {batch_num}/{total_batches} ({len(batch_chunks)} chunks) - Files: {files_summary}")
+            logger.debug(f"  Processing batch {batch_num}/{total_batches} ({len(batch_chunks)} chunks) - Files: {files_summary}")
             
             try:
                 self.collection.add(
@@ -88,12 +84,12 @@ class ChromaDBVectorStore(BaseVectorStore):
                     metadatas=batch_metadata,
                     ids=batch_ids
                 )
-                logger.info(f"  ✅ Batch {batch_num}/{total_batches} added successfully")
+                logger.debug(f"  ✅ Batch {batch_num}/{total_batches} added successfully")
             except Exception as e:
                 logger.error(f"  ❌ Error adding batch {batch_num}/{total_batches}: {str(e)}")
                 raise
         
-        logger.info(f"✅ Successfully added all {total_chunks} chunks to ChromaDB")
+        logger.debug(f"✅ Successfully added all {total_chunks} chunks to ChromaDB")
         return ids
 
     def prepare_data(self, nodes: List):
@@ -181,28 +177,24 @@ class ChromaDBVectorStore(BaseVectorStore):
         :param k: Number of top results to retrieve
         :return: The top k data chunks and their corresponding metadata
         """
-        logger.info(f"Querying ChromaDB with text: '{text[:100]}...' (k={k})")
-        
         try:
             results = self.collection.query(query_texts=[text], n_results=k)
             chunk_list: List[Chunk] = []
             
             # Check if we have any results
             if not results or "documents" not in results or not results["documents"]:
-                logger.warning(f"No documents found in ChromaDB query results")
+                logger.debug(f"No documents found in ChromaDB query results")
                 return chunk_list
             
             # Check if the first query result has documents
             if not results["documents"][0]:
-                logger.warning(f"ChromaDB query returned empty documents list")
+                logger.debug(f"ChromaDB query returned empty documents list")
                 return chunk_list
             
             documents = results["documents"][0]
             distances = (results["distances"] or [[]])[0]
             ids = results.get("ids", [[]])[0] if results.get("ids") else []
             metadatas = results.get("metadatas", [[]])[0] if results.get("metadatas") else []
-            
-            logger.info(f"ChromaDB returned {len(documents)} documents")
             
             # Ensure all lists have the same length
             min_length = min(len(documents), len(ids) if ids else len(documents), len(metadatas) if metadatas else len(documents))
@@ -235,10 +227,7 @@ class ChromaDBVectorStore(BaseVectorStore):
                     similarity=chunk_similarity
                 )
                 chunk_list.append(chunk)
-            
-            logger.info(f"Successfully created {len(chunk_list)} Chunk objects")
             return chunk_list
-            
         except Exception as e:
             logger.error(f"Error retrieving chunks from ChromaDB: {e}")
             import traceback
