@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+from byoeb.constants.feature_enums import FeatureFlag
 from byoeb.services.chat.utils import clean_message_for_console
 import byoeb.services.chat.constants as constants
 import re
@@ -25,7 +26,7 @@ from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search im
 from byoeb_core.models.byoeb.user import User
 from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.chat_app.configuration.dependency_setup import llm_client
-from byoeb.chat_app.configuration.config import env_ashabot_message_cache_capacity
+from byoeb.chat_app.configuration.config import env_ashabot_message_cache_capacity, feature_flags
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 
 embedding_cap = int(env_ashabot_message_cache_capacity or 64)
@@ -649,7 +650,7 @@ class ByoebUserGenerateResponse(Handler):
             user_language = message.user.user_language
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
 
-            if embedding_fn:
+            if embedding_fn and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
                 start_time = datetime.now(timezone.utc).timestamp()
                 embedding = await embedding_fn.aget_text_embedding(message_english)
                 end_time = datetime.now(timezone.utc).timestamp()

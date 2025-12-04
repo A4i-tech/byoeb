@@ -1,6 +1,7 @@
 import asyncio
 import os
 import json
+from byoeb.constants.feature_enums import FeatureFlag
 from dotenv import load_dotenv
 
 # Get the directory of the current script
@@ -71,3 +72,15 @@ env_persist_directory = os.getenv("PERSIST_DIRECTORY")
 
 # Others
 env_ashabot_message_cache_capacity = os.getenv("ASHABOT_MESSAGE_CACHE_CAPACITY")
+
+env_ashabot_feature_flags = os.getenv("ASHABOT_FEATURE_FLAGS")
+feature_flags: set[FeatureFlag] = set()
+for entry in (env_ashabot_feature_flags or "").split(","):
+    print(entry)
+    entry = entry.strip()
+    if not entry:
+        continue
+    try:
+        feature_flags.add(FeatureFlag(entry))
+    except ValueError:
+        raise RuntimeError("Unexpected feature flag: " + entry)
