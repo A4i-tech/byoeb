@@ -9,8 +9,10 @@ import requests
 BASE_URL = os.getenv("RECIEVE_URL")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 USER_NAME = os.getenv("USER_NAME", "byoeb-user")
-if BASE_URL is None or PHONE_NUMBER_ID is None:
-    raise RuntimeError("Environment variables are missing")
+if BASE_URL is None:
+    raise RuntimeError("Environment variable (BASE_URL) is missing")
+if PHONE_NUMBER_ID is None:
+    raise RuntimeError("Environment variable (PHONE_NUMBER_ID) is missing")
 
 BASE_URL = BASE_URL.replace("receive", "")
 MCP_URL = BASE_URL + "mcp?phone_number=" + PHONE_NUMBER_ID
