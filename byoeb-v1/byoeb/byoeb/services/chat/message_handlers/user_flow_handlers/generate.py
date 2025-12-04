@@ -654,11 +654,12 @@ class ByoebUserGenerateResponse(Handler):
                 embedding = await embedding_fn.aget_text_embedding(message_english)
                 end_time = datetime.now(timezone.utc).timestamp()
                 print(f"Generated cache embeddings in {end_time - start_time}s")
+                cache_result = self.embedding_cache.query(embedding, 0.9)
             else:
                 embedding = None
+                cache_result = None, None, None
 
             start_time = datetime.now(timezone.utc).timestamp()
-            cache_result = self.embedding_cache.query(embedding, 0.9)
             cache_val = cache_result[2]
             if cache_val and "answer" in cache_val and user_language in cache_val["answer"]:
                 response_en, response_source, related_questions, tokens, tokens_backup = cache_val["answer"][user_language]

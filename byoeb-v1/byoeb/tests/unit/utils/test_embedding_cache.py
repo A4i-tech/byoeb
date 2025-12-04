@@ -52,7 +52,7 @@ def test_query_below_threshold_returns_none(new_cache):
     cache.store(embedding, {"text": "hello"})
 
     res = cache._search(embedding)
-    thresh = res["distance"] + 0.1
+    thresh = res[1] + 0.1
 
     q = cache.query(embedding, thresh=thresh)
     assert q[1] is None
@@ -138,4 +138,43 @@ def test_traverse_lists_all_entries(new_cache):
     cache.store(emb_two, {"value": "two"})
 
     entries = sorted(list(cache.traverse()))
-    assert entries == [(0, {"value": "one"}), (1, {"value": "two"})]
+    assert entries == [(cache._preprocess_id(0), {"value": "one"}), (cache._preprocess_id(1), {"value": "two"})]
+
+
+def test_store_and_query_string_embedding(new_cache):
+    cache = new_cache("str-basic", capacity=2)
+
+    _, stored_id, _ = cache.store("string-key", {"value": "string"})
+    assert cache.get(stored_id) == {"value": "string"}
+
+    dist, queried_id, value = cache.query("string-key", thresh=0)
+    assert dist == 1.0
+    assert queried_id == stored_id
+    assert value == {"value": "string"}
+
+
+def test_string_embedding_eviction_respects_lru(new_cache):
+    cache = new_cache("str-evict", capacity=2)
+
+    id_one = cache.store("one", {"value": "one"})[1]
+    cache.store("two", {"value": "two"})
+
+    # Touch "one" so it is the most recent entry before inserting a third value.
+    cache.query("one", thresh=0)
+
+    _, id_three, _ = cache.store("three", {"value": "three"})
+
+    assert cache.query("two", thresh=0) == (None, None, None)
+    assert cache.get(id_one) == {"value": "one"}
+    assert cache.get(id_three) == {"value": "three"}
+
+
+def test_string_embedding_hash_is_case_insensitive(new_cache):
+    cache = new_cache("str-case", capacity=2)
+
+    _, stored_id, _ = cache.store("KeyUpper", {"value": "upper"})
+
+    dist, queried_id, value = cache.query("keyupper", thresh=0)
+    assert dist == 1.0
+    assert queried_id == stored_id
+    assert value == {"value": "upper"}
