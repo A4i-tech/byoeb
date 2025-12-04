@@ -70,7 +70,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ inputs.directory }}
-        run: poetry lock --no-interaction --no-ansi && poetry install --no-interaction
+        run: poetry sync --no-interaction --no-ansi
 
       - name: Run tests
         if: ${{ inputs.tests-path != '' }}
