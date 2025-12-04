@@ -101,3 +101,8 @@ async def clear(request: Request) -> JSONResponse:
     phone_number_id = data.get("phone_number_id")
     clear_history(phone_number_id)
     return JSONResponse(content={"status": "cleared"}, status_code=200)
+
+@admin_apis_router.post("/purge_request_cache")
+async def query_handler() -> int:
+    from byoeb.chat_app.configuration.dependency_setup import byoeb_user_generate_response
+    return byoeb_user_generate_response.embedding_cache.purge()

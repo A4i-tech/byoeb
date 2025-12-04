@@ -92,6 +92,10 @@ class BaseVectorStore(ABC):
         pass
 
     @abstractmethod
+    async def agenerate_embedding(self, text: str) -> list:
+        pass
+
+    @abstractmethod
     async def get_count(self) -> int:
         pass
 

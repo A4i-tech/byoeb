@@ -7,6 +7,7 @@ from byoeb_core.media_storage.base import BaseMediaStorage
 from byoeb_core.models.media_storage.file_data import FileData, FileMetadata
 from byoeb_core.vector_stores.base import BaseVectorStore, VectorStoreMetadata
 from llama_index.core.schema import TextNode
+from llama_index.core.embeddings.mock_embed_model import MockEmbedding
 
 
 class InMemoryMediaStorage(BaseMediaStorage):
@@ -36,6 +37,7 @@ class DummyVectorStore(BaseVectorStore):
         self.chunks: List[dict] = []
         self.create_called = False
         self.retrieve_calls = 0
+        self.embedding_fn = MockEmbedding(embed_dim=4)
 
     async def get_metadata(self) -> VectorStoreMetadata:
         return VectorStoreMetadata(store_type="dummy", collection="dummy-collection", count=len(self.chunks), capabilities={})
@@ -80,6 +82,9 @@ class DummyVectorStore(BaseVectorStore):
 
     async def get_count(self) -> int:
         return len(self.chunks)
+
+    async def agenerate_embedding(self, text: str) -> list:
+        return self.embedding_fn.get_text_embedding(text)
 
 
 class PartiallyFailingMediaStorage(InMemoryMediaStorage):

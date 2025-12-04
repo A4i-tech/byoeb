@@ -306,6 +306,7 @@ class AzureVectorStore(BaseVectorStore):
         results = []
         if (search_type == AzureVectorSearchType.HYBRID or search_type == AzureVectorSearchType.DENSE) and vector_field is None:
             raise ValueError("vector_field is required for dense and hybrid search types")
+
         if search_type == AzureVectorSearchType.BM25.value:
             results = await self.search_client.search(
                 search_text=text,
@@ -383,3 +384,7 @@ class AzureVectorStore(BaseVectorStore):
 
     def delete_store(self):
         self.search_index_client.delete_index(self.__index_name)
+        self.search_index_client.create_index(self.index_definition())
+
+    async def agenerate_embedding(self, text: str) -> list:
+        return await self.__embedding_function.aget_text_embedding(text)
