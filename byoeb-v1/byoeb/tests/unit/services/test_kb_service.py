@@ -83,9 +83,6 @@ class DummyVectorStore(BaseVectorStore):
     async def get_count(self) -> int:
         return len(self.chunks)
 
-    async def agenerate_embedding(self, text: str) -> list:
-        return self.embedding_fn.get_text_embedding(text)
-
 
 class PartiallyFailingMediaStorage(InMemoryMediaStorage):
     def __init__(self, files: Dict[str, FileData], fail_names: set[str]):

@@ -183,6 +183,3 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
     def delete_store(self):
         self.chromadb.delete_store()
         self.vector_store_index = None
-    
-    async def agenerate_embedding(self, text: str) -> list:
-        return await self.__embedding_function.aget_text_embedding(text)

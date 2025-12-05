@@ -385,6 +385,3 @@ class AzureVectorStore(BaseVectorStore):
     def delete_store(self):
         self.search_index_client.delete_index(self.__index_name)
         self.search_index_client.create_index(self.index_definition())
-
-    async def agenerate_embedding(self, text: str) -> list:
-        return await self.__embedding_function.aget_text_embedding(text)
