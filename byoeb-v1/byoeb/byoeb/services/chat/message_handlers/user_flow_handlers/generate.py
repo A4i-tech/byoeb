@@ -330,7 +330,8 @@ class ByoebUserGenerateResponse(Handler):
         related_questions: List[str] = None,
         emoji = None,
         status = None,
-        cache_details: CacheResult = (None, None, None)  # used for audio cache
+        cache_details: CacheResult = (None, None, None),  # used for audio cache
+        cache_hit: bool = False,
     ) -> ByoebMessageContext:
         start_time = datetime.now(timezone.utc).timestamp()
         if response_source is None:
@@ -355,10 +356,11 @@ class ByoebUserGenerateResponse(Handler):
         user_language = message.user.user_language
 
         cache_info = {"cache_score": cache_details[0]} if cache_details[0] is not None else {}
+        if cache_hit:
+            cache_info["cache_hit"] = cache_hit
         if cache_details[1] is not None:
             cache_id = cache_details[1]
             cache = cache_details[2]
-            cache_info["cache_hit"] = True
         else:
             cache_id, cache = None, None
 
@@ -649,6 +651,7 @@ class ByoebUserGenerateResponse(Handler):
             message_english = message.message_context.message_english_text
             user_language = message.user.user_language
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
+            cache_hit = False
 
             if embedding_fn and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
                 start_time = datetime.now(timezone.utc).timestamp()
@@ -664,6 +667,7 @@ class ByoebUserGenerateResponse(Handler):
             cache_val = cache_result[2]
             if cache_val and "answer" in cache_val and user_language in cache_val["answer"]:
                 response_en, response_source, related_questions, tokens, tokens_backup = cache_val["answer"][user_language]
+                cache_hit = True
             else:
                 retrieved_chunks_task = self.__aretrieve_chunks(message_english, k=3)
                 retrieved_chunks_backup_task = self.__aretrieve_chunks(
@@ -729,7 +733,8 @@ class ByoebUserGenerateResponse(Handler):
                 emoji=self.USER_PENDING_EMOJI,
                 status=constants.PENDING,
                 related_questions=related_questions,
-                cache_details=cache_result
+                cache_details=cache_result,
+                cache_hit=cache_hit
             )
         print("Created user message")
         byoeb_expert_message = None

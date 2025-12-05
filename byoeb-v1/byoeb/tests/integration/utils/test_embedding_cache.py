@@ -20,8 +20,8 @@ PURGE_URL = BASE_URL + "purge_request_cache"
 REGISTER_URL = BASE_URL + "register_users"
 DELETE_URL = BASE_URL + "delete_users"
 
-def get_cache_hit(resp: Any) -> float:
-    return next((v for k, v in resp.additional_info if k == "Cache hit"), 0.0)
+def get_cache_hit(resp: Any) -> bool:
+    return next((v for k, v in resp.additional_info if k == "Cache hit"), False)
 
 def has_devanagari(text: str) -> bool:
     return any("\u0900" <= ch <= "\u097f" for ch in text)
@@ -36,14 +36,10 @@ async def run_queries(queries: List[str], features: Set[Literal["audio", "histor
 async def test_repeated_query_hits_cache():
     requests.post(PURGE_URL).raise_for_status()
     queries = ["what is antara injection?"] * 2
-    cache_hits = []
 
-    async for resp in run_queries(queries):
-        cache_hit = get_cache_hit(resp)
-        cache_hits.append(cache_hit)
-
-    assert cache_hits[0] == 0.0
-    assert cache_hits[1] > 0.0
+    responses = [resp async for resp in run_queries(queries)]
+    assert not get_cache_hit(responses[0])
+    assert get_cache_hit(responses[1])
 
 
 @pytest.mark.asyncio
@@ -74,8 +70,5 @@ async def test_cached_response_respects_lang(lang: LanguageCode, query: str, fea
     assert responses
     resp = responses[0]
 
-    if "hit" in features:
-        assert get_cache_hit(resp) > 0.0
-    else:
-        assert get_cache_hit(resp) == 0.0
+    assert get_cache_hit(resp) == ("hit" in features)
     assert has_devanagari(resp.text) == ("devanagari" in features)

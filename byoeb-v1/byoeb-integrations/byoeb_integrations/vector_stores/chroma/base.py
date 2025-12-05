@@ -320,6 +320,3 @@ class ChromaDBVectorStore(BaseVectorStore):
             logger.info(f"ℹ️  Collection {self.__collection_name} doesn't exist, nothing to delete")
         except Exception as e:
             logger.warning(f"⚠️  Error deleting collection: {str(e)}")
-
-    async def agenerate_embedding(self, text: str) -> list:
-        return await self.__embedding_function.aget_text_embedding(text)
