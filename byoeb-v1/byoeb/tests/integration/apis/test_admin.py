@@ -10,13 +10,15 @@ if not BASE_URL:
 ASHA_LOGS_URL = f"{BASE_URL.replace('/receive', '').rstrip('/')}/asha_logs"
 
 
-def test_post_asha_logs_returns_html_and_download_link():
+def test_post_asha_logs_streams_csv_with_attachment_header():
     now = datetime.now(timezone.utc)
     start = now - timedelta(minutes=30)
     response = requests.post(ASHA_LOGS_URL, data={"start": start.isoformat(), "end": now.isoformat()})
     response.raise_for_status()
-    assert response.headers.get("content-type", "").startswith("text/html")
-    assert "<table" in response.text
+    assert response.headers.get("content-type", "").startswith("text/csv")
+    content_disposition = response.headers.get("content-disposition", "")
+    assert "attachment;" in content_disposition
+    assert "asha-logs" in content_disposition
 
 
 def test_post_asha_logs_requires_end_datetime():
