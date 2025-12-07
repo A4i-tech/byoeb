@@ -5,7 +5,7 @@ import time
 import uuid
 from typing import Any, List, Dict, Literal, Set
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
-from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt
+from pydantic import BaseModel, Field, PositiveInt
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
     MessageContext,
