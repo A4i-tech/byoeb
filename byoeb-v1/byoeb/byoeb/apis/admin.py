@@ -2,12 +2,9 @@ import os
 from byoeb.models.experiment import QueryInput
 from io import BytesIO
 from datetime import datetime
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
-from fastapi import Form, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi import APIRouter, Form, HTTPException, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import StreamingResponse
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
 from byoeb.services.admin.message_process import process_message, clear_history
 from byoeb.chat_app.configuration.dependency_setup import media_storage
@@ -32,33 +29,24 @@ async def experiment_form_get(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("admin.html", {"request": request})
 
 @admin_apis_router.post("/asha_logs")
-async def form_post(request: Request, start_datetime: str = Form(...), end_datetime: str = Form(...)) -> HTMLResponse:
-    start = datetime.strptime(start_datetime, "%Y-%m-%dT%H:%M")
-    end = datetime.strptime(end_datetime, "%Y-%m-%dT%H:%M")
-    
+async def form_post(request: Request, start: datetime = Form(...), end: datetime = Form(...)) -> HTMLResponse:
     start_unix = str(start.timestamp())
     end_unix = str(end.timestamp())
-    ashas_df = await fetch_daily_logs(
-        start_timestamp=start_unix,
-        end_timestamp=end_unix
-    )
+    ashas_df = await fetch_daily_logs(start_timestamp=start_unix, end_timestamp=end_unix)
     
     # Save to excel for download
     ashas_df.to_excel(file_path, index=False)
     blob_file_name = f"logs/{os.path.basename(file_path)}"
     # Check if file exists before deleting using aget_file_properties
-    status, _ = await media_storage.aget_file_properties(file_name=blob_file_name)
+    fileprops = await media_storage.aget_file_properties(file_name=blob_file_name)
 
     # Only delete if file exists (status 200 means file exists)
-    if status == 200:
+    if fileprops is not None:
         await media_storage.adelete_file(file_name=blob_file_name)
         print(f"Deleted existing file: {blob_file_name}")
     else:
-        print(f"File {blob_file_name} does not exist (status: {status}), skipping delete")
-    await media_storage.aupload_file(
-        file_path=file_path,
-        file_name=blob_file_name
-    )
+        print(f"File {blob_file_name} does not exist, skipping delete")
+    await media_storage.aupload_file(file_path=file_path, file_name=blob_file_name)
     # await media_storage._close()
     # Render HTML
     df_html = ashas_df.to_html(classes="table table-bordered", index=False)
@@ -70,7 +58,7 @@ async def form_post(request: Request, start_datetime: str = Form(...), end_datet
 
 @admin_apis_router.get("/download")
 async def download_excel():
-    _, asha_data = await media_storage.adownload_file(
+    asha_data = await media_storage.adownload_file(
         file_name=f"logs/{os.path.basename(file_path)}"
     )
     # await media_storage._close()

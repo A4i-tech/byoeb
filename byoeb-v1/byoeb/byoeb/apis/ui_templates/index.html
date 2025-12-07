@@ -25,8 +25,8 @@
     <script>
         window.addEventListener('DOMContentLoaded', () => {
             const now = new Date().toISOString().slice(0, 16);
-            const startInput = document.querySelector('input[name="start_datetime"]');
-            const endInput = document.querySelector('input[name="end_datetime"]');
+            const startInput = document.querySelector('input[name="start"]');
+            const endInput = document.querySelector('input[name="end"]');
 
             startInput.max = now;
             endInput.max = now;
@@ -53,12 +53,12 @@
         <h2 class="mb-4">Select Start and End DateTime</h2>
         <form method="post" class="mb-4">
             <div class="mb-3">
-                <label for="start_datetime" class="form-label">Start Date & Time:</label>
-                <input type="datetime-local" name="start_datetime" class="form-control" required>
+                <label for="start" class="form-label">Start Date & Time:</label>
+                <input type="datetime-local" name="start" class="form-control" required>
             </div>
             <div class="mb-3">
-                <label for="end_datetime" class="form-label">End Date & Time:</label>
-                <input type="datetime-local" name="end_datetime" class="form-control" required>
+                <label for="end" class="form-label">End Date & Time:</label>
+                <input type="datetime-local" name="end" class="form-control" required>
             </div>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">Generate</button>
