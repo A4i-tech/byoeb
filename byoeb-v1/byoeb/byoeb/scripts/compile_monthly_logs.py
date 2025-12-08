@@ -7,16 +7,29 @@ import asyncio
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict, Any
 from zoneinfo import ZoneInfo
 import pandas as pd
 from dotenv import load_dotenv
+import os
+import json
+import tiktoken
+from openai import OpenAI
 
 # Add parent directory to path to import byoeb modules
 script_dir = Path(__file__).parent
 byoeb_package_dir = script_dir.parent
 byoeb_parent_dir = byoeb_package_dir.parent
 sys.path.insert(0, str(byoeb_parent_dir))
+
+repo_root = Path(__file__).resolve().parents[3] if len(Path(__file__).resolve().parents) >= 4 else byoeb_parent_dir
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+
+try:
+    from src.utils import get_llm_response  # type: ignore
+except Exception:
+    get_llm_response = None
 
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
 
@@ -119,6 +132,29 @@ Examples:
         "--output", 
         type=str, 
         help="Output Excel file path (default: monthly_logs_YYYY-MM.xlsx)"
+    )
+    parser.add_argument(
+        "--llm-report",
+        action="store_true",
+        help="Generate LLM-based executive summary with token/cost estimates."
+    )
+    parser.add_argument(
+        "--llm-model",
+        type=str,
+        default="gpt-4o-mini",
+        help="Model for LLM summary (default: gpt-4o-mini)."
+    )
+    parser.add_argument(
+        "--llm-max-tokens",
+        type=int,
+        default=300,
+        help="Max completion tokens for LLM summary (default: 300)."
+    )
+    parser.add_argument(
+        "--llm-temperature",
+        type=float,
+        default=0.2,
+        help="Temperature for LLM summary (default: 0.2)."
     )
     return parser.parse_args()
 
@@ -733,15 +769,34 @@ def format_markdown_table(headers: list, rows: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def build_markdown_report(month_str: str, summary_insights: str, idk_analysis: dict, response_time_analysis: dict) -> str:
+def build_markdown_report(
+    month_str: str,
+    summary_insights: str,
+    idk_analysis: dict,
+    response_time_analysis: dict,
+    llm_usage: Optional[dict] = None,
+    llm_summary: Optional[str] = None
+) -> str:
     """Build a detailed markdown report for IDK and response time analyses."""
     sections: list[str] = []
 
     # Executive summary
     sections.append(f"# Executive Summary ({month_str})")
     sections.append("")
-    sections.append(summary_insights)
+    sections.append(llm_summary or summary_insights)
     sections.append("")
+
+    # LLM usage
+    if llm_usage:
+        sections.append("## LLM Token/Cost Estimate")
+        sections.append(
+            f"- Model: {llm_usage.get('model', '-')}\n"
+            f"- Prompt tokens: {llm_usage.get('prompt_tokens', 0)}\n"
+            f"- Completion tokens: {llm_usage.get('completion_tokens', 0)}\n"
+            f"- Total tokens: {llm_usage.get('total_tokens', 0)}\n"
+            f"- Estimated cost: ${llm_usage.get('estimated_cost', 0):.4f}"
+        )
+        sections.append("")
 
     # IDK overview
     sections.append("## IDK Overview")
@@ -876,6 +931,98 @@ def build_markdown_report(month_str: str, summary_insights: str, idk_analysis: d
     add_pattern("Message Type", "by_message_type")
 
     return "\n".join(sections)
+
+
+def build_llm_prompt(month_str: str, idk_analysis: dict, response_time_analysis: dict) -> List[Dict[str, str]]:
+    """Construct a concise prompt for the LLM executive summary."""
+    idk_pct = idk_analysis.get("idk_percentage", 0)
+    idk_count = idk_analysis.get("idk_count", 0)
+    total_q = idk_analysis.get("total_queries", 0)
+    themes_pct = idk_analysis.get("asha_themes_percentage", {}) or {}
+    top_themes = sorted(themes_pct.items(), key=lambda x: x[1], reverse=True)[:5]
+
+    rt_stats = response_time_analysis.get("statistics", {}) or {}
+
+    def fmt_top_themes():
+        if not top_themes:
+            return "None"
+        return ", ".join([f"{k} {v:.1f}%" for k, v in top_themes])
+
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You are a concise analytics assistant. "
+                "Write an executive summary in <=100 words, 3-5 crisp insights. "
+                "Focus on IDK rates, top themes, language/geo gaps, and response times. "
+                "Be direct and non-repetitive."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Month: {month_str}\n"
+                f"Total queries: {total_q}\n"
+                f"IDK: {idk_count} ({idk_pct:.1f}%)\n"
+                f"Top IDK themes: {fmt_top_themes()}\n"
+                f"Response times (s): mean {rt_stats.get('mean', 0)}, median {rt_stats.get('median', 0)}, "
+                f"p95 {rt_stats.get('p95', 0)}\n"
+                "Provide 3-5 bullet-like sentences (but as a short paragraph) "
+                "covering: IDK rate, biggest themes, any notable language/geo gaps (if known), "
+                "and response-time headline."
+            ),
+        },
+    ]
+
+
+def estimate_llm_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
+    """Estimate cost based on simple per-1k pricing map."""
+    pricing = {
+        "gpt-4o-mini": {"in": 0.000150, "out": 0.000600},
+        "gpt-4o-2024-08-06": {"in": 0.0025, "out": 0.01},
+    }
+    price = pricing.get(model, pricing["gpt-4o-mini"])
+    return (prompt_tokens * price["in"] + completion_tokens * price["out"]) / 1000
+
+
+def generate_llm_summary(
+    month_str: str,
+    idk_analysis: dict,
+    response_time_analysis: dict,
+    model: str,
+    temperature: float,
+    max_tokens: int
+) -> Tuple[Optional[str], Optional[dict]]:
+    """Generate LLM summary with token/cost usage."""
+    try:
+        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        if not client.api_key:
+            print("Warning: OPENAI_API_KEY not set. Skipping LLM summary.")
+            return None, None
+        messages = build_llm_prompt(month_str, idk_analysis, response_time_analysis)
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        text = response.choices[0].message.content.strip()
+        usage = response.usage
+        prompt_tokens = usage.prompt_tokens if hasattr(usage, "prompt_tokens") else 0
+        completion_tokens = usage.completion_tokens if hasattr(usage, "completion_tokens") else 0
+        total_tokens = usage.total_tokens if hasattr(usage, "total_tokens") else prompt_tokens + completion_tokens
+        estimated_cost = estimate_llm_cost(model, prompt_tokens, completion_tokens)
+        llm_usage = {
+            "model": model,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+            "estimated_cost": estimated_cost,
+        }
+        return text, llm_usage
+    except Exception as e:
+        print(f"Warning: LLM summary failed: {e}")
+        return None, None
 
 
 def save_to_excel(df: pd.DataFrame, output_path: str) -> None:
@@ -1056,9 +1203,28 @@ async def main() -> None:
     month_str = start.strftime("%Y-%m")
     summary_insights = generate_summary_insights(idk_analysis, response_time_analysis, month_str)
     asha_buckets = format_asha_idk_buckets(idk_analysis)
-    
+
+    llm_summary = None
+    llm_usage = None
+    if args.llm_report:
+        llm_summary, llm_usage = generate_llm_summary(
+            month_str=month_str,
+            idk_analysis=idk_analysis,
+            response_time_analysis=response_time_analysis,
+            model=args.llm_model,
+            temperature=args.llm_temperature,
+            max_tokens=args.llm_max_tokens,
+        )
+        if llm_usage:
+            print("\nLLM Summary Token/Cost Estimate:")
+            print(f"  Model: {llm_usage['model']}")
+            print(f"  Prompt tokens: {llm_usage['prompt_tokens']}")
+            print(f"  Completion tokens: {llm_usage['completion_tokens']}")
+            print(f"  Total tokens: {llm_usage['total_tokens']}")
+            print(f"  Estimated cost: ${llm_usage['estimated_cost']:.4f}")
+
     print(f"\nExecutive Summary ({month_str}):")
-    print(f"{summary_insights}")
+    print(f"{llm_summary or summary_insights}")
     print(f"\nASHA IDK Bucket Distribution:")
     print(asha_buckets)
     
@@ -1104,7 +1270,14 @@ async def main() -> None:
 
     # Save markdown summary (executive + detailed tables)
     try:
-        summary_md = build_markdown_report(month_str, summary_insights, idk_analysis, response_time_analysis)
+        summary_md = build_markdown_report(
+            month_str,
+            summary_insights,
+            idk_analysis,
+            response_time_analysis,
+            llm_usage=llm_usage,
+            llm_summary=llm_summary
+        )
         Path(summary_output_path).write_text(summary_md, encoding="utf-8")
         print(f"Summary markdown: {summary_output_path}")
     except Exception as e:
