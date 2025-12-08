@@ -65,7 +65,7 @@ JOB_CONFIGURATIONS = [
         "function": message_leaderboard,
         "enabled": True
     },
-    {
+        {
         "id": "send_dyk",
         "name": "Send DYK",
         "trigger": IntervalTrigger(weeks=2, start_date=datetime(2025, 11, 5, 11, 0, tzinfo=TIMEZONE)),  # Biweekly 11 AM Wednesday

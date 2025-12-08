@@ -720,6 +720,164 @@ def format_asha_idk_buckets(idk_analysis: dict) -> str:
     return "\n".join(lines)
 
 
+def format_markdown_table(headers: list, rows: list[dict]) -> str:
+    """Render a simple markdown table."""
+    if not rows:
+        return "No data available."
+    lines = [
+        "| " + " | ".join(headers) + " |",
+        "| " + " | ".join(["---"] * len(headers)) + " |"
+    ]
+    for row in rows:
+        lines.append("| " + " | ".join(str(row.get(h, "")) for h in headers) + " |")
+    return "\n".join(lines)
+
+
+def build_markdown_report(month_str: str, summary_insights: str, idk_analysis: dict, response_time_analysis: dict) -> str:
+    """Build a detailed markdown report for IDK and response time analyses."""
+    sections: list[str] = []
+
+    # Executive summary
+    sections.append(f"# Executive Summary ({month_str})")
+    sections.append("")
+    sections.append(summary_insights)
+    sections.append("")
+
+    # IDK overview
+    sections.append("## IDK Overview")
+    sections.append(f"- Total queries: {idk_analysis.get('total_queries', 0):,}")
+    sections.append(f"- IDK queries: {idk_analysis.get('idk_count', 0):,} ({idk_analysis.get('idk_percentage', 0):.1f}%)")
+    sections.append("")
+
+    # IDK causes
+    causes = idk_analysis.get('causes', {}) or {}
+    causes_pct = idk_analysis.get('causes_percentage', {}) or {}
+    if causes:
+        rows = [
+            {
+                "Cause": name,
+                "Count": f"{count:,}",
+                "% of IDK": f"{causes_pct.get(name, 0):.1f}%"
+            }
+            for name, count in sorted(causes.items(), key=lambda x: x[1], reverse=True)
+        ]
+        sections.append("### IDK Causes")
+        sections.append(format_markdown_table(["Cause", "Count", "% of IDK"], rows))
+        sections.append("")
+
+    # ASHA IDK buckets
+    themes = idk_analysis.get('asha_themes', {}) or {}
+    themes_pct = idk_analysis.get('asha_themes_percentage', {}) or {}
+    if themes:
+        rows = [
+            {
+                "Theme": name,
+                "Count": f"{count:,}",
+                "% of Domain Gaps": f"{themes_pct.get(name, 0):.1f}%"
+            }
+            for name, count in sorted(themes.items(), key=lambda x: x[1], reverse=True)
+        ]
+        sections.append("### ASHA IDK Buckets")
+        sections.append(format_markdown_table(["Theme", "Count", "% of Domain Gaps"], rows))
+        sections.append("")
+
+    # Breakdowns
+    breakdowns = idk_analysis.get('breakdowns', {}) or {}
+
+    if breakdowns.get('by_language'):
+        rows = [
+            {
+                "Language": b["language"],
+                "IDK %": f"{b['idk_percentage']:.1f}%",
+                "IDK/Total": f"{b['idk_count']:,}/{b['total_queries']:,}"
+            }
+            for b in breakdowns["by_language"]
+        ]
+        sections.append("### IDK Breakdown by Language")
+        sections.append(format_markdown_table(["Language", "IDK %", "IDK/Total"], rows))
+        sections.append("")
+
+    if breakdowns.get('by_district'):
+        rows = [
+            {
+                "District": b["district"],
+                "IDK %": f"{b['idk_percentage']:.1f}%",
+                "IDK/Total": f"{b['idk_count']:,}/{b['total_queries']:,}"
+            }
+            for b in breakdowns["by_district"][:10]
+        ]
+        sections.append("### IDK Breakdown by District (top 10)")
+        sections.append(format_markdown_table(["District", "IDK %", "IDK/Total"], rows))
+        sections.append("")
+
+    if breakdowns.get('by_block'):
+        rows = [
+            {
+                "Block": b["block"],
+                "IDK %": f"{b['idk_percentage']:.1f}%",
+                "IDK/Total": f"{b['idk_count']:,}/{b['total_queries']:,}"
+            }
+            for b in breakdowns["by_block"][:10]
+        ]
+        sections.append("### IDK Breakdown by Block (top 10)")
+        sections.append(format_markdown_table(["Block", "IDK %", "IDK/Total"], rows))
+        sections.append("")
+
+    if breakdowns.get('by_sector'):
+        rows = [
+            {
+                "Sector": b["sector"],
+                "IDK %": f"{b['idk_percentage']:.1f}%",
+                "IDK/Total": f"{b['idk_count']:,}/{b['total_queries']:,}"
+            }
+            for b in breakdowns["by_sector"][:10]
+        ]
+        sections.append("### IDK Breakdown by Sector (top 10)")
+        sections.append(format_markdown_table(["Sector", "IDK %", "IDK/Total"], rows))
+        sections.append("")
+
+    # Response time summary
+    rt_stats = response_time_analysis.get('statistics', {}) or {}
+    sections.append("## Response Time Summary")
+    if rt_stats:
+        sections.append(
+            f"- Mean: {rt_stats.get('mean', 0):.1f}s; Median: {rt_stats.get('median', 0):.1f}s; "
+            f"P95: {rt_stats.get('p95', 0):.1f}s; P90: {rt_stats.get('p90', 0):.1f}s; "
+            f"P75: {rt_stats.get('p75', 0):.1f}s; Min: {rt_stats.get('min', 0):.1f}s; Max: {rt_stats.get('max', 0):.1f}s; "
+            f"Samples: {rt_stats.get('count', 0):,}"
+        )
+    else:
+        sections.append("- No valid response-time samples.")
+    sections.append("")
+
+    # Response time patterns
+    patterns = response_time_analysis.get('patterns', {}) or {}
+
+    def add_pattern(title: str, key: str):
+        if key in patterns and patterns[key]:
+            rows = []
+            for name, stat in patterns[key].items():
+                rows.append({
+                    "Group": name if name else "(blank)",
+                    "Mean": f"{stat.get('mean', 0):.1f}s",
+                    "Median": f"{stat.get('median', 0):.1f}s",
+                    "P95": f"{stat.get('p95', 0):.1f}s",
+                    "Count": stat.get('count', 0)
+                })
+            if rows:
+                sections.append(f"### Response Time by {title}")
+                sections.append(format_markdown_table(["Group", "Mean", "Median", "P95", "Count"], rows))
+                sections.append("")
+
+    add_pattern("Query Type", "by_query_type")
+    add_pattern("Message Category", "by_message_category")
+    add_pattern("Language", "by_language")
+    add_pattern("District", "by_district")
+    add_pattern("Message Type", "by_message_type")
+
+    return "\n".join(sections)
+
+
 def save_to_excel(df: pd.DataFrame, output_path: str) -> None:
     """Save dataframe to Excel file."""
     if df.empty:
@@ -914,11 +1072,14 @@ async def main() -> None:
         output_path = str(base_output_path)
         idk_output_path = str(base_output_path.parent / f"{base_output_path.stem}_idk_queries{base_output_path.suffix}")
         response_time_output_path = str(base_output_path.parent / f"{base_output_path.stem}_response_times{base_output_path.suffix}")
+        summary_output_path = str(base_output_path.parent / f"{base_output_path.stem}_summary.md")
     else:
         month_str = start.strftime("%Y-%m")
         output_path = f"monthly_logs_{month_str}.xlsx"
         idk_output_path = f"monthly_logs_{month_str}_idk_queries.xlsx"
         response_time_output_path = f"monthly_logs_{month_str}_response_times.xlsx"
+        summary_output_path = f"monthly_logs_{month_str}_summary.md"
+        summary_output_path = f"monthly_logs_{month_str}_summary.md"
     
     # Save main logs
     try:
@@ -940,6 +1101,14 @@ async def main() -> None:
             save_to_excel(response_time_analysis['response_time_data'], response_time_output_path)
         except (OSError, RuntimeError) as e:
             print(f"Warning: Failed to save response time data: {e}")
+
+    # Save markdown summary (executive + detailed tables)
+    try:
+        summary_md = build_markdown_report(month_str, summary_insights, idk_analysis, response_time_analysis)
+        Path(summary_output_path).write_text(summary_md, encoding="utf-8")
+        print(f"Summary markdown: {summary_output_path}")
+    except Exception as e:
+        print(f"Warning: Failed to save summary markdown: {e}")
     
     print(f"\n{'='*SEPARATOR_LENGTH}")
     print(f"Compilation complete!")
