@@ -42,6 +42,8 @@ except Exception:
     get_llm_response = None
 
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
+# Reuse existing Azure Blob client configuration
+from byoeb.kb_app.configuration.dependency_setup import amedia_storage
 
 # Constants
 IST = ZoneInfo("Asia/Kolkata")
@@ -181,6 +183,17 @@ Examples:
         default=0.2,
         help="Temperature for LLM summary (default: 0.2)."
     )
+    parser.add_argument(
+        "--upload-azure",
+        action="store_true",
+        help="Upload the generated analysis folder to Azure Blob Storage (uses configured amedia_storage)."
+    )
+    parser.add_argument(
+        "--azure-prefix",
+        type=str,
+        default=None,
+        help="Optional prefix in Azure Blob (default: analysis/<YYYY-MM>/)."
+    )
     return parser.parse_args()
 
 
@@ -285,6 +298,43 @@ async def compute_previous_month_metrics(start: datetime, end: datetime) -> Opti
         print(f"Warning: Failed to fetch previous month data: {e}")
         print("MoM comparison will be skipped.")
         return None
+
+
+async def upload_folder_to_azure(local_folder: Path, month_str: str, prefix: Optional[str] = None) -> None:
+    """Upload all files in local_folder to Azure Blob Storage under the given prefix."""
+    if prefix:
+        blob_prefix = prefix.rstrip("/") + "/"
+    else:
+        blob_prefix = f"analysis/{month_str}/"
+
+    local_folder = local_folder.resolve()
+    if not local_folder.exists():
+        print(f"Warning: Output folder does not exist: {local_folder}")
+        return
+
+    # Collect files
+    files = [p for p in local_folder.rglob("*") if p.is_file()]
+    if not files:
+        print(f"Warning: No files to upload in {local_folder}")
+        return
+
+    print(f"\nUploading {len(files)} files to Azure Blob Storage...")
+    print(f"Local folder : {local_folder}")
+    print(f"Blob prefix  : {blob_prefix}")
+
+    for file_path in files:
+        rel_path = file_path.relative_to(local_folder).as_posix()
+        blob_name = blob_prefix + rel_path
+        try:
+            await amedia_storage.aupload_file(file_path=str(file_path), file_name=blob_name)
+            print(f"  ✅ {blob_name}")
+        except Exception as e:
+            print(f"  ⚠️  Failed to upload {blob_name}: {e}")
+
+    try:
+        await amedia_storage._close()
+    except Exception:
+        pass
 
 
 def filter_test_users(df: pd.DataFrame) -> pd.DataFrame:
@@ -2213,6 +2263,8 @@ async def main() -> None:
     # Count files in output directory
     output_files = list(output_dir.glob("*"))
     file_count = len(output_files)
+    chart_files = list(output_dir.glob("*.png")) if HAS_MATPLOTLIB else []
+    excel_files = list(output_dir.glob("*.xlsx")) if args.save_excel else []
     
     print(f"\n{'='*SEPARATOR_LENGTH}")
     print(f"Compilation complete!")
@@ -2221,10 +2273,8 @@ async def main() -> None:
     print(f"📄 Files created: {file_count}")
     print(f"   - Markdown report: {Path(summary_output_path).name}")
     if HAS_MATPLOTLIB:
-        chart_files = list(output_dir.glob("*.png"))
         print(f"   - Chart images: {len(chart_files)} PNG files")
     if args.save_excel:
-        excel_files = list(output_dir.glob("*.xlsx"))
         print(f"   - Excel files: {len(excel_files)} files")
     print(f"\n📤 Upload to Azure Storage:")
     print(f"   Upload ONLY this folder: {output_dir.name}/")
@@ -2234,6 +2284,13 @@ async def main() -> None:
     print(f"   This ensures only the current month's data is uploaded.")
     print(f"\nTotal rows processed: {len(df)}")
     print(f"{'='*SEPARATOR_LENGTH}")
+
+    # Optional: upload to Azure Blob Storage
+    if args.upload_azure:
+        azure_prefix = args.azure_prefix or f"analysis/{month_str}/"
+        print(f"\nStarting Azure upload with prefix: {azure_prefix}")
+        await upload_folder_to_azure(output_dir, month_str, prefix=azure_prefix)
+        print("Azure upload complete.")
 
 
 if __name__ == "__main__":
