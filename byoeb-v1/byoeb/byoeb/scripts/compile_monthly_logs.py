@@ -43,7 +43,11 @@ except Exception:
 
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
 # Reuse existing Azure Blob client configuration
-from byoeb.kb_app.configuration.dependency_setup import amedia_storage
+from byoeb.kb_app.configuration.dependency_setup import amedia_storage, amedia_storage_analysis
+# Mongo factory / repos
+from byoeb.factory.mongo_db import MongoDBFactory, Scope
+from byoeb.repositories.repository_factory import RepositoryFactory
+from byoeb.chat_app.configuration.config import app_config
 
 # Constants
 IST = ZoneInfo("Asia/Kolkata")
@@ -241,7 +245,7 @@ def get_previous_month_range(current_start: datetime) -> Tuple[datetime, datetim
     return prev_start, prev_end
 
 
-async def compute_previous_month_metrics(start: datetime, end: datetime) -> Optional[dict]:
+async def compute_previous_month_metrics(start: datetime, end: datetime, user_repo=None) -> Optional[dict]:
     """Fetch previous month's data and compute metrics needed for MoM comparison."""
     try:
         prev_start, prev_end = get_previous_month_range(start)
@@ -279,11 +283,23 @@ async def compute_previous_month_metrics(start: datetime, end: datetime) -> Opti
         prev_rt_stats = prev_rt_analysis.get('statistics', {}) or {}
         prev_avg_rt = prev_rt_stats.get('mean', 0)
         
+        # Active users (from logs) for previous month
+        prev_active_count = prev_df['user_id'].nunique() if 'user_id' in prev_df.columns else 0
+
+        # Onboarded users for previous month (from DB)
+        prev_onboarded_count = None
+        if user_repo:
+            prev_onboarded_count = await count_onboarded_asha(prev_start, prev_end, user_repo)
+
         prev_metrics = {
             'total_interactions': prev_total_interactions,
             'success_percentage': prev_success_percentage,
             'idk_percentage': prev_idk_percentage,
-            'avg_response_time': prev_avg_rt
+            'avg_response_time': prev_avg_rt,
+            'user_stats': {
+                "active_count": prev_active_count,
+                "onboarded_count": prev_onboarded_count
+            }
         }
         
         print(f"Previous month metrics:")
@@ -326,15 +342,56 @@ async def upload_folder_to_azure(local_folder: Path, month_str: str, prefix: Opt
         rel_path = file_path.relative_to(local_folder).as_posix()
         blob_name = blob_prefix + rel_path
         try:
-            await amedia_storage.aupload_file(file_path=str(file_path), file_name=blob_name)
+            if amedia_storage_analysis is None:
+                print("⚠️  Analysis storage client not configured. Skipping Azure upload.")
+                return
+            await amedia_storage_analysis.aupload_file(file_path=str(file_path), file_name=blob_name)
             print(f"  ✅ {blob_name}")
         except Exception as e:
             print(f"  ⚠️  Failed to upload {blob_name}: {e}")
 
     try:
-        await amedia_storage._close()
+        if amedia_storage_analysis:
+            await amedia_storage_analysis._close()
     except Exception:
         pass
+
+
+async def get_user_repository(mongo_factory: MongoDBFactory):
+    repo_factory = RepositoryFactory(mongo_factory)
+    return await repo_factory.get_user_repository()
+
+
+async def count_onboarded_asha(start: datetime, end: datetime, user_repo) -> int:
+    """Count onboarded ASHA users by created_timestamp in [start, end)."""
+    start_ts = int(start.timestamp())
+    end_ts = int(end.timestamp())
+    filter_dict = {
+        "User.user_type": "asha",
+        "User.test_user": {"$ne": True},
+        "User.created_timestamp": {"$gte": start_ts, "$lt": end_ts}
+    }
+    try:
+        return await user_repo.count(filter_dict)
+    except Exception as e:
+        print(f"Warning: Failed to count onboarded ASHA users: {e}")
+        return 0
+
+
+async def compute_user_stats(df: pd.DataFrame, start: datetime, end: datetime, user_repo=None) -> dict:
+    """Compute onboarding and active ASHA counts for a given month."""
+    # Active ASHA: unique users with at least one query in the month
+    active_count = df['user_id'].nunique() if 'user_id' in df.columns else 0
+
+    # Onboarded ASHA: via DB created_timestamp; fallback to None if repo missing
+    onboarded_count = None
+    if user_repo:
+        onboarded_count = await count_onboarded_asha(start, end, user_repo)
+
+    return {
+        "active_count": active_count,
+        "onboarded_count": onboarded_count
+    }
 
 
 def filter_test_users(df: pd.DataFrame) -> pd.DataFrame:
@@ -1351,6 +1408,8 @@ def build_markdown_report(
     llm_usage: Optional[dict] = None,
     llm_summary: Optional[str] = None,
     prev_month_data: Optional[dict] = None,
+    user_stats: Optional[dict] = None,
+    prev_user_stats: Optional[dict] = None,
     output_dir: Optional[Path] = None
 ) -> str:
     """Build a simplified markdown report matching the required table format."""
@@ -1369,6 +1428,14 @@ def build_markdown_report(
     idk_count = idk_analysis.get('idk_count', 0)
     idk_percentage = idk_analysis.get('idk_percentage', 0)
     success_percentage = 100 - idk_percentage
+
+    # User stats (from DB and logs)
+    onboarded_count = user_stats.get("onboarded_count") if user_stats else None
+    active_count = user_stats.get("active_count") if user_stats else None
+    prev_onboarded = prev_user_stats.get("onboarded_count") if prev_user_stats else None
+    prev_active = prev_user_stats.get("active_count") if prev_user_stats else None
+    mom_onboarded_delta = calculate_mom_delta(onboarded_count, prev_onboarded) if onboarded_count is not None else None
+    mom_active_delta = calculate_mom_delta(active_count, prev_active) if active_count is not None else None
     
     # Language percentages
     lang_pct = calculate_language_percentages(df)
@@ -1439,6 +1506,30 @@ def build_markdown_report(
     
     sections.append(format_markdown_table(headers, [row]))
     sections.append("")
+
+    # ASHA User Metrics
+    if onboarded_count is not None or active_count is not None:
+        sections.append("## ASHA User Metrics (Month-on-Month)")
+        sections.append("")
+        user_headers = ["Metric", "Current", "Previous", "MoM Δ"]
+        user_rows = []
+        if onboarded_count is not None:
+            user_rows.append({
+                "Metric": "Onboarded ASHA (in month)",
+                "Current": f"{onboarded_count:,}",
+                "Previous": f"{prev_onboarded:,}" if prev_onboarded is not None else "-",
+                "MoM Δ": mom_onboarded_delta or "-"
+            })
+        if active_count is not None:
+            user_rows.append({
+                "Metric": "Active ASHA (>=1 query in month)",
+                "Current": f"{active_count:,}",
+                "Previous": f"{prev_active:,}" if prev_active is not None else "-",
+                "MoM Δ": mom_active_delta or "-"
+            })
+        if user_rows:
+            sections.append(format_markdown_table(user_headers, user_rows))
+            sections.append("")
     
     # Language distribution chart (one chart only)
     if lang_pct:
@@ -1996,6 +2087,10 @@ async def main() -> None:
     print(f"Date Range: {start.strftime(DATE_FORMAT)} to {end.strftime(DATE_FORMAT)} (IST)")
     print(f"{'='*SEPARATOR_LENGTH}\n")
     
+    # Init Mongo user repo for onboarding counts
+    mongo_factory = MongoDBFactory(config=app_config, scope=Scope.SINGLETON.value)
+    user_repo = await get_user_repository(mongo_factory)
+    
     try:
         df = await fetch_monthly_logs(start, end)
     except Exception as e:
@@ -2012,6 +2107,9 @@ async def main() -> None:
     if df.empty:
         print("No data remaining after filtering. Exiting.")
         sys.exit(0)
+    
+    # Compute user stats for current month (active via logs, onboarded via DB)
+    current_user_stats = await compute_user_stats(df, start, end, user_repo)
     
     # Perform IDK Analysis
     print(f"\n{'='*SEPARATOR_LENGTH}")
@@ -2162,12 +2260,16 @@ async def main() -> None:
     
     # Automatically fetch previous month data for MoM comparison
     prev_month_data = None
+    prev_user_stats = None
     try:
-        prev_month_data = await compute_previous_month_metrics(start, end)
+        prev_month_data = await compute_previous_month_metrics(start, end, user_repo)
+        if prev_month_data and "user_stats" in prev_month_data:
+            prev_user_stats = prev_month_data["user_stats"]
     except Exception as e:
         print(f"Warning: Failed to compute previous month metrics: {e}")
         print("MoM comparison will be skipped.")
         prev_month_data = None
+        prev_user_stats = None
     
     # Fallback: If automatic fetch failed, try parsing from file if provided
     if not prev_month_data and args.prev_month_summary:
@@ -2177,6 +2279,8 @@ async def main() -> None:
             print("Previous month data loaded from file successfully.")
         else:
             print("Warning: Could not parse previous month data from file. MoM comparison will be skipped.")
+    if prev_month_data and "user_stats" in prev_month_data and not prev_user_stats:
+        prev_user_stats = prev_month_data.get("user_stats")
     
     # Determine output folder structure: analysis/YYYY-MM/
     month_str = start.strftime("%Y-%m")
@@ -2252,6 +2356,8 @@ async def main() -> None:
             llm_usage=llm_usage,
             llm_summary=llm_summary,
             prev_month_data=prev_month_data,
+            user_stats=current_user_stats,
+            prev_user_stats=prev_user_stats,
             output_dir=output_dir
         )
         Path(summary_output_path).write_text(summary_md, encoding="utf-8")
