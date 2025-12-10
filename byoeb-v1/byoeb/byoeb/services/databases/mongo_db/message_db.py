@@ -1,18 +1,16 @@
 from byoeb.models.consensus import Consensus
 import byoeb.services.chat.constants as constants
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from byoeb.factory import MongoDBFactory
 from byoeb.services.databases.mongo_db.base import BaseMongoDBService
+from pydantic import PositiveInt
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
-from byoeb_integrations.databases.mongo_db.azure.async_azure_cosmos_mongo_db import AsyncAzureCosmosMongoDBCollection
-from byoeb.repositories.repository_factory import get_repository_factory
 from collections import Counter, defaultdict
 from zoneinfo import ZoneInfo
 import pandas as pd
 
 if TYPE_CHECKING:
-    from byoeb.services.databases.mongo_db.user_db import UserMongoDBService
     from byoeb.services.leaderboard.time_window_strategies import TimeWindowStrategy
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -427,11 +425,11 @@ class MessageMongoDBService(BaseMongoDBService):
         messages_obj = await message_repository.find_all({"message_data.message_context.additional_info.status": status})
         return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
 
-    async def get_latest_bot_messages_by_timestamp(self, timestamp: str):
+    async def get_latest_bot_messages_by_timestamp(self, timestamp: str, length: PositiveInt):
         """Fetch bot messages with timestamps greater than the given timestamp; preserve prior in-Python sort behavior."""
         repository_factory = await self._get_repository_factory()
         message_repository = await repository_factory.get_message_repository()
-        messages_obj = await message_repository.find_all({"timestamp": {"$gt": timestamp}})
+        messages_obj = await message_repository.find_all({"timestamp": {"$gt": timestamp}}, limit=length)
         messages_obj_sorted = sorted(messages_obj, key=lambda msg: msg.get("timestamp"), reverse=True)
         return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj_sorted]
 
@@ -604,14 +602,3 @@ class MessageMongoDBService(BaseMongoDBService):
             await message_repository.insert_many(queries["create"])
         if queries.get("update"):
             await message_repository.bulk_update(queries["update"])
-
-    async def delete_message_collection(self):
-        """Delete the message collection."""
-        try:
-            message_client = await self._get_collection_client(self.collection_name)
-            if isinstance(message_client, AsyncAzureCosmosMongoDBCollection):
-                await message_client.adelete_collection()
-                return True, None
-            return False, None
-        except Exception as e:
-            return False, e
