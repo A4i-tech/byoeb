@@ -13,6 +13,7 @@ from byoeb.utils.utils import chunked
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.repositories.repository_factory import get_repository_factory
 from byoeb.services.channel.whatsapp import WhatsAppService
+from byoeb.services.chat import constants
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageContext, MessageTypes
 from byoeb_core.models.byoeb.user import User
 from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import StatusCode
@@ -20,6 +21,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
 from typing import AsyncIterator, Iterable, List, Optional, Set, Tuple, TypeAlias
 import os
+import re
 
 
 DykBatch: TypeAlias = Iterable[Tuple[User, Set[str]]]
@@ -32,6 +34,14 @@ class LangEntry(BaseModel):
     def join_template(cls, v):
         return "\n".join(v) if isinstance(v, list) else v
 
+
+def clean_template_param(text: str) -> str:
+    """Make template parameter safe for WhatsApp: no newlines/tabs, no 4+ spaces."""
+    # Replace newlines/tabs with single space
+    text = re.sub(r"[\r\n\t]+", " ", text)
+    # Collapse multiple spaces to single
+    text = re.sub(r"\s{2,}", " ", text)
+    return text.strip()
 
 async def pick_candidates(dyk_repo: DykRepository, user_repo: UserRepository, langs: Iterable[LanguageCode], user_types: List[str], batch_size: int) -> AsyncIterator[DykBatch]:
     """
@@ -157,19 +167,28 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
                 continue
 
             phone_number = user.phone_number_id
-            message = LANG_ENTRIES[record.dyk_lang].template.replace("{message}", sheet[record.dyk_lang][str(record.dyk_id)])
 
-            text_message = ByoebMessageContext(
+            # Build template parameter (1 param: the fact text)
+            # Use only the fact text (no decorative prefix) to avoid extra phrasing like "💡 क्या आपको पता है?"
+            fact_text = sheet[record.dyk_lang][str(record.dyk_id)]
+            template_parameters = [clean_template_param(fact_text)]
+
+            # Create ByoebMessageContext for WhatsApp template message
+            byoeb_message = ByoebMessageContext(
                 channel_type="whatsapp",
                 message_category="did_you_know",
                 user=user,
                 message_context=MessageContext(
                     message_id=f"did-you-know-{record.id}",
-                    message_type=MessageTypes.REGULAR_TEXT.value,
-                    message_source_text=message,
-                    message_english_text=message,
+                    message_type=MessageTypes.TEMPLATE_TEXT.value,
+                    message_source_text=None,
+                    message_english_text=None,
                     media_info=None,
-                    additional_info={},
+                    additional_info={
+                        constants.TEMPLATE_NAME: "did_you_know_v2",
+                        constants.TEMPLATE_LANGUAGE: record.dyk_lang.value,
+                        constants.TEMPLATE_PARAMETERS: template_parameters,
+                    },
                 ),
                 reply_context=None,
                 cross_conversation_id=None,
@@ -178,7 +197,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
                 outgoing_timestamp=ts
             )
 
-            requests = whatsapp_service.prepare_requests(text_message)
+            requests = whatsapp_service.prepare_requests(byoeb_message)
             if not requests:
                 send_logger.error("Failed to prepare a request message", extra={AppInsightsLogHandler.DETAILS: {
                     "context": dispatch.__name__,
@@ -299,8 +318,18 @@ with SOURCE_PATH.open(encoding="utf-8") as f:
 
     sheet: DykFactSheet = {lang: {} for lang in lang_cols.keys()}
     for row in reader:
-        id = str(uuid.UUID(row[guid_col]))  # validate uuids, bail early if in invalid format
+        # Skip empty rows or rows without GUID
+        if len(row) <= guid_col or not row[guid_col].strip():
+            continue
+        try:
+            id = str(uuid.UUID(row[guid_col].strip()))  # validate uuids
+        except Exception:
+            run_logger.error("Invalid GUID in %s: %s", SOURCE_PATH.name, row[guid_col])
+            continue
         for lang, lang_col in lang_cols.items():
+            # Guard against missing columns in the row
+            if len(row) <= lang_col:
+                continue
             message = row[lang_col].strip()
             if len(message) > 0:
                 sheet[lang][id] = message
