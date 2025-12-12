@@ -209,7 +209,8 @@ async def fetch_monthly_logs(start: datetime, end: datetime) -> pd.DataFrame:
     print(f"Fetching logs from {start.strftime(DATETIME_FORMAT)} to {end.strftime(DATETIME_FORMAT)} (IST)...")
     
     try:
-        df = await fetch_daily_logs(start_timestamp=start_ts, end_timestamp=end_ts)
+        rows = [row async for row in fetch_daily_logs(start_timestamp=start_ts, end_timestamp=end_ts)]
+        df = pd.DataFrame(rows)
     except Exception as e:
         print(f"Error fetching logs: {e}")
         raise
