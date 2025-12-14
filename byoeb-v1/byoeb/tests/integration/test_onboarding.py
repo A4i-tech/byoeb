@@ -5,9 +5,11 @@ import os
 import sys
 import pytest
 
+from byoeb_core.models.byoeb.user import User
 from byoeb_core.models.whatsapp.incoming.interactive_message import (
     ButtonReplyModel,
     ChangeModel as InteractiveChange,
+    ContactModel as InteractiveContact,
     ContextModel as InteractiveContext,
     EntryModel as InteractiveEntry,
     InteractiveModel,
@@ -18,8 +20,10 @@ from byoeb_core.models.whatsapp.incoming.interactive_message import (
 )
 from byoeb_core.models.whatsapp.incoming.regular_message import (
     Change as RegularChange,
+    Contact as RegularContact,
     Entry as RegularEntry,
     Message as RegularMessage,
+    Profile as RegularProfile,
     TextMessage,
     Value as RegularValue,
     WhatsAppRegularMessageBody,
@@ -44,14 +48,28 @@ def generate_message_id() -> str:
 def _regular_webhook(*, message: RegularMessage) -> WhatsAppRegularMessageBody:
     return WhatsAppRegularMessageBody(object="whatsapp_business_account", entry=[
         RegularEntry(id="211506508713627", changes=[
-            RegularChange(field="messages", value=RegularValue(messaging_product="whatsapp", messages=[message]))
+            RegularChange(
+                field="messages",
+                value=RegularValue(
+                    messaging_product="whatsapp",
+                    contacts=[RegularContact(profile=RegularProfile(name=USER_NAME), wa_id=PHONE_NUMBER_ID)],
+                    messages=[message],
+                ),
+            )
         ])
     ])
 
 def _interactive_webhook(*, message: InteractiveMessage) -> WhatsAppInteractiveMessageBody:
     return WhatsAppInteractiveMessageBody(object="whatsapp_business_account", entry=[
         InteractiveEntry(id="211506508713627", changes=[
-            InteractiveChange(field="messages", value=InteractiveValue(messaging_product="whatsapp", messages=[message]))
+            InteractiveChange(
+                field="messages",
+                value=InteractiveValue(
+                    messaging_product="whatsapp",
+                    contacts=[InteractiveContact(profile={"name": USER_NAME}, wa_id=PHONE_NUMBER_ID)],
+                    messages=[message],
+                ),
+            )
         ])
     ])
 
@@ -128,8 +146,11 @@ def test_whatsapp_onboarding_flow(language_display: str, user_type_choice: str, 
     LANGUAGE_SELECTED = "language_selected"
     USER_TYPE_SELECTED = "user_type_selected"
     CONSENTED = "consented"
+    VALIDATE_USER = "validate_user"
     ASKED_QUESTION = "asked_question"
     DONE = "done"
+
+    begin = time.time()
 
     state = START
     while state != DONE:
@@ -181,6 +202,23 @@ def test_whatsapp_onboarding_flow(language_display: str, user_type_choice: str, 
             response = requests.post(BASE_URL, json=payload, timeout=30)
             response.raise_for_status()
 
+            state = VALIDATE_USER
+        elif state == VALIDATE_USER:
+            get_url = BASE_URL.replace("receive", "get_users")
+            user = None
+            while True:
+                response = requests.post(get_url, json=[PHONE_NUMBER_ID], timeout=30)
+                response.raise_for_status()
+                users = response.json()
+                if len(users) == 1:
+                    user = User(**users[0])
+                    break
+                time.sleep(2)
+
+            assert user is not None
+            assert user.user_language == lang_code
+            assert user.user_type == UserType.OTHERS.value
+            assert int(user.created_timestamp or 0) > begin
             state = ASKED_QUESTION
         elif state == ASKED_QUESTION:
             message_id = generate_message_id()
@@ -193,9 +231,3 @@ def test_whatsapp_onboarding_flow(language_display: str, user_type_choice: str, 
             state = DONE
         else:
             raise RuntimeError(f"Unknown state: {state!r}")
-
-    get_url = BASE_URL.replace("receive","get_users")
-    response = requests.post(get_url, json=[PHONE_NUMBER_ID], timeout=30)
-    response.raise_for_status()
-    message = response.json()
-    assert len(message) == 1
