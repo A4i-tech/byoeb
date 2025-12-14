@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, TYPE_CHECKING, AsyncIterator
 from byoeb.factory import MongoDBFactory
 from byoeb.services.databases.mongo_db.base import BaseMongoDBService
+from pydantic import PositiveInt
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from collections import Counter, defaultdict
 from zoneinfo import ZoneInfo
@@ -426,11 +427,11 @@ class MessageMongoDBService(BaseMongoDBService):
         async for msg_obj in message_repository.find_all({"message_data.message_context.additional_info.status": status}):
             yield ByoebMessageContext(**msg_obj["message_data"])
 
-    async def get_latest_bot_messages_by_timestamp(self, timestamp: str) -> AsyncIterator[ByoebMessageContext]:
+    async def get_latest_bot_messages_by_timestamp(self, timestamp: str, length: PositiveInt):
         """Fetch bot messages with timestamps greater than the given timestamp; preserve prior in-Python sort behavior."""
         repository_factory = await self._get_repository_factory()
         message_repository = await repository_factory.get_message_repository()
-        async for msg_obj in message_repository.find_all({"timestamp": {"$gt": timestamp}},sort=[("timestamp", -1)]):
+        async for msg_obj in message_repository.find_all({"timestamp": {"$gt": timestamp}}, sort=[("timestamp", -1)], limit=length):
             yield ByoebMessageContext(**msg_obj["message_data"])
 
     def correction_update_query(
