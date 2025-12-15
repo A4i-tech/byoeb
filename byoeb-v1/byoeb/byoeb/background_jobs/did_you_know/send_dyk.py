@@ -18,22 +18,12 @@ from byoeb_core.models.byoeb.message_context import ByoebMessageContext, Message
 from byoeb_core.models.byoeb.user import User
 from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import StatusCode
 from datetime import datetime, timezone
-from pydantic import BaseModel, field_validator
 from typing import AsyncIterator, Iterable, List, Optional, Set, Tuple, TypeAlias
 import os
 import re
 
 
 DykBatch: TypeAlias = Iterable[Tuple[User, Set[str]]]
-
-class LangEntry(BaseModel):
-    language: LanguageCode
-    template: str  # a template to decorate the message. {message} is the placeholder for the fact.
-
-    @field_validator("template", mode="before")
-    def join_template(cls, v):
-        return "\n".join(v) if isinstance(v, list) else v
-
 
 def clean_template_param(text: str) -> str:
     """Make template parameter safe for WhatsApp: no newlines/tabs, no 4+ spaces."""
@@ -287,8 +277,8 @@ run_logger = AppInsightsLogHandler.getLogger("dyk_run")
 send_logger = AppInsightsLogHandler.getLogger("dyk_send")
 
 user_types_to_send = bot_config["user_types_to_send"]
-_LANG_ENTRIES = [LangEntry(**e) for e in bot_config["languages"]]
-LANG_ENTRIES = {e.language: e for e in _LANG_ENTRIES}
+# WhatsApp-configured templates now drive DYK; keep a simple language list for CSV parsing.
+LANGS = [LanguageCode.ENGLISH, LanguageCode.HINDI, LanguageCode.MARATHI, LanguageCode.TELUGU]
 N_RETRIES = 5  # number of times to retry dispatch()ing to WhatsApp in the event of failure
 
 SOURCE_PATH = (current_dir / str(bot_config["path"])).resolve()
@@ -303,14 +293,14 @@ with SOURCE_PATH.open(encoding="utf-8") as f:
     # fail fast - if these expected cols dont exist, python will bail early
     cols = next(reader)
     lang_cols = {}
-    for lang in LANG_ENTRIES.values():
-        col = lang.language.value
+    for lang in LANGS:
+        col = lang.value
         if col not in cols: raise ValueError(f'Column "{col}" does not exist in {SOURCE_PATH.name} - did you forget to create a column for "{col}"?')
-        lang_cols[lang.language] = cols.index(col)
+        lang_cols[lang] = cols.index(col)
 
     guid_col = cols.index("GUID")
 
-    expected_cols = {"GUID", *[l.language.value for l in LANG_ENTRIES.values()]}
+    expected_cols = {"GUID", *[l.value for l in LANGS]}
     unexpected_cols = [c for c in cols if c not in expected_cols]
     if len(unexpected_cols) > 0:
         run_logger.error("Unexpected columns encountered in %s: %s", SOURCE_PATH.name, ", ".join(unexpected_cols))
@@ -318,18 +308,24 @@ with SOURCE_PATH.open(encoding="utf-8") as f:
 
     sheet: DykFactSheet = {lang: {} for lang in lang_cols.keys()}
     for row in reader:
-        # Skip empty rows or rows without GUID
-        if len(row) <= guid_col or not row[guid_col].strip():
+        # Skip completely empty rows
+        if not row or all(not cell.strip() for cell in row):
             continue
-        try:
-            id = str(uuid.UUID(row[guid_col].strip()))  # validate uuids
-        except Exception:
-            run_logger.error("Invalid GUID in %s: %s", SOURCE_PATH.name, row[guid_col])
-            continue
+
+        # Fail fast on missing/empty GUID cell
+        if len(row) <= guid_col:
+            raise ValueError(f"Missing GUID column in {SOURCE_PATH.name}, row: {row}")
+        guid_raw = row[guid_col].strip()
+        if not guid_raw:
+            raise ValueError(f"Empty GUID in {SOURCE_PATH.name}, row: {row}")
+
+        # Fail fast on invalid GUID
+        id = str(uuid.UUID(guid_raw))
+
         for lang, lang_col in lang_cols.items():
-            # Guard against missing columns in the row
+            # Fail fast if language column is missing in this row
             if len(row) <= lang_col:
-                continue
+                raise ValueError(f"Missing column for language {lang} in {SOURCE_PATH.name}, row: {row}")
             message = row[lang_col].strip()
             if len(message) > 0:
                 sheet[lang][id] = message
