@@ -48,28 +48,22 @@ def generate_message_id() -> str:
 def _regular_webhook(*, message: RegularMessage) -> WhatsAppRegularMessageBody:
     return WhatsAppRegularMessageBody(object="whatsapp_business_account", entry=[
         RegularEntry(id="211506508713627", changes=[
-            RegularChange(
-                field="messages",
-                value=RegularValue(
-                    messaging_product="whatsapp",
-                    contacts=[RegularContact(profile=RegularProfile(name=USER_NAME), wa_id=PHONE_NUMBER_ID)],
-                    messages=[message],
-                ),
-            )
+            RegularChange(field="messages", value=RegularValue(
+                messaging_product="whatsapp",
+                contacts=[RegularContact(profile=RegularProfile(name=USER_NAME), wa_id=PHONE_NUMBER_ID)],
+                messages=[message],
+            ))
         ])
     ])
 
 def _interactive_webhook(*, message: InteractiveMessage) -> WhatsAppInteractiveMessageBody:
     return WhatsAppInteractiveMessageBody(object="whatsapp_business_account", entry=[
         InteractiveEntry(id="211506508713627", changes=[
-            InteractiveChange(
-                field="messages",
-                value=InteractiveValue(
-                    messaging_product="whatsapp",
-                    contacts=[InteractiveContact(profile={"name": USER_NAME}, wa_id=PHONE_NUMBER_ID)],
-                    messages=[message],
-                ),
-            )
+            InteractiveChange(field="messages", value=InteractiveValue(
+                messaging_product="whatsapp",
+                contacts=[InteractiveContact(profile={"name": USER_NAME}, wa_id=PHONE_NUMBER_ID)],
+                messages=[message],
+            ))
         ])
     ])
 
