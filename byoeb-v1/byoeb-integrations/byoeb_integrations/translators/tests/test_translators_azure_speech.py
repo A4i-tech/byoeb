@@ -60,7 +60,7 @@ def stub_speech_and_whisper(mocker):
         ),
     )
     mocker.patch(
-        "byoeb_integrations.translators.speech.azure.async_azure_openai_whisper.AsyncAzureOpenAIWhisper.aspeech_to_text",
+        "byoeb_integrations.translators.speech.azure.async_azure_openai_translator.AsyncAzureOpenAISpeechTranslator.aspeech_to_text",
         new=AsyncMock(return_value="Hello how are you?"),
     )
 
