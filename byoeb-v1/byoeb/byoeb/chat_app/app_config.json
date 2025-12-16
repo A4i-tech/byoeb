@@ -93,7 +93,13 @@
             {
                 "motive": "speech_to_text",
                 "service": "azure_openai",
-                "languages": ["en", "hi", "mr", "te"],
+                "languages": ["en", "hi", "te"],
+                "attributes": {"model": "gpt-4o-transcribe","api_version": "2024-06-01"}
+            },
+            {
+                "motive": "speech_to_text",
+                "service": "azure_openai",
+                "languages": ["mr"],
                 "attributes": {"model": "whisper","api_version": "2024-06-01"}
             }
         ],
