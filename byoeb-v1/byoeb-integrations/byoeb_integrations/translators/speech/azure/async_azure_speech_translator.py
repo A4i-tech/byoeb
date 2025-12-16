@@ -50,7 +50,7 @@ class AsyncAzureSpeechTranslator(BaseSpeechTranslator):
         self.__lock = asyncio.Lock()  # Ensures thread-safe access
         self.__ttl = 3600
 
-    def speech_to_text(self, audio_file: str, source_language: str, **kwargs) -> Any:
+    def speech_to_text(self, audio_data: str, source_language: str, **kwargs) -> Any:
         raise NotImplementedError
 
     async def aspeech_to_text(self, audio_data: bytes, source_language: str, **kwargs) -> str:

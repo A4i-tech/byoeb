@@ -4,7 +4,7 @@ import pytest, types
 import azure.cognitiveservices.speech as speechsdk
 from datetime import datetime
 from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
-from byoeb_integrations.translators.speech.azure.async_azure_openai_whisper import AsyncAzureOpenAIWhisper
+from byoeb_integrations.translators.speech.azure.async_azure_openai_translator import AsyncAzureOpenAISpeechTranslator
 from azure.identity import get_bearer_token_provider, DefaultAzureCredential
 from byoeb_integrations import test_environment_path
 from dotenv import load_dotenv
@@ -75,7 +75,7 @@ def event_loop():
     loop.close()
 
 async def aazure_openai_whisper_translate_en():
-    async_azure_openai_whisper = AsyncAzureOpenAIWhisper(
+    async_azure_openai_whisper = AsyncAzureOpenAISpeechTranslator(
         token_provider=token_provider,
         model=WHISPER_MODEL,
         azure_endpoint=WHISPER_ENDPOINT,
@@ -100,7 +100,7 @@ async def aazure_openai_whisper_translate_en():
     assert new_text.lower().__contains__("hello")
 
 async def aazure_openai_whisper_translate_hi():
-    async_azure_openai_whisper = AsyncAzureOpenAIWhisper(
+    async_azure_openai_whisper = AsyncAzureOpenAISpeechTranslator(
         token_provider=token_provider,
         model=WHISPER_MODEL,
         azure_endpoint=WHISPER_ENDPOINT,
@@ -204,7 +204,7 @@ def test_aazure_openai_whisper_translate_hi(event_loop, mock_translate):
     event_loop.run_until_complete(aazure_openai_whisper_translate_hi())
 def test_missing_model_raises_valueerror():
     with pytest.raises(ValueError, match="model must be provided"):
-        AsyncAzureOpenAIWhisper(
+        AsyncAzureOpenAISpeechTranslator(
             token_provider=token_provider,
         model=None,
         azure_endpoint=WHISPER_ENDPOINT,
@@ -214,7 +214,7 @@ def test_missing_model_raises_valueerror():
 
 def test_missing_api_version_raises_valueerror():
     with pytest.raises(ValueError, match="api_version must be provided"):
-        AsyncAzureOpenAIWhisper(
+        AsyncAzureOpenAISpeechTranslator(
               token_provider=token_provider,
         model=WHISPER_MODEL,
         azure_endpoint=WHISPER_ENDPOINT,
@@ -224,7 +224,7 @@ def test_missing_api_version_raises_valueerror():
 
 def test_missing_endpoint_raises_valueerror():
     with pytest.raises(ValueError, match="azure_endpoint must be provided"):
-        AsyncAzureOpenAIWhisper(
+        AsyncAzureOpenAISpeechTranslator(
             
          token_provider=token_provider,
         model=WHISPER_MODEL,
@@ -233,7 +233,7 @@ def test_missing_endpoint_raises_valueerror():
 
         )
 def test_missing_token():
-	obj = AsyncAzureOpenAIWhisper(
+	obj = AsyncAzureOpenAISpeechTranslator(
 		token_provider=None,
         model=WHISPER_MODEL,
         azure_endpoint=WHISPER_ENDPOINT,
@@ -243,7 +243,7 @@ def test_missing_token():
 	assert obj is not None 
 def test_missing_token_apikey_raises_valueerror():
     with pytest.raises(ValueError, match="Either token_provider or api_key must be provided"):
-        AsyncAzureOpenAIWhisper(
+        AsyncAzureOpenAISpeechTranslator(
             
             token_provider=None,
         model=WHISPER_MODEL,
@@ -253,7 +253,7 @@ def test_missing_token_apikey_raises_valueerror():
 
         )
 def test_speech_to_text_not_implemented():
-    obj = AsyncAzureOpenAIWhisper(
+    obj = AsyncAzureOpenAISpeechTranslator(
         model="whisper-1",
         azure_endpoint="https://dummy.openai.azure.com",
         api_key="FAKE_KEY",
@@ -262,7 +262,7 @@ def test_speech_to_text_not_implemented():
     with pytest.raises(NotImplementedError):
         obj.speech_to_text("fake.wav", "en")
 def test_text_to_speech_not_implemented():
-    obj = AsyncAzureOpenAIWhisper(
+    obj = AsyncAzureOpenAISpeechTranslator(
         model="whisper-1",
         azure_endpoint="https://dummy.openai.azure.com",
         api_key="FAKE_KEY",
@@ -272,7 +272,7 @@ def test_text_to_speech_not_implemented():
         obj.text_to_speech("fake.wav", "en")
 @pytest.mark.asyncio
 async def test_atext_to_speech_not_implemented():
-    whisper = AsyncAzureOpenAIWhisper(
+    whisper = AsyncAzureOpenAISpeechTranslator(
         model="whisper-1",
         azure_endpoint="https://dummy.endpoint",
         api_key="FAKE_KEY",

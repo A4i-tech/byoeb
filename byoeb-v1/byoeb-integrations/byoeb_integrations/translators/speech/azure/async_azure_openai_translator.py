@@ -1,25 +1,24 @@
 
 import io
-import os
-import azure.cognitiveservices.speech as speechsdk
 from openai import AsyncAzureOpenAI
+from openai.lib.azure import AsyncAzureADTokenProvider
 from enum import Enum
 from byoeb_core.translators.speech.base import BaseSpeechTranslator
-from typing import Any
+from typing import Any, Optional
 
 class AzureOpenAIWhisperParamsEnum(Enum):
     TEMPERATURE = "temperature"
 
-class AsyncAzureOpenAIWhisper(BaseSpeechTranslator):
+class AsyncAzureOpenAISpeechTranslator(BaseSpeechTranslator):
     __DEFAULT_TEMPERATURE = 0
     
     def __init__(
         self,
         model: str,
         azure_endpoint: str,
-        token_provider: str = None,
-        api_key: str = None,
-        api_version: str = None,
+        token_provider: Optional[AsyncAzureADTokenProvider] = None,
+        api_key: Optional[str] = None,
+        api_version: Optional[str] = None,
         **kwargs
     ):
         client = None
@@ -49,7 +48,7 @@ class AsyncAzureOpenAIWhisper(BaseSpeechTranslator):
 
     def speech_to_text(
         self,
-        audio_file: str,
+        audio_data: str,
         source_language: str,
         **kwargs
     ) -> Any:
@@ -58,7 +57,7 @@ class AsyncAzureOpenAIWhisper(BaseSpeechTranslator):
     async def aspeech_to_text(
         self,
         audio_data: bytes,
-        source_language: str = None,
+        source_language: Optional[str] = None,
         **kwargs
     ) -> str:
         temperature = kwargs.get(
