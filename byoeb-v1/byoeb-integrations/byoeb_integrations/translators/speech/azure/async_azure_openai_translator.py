@@ -6,7 +6,7 @@ from enum import Enum
 from byoeb_core.translators.speech.base import BaseSpeechTranslator
 from typing import Any, Optional
 
-class AzureOpenAIWhisperParamsEnum(Enum):
+class AzureOpenAISpeechParamsEnum(Enum):
     TEMPERATURE = "temperature"
 
 class AsyncAzureOpenAISpeechTranslator(BaseSpeechTranslator):
@@ -60,7 +60,7 @@ class AsyncAzureOpenAISpeechTranslator(BaseSpeechTranslator):
         **kwargs
     ) -> str:
         temperature = kwargs.get(
-            AzureOpenAIWhisperParamsEnum.TEMPERATURE.value,
+            AzureOpenAISpeechParamsEnum.TEMPERATURE.value,
             self.__DEFAULT_TEMPERATURE
         )
         audio_file_like = io.BytesIO(audio_data)
