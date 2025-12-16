@@ -1,7 +1,6 @@
 import asyncio
 import hashlib
 from byoeb.constants.feature_enums import FeatureFlag
-from byoeb.constants.user_enums import LanguageCode
 from byoeb.services.chat.utils import clean_message_for_console
 import byoeb.services.chat.constants as constants
 import re
@@ -289,12 +288,12 @@ class ByoebUserGenerateResponse(Handler):
     async def __create_source_audio(
         self,
         message_source_text: str,
-        user_language: str
+        user: User
     ):
         from byoeb.chat_app.configuration.dependency_setup import speech_tts
-        translated_audio_message = await speech_tts[LanguageCode(user_language)].atext_to_speech(
+        translated_audio_message = await speech_tts(user).atext_to_speech(
             input_text=message_source_text,
-            source_language=user_language,
+            source_language=user.user_language,
         )
         return {
             constants.DATA: translated_audio_message,
@@ -370,7 +369,7 @@ class ByoebUserGenerateResponse(Handler):
             start_time = datetime.now(timezone.utc).timestamp()
             media_info = await self.__create_source_audio(
                 message_source_text=message_source_text,
-                user_language=user_language
+                user=message.user
             )
             end_time = datetime.now(timezone.utc).timestamp()
             AppInsightsLogHandler.getLogger("text_to_audio").info(f"Created audio response message in {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {

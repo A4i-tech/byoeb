@@ -1,10 +1,9 @@
 import re
 import json
-from byoeb.constants.user_enums import LanguageCode
 import byoeb.services.chat.constants as constants
 from typing import List, Dict, Any
 from datetime import datetime, timezone
-from byoeb.chat_app.configuration.config import bot_config, app_config
+from byoeb.chat_app.configuration.config import bot_config
 from byoeb.models.message_category import MessageCategory
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
@@ -134,7 +133,7 @@ class ByoebExpertGenerateResponse(Handler):
                 target_language=user.user_language
             )
             text_message = self.USER_CORRECTED_ANSWER_MESSAGES.get(user.user_language).replace("<CORRECTED_ANSWER>", translated_text)
-            translated_audio_message = await speech_stt[LanguageCode(user.user_language)].atext_to_speech(
+            translated_audio_message = await speech_stt(user).atext_to_speech(
                 input_text=text_message,
                 source_language=user.user_language,
             )

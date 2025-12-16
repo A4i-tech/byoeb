@@ -1,5 +1,4 @@
 import re
-from byoeb.constants.user_enums import LanguageCode
 import byoeb.utils.utils as utils
 import byoeb.services.chat.constants as constants
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -109,7 +108,7 @@ class ByoebUserProcess(Handler):
             _, audio_message, err = await channel_client.adownload_media(media_id)
 
         audio_message_wav = ogg_opus_to_wav_bytes(audio_message.data)
-        audio_to_text = await speech_stt[LanguageCode(message.user.user_language)].aspeech_to_text(audio_message_wav, message.user.user_language)
+        audio_to_text = await speech_stt(message.user).aspeech_to_text(audio_message_wav, message.user.user_language)
         message.message_context.message_source_text = audio_to_text
         end_time = datetime.now(timezone.utc).timestamp()
         AppInsightsLogHandler.getLogger("audio_to_text").info(f"Time taken for audio to text transcribe: {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {

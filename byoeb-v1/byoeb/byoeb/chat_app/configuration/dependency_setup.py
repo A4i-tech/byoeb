@@ -6,6 +6,8 @@ import logging
 
 from pydantic import TypeAdapter
 
+from byoeb_core.models.byoeb.user import User
+
 _logger = logging.getLogger("flow")
 
 def _safe_json(obj):
@@ -102,7 +104,7 @@ message_db_service = MessageMongoDBService(
 
 # Leaderboard service functions
 from byoeb.services.leaderboard import LeaderboardService
-from typing import Any, Literal, Optional
+from typing import Any, Callable, Literal, Optional
 
 _leaderboard_service: Optional[LeaderboardService] = None
 
@@ -167,8 +169,10 @@ from byoeb_core.translators.speech.base import BaseSpeechTranslator
 from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
 from byoeb_integrations.translators.speech.azure.async_azure_openai_translator import AsyncAzureOpenAISpeechTranslator
 
-speech_stt: dict[LanguageCode, BaseSpeechTranslator] = {}
-speech_tts: dict[LanguageCode, BaseSpeechTranslator] = {}
+_speech_stt: dict[LanguageCode, BaseSpeechTranslator] = {}
+_speech_tts: dict[LanguageCode, BaseSpeechTranslator] = {}
+speech_stt: Callable[[User], BaseSpeechTranslator] = lambda u: _speech_stt[LanguageCode(u.user_language)]
+speech_tts: Callable[[User], BaseSpeechTranslator] = lambda u: _speech_tts[LanguageCode(u.user_language)]
 for entry in app_config["translators"]["speech"]:
     languages = TypeAdapter(list[LanguageCode]).validate_python(entry["languages"])
     attributes = TypeAdapter(dict[str, Any]).validate_python(entry["attributes"])
@@ -178,28 +182,28 @@ for entry in app_config["translators"]["speech"]:
             attributes["api_key"] = env_config.env_azure_openai_speech_key
             attributes["endpoint"] = env_config.env_azure_openai_speech_endpoint
             service = AsyncAzureOpenAISpeechTranslator(**attributes)
-            speech_stt.update((lang, service) for lang in languages)
+            _speech_stt.update((lang, service) for lang in languages)
         case "speech_to_text", "azure_openai":
             print("⚠️ Azure OpenAI key not set. Defaulting to DefaultAzureCredential for Azure OpenAI translator")
             from azure.identity import DefaultAzureCredential, get_bearer_token_provider
             attributes["token_provider"] = get_bearer_token_provider(DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"])
             attributes["endpoint"] = env_config.env_azure_openai_speech_endpoint
             service = AsyncAzureOpenAISpeechTranslator(**attributes)
-            speech_stt.update((lang, service) for lang in languages)
+            _speech_stt.update((lang, service) for lang in languages)
         case "text_to_speech", "azure_cognitive" if env_config.env_azure_speech_key:
             print("✅ Azure Cognitive Services key set. Enabling Azure speech translator.")
             attributes["key"] = env_config.env_azure_speech_key
-            speech_tts.update((lang, AsyncAzureSpeechTranslator(**attributes)) for lang in languages)
+            _speech_tts.update((lang, AsyncAzureSpeechTranslator(**attributes)) for lang in languages)
         case "text_to_speech", "azure_cognitive":
             print("⚠️ Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure speech translator")
             from azure.identity import DefaultAzureCredential, get_bearer_token_provider
             attributes["token_provider"] = get_bearer_token_provider(DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"])
-            speech_tts.update((lang, AsyncAzureSpeechTranslator(**attributes)) for lang in languages)
+            _speech_tts.update((lang, AsyncAzureSpeechTranslator(**attributes)) for lang in languages)
         case motive, service:
             raise RuntimeError(f"Unexpected speech config: motive={motive}, service={service}")
 
-if len(speech_stt) != len(LanguageCode): raise RuntimeError(f"STT service is missing for some languages: {set(LanguageCode) - speech_stt.keys()}")
-if len(speech_tts) != len(LanguageCode): raise RuntimeError(f"TTS service is missing for some languages: {set(LanguageCode) - speech_tts.keys()}")
+if len(_speech_stt) != len(LanguageCode): raise RuntimeError(f"STT service is missing for some languages: {set(LanguageCode) - _speech_stt.keys()}")
+if len(_speech_tts) != len(LanguageCode): raise RuntimeError(f"TTS service is missing for some languages: {set(LanguageCode) - _speech_tts.keys()}")
 
 # vector store
 import os
