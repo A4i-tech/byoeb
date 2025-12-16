@@ -177,7 +177,7 @@ voice_dict = {
 }
 if env_config.env_azure_speech_key:
     print("✅ Azure Cognitive Services key set. Enabling Azure speech translator.")
-    speech_translator = AsyncAzureSpeechTranslator(
+    speech_translator_tts = AsyncAzureSpeechTranslator(
         key=env_config.env_azure_speech_key,
         region=app_config["translators"]["speech"]["azure_cognitive"]["region"],
         resource_id=app_config["translators"]["speech"]["azure_cognitive"]["resource_id"],
@@ -189,18 +189,18 @@ else:
     token_provider = get_bearer_token_provider(
         DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
     )
-    speech_translator = AsyncAzureSpeechTranslator(
+    speech_translator_tts = AsyncAzureSpeechTranslator(
         token_provider=token_provider,
         region=app_config["translators"]["speech"]["azure_cognitive"]["region"],
         resource_id=app_config["translators"]["speech"]["azure_cognitive"]["resource_id"],
     )
 
-speech_translator.change_voice_dict(voice_dict)
+speech_translator_tts.change_voice_dict(voice_dict)
 from byoeb_integrations.translators.speech.azure.async_azure_openai_translator import AsyncAzureOpenAISpeechTranslator
 
 if env_config.env_azure_openai_whisper_key:
     print("✅ Azure OpenAI Whisper key set. Enabling Azure OpenAI Whisper translator.")
-    speech_translator_whisper = AsyncAzureOpenAISpeechTranslator(
+    speech_translator_stt = AsyncAzureOpenAISpeechTranslator(
     api_key=env_config.env_azure_openai_whisper_key,
     model=app_config["translators"]["speech"]["azure_oai"]["model"],
     azure_endpoint=app_config["translators"]["speech"]["azure_oai"]["endpoint"],
@@ -213,7 +213,7 @@ else:
     token_provider = get_bearer_token_provider(
         DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
     )
-    speech_translator_whisper = AsyncAzureOpenAISpeechTranslator(
+    speech_translator_stt = AsyncAzureOpenAISpeechTranslator(
     token_provider=token_provider,
     model=app_config["translators"]["speech"]["azure_oai"]["model"],
     azure_endpoint=app_config["translators"]["speech"]["azure_oai"]["endpoint"],

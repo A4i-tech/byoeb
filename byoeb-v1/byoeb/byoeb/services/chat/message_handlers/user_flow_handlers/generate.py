@@ -290,8 +290,8 @@ class ByoebUserGenerateResponse(Handler):
         message_source_text: str,
         user_language: str
     ):
-        from byoeb.chat_app.configuration.dependency_setup import speech_translator
-        translated_audio_message = await speech_translator.atext_to_speech(
+        from byoeb.chat_app.configuration.dependency_setup import speech_translator_tts
+        translated_audio_message = await speech_translator_tts.atext_to_speech(
             input_text=message_source_text,
             source_language=user_language,
         )

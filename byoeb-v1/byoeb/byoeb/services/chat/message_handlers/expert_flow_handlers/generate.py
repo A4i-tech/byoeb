@@ -113,7 +113,7 @@ class ByoebExpertGenerateResponse(Handler):
         emoji = None,
         status = None,
     ):
-        from byoeb.chat_app.configuration.dependency_setup import speech_translator_whisper
+        from byoeb.chat_app.configuration.dependency_setup import speech_translator_stt
         from byoeb.chat_app.configuration.dependency_setup import text_translator
         user_info_dict = byoeb_message.cross_conversation_context.get(constants.USER)
         user = User.model_validate(user_info_dict)
@@ -133,7 +133,7 @@ class ByoebExpertGenerateResponse(Handler):
                 target_language=user.user_language
             )
             text_message = self.USER_CORRECTED_ANSWER_MESSAGES.get(user.user_language).replace("<CORRECTED_ANSWER>", translated_text)
-            translated_audio_message = await speech_translator_whisper.atext_to_speech(
+            translated_audio_message = await speech_translator_stt.atext_to_speech(
                 input_text=text_message,
                 source_language=user.user_language,
             )
