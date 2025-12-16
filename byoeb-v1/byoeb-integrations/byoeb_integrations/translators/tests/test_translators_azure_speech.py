@@ -78,7 +78,7 @@ async def aazure_openai_whisper_translate_en():
     async_azure_openai_whisper = AsyncAzureOpenAISpeechTranslator(
         token_provider=token_provider,
         model=WHISPER_MODEL,
-        azure_endpoint=WHISPER_ENDPOINT,
+        endpoint=WHISPER_ENDPOINT,
         api_version=WHISPER_API_VERSION
     )
     text = "Hello how are you?"
@@ -103,7 +103,7 @@ async def aazure_openai_whisper_translate_hi():
     async_azure_openai_whisper = AsyncAzureOpenAISpeechTranslator(
         token_provider=token_provider,
         model=WHISPER_MODEL,
-        azure_endpoint=WHISPER_ENDPOINT,
+        endpoint=WHISPER_ENDPOINT,
         api_version=WHISPER_API_VERSION
     )
     text = "2.5 किलोग्राम से कम वजन वाले शिशुओं को अतिरिक्त गर्मी प्रदान करके गर्म रखा जाना चाहिए। परिवार को यह सुनिश्चित करना चाहिए कि बच्चे को पतली चादर और कंबल से अच्छी तरह लपेटा जाए, गर्मी के नुकसान को रोकने के लिए सिर को ढंका जाए, और बच्चे को मां के पेट और छाती के बहुत करीब रखा जाए। कपड़े में लिपटे गर्म पानी से भरी बोतलों को बच्चे के कंबल के दोनों ओर रखा जा सकता है। जब मां के शरीर के करीब नहीं रखा जाता है, तो बच्चे को अधिक बार खिलाया जाना चाहिए।"
@@ -207,7 +207,7 @@ def test_missing_model_raises_valueerror():
         AsyncAzureOpenAISpeechTranslator(
             token_provider=token_provider,
         model=None,
-        azure_endpoint=WHISPER_ENDPOINT,
+        endpoint=WHISPER_ENDPOINT,
         api_version=WHISPER_API_VERSION
         )
 
@@ -217,7 +217,7 @@ def test_missing_api_version_raises_valueerror():
         AsyncAzureOpenAISpeechTranslator(
               token_provider=token_provider,
         model=WHISPER_MODEL,
-        azure_endpoint=WHISPER_ENDPOINT,
+        endpoint=WHISPER_ENDPOINT,
         api_version=None
         )
 
@@ -228,7 +228,7 @@ def test_missing_endpoint_raises_valueerror():
             
          token_provider=token_provider,
         model=WHISPER_MODEL,
-        azure_endpoint=None,
+        endpoint=None,
         api_version=WHISPER_API_VERSION 
 
         )
@@ -236,7 +236,7 @@ def test_missing_token():
 	obj = AsyncAzureOpenAISpeechTranslator(
 		token_provider=None,
         model=WHISPER_MODEL,
-        azure_endpoint=WHISPER_ENDPOINT,
+        endpoint=WHISPER_ENDPOINT,
         api_key="dummy",
         api_version=WHISPER_API_VERSION 
 	    )
@@ -247,7 +247,7 @@ def test_missing_token_apikey_raises_valueerror():
             
             token_provider=None,
         model=WHISPER_MODEL,
-        azure_endpoint=WHISPER_ENDPOINT,
+        endpoint=WHISPER_ENDPOINT,
         api_key=None,
         api_version=WHISPER_API_VERSION 
 
@@ -255,7 +255,7 @@ def test_missing_token_apikey_raises_valueerror():
 def test_speech_to_text_not_implemented():
     obj = AsyncAzureOpenAISpeechTranslator(
         model="whisper-1",
-        azure_endpoint="https://dummy.openai.azure.com",
+        endpoint="https://dummy.openai.azure.com",
         api_key="FAKE_KEY",
         api_version="2024-05-01-preview"
     )
@@ -264,7 +264,7 @@ def test_speech_to_text_not_implemented():
 def test_text_to_speech_not_implemented():
     obj = AsyncAzureOpenAISpeechTranslator(
         model="whisper-1",
-        azure_endpoint="https://dummy.openai.azure.com",
+        endpoint="https://dummy.openai.azure.com",
         api_key="FAKE_KEY",
         api_version="2024-05-01-preview"
     )
@@ -274,7 +274,7 @@ def test_text_to_speech_not_implemented():
 async def test_atext_to_speech_not_implemented():
     whisper = AsyncAzureOpenAISpeechTranslator(
         model="whisper-1",
-        azure_endpoint="https://dummy.endpoint",
+        endpoint="https://dummy.endpoint",
         api_key="FAKE_KEY",
         api_version="2024-05-01-preview"
     )

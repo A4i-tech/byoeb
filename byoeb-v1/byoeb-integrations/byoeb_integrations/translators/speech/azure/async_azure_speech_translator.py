@@ -9,16 +9,14 @@ class AsyncAzureSpeechTranslator(BaseSpeechTranslator):
         "male": {
             "en-IN": "en-IN-PrabhatNeural",
             "hi-IN": "hi-IN-MadhurNeural",
-            "kn-IN": "kn-IN-GaganNeural",
-            "ta-IN": "ta-IN-ValluvarNeural",
-            "te-IN": "te-IN-MohanNeural",
+            "mr-IN": "mr-IN-ManoharNeural",
+            "te-IN": "te-IN-MohanNeural"
         },
         "female": {
             "en-IN": "en-IN-NeerjaNeural",
             "hi-IN": "hi-IN-SwaraNeural",
-            "kn-IN": "kn-IN-SapnaNeural",
-            "ta-IN": "ta-IN-PallaviNeural",
-            "te-IN": "te-IN-ShrutiNeural",
+            "mr-IN": "mr-IN-AarohiNeural",
+            "te-IN": "te-IN-ShrutiNeural"
         },
     }
 

@@ -4,6 +4,7 @@ import os
 import sys
 import threading
 import datetime
+from byoeb.constants.user_enums import LanguageCode
 from byoeb.services.chat import constants
 from byoeb.services.chat import utils as chat_utils
 from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
@@ -91,10 +92,10 @@ async def create_user_message(
     message: ByoebMessageContext,
     response: str,
 ) -> ByoebMessageContext:
-    from byoeb.chat_app.configuration.dependency_setup import speech_translator_tts
+    from byoeb.chat_app.configuration.dependency_setup import speech_tts
     
     user_language = message.user.user_language
-    translated_audio_message = await speech_translator_tts.atext_to_speech(
+    translated_audio_message = await speech_tts[LanguageCode(user_language)].atext_to_speech(
         input_text=response,
         source_language=user_language,
     )

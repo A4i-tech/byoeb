@@ -4,6 +4,8 @@ from byoeb.chat_app.configuration.config import app_config
 import time, json, traceback, uuid, asyncio
 import logging
 
+from pydantic import TypeAdapter
+
 _logger = logging.getLogger("flow")
 
 def _safe_json(obj):
@@ -59,6 +61,7 @@ if env_config.env_appinsights_connection_string:
 else:
     print("⚠️ App Insights connection string not set. Skipping Azure logging.")
 
+from byoeb.constants.user_enums import LanguageCode
 import byoeb.utils.utils as byoeb_utils
 from byoeb.factory import (
     ChannelRegisterFactory,
@@ -99,7 +102,7 @@ message_db_service = MessageMongoDBService(
 
 # Leaderboard service functions
 from byoeb.services.leaderboard import LeaderboardService
-from typing import Optional
+from typing import Any, Literal, Optional
 
 _leaderboard_service: Optional[LeaderboardService] = None
 
@@ -160,65 +163,43 @@ else:
 
 # Speech translator
 # TODO: factory implementation
+from byoeb_core.translators.speech.base import BaseSpeechTranslator
 from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
-voice_dict = {
-    "male": {
-        "en-IN": "en-IN-PrabhatNeural",
-        "hi-IN": "hi-IN-MadhurNeural",
-        "mr-IN": "mr-IN-ManoharNeural",
-        "te-IN": "te-IN-MohanNeural"
-    },
-    "female": {
-        "en-IN": "en-IN-NeerjaNeural",
-        "hi-IN": "hi-IN-SwaraNeural",
-        "mr-IN": "mr-IN-AarohiNeural",
-        "te-IN": "te-IN-ShrutiNeural"
-    },
-}
-if env_config.env_azure_speech_key:
-    print("✅ Azure Cognitive Services key set. Enabling Azure speech translator.")
-    speech_translator_tts = AsyncAzureSpeechTranslator(
-        key=env_config.env_azure_speech_key,
-        region=app_config["translators"]["speech"]["azure_cognitive"]["region"],
-        resource_id=app_config["translators"]["speech"]["azure_cognitive"]["resource_id"],
-    )
-else:
-    print("⚠️ Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure speech translator")
-    from azure.identity import get_bearer_token_provider, DefaultAzureCredential
-
-    token_provider = get_bearer_token_provider(
-        DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
-    )
-    speech_translator_tts = AsyncAzureSpeechTranslator(
-        token_provider=token_provider,
-        region=app_config["translators"]["speech"]["azure_cognitive"]["region"],
-        resource_id=app_config["translators"]["speech"]["azure_cognitive"]["resource_id"],
-    )
-
-speech_translator_tts.change_voice_dict(voice_dict)
 from byoeb_integrations.translators.speech.azure.async_azure_openai_translator import AsyncAzureOpenAISpeechTranslator
 
-if env_config.env_azure_openai_whisper_key:
-    print("✅ Azure OpenAI Whisper key set. Enabling Azure OpenAI Whisper translator.")
-    speech_translator_stt = AsyncAzureOpenAISpeechTranslator(
-    api_key=env_config.env_azure_openai_whisper_key,
-    model=app_config["translators"]["speech"]["azure_oai"]["model"],
-    azure_endpoint=app_config["translators"]["speech"]["azure_oai"]["endpoint"],
-    api_version=app_config["translators"]["speech"]["azure_oai"]["api_version"]
-    )
-else:
-    print("⚠️ Azure OpenAI Whisper key not set. Defaulting to DefaultAzureCredential for Azure OpenAI Whisper translator")
-    from azure.identity import get_bearer_token_provider, DefaultAzureCredential
+speech_stt: dict[LanguageCode, BaseSpeechTranslator] = {}
+speech_tts: dict[LanguageCode, BaseSpeechTranslator] = {}
+for entry in app_config["translators"]["speech"]:
+    languages = TypeAdapter(list[LanguageCode]).validate_python(entry["languages"])
+    attributes = TypeAdapter(dict[str, Any]).validate_python(entry["attributes"])
+    match entry["motive"], entry["service"]:
+        case "speech_to_text", "azure_openai" if env_config.env_azure_openai_speech_key:
+            print("✅ Azure OpenAI key set. Enabling Azure OpenAI translator.")
+            attributes["api_key"] = env_config.env_azure_openai_speech_key
+            attributes["endpoint"] = env_config.env_azure_openai_speech_endpoint
+            service = AsyncAzureOpenAISpeechTranslator(**attributes)
+            speech_stt.update((lang, service) for lang in languages)
+        case "speech_to_text", "azure_openai":
+            print("⚠️ Azure OpenAI key not set. Defaulting to DefaultAzureCredential for Azure OpenAI translator")
+            from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+            attributes["token_provider"] = get_bearer_token_provider(DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"])
+            attributes["endpoint"] = env_config.env_azure_openai_speech_endpoint
+            service = AsyncAzureOpenAISpeechTranslator(**attributes)
+            speech_stt.update((lang, service) for lang in languages)
+        case "text_to_speech", "azure_cognitive" if env_config.env_azure_speech_key:
+            print("✅ Azure Cognitive Services key set. Enabling Azure speech translator.")
+            attributes["key"] = env_config.env_azure_speech_key
+            speech_tts.update((lang, AsyncAzureSpeechTranslator(**attributes)) for lang in languages)
+        case "text_to_speech", "azure_cognitive":
+            print("⚠️ Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure speech translator")
+            from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+            attributes["token_provider"] = get_bearer_token_provider(DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"])
+            speech_tts.update((lang, AsyncAzureSpeechTranslator(**attributes)) for lang in languages)
+        case motive, service:
+            raise RuntimeError(f"Unexpected speech config: motive={motive}, service={service}")
 
-    token_provider = get_bearer_token_provider(
-        DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
-    )
-    speech_translator_stt = AsyncAzureOpenAISpeechTranslator(
-    token_provider=token_provider,
-    model=app_config["translators"]["speech"]["azure_oai"]["model"],
-    azure_endpoint=app_config["translators"]["speech"]["azure_oai"]["endpoint"],
-    api_version=app_config["translators"]["speech"]["azure_oai"]["api_version"]
-)
+if len(speech_stt) != len(LanguageCode): raise RuntimeError(f"STT service is missing for some languages: {set(LanguageCode) - speech_stt.keys()}")
+if len(speech_tts) != len(LanguageCode): raise RuntimeError(f"TTS service is missing for some languages: {set(LanguageCode) - speech_tts.keys()}")
 
 # vector store
 import os
@@ -232,9 +213,9 @@ azure_openai_endpoint = env_config.env_azure_openai_endpoint or app_config["embe
 azure_openai_deployment_name = env_config.env_azure_openai_deployment_name or app_config["embeddings"]["azure"]["deployment_name"]
 
 # Azure OpenAI Embed - try API key first, fallback to token provider
-if env_config.env_azure_openai_whisper_key or env_config.env_azure_openai_key:
+if env_config.env_azure_openai_key:
     print("✅ Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
-    azure_openai_key = env_config.env_azure_openai_key or env_config.env_azure_openai_whisper_key
+    azure_openai_key = env_config.env_azure_openai_key
     azure_openai_embed = AzureOpenAIEmbed(
         model=app_config["embeddings"]["azure"]["model"],
         deployment_name=azure_openai_deployment_name,
