@@ -81,10 +81,10 @@ Researchers will log and analyze your messages only for research purposes, and w
 
 THANK_YOU_DICT = {
     UserType.ASHA.value: {
-        LanguageCode.HINDI.value: "आप मुझसे गर्भावस्था, शिशु देखभाल ... (truncated for brevity in this file)",
+        LanguageCode.HINDI.value: "आप गर्भावस्था, शिशु देखभाल, ... के बारे में मुझसे कोई भी सवाल पूछ सकते हैं।",
         LanguageCode.ENGLISH.value: "You can ask me any question about pregnancy, childcare, ...",
-        LanguageCode.MARATHI.value: "तुम्ही गर्भावस्था, शिशु देखभाल ...",
-        LanguageCode.TELUGU.value: "మీరు గర్భధారణ, శిశు సంరక్షణ ...",
+        LanguageCode.MARATHI.value: "तुम्ही गर्भावस्था, शिशु देखभाल, ... याबद्दल मला कोणताही प्रश्न विचारू शकता.",
+        LanguageCode.TELUGU.value: "మీరు గర్భధారణ, శిశు సంరక్షణ, ... గురించి నన్ను ఏదైనా ప్రశ్న అడగవచ్చు.",
     },
     UserType.ANM.value: {
         LanguageCode.HINDI.value: "यदि मुझे किसी आशा के प्रश्न का उत्तर नहीं पता होगा, ...",
