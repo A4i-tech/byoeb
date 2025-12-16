@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
+import base64
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional
 from enum import Enum
 from byoeb_core.models.whatsapp.message_context import WhatsappMessageReplyContext
 
@@ -15,6 +16,11 @@ class FileMediaType(Enum):
 class MediaData(BaseModel):
     data: bytes = Field(..., description="The media data")
     mime_type: str = Field(..., description="The media mime type")
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def decode_base64_if_needed(cls, v):
+        return base64.b64decode(v) if isinstance(v, str) else v
 
 class WhatsAppAudio(BaseModel):
     id: str = Field(..., description="The audio id")

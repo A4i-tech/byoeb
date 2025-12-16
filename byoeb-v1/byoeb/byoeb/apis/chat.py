@@ -20,6 +20,8 @@ from fastapi.responses import JSONResponse
 import byoeb.services.chat.constants as chat_constants
 import byoeb.utils.utils as utils
 
+from byoeb_core.models.whatsapp.requests.media_request import MediaData
+
 # ---------------------------------------------------------
 # Setup
 # ---------------------------------------------------------
@@ -112,7 +114,7 @@ def chat_mcps_router(mcp):
             return self._items
 
     @mcp.tool
-    async def asha_chat(message: str, features: Set[Literal["audio", "history"]] = set()) -> AshaChatResponse:
+    async def asha_chat(message: str | MediaData, features: Set[Literal["audio", "history"]] = set()) -> AshaChatResponse:
         """
         Ask any health-related query and get a response.
         """
@@ -128,23 +130,23 @@ def chat_mcps_router(mcp):
 
         user = users[0]
         message_id = f"chat-mcps-{user_id}-{uuid.uuid4()}"
-        ctx = ByoebMessageContext(
+        byoeb_message = ByoebMessageContext(
             channel_type="whatsapp",
             message_category="whatsapp",
             user=user,
             message_context=MessageContext(
                 message_id=message_id,
                 message_type=MessageTypes.REGULAR_TEXT.value,
-                message_source_text=message,
-                message_english_text=message,
+                message_source_text=message if isinstance(message, str) else None,
+                message_english_text=None,
                 media_info=None,
                 additional_info=dict(query_type="asha_work_related"),
             ),
             reply_context=ReplyContext(
                 reply_id="reply-id-unknown",
                 reply_type="acknowledgement",
-                reply_source_text=message,
-                reply_english_text=message,
+                reply_source_text=None,
+                reply_english_text=None,
                 media_info=None,
                 message_category="notification",
                 additional_info=None,
@@ -154,8 +156,10 @@ def chat_mcps_router(mcp):
             incoming_timestamp=None,
             outgoing_timestamp=None,
         )
+        if isinstance(message, MediaData):
+            await dependency_setup.byoeb_user_process.annotate_audio_transcription(byoeb_message, message)
 
-        processed_ctx = await dependency_setup.byoeb_user_process.handle_process_message_workflow([ctx])
+        processed_ctx = await dependency_setup.byoeb_user_process.handle_process_message_workflow([byoeb_message])
         responses = await dependency_setup.byoeb_user_generate_response.handle_message_generate_workflow([processed_ctx]) or []
 
         preferred_categories = {MessageCategory.BOT_TO_USER_RESPONSE.value, MessageCategory.TEXT_IDK.value, MessageCategory.AUDIO_IDK.value}
