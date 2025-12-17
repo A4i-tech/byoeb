@@ -1,5 +1,4 @@
 import asyncio
-import os
 import pytest, types
 import azure.cognitiveservices.speech as speechsdk
 from datetime import datetime
@@ -8,9 +7,6 @@ from byoeb_integrations.translators.speech.azure.async_azure_openai_translator i
 from azure.identity import get_bearer_token_provider, DefaultAzureCredential
 from byoeb_integrations import test_environment_path
 from dotenv import load_dotenv
-from pydub import AudioSegment
-from pydub.silence import detect_leading_silence
-import io
 import pytest
 from unittest.mock import AsyncMock
 
@@ -182,8 +178,6 @@ async def aazure_bytes_speech_translate_hi():
         input_text=text,
         source_language="hi",
     )
-    with open("audio.wav", "wb") as f:
-        f.write(result)
     new_text = await async_azure_speech_translator.aspeech_to_text(
         audio_data=result,
         source_language="hi",

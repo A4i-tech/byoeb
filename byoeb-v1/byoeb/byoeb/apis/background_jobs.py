@@ -104,12 +104,22 @@ async def execute_job_function(job_function):
     """Execute a job function directly"""
     try:
         if asyncio.iscoroutinefunction(job_function):
+            # For async functions, call and await the coroutine
             await job_function()
         else:
-            job_function()
+            # For sync functions, run them in executor to avoid blocking
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, job_function)
         _logger.info(f"Successfully executed job function {job_function.__name__}")
     except Exception as e:
-        _logger.error(f"Failed to execute job function {job_function.__name__}: {str(e)}")
+        _logger.error(f"Failed to execute job function {job_function.__name__}: {str(e)}", extra={AppInsightsLogHandler.DETAILS: {
+            "context": execute_job_function.__name__,
+            "job_function": job_function.__name__,
+            "error": str(e)
+        }})
         raise
 
 def setup_scheduled_jobs():
@@ -140,11 +150,8 @@ def setup_scheduled_jobs():
 async def __schedule() -> JSONResponse:
     return JSONResponse(status_code=status.HTTP_200_OK, content={"detail": "This endpoint has been deprecated, use POST /jobs/{job_id} instead."})
 
-@background_apis_router.post("/jobs/{job_id}", summary="Run a background job manually")
-async def run_job_manually(job_id: str = Path(..., description="Job ID to trigger")) -> JSONResponse:
-    """
-    Manually triggers a background job by its job_id.
-    """
+async def _execute_job_by_id(job_id: str) -> JSONResponse:
+    """Internal function to execute a job by ID"""
     job_config = next((j for j in JOB_CONFIGURATIONS if j.id == job_id), None)
     if not job_config:
         return JSONResponse(content=f"Job '{job_id}' not found", status_code=status.HTTP_404_NOT_FOUND)
@@ -152,16 +159,28 @@ async def run_job_manually(job_id: str = Path(..., description="Job ID to trigge
     await execute_job_function(job_config.function)
     return JSONResponse(content=f"Job '{job_id}' executed successfully", status_code=status.HTTP_200_OK)
 
+@background_apis_router.post("/jobs/{job_id}", summary="Run a background job manually")
+async def run_job_manually(job_id: str = Path(..., description="Job ID to trigger")) -> JSONResponse:
+    """
+    Manually triggers a background job by its job_id.
+    """
+    return await _execute_job_by_id(job_id)
+
 @background_apis_router.get("/jobs", summary="List configured jobs and schedules")
 async def list_jobs() -> List[JobStatus]:
     """
     Returns a list of all configured jobs with status, schedule, and next run info.
     """
-    return [JobStatus(
-        id=job.id,
-        name=job.name,
-        trigger=str(job.trigger),
-        enabled=job.enabled,
-        next_run=scheduler.get_job(job.id).next_run_time,
-        error=job_errors[job.id]
-    ) for job in JOB_CONFIGURATIONS]
+    result = []
+    for job in JOB_CONFIGURATIONS:
+        scheduled_job = scheduler.get_job(job.id)
+        next_run = scheduled_job.next_run_time if scheduled_job else None
+        result.append(JobStatus(
+            id=job.id,
+            name=job.name,
+            trigger=str(job.trigger),
+            enabled=job.enabled,
+            next_run=next_run,
+            error=job_errors.get(job.id)
+        ))
+    return result
