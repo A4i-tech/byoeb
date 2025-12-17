@@ -2,72 +2,38 @@ import os
 os.environ["AZURE_OPENAI_API_KEY"] = "sk-xxxx"  # workaround for AzureOpenAIEmbedding requiring this env
 
 import pytest
-import mongomock
+from mongomock_motor import AsyncMongoMockClient
 from byoeb.chat_app.configuration.config import app_config
 from byoeb.background_jobs.message_leaderboard import leaderboard
 from byoeb.repositories.repository_factory import RepositoryFactory
+from byoeb.repositories.mongodb_message_repository import MongoMessageRepository
+from byoeb.repositories.mongodb_user_repository import MongoUserRepository
 from datetime import datetime, timezone, timedelta
 
-def use_mongomock(monkeypatch, docs_by_collection):
+async def use_mongomock(monkeypatch, docs_by_collection):
     """
     Patch repository factory methods to use mongomock collections and reset cached services.
     """
-    client = mongomock.MongoClient()
+    client = AsyncMongoMockClient()
     db_name = app_config["databases"]["mongo_db"]["database_name"]
     db = client[db_name]
 
     for collection_name, docs in docs_by_collection.items():
         docs_list = docs if isinstance(docs, list) else ([docs] if docs else [])
         if docs_list:
-            db[collection_name].insert_many(docs_list)
+            await db[collection_name].insert_many(docs_list)
 
     message_collection_name = app_config["databases"]["mongo_db"]["message_collection"]
     user_collection_name = app_config["databases"]["mongo_db"]["user_collection"]
 
-    class InMemoryMessageRepository:
-        def __init__(self, collection):
-            self._collection = collection
-
-        async def find_messages_by_time_range(self, start_timestamp, end_timestamp, message_categories=None, projection=None):
-            filter_dict = {
-                "message_data.incoming_timestamp": {
-                    "$gte": start_timestamp,
-                    "$lte": end_timestamp
-                }
-            }
-            if message_categories:
-                filter_dict["message_data.message_category"] = {"$in": message_categories}
-            async def _iter():
-                for doc in self._collection.find(filter_dict, projection):
-                    yield doc
-            return _iter()
-
-    class InMemoryUserRepository:
-        def __init__(self, collection):
-            self._collection = collection
-
-        def find_users_by_ids(self, user_ids):
-            async def _iter():
-                if not user_ids:
-                    return
-                for doc in self._collection.find({"_id": {"$in": user_ids}}):
-                    yield doc
-            return _iter()
-
-        def find_test_users_by_types(self, user_types):
-            async def _iter():
-                for doc in self._collection.find({"User.user_type": {"$in": user_types}}):
-                    yield doc
-            return _iter()
-
     async def fake_get_message_repository(self):
         if getattr(self, "_message_repository", None) is None:
-            self._message_repository = InMemoryMessageRepository(db[message_collection_name])
+            self._message_repository = MongoMessageRepository(db[message_collection_name])
         return self._message_repository
 
     async def fake_get_user_repository(self):
         if getattr(self, "_user_repository", None) is None:
-            self._user_repository = InMemoryUserRepository(db[user_collection_name])
+            self._user_repository = MongoUserRepository(db[user_collection_name])
         return self._user_repository
 
     monkeypatch.setattr(RepositoryFactory, "get_message_repository", fake_get_message_repository)
@@ -81,29 +47,24 @@ def use_mongomock(monkeypatch, docs_by_collection):
 
 @pytest.mark.asyncio
 async def test_leaderboard_skips_unknown_district(monkeypatch):
-    from types import SimpleNamespace
     now = int(datetime.now(timezone.utc).timestamp())
+    message_collection_name = app_config["databases"]["mongo_db"]["message_collection"]
+    user_collection_name = app_config["databases"]["mongo_db"]["user_collection"]
 
-    use_mongomock(monkeypatch, {
-        "ashamessages": [
+    await use_mongomock(monkeypatch, {
+        message_collection_name: [
             {"message_data": {"user": {"user_id": "u1"}, "incoming_timestamp": now}},
         ],
+        user_collection_name: [
+            {"_id": "u1", "User": {"user_id": "u1", "user_location": {"district": "unknown"}}},
+        ],
     })
-
-    async def fake_users(uids):
-        # district is "unknown" -> should be skipped
-        return [SimpleNamespace(user_id="u1", user_location={"district": "unknown"})]
-    monkeypatch.setattr(
-        "byoeb.chat_app.configuration.dependency_setup.user_db_service.get_users",
-        fake_users
-    )
 
     df = await leaderboard.build_district_leaderboard_last_week_ist()
     assert df.empty
 
 @pytest.mark.asyncio
 async def test_leaderboard_ignores_out_of_window(monkeypatch):
-    from types import SimpleNamespace
     from byoeb.services.leaderboard.time_window_strategies import TimeWindowFactory
 
     ref = datetime(2025, 9, 15, 12, 0, tzinfo=timezone.utc)  # Monday
@@ -111,19 +72,17 @@ async def test_leaderboard_ignores_out_of_window(monkeypatch):
     start_utc, end_utc = week_strategy.calculate_window(ref)
 
     just_before = start_utc - 1
+    message_collection_name = app_config["databases"]["mongo_db"]["message_collection"]
+    user_collection_name = app_config["databases"]["mongo_db"]["user_collection"]
 
-    use_mongomock(monkeypatch, {
-        "ashamessages": [
+    await use_mongomock(monkeypatch, {
+        message_collection_name: [
             {"message_data": {"user": {"user_id": "u1"}, "incoming_timestamp": just_before}},
         ],
+        user_collection_name: [
+            {"_id": "u1", "User": {"user_id": "u1", "user_location": {"district": "Jaipur"}}},
+        ],
     })
-
-    async def fake_users(uids):
-        return [SimpleNamespace(user_id="u1", user_location={"district": "Jaipur"})]
-    monkeypatch.setattr(
-        "byoeb.chat_app.configuration.dependency_setup.user_db_service.get_users",
-        fake_users
-    )
 
     df = await leaderboard.build_district_leaderboard_last_week_ist()
     assert df.empty
@@ -149,13 +108,13 @@ def test_last_week_window_math():
 
 @pytest.mark.asyncio
 async def test_leaderboard_empty_data(monkeypatch):
-    use_mongomock(monkeypatch, {})
+    await use_mongomock(monkeypatch, {})
     df = await leaderboard.build_district_leaderboard_last_week_ist()
     assert df.empty
 
 @pytest.mark.asyncio
 async def test_leaderboard_with_categories(monkeypatch):
-    use_mongomock(monkeypatch, {})
+    await use_mongomock(monkeypatch, {})
     df = await leaderboard.build_district_leaderboard_last_week_ist(message_categories=["asha"])
     assert df is not None 
 
@@ -203,10 +162,10 @@ async def test_send_bulk_messages_failure(mocker):
 
 @pytest.mark.asyncio
 async def test_main_function_runs(monkeypatch, mocker):
-    use_mongomock(monkeypatch, {})
-    # Mock the message service to prevent actual message sending during tests
-    mock_message_service = mocker.MagicMock()
-    mock_message_service.send_bulk_messages = mocker.AsyncMock(return_value=[{"phone": "test", "status": "mocked"}])
-    mocker.patch("byoeb.background_jobs.message_leaderboard.leaderboard.message_db_service", mock_message_service)
+    await use_mongomock(monkeypatch, {})
+    mocker.patch(
+        "byoeb.background_jobs.message_leaderboard.leaderboard.send_leaderboard_template_messages",
+        new=mocker.AsyncMock(return_value=[{"phone": "test", "status": "mocked"}]),
+    )
 
     await leaderboard.main()
