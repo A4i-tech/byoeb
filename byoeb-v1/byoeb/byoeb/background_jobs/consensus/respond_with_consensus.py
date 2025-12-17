@@ -86,12 +86,13 @@ async def create_user_message(
     message: ByoebMessageContext,
     response: str,
 ) -> ByoebMessageContext:
-    from byoeb.chat_app.configuration.dependency_setup import speech_tts
+    from byoeb.chat_app.configuration.dependency_setup import speech_translator
     
     user_language = message.user.user_language
-    translated_audio_message = await speech_tts(message.user.user_language, message.user.test_user).atext_to_speech(
+    translated_audio_message = await speech_translator.atext_to_speech(
         input_text=response,
         source_language=user_language,
+        test_user=message.user.test_user
     )
     related_questions = message.message_context.additional_info.get(constants.RELATED_QUESTIONS)
     description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
