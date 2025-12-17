@@ -40,11 +40,19 @@ class MongoDykRepository(DykRepository):
     async def find_all(self, offset: int, length: int) -> List[DykEntry]:
         documents = await self._storage_collection.afetch_all({}, skip=offset, limit=length)
         return [self._doc_to_entry(doc) for doc in documents]
-
+    
     async def find_by_language(self, lang: LanguageCode, offset: int, length: int) -> List[DykEntry]:
         query = {f"languages.{lang.value}": {"$exists": True}}
         documents = await self._storage_collection.afetch_all(query, skip=offset, limit=length)
         return [self._doc_to_entry(doc) for doc in documents]
+
+    async def find_available_languages(self) -> List[LanguageCode]:
+        docs = await self._storage_collection.aaggregate([
+            {"$project": {"l": {"$objectToArray": {"$ifNull": ["$languages", {}]}}}},
+            {"$unwind": "$l"},
+            {"$group": {"_id": "$l.k"}}
+        ])
+        return [LanguageCode(v) for d in docs if (v := self._normalize_language_key(d["_id"]))]
 
     async def select_next(self, user_id: str, lang: LanguageCode) -> Optional[uuid.UUID]:
         match_filter: Dict[str, Any] = {f"languages.{lang.value}": {"$exists": True}}

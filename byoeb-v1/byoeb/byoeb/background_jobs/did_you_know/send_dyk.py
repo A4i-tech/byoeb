@@ -5,32 +5,32 @@ from random import sample
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from byoeb.background_jobs.did_you_know.config import bot_config
 from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
-from byoeb.models.dyk import DykRecord
+from byoeb.models.dyk import DykLanguageEntry, DykRecord
 from byoeb.repositories.dyk_repository import DykRepository
 from byoeb.repositories.user_repository import UserRepository
 from byoeb.utils.utils import chunked
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.repositories.repository_factory import get_repository_factory
 from byoeb.services.channel.whatsapp import WhatsAppService
+from byoeb.services.chat import constants
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageContext, MessageTypes
 from byoeb_core.models.byoeb.user import User
 from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import StatusCode
 from datetime import datetime, timezone
-from pydantic import BaseModel, field_validator
 from typing import AsyncIterator, Iterable, List, Optional, Tuple, TypeAlias
 import os
+import re
 
 
 DykBatch: TypeAlias = Iterable[User]
 
-class LangEntry(BaseModel):
-    language: LanguageCode
-    template: str  # a template to decorate the message. {message} is the placeholder for the fact.
-
-    @field_validator("template", mode="before")
-    def join_template(cls, v):
-        return "\n".join(v) if isinstance(v, list) else v
-
+def clean_template_param(text: str) -> str:
+    """Make template parameter safe for WhatsApp: no newlines/tabs, no 4+ spaces."""
+    # Replace newlines/tabs with single space
+    text = re.sub(r"[\r\n\t]+", " ", text)
+    # Collapse multiple spaces to single
+    text = re.sub(r"\s{2,}", " ", text)
+    return text.strip()
 
 async def pick_candidates(dyk_repo: DykRepository, user_repo: UserRepository, langs: Iterable[LanguageCode], user_types: List[str], batch_size: int) -> AsyncIterator[DykBatch]:
     """
@@ -81,8 +81,6 @@ async def queue(dyk_repo: DykRepository, candidates: DykBatch) -> Tuple[str, int
             lang = LanguageCode(user.user_language)
         except ValueError:
             continue
-        if lang not in LANG_ENTRIES:
-            continue
 
         dyk_id = await dyk_repo.select_next(str(user.user_id), lang)
         if not dyk_id:
@@ -116,6 +114,56 @@ async def queue(dyk_repo: DykRepository, candidates: DykBatch) -> Tuple[str, int
     if len(queued_client_ops) > 0:
         await dyk_repo.insert(queued_client_ops)
     return batch_id, n_queued, n_exhausted
+
+
+def message_simple(user: User, record: DykRecord, entry: DykLanguageEntry, ts: int) -> ByoebMessageContext:
+    return ByoebMessageContext(
+        channel_type="whatsapp",
+        message_category="did_you_know",
+        user=user,
+        message_context=MessageContext(
+            message_id=f"did-you-know-{record.id}",
+            message_source_text=entry.fact,
+            message_english_text=entry.fact,
+            media_info=None,
+            message_type=MessageTypes.TEMPLATE_TEXT.value,
+            additional_info={
+                constants.TEMPLATE_NAME: "did_you_know_v2",
+                constants.TEMPLATE_LANGUAGE: record.dyk_lang.value,
+                constants.TEMPLATE_PARAMETERS: [clean_template_param(entry.fact)]
+            }
+        ),
+        reply_context=None,
+        cross_conversation_id=None,
+        cross_conversation_context=None,
+        incoming_timestamp=ts,
+        outgoing_timestamp=ts
+    )
+
+
+def message_with_related_questions(user: User, record: DykRecord, entry: DykLanguageEntry, ts: int) -> ByoebMessageContext:
+    message = LANGUAGE_TEMPLATES[record.dyk_lang].replace("{message}", entry.fact)
+    button_titles = sample(entry.related_questions, k=min(len(entry.related_questions), 3)) if entry.related_questions else []
+    additional_info = {"button_titles": button_titles} if button_titles else {}
+    message_type = MessageTypes.INTERACTIVE_BUTTON.value if button_titles else MessageTypes.REGULAR_TEXT.value
+    return ByoebMessageContext(
+        channel_type="whatsapp",
+        message_category="did_you_know",
+        user=user,
+        message_context=MessageContext(
+            message_id=f"did-you-know-{record.id}",
+            message_type=message_type,
+            message_source_text=message,
+            message_english_text=message,
+            media_info=None,
+            additional_info=additional_info,
+        ),
+        reply_context=None,
+        cross_conversation_id=None,
+        cross_conversation_context=None,
+        incoming_timestamp=ts,
+        outgoing_timestamp=ts
+    )
 
 
 async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_service: WhatsAppService, batch_id: str, langs: Iterable[LanguageCode]) -> Tuple[int, int]:
@@ -152,31 +200,13 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_
                 continue
 
             lang_entry = entry.languages[record.dyk_lang]
-            message = LANG_ENTRIES[record.dyk_lang].template.replace("{message}", lang_entry.fact)
-            button_titles = sample(lang_entry.related_questions, k=min(len(lang_entry.related_questions), 3)) if lang_entry.related_questions else []
-            additional_info = {"button_titles": button_titles} if button_titles else {}
-            message_type = MessageTypes.INTERACTIVE_BUTTON.value if button_titles else MessageTypes.REGULAR_TEXT.value
 
-            text_message = ByoebMessageContext(
-                channel_type="whatsapp",
-                message_category="did_you_know",
-                user=user,
-                message_context=MessageContext(
-                    message_id=f"did-you-know-{record.id}",
-                    message_type=message_type,
-                    message_source_text=message,
-                    message_english_text=message,
-                    media_info=None,
-                    additional_info=additional_info,
-                ),
-                reply_context=None,
-                cross_conversation_id=None,
-                cross_conversation_context=None,
-                incoming_timestamp=ts,
-                outgoing_timestamp=ts
-            )
+            if user.activity_timestamp is None or ts - user.activity_timestamp > 86_400:
+                byoeb_message = message_simple(user, record, lang_entry, ts)
+            else:
+                byoeb_message = message_with_related_questions(user, record, lang_entry, ts)
 
-            requests = whatsapp_service.prepare_requests(text_message)
+            requests = whatsapp_service.prepare_requests(byoeb_message)
             if not requests:
                 send_logger.error("Failed to prepare a request message", extra={AppInsightsLogHandler.DETAILS: {
                     "context": dispatch.__name__,
@@ -190,29 +220,32 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_
 
             # TODO: we should probably batch `requests` here so we call send_requests() sparingly...
             responses, message_ids = await whatsapp_service.send_requests(requests)
-            assert len(responses) == 1
-            if int(responses[0].response_status.status) != StatusCode.SUCCESS.value:
-                send_logger.error(responses[0].response_status.error, extra={AppInsightsLogHandler.DETAILS: {
+            assert len(responses) > 0
+            failed = False
+            for response in responses:
+                if int(response.response_status.status) != StatusCode.SUCCESS.value:
+                    send_logger.error(response.response_status.error, extra={AppInsightsLogHandler.DETAILS: {
+                        "context": dispatch.__name__,
+                        "dyk_id": str(record.dyk_id),
+                        "user_id": record.user_id,
+                        "batch_id": batch_id,
+                        "user_phone_number": phone_number,
+                        "whatsapp_response_code": response.response_status.status
+                    }})
+                    n_failure += 1
+                    failed = True
+
+            if not failed:
+                send_logger.info("Sent DYK %s to user %s", record.dyk_id, record.user_id, extra={AppInsightsLogHandler.DETAILS: {
                     "context": dispatch.__name__,
                     "dyk_id": str(record.dyk_id),
                     "user_id": record.user_id,
                     "batch_id": batch_id,
                     "user_phone_number": phone_number,
-                    "whatsapp_response_code": responses[0].response_status.status
+                    "whatsapp_message_ids": json.dumps(message_ids)
                 }})
-                n_failure += 1
-                continue
-
-            send_logger.info("Sent DYK %s to user %s", record.dyk_id, record.user_id, extra={AppInsightsLogHandler.DETAILS: {
-                "context": dispatch.__name__,
-                "dyk_id": str(record.dyk_id),
-                "user_id": record.user_id,
-                "batch_id": batch_id,
-                "user_phone_number": phone_number,
-                "whatsapp_message_ids": json.dumps(message_ids)
-            }})
-            completed.append(record.id)
-            n_success += 1
+                completed.append(record.id)
+                n_success += 1
     finally:
         await dyk_repo.update_status(aborted, "aborted")
         await dyk_repo.update_status(completed, "completed")
@@ -220,60 +253,55 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_
 
 
 async def main(user_types: List[str], batch_size: int) -> None:
-    try:
-        factory = await get_repository_factory()
-        dyk_repo = await factory.get_dyk_repository()
-        user_repo = await factory.get_user_repository()
+    factory = await get_repository_factory()
+    dyk_repo = await factory.get_dyk_repository()
+    user_repo = await factory.get_user_repository()
+    active_langs = await dyk_repo.find_available_languages()
 
-        active_langs_tuple = tuple(LANG_ENTRIES.keys())
-        if not active_langs_tuple:
-            run_logger.error("No languages configured for DYK run - aborting.")
-            return
+    # sync (...with runtime. delete pending records with unknown langs, unknown dyk ids)
+    synced = await dyk_repo.synchronize()
+    run_logger.info("Synced jobs: %d", synced)  # pending messages that were discarded (because they no longer reference a DYK message)
 
-        # sync (...with runtime. delete pending records with unknown langs, unknown dyk ids)
-        synced = await dyk_repo.synchronize()
-        run_logger.info("Synced jobs: %d", synced)  # pending messages that were discarded (because they no longer reference a DYK message)
+    # schedule (pick candidates in batches and assign them dyk ids)
+    async for batch in pick_candidates(dyk_repo, user_repo, active_langs, user_types, batch_size):
+        batch_id, queued, exhausted = await queue(dyk_repo, batch)
+        run_logger.info("[batch-%s] Queued jobs: %d", batch_id, queued, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # messages that were added to the dispatch queue
+        run_logger.info("[batch-%s] Exhausted jobs: %d", batch_id, exhausted, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # users who could not be sent a DYK message (because they have received every DYK message)
 
-        # schedule (pick candidates in batches and assign them dyk ids)
-        async for batch in pick_candidates(dyk_repo, user_repo, active_langs_tuple, user_types, batch_size):
-            batch_id, queued, exhausted = await queue(dyk_repo, batch)
-            run_logger.info("[batch-%s] Queued jobs: %d", batch_id, queued, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # messages that were added to the dispatch queue
-            run_logger.info("[batch-%s] Exhausted jobs: %d", batch_id, exhausted, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # users who could not be sent a DYK message (because they have received every DYK message)
+    # dispatch (...to whatsapp. pick a batch of candidates and send them their assigned dyks)
+    whatsapp_service = WhatsAppService(channel_client_factory)
+    batch_ids = await dyk_repo.find_pending_batch_ids()
+    retries = 0
+    while True:
+        if retries > 0:
+            run_logger.warning("Retrying dispatch job... %d / %d", retries + 1, N_RETRIES)
 
-        # dispatch (...to whatsapp. pick a batch of candidates and send them their assigned dyks)
-        whatsapp_service = WhatsAppService(channel_client_factory)
-        batch_ids = await dyk_repo.find_pending_batch_ids()
-        retries = 0
-        while True:
-            if retries > 0:
-                run_logger.warning("Retrying dispatch job... %d / %d", retries + 1, N_RETRIES)
+        failed_batches = []
+        for batch_id in batch_ids:
+            success, fail = await dispatch(dyk_repo, user_repo, whatsapp_service, batch_id, active_langs)
+            run_logger.info("[batch-%s] Dispatched jobs: %d succeeded, %d failed", batch_id, success, fail, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # messages that were sent to WhatsApp (includes messages that were just queued)
+            if fail > 0:
+                failed_batches.append(batch_id)
 
-            failed_batches = []
-            for batch_id in batch_ids:
-                success, fail = await dispatch(dyk_repo, user_repo, whatsapp_service, batch_id, active_langs_tuple)
-                run_logger.info("[batch-%s] Dispatched jobs: %d succeeded, %d failed", batch_id, success, fail, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # messages that were sent to WhatsApp (includes messages that were just queued)
-                if fail > 0:
-                    failed_batches.append(batch_id)
-
-            if len(failed_batches) == 0:
-                break
-            batch_ids = failed_batches
-            retries += 1
-            if retries == N_RETRIES:
-                run_logger.error("Max retries exceeded. Exiting.")
-                break
-            await asyncio.sleep(2.5)
-    finally:
-        await channel_client_factory.close()
+        if len(failed_batches) == 0:
+            break
+        batch_ids = failed_batches
+        retries += 1
+        if retries == N_RETRIES:
+            run_logger.error("Max retries exceeded. Exiting.")
+            break
+        await asyncio.sleep(2.5)
 
 
 run_logger = AppInsightsLogHandler.getLogger("dyk_run")
 send_logger = AppInsightsLogHandler.getLogger("dyk_send")
 
 user_types_to_send = bot_config["user_types_to_send"]
-_LANG_ENTRIES = [LangEntry(**e) for e in bot_config["languages"]]
-LANG_ENTRIES = {e.language: e for e in _LANG_ENTRIES}
+# WhatsApp-configured templates now drive DYK; keep a simple language list for CSV parsing.
 N_RETRIES = 5  # number of times to retry dispatch()ing to WhatsApp in the event of failure
+
+LANGUAGE_TEMPLATES: dict[LanguageCode, str] = {LanguageCode(lang["language"]): "\n".join(lang["template"]) for lang in bot_config["languages"]}
+LANGUAGE_TEMPLATES.update({code: "{message}" for code in LanguageCode if code not in LANGUAGE_TEMPLATES})
 
 # Wrapper function for scheduler to call without arguments
 async def run():
