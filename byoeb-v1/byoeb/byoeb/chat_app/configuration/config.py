@@ -53,7 +53,7 @@ env_azure_cognitive_key = os.getenv("AZURE_COGNITIVE_KEY")
 #Azure Speech Key
 env_azure_speech_key= os.getenv("AZURE_SPEECH_KEY")
 env_azure_openai_speech_key = os.getenv("AZURE_OPENAI_SPEECH_KEY") or os.getenv("AZURE_OPENAI_WHISPER_KEY")
-env_azure_openai_speech_endpoint = os.getenv("AZURE_OPENAI_SPEECH_ENDPOINT") or "https://khushi-baby-asha-oai.openai.azure.com/"
+env_azure_openai_speech_endpoint = os.getenv("AZURE_OPENAI_SPEECH_ENDPOINT")
 
 # Azure Search
 env_azure_search_api_key = os.getenv("AZURE_SEARCH_API_KEY")

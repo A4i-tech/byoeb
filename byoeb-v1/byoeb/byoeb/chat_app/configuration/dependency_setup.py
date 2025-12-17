@@ -187,6 +187,8 @@ for entry in app_config["translators"]["speech"]:
     attributes = TypeAdapter(dict[str, Any]).validate_python(entry["attributes"])
     gated = entry.get("gated", False) and FeatureFlag.STT_LATENCY_MITIGATION not in env_config.feature_flags
     match entry["motive"], entry["service"]:
+        case "speech_to_text", "azure_openai" if not env_config.env_azure_openai_speech_endpoint:
+            raise RuntimeError("AZURE_OPENAI_SPEECH_ENDPOINT environment variable must be set to use " + entry["service"] + " service")
         case "speech_to_text", "azure_openai" if env_config.env_azure_openai_speech_key:
             print("✅ Azure OpenAI key set. Enabling Azure OpenAI translator.")
             attributes["api_key"] = env_config.env_azure_openai_speech_key
