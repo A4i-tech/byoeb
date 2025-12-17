@@ -89,7 +89,7 @@ async def create_user_message(
     from byoeb.chat_app.configuration.dependency_setup import speech_tts
     
     user_language = message.user.user_language
-    translated_audio_message = await speech_tts(message.user).atext_to_speech(
+    translated_audio_message = await speech_tts(message.user.user_language, message.user.test_user).atext_to_speech(
         input_text=response,
         source_language=user_language,
     )

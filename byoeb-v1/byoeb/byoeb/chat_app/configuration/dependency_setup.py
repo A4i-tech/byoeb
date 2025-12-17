@@ -176,12 +176,12 @@ _speech_stt_gated: dict[LanguageCode, BaseSpeechTranslator] = {}
 _speech_tts: dict[LanguageCode, BaseSpeechTranslator] = {}
 _speech_tts_gated: dict[LanguageCode, BaseSpeechTranslator] = {}
 
-def _speech_selector(user: User, default: dict[LanguageCode, BaseSpeechTranslator], gated: dict[LanguageCode, BaseSpeechTranslator]) -> BaseSpeechTranslator:
-    lang = LanguageCode(user.user_language)
-    return gated[lang] if user.test_user and lang in gated else default[lang]
+def _speech_selector(lang: LanguageCode, test_user: bool, default: dict[LanguageCode, BaseSpeechTranslator], gated: dict[LanguageCode, BaseSpeechTranslator]) -> BaseSpeechTranslator:
+    lang_ = LanguageCode(lang)
+    return gated[lang_] if test_user and lang_ in gated else default[lang_]
 
-speech_stt: Callable[[User], BaseSpeechTranslator] = lambda u: _speech_selector(u, _speech_stt, _speech_stt_gated)
-speech_tts: Callable[[User], BaseSpeechTranslator] = lambda u: _speech_selector(u, _speech_tts, _speech_tts_gated)
+speech_stt: Callable[[LanguageCode, bool], BaseSpeechTranslator] = lambda lang, test_user: _speech_selector(lang, test_user, _speech_stt, _speech_stt_gated)
+speech_tts: Callable[[LanguageCode, bool], BaseSpeechTranslator] = lambda lang, test_user: _speech_selector(lang, test_user, _speech_tts, _speech_tts_gated)
 known_speech_services = {}
 
 for entry in app_config["translators"]["speech"]:

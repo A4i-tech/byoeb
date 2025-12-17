@@ -133,7 +133,7 @@ class ByoebExpertGenerateResponse(Handler):
                 target_language=user.user_language
             )
             text_message = self.USER_CORRECTED_ANSWER_MESSAGES.get(user.user_language).replace("<CORRECTED_ANSWER>", translated_text)
-            translated_audio_message = await speech_stt(user).atext_to_speech(
+            translated_audio_message = await speech_stt(user.user_language, user.test_user).atext_to_speech(
                 input_text=text_message,
                 source_language=user.user_language,
             )

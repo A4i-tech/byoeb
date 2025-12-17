@@ -291,7 +291,7 @@ class ByoebUserGenerateResponse(Handler):
         user: User
     ):
         from byoeb.chat_app.configuration.dependency_setup import speech_tts
-        translated_audio_message = await speech_tts(user).atext_to_speech(
+        translated_audio_message = await speech_tts(user.user_language, user.test_user).atext_to_speech(
             input_text=message_source_text,
             source_language=user.user_language,
         )
