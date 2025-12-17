@@ -1,6 +1,3 @@
-"""
-Base repository interface for abstracting data access patterns.
-"""
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Tuple, AsyncIterator
 

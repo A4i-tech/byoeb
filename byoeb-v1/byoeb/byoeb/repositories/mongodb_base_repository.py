@@ -1,4 +1,3 @@
-"""MongoDB implementation of MessageRepository."""
 from typing import List, Dict, Any, Optional, Tuple, final, AsyncIterator
 from pymongo import UpdateOne
 from pymongo.asynchronous.collection import AsyncCollection

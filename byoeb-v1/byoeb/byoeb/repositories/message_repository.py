@@ -1,6 +1,3 @@
-"""
-Message repository interface for abstracting message-related database operations.
-"""
 from abc import ABC, abstractmethod
 from typing import AsyncIterator, Dict, Any, Optional
 

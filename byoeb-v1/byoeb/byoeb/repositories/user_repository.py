@@ -1,4 +1,3 @@
-"""User repository interface for abstracting user-related database operations."""
 from abc import ABC, abstractmethod
 from typing import AsyncIterator, Dict, Any, Optional, List
 

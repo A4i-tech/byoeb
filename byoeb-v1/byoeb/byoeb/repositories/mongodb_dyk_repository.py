@@ -10,7 +10,6 @@ from byoeb.repositories.dyk_repository import DykRepository
 
 
 class MongoDykRepository(DykRepository, MongoBaseRepository):
-    """MongoDB implementation of DykRepository."""
 
     async def synchronize(self, records: Dict[LanguageCode, List[str]]) -> int:
         tasks = []
