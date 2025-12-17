@@ -1,3 +1,5 @@
+import hashlib
+import json
 import os
 from typing import Iterable, List, TypeVar
 from urllib.parse import unquote
@@ -72,3 +74,9 @@ def chunked(seq: Iterable[T], size: int) -> Iterable[List[T]]:
     seq = list(seq)
     for i in range(0, len(seq), size):
         yield seq[i:i + size]
+
+def hash_dict(d):
+    return hashlib.sha256(
+        json.dumps(d, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+        .encode()
+    ).hexdigest()

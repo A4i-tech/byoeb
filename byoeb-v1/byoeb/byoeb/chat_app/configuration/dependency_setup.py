@@ -1,5 +1,6 @@
 import byoeb.chat_app.configuration.config as env_config
 from byoeb.chat_app.configuration.config import app_config
+from byoeb.utils.utils import hash_dict
 
 import time, json, traceback, uuid, asyncio
 import logging
@@ -181,41 +182,56 @@ def _speech_selector(user: User, default: dict[LanguageCode, BaseSpeechTranslato
 
 speech_stt: Callable[[User], BaseSpeechTranslator] = lambda u: _speech_selector(u, _speech_stt, _speech_stt_gated)
 speech_tts: Callable[[User], BaseSpeechTranslator] = lambda u: _speech_selector(u, _speech_tts, _speech_tts_gated)
+known_speech_services = {}
 
 for entry in app_config["translators"]["speech"]:
     languages = TypeAdapter(list[LanguageCode]).validate_python(entry["languages"])
     attributes = TypeAdapter(dict[str, Any]).validate_python(entry["attributes"])
+
     gated = entry.get("gated", False) and FeatureFlag.STT_LATENCY_MITIGATION not in env_config.feature_flags
+    match entry["motive"], gated:
+        case "speech_to_text", True:  speech_group = _speech_stt_gated
+        case "speech_to_text", False: speech_group = _speech_stt
+        case "text_to_speech", True:  speech_group = _speech_tts_gated
+        case "text_to_speech", False: speech_group = _speech_tts
+        case motive, _: raise RuntimeError(f"Unexpected speech config: motive={motive}")
+
+    hash_key = hash_dict({k: entry[k] for k in ("service", "attributes")})
+    if hash_key in known_speech_services:
+        service = known_speech_services[hash_key]
+        speech_group.update((lang, service) for lang in languages)
+        continue
+
     match entry["motive"], entry["service"]:
         case "speech_to_text", "azure_openai" if not env_config.env_azure_openai_speech_endpoint:
             raise RuntimeError("AZURE_OPENAI_SPEECH_ENDPOINT environment variable must be set to use " + entry["service"] + " service")
         case "speech_to_text", "azure_openai" if env_config.env_azure_openai_speech_key:
-            print("✅ Azure OpenAI key set. Enabling Azure OpenAI translator.")
+            print(f"✅ Azure OpenAI key set. Enabling Azure OpenAI translator for motive={entry['motive']}, service={entry['service']}, model={attributes['model']}.")
             attributes["api_key"] = env_config.env_azure_openai_speech_key
             attributes["endpoint"] = env_config.env_azure_openai_speech_endpoint
-            speech_group = _speech_stt_gated if gated else _speech_stt
-            speech_group.update((lang, AsyncAzureOpenAISpeechTranslator(**attributes)) for lang in languages)
+            service = AsyncAzureOpenAISpeechTranslator(**attributes)
         case "speech_to_text", "azure_openai":
-            print("⚠️ Azure OpenAI key not set. Defaulting to DefaultAzureCredential for Azure OpenAI translator")
+            print(f"⚠️ Azure OpenAI key not set. Defaulting to DefaultAzureCredential for Azure OpenAI translator for motive={entry['motive']}, service={entry['service']}, model={attributes['model']}.")
             from azure.identity import DefaultAzureCredential, get_bearer_token_provider
             attributes["token_provider"] = get_bearer_token_provider(DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"])
             attributes["endpoint"] = env_config.env_azure_openai_speech_endpoint
-            speech_group = _speech_stt_gated if gated else _speech_stt
-            speech_group.update((lang, AsyncAzureOpenAISpeechTranslator(**attributes)) for lang in languages)
+            service = AsyncAzureOpenAISpeechTranslator(**attributes)
         case "text_to_speech", "azure_cognitive" if env_config.env_azure_speech_key:
-            print("✅ Azure Cognitive Services key set. Enabling Azure speech translator.")
+            print(f"✅ Azure Cognitive Services key set. Enabling Azure speech translator for motive={entry['motive']}, service={entry['service']}.")
             attributes["key"] = env_config.env_azure_speech_key
-            speech_group = _speech_tts_gated if gated else _speech_tts
-            speech_group.update((lang, AsyncAzureSpeechTranslator(**attributes)) for lang in languages)
+            service = AsyncAzureSpeechTranslator(**attributes)
         case "text_to_speech", "azure_cognitive":
-            print("⚠️ Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure speech translator")
+            print(f"⚠️ Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure speech translator for motive={entry['motive']}, service={entry['service']}.")
             from azure.identity import DefaultAzureCredential, get_bearer_token_provider
             attributes["token_provider"] = get_bearer_token_provider(DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"])
-            speech_group = _speech_tts_gated if gated else _speech_tts
-            speech_group.update((lang, AsyncAzureSpeechTranslator(**attributes)) for lang in languages)
+            service = AsyncAzureSpeechTranslator(**attributes)
         case motive, service:
             raise RuntimeError(f"Unexpected speech config: motive={motive}, service={service}")
 
+    speech_group.update((lang, service) for lang in languages)
+    known_speech_services[hash_key] = service
+
+known_speech_services.clear()
 if len(_speech_stt) != len(LanguageCode): raise RuntimeError(f"STT service is missing for some languages: {set(LanguageCode) - _speech_stt.keys()}")
 if len(_speech_tts) != len(LanguageCode): raise RuntimeError(f"TTS service is missing for some languages: {set(LanguageCode) - _speech_tts.keys()}")
 
