@@ -21,7 +21,7 @@ def has_interactive_list_additional_info(
         byoeb_message.message_context.additional_info is not None and
         constants.DESCRIPTION in byoeb_message.message_context.additional_info and
         constants.ROW_TEXTS in byoeb_message.message_context.additional_info and
-        byoeb_message.message_context.additional_info[constants.ROW_TEXTS]
+        len(byoeb_message.message_context.additional_info.get(constants.ROW_TEXTS, [])) > 0  # Ensure ROW_TEXTS is not empty
     )
 
 def has_interactive_button_additional_info(

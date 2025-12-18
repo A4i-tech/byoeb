@@ -79,6 +79,14 @@ Researchers will log and analyze your messages only for research purposes, and w
     },
 }
 
+# Message for already onboarded users
+ALREADY_REGISTERED_DICT = {
+    LanguageCode.HINDI.value: "आप पहले से ही सिस्टम में पंजीकृत हैं।",
+    LanguageCode.ENGLISH.value: "You are already registered with the system.",
+    LanguageCode.MARATHI.value: "तुम्ही आधीच सिस्टममध्ये नोंदणीकृत आहात.",
+    LanguageCode.TELUGU.value: "మీరు ఇప్పటికే సిస్టమ్‌లో నమోదు చేయబడ్డారు.",
+}
+
 THANK_YOU_DICT = {
     UserType.ASHA.value: {
         LanguageCode.HINDI.value: "आप मुझसे गर्भावस्था, शिशु देखभाल और आशा के रूप में अपने काम के बारे में कोई भी प्रश्न 💬 लिख कर या🎙️वॉइस संदेश भेजकर पूछ सकते हैं। जैसे की:\nछाया टैबलेट कब लें?\nआभा आईडी क्या है?\n3 महीने के बच्चे को कौन से टीके दें?",
@@ -95,10 +103,33 @@ THANK_YOU_DICT = {
 }
 
 ONBOARD_WELCOME_MESSAGE_DICT = {
-    LanguageCode.HINDI.value: ["में एक आशा हूँ और मुझे आशा सहेली बोट से जुड़ना है"],
-    LanguageCode.ENGLISH.value: ["onboard asha"],
-    LanguageCode.MARATHI.value: ["मी आशा आहे आणि मला आशा सहेली बॉटमध्ये सामील व्हायचे आहे"],
-    LanguageCode.TELUGU.value: ["నేను ఆశాను మరియు ఆశా సహేలి బాట్‌లో చేరాలనుకుంటున్నాను"],
+    LanguageCode.HINDI.value: [
+        "में एक आशा हूँ और मुझे आशा सहेली बोट से जुड़ना है",
+        "मैं आशा हूँ और मुझे आशा सहेली बोट से जुड़ना है",
+        "आशा सहेली बोट से जुड़ना है",
+        "आशा सहेली से जुड़ना है",
+        "onboard asha",  # Also accept English "onboard asha" for Hindi users
+        "onboard-asha"
+    ],
+    LanguageCode.ENGLISH.value: ["onboard asha", "onboard-asha", "ONBOARD ASHA"],
+    LanguageCode.MARATHI.value: [
+        "मी आशा आहे आणि मला आशा सहेली बॉटमध्ये सामील व्हायचे आहे",
+        "मी आशा आहे आणि मला आशा सहेली बॉटमध्ये सामील व्हायचे आहे",
+        "आशा सहेली बॉटमध्ये सामील व्हायचे आहे",
+        "आशा सहेली बॉटमध्ये सामील",
+        "आशा सहेली सामील व्हायचे आहे",
+        "onboard asha",  # Also accept English for Marathi users
+        "onboard-asha"
+    ],
+    LanguageCode.TELUGU.value: [
+        "నేను ఆశాను మరియు ఆశా సహేలి బాట్‌లో చేరాలనుకుంటున్నాను",
+        "నేను ఆశాను మరియు ఆశా సహేలి బాట్‌లో చేరాలనుకుంటున్నాను",
+        "ఆశా సహేలి బాట్‌లో చేరాలనుకుంటున్నాను",
+        "ఆశా సహేలి బాట్‌లో చేరాలి",
+        "ఆశా సహేలి చేరాలనుకుంటున్నాను",
+        "onboard asha",  # Also accept English for Telugu users
+        "onboard-asha"
+    ],
 }
 
 # Suggested questions list text + items

@@ -132,8 +132,26 @@ class ByoebUserProcess(Handler):
 
         if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
             await self.annotate_audio_transcription(message)
-
-        if message.reply_context.message_category != MessageCategory.AUDIO_IDK.value:
+        
+        # Check if this is an onboarding message BEFORE processing
+        is_onboarding_message = utils.is_onboard(message.message_context.message_source_text, message.user.user_language)
+        
+        # Skip LLM translation/rewriting for onboarding messages to prevent them from being sent to vector store/LLM
+        # Also skip for AUDIO_IDK messages (they don't need translation/rewriting)
+        if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
+            # AUDIO_IDK messages don't go through LLM translation/rewriting
+            # query_en_addcontext will remain None, and we'll use source text as fallback
+            pass
+        elif is_onboarding_message:
+            # For onboarding messages, set default values to prevent LLM processing
+            print(f"[process] Detected onboarding message: '{message.message_context.message_source_text[:50]}...'")
+            source_text = message.message_context.message_source_text
+            query_en = source_text
+            query_en_addcontext = source_text
+            query_type = "asha_work_related"
+        else:
+            # Normal messages: call LLM for translation and rewriting
+            print(f"[process] Processing normal message (not onboarding): '{message.message_context.message_source_text[:50]}...'")
             start_time = datetime.now(timezone.utc).timestamp()
             query_en, query_en_addcontext, query_type, tokens = await self.llm_translation_and_query_rewritting(message)
             end_time = datetime.now(timezone.utc).timestamp()
@@ -143,8 +161,13 @@ class ByoebUserProcess(Handler):
                 "completion_tokens": tokens.get("completion_tokens"),
                 "prompt_tokens": tokens.get("prompt_tokens")
             }})
-            
-        message.message_context.message_english_text = query_en_addcontext
+        
+        # Set message_english_text - use query_en_addcontext if available, otherwise fallback to source text
+        if query_en_addcontext is not None:
+            message.message_context.message_english_text = query_en_addcontext
+        else:
+            # Fallback for AUDIO_IDK or other cases
+            message.message_context.message_english_text = message.message_context.message_source_text
         message.message_context.additional_info = {
             constants.QUERY_TYPE: query_type,
             constants.QUERY_EN: query_en,

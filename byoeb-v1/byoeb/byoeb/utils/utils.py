@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import re
 from typing import Iterable, List, TypeVar
 from urllib.parse import unquote
 
@@ -61,13 +62,57 @@ def is_onboard(
     text: str,
     lang: str = LanguageCode.ENGLISH.value
 ):
+    # Safety check: if text is None or empty, return False
+    if not text or not isinstance(text, str):
+        print(f"[is_onboard] Invalid text input: {text} (type: {type(text)})")
+        return False
+    
     if lang not in ONBOARD_WELCOME_MESSAGE_DICT:
         # TODO: we should probably raise a ValueError than returning False for
         # unexpected languages.
+        print(f"[is_onboard] Language '{lang}' not in ONBOARD_WELCOME_MESSAGE_DICT")
         return False
+    
+    original_text = text
     text = unquote(text)  # "%20%" -> " "
-    text = text.lower().replace("-", " ")  # "onboard-asha" -> "onboard asha"
-    return any(phrase in text for phrase in ONBOARD_WELCOME_MESSAGE_DICT[lang])  # Check if any phrase exists in text
+    
+    # Helper function to normalize whitespace (multiple spaces -> single space)
+    def normalize_whitespace(s):
+        if not s:
+            return ""
+        return re.sub(r'\s+', ' ', s).strip()
+    
+    # For English, normalize to lowercase and replace hyphens
+    # For other languages (Hindi, Marathi, Telugu), don't use .lower() as it may not work correctly
+    if lang == LanguageCode.ENGLISH.value:
+        # Normalize text: lowercase, replace hyphens with spaces, normalize whitespace
+        text_normalized = normalize_whitespace(text.lower().replace("-", " "))
+        print(f"[is_onboard] English text normalized: '{text}' -> '{text_normalized}'")
+    else:
+        # For non-English, just replace hyphens and normalize whitespace, keep original case
+        text_normalized = normalize_whitespace(text.replace("-", " "))
+        print(f"[is_onboard] Non-English text normalized: '{text}' -> '{text_normalized}'")
+    
+    # Check if any phrase exists in text (case-insensitive for English, exact match for others)
+    for phrase in ONBOARD_WELCOME_MESSAGE_DICT[lang]:
+        if lang == LanguageCode.ENGLISH.value:
+            # For English, normalize phrase and compare case-insensitively
+            phrase_normalized = normalize_whitespace(phrase.lower().replace("-", " "))
+            print(f"[is_onboard] Comparing English phrase '{phrase}' (normalized: '{phrase_normalized}') in text '{text_normalized}' -> {phrase_normalized in text_normalized}")
+            if phrase_normalized in text_normalized:
+                print(f"[is_onboard] ✓ Matched English phrase '{phrase}' in text '{original_text}'")
+                return True
+        else:
+            # For other languages, check if phrase exists in text (substring match)
+            # Also normalize the phrase for comparison (replace hyphens and whitespace)
+            normalized_phrase = normalize_whitespace(phrase.replace("-", " "))
+            print(f"[is_onboard] Comparing {lang} phrase '{phrase}' (normalized: '{normalized_phrase}') in text '{text_normalized}' -> {normalized_phrase in text_normalized}")
+            if normalized_phrase in text_normalized:
+                print(f"[is_onboard] ✓ Matched {lang} phrase '{phrase}' in text '{original_text}'")
+                return True
+    
+    print(f"[is_onboard] ✗ No match found. lang={lang}, original_text='{original_text}', normalized_text='{text_normalized}', phrases={ONBOARD_WELCOME_MESSAGE_DICT[lang]}")
+    return False
 
 T = TypeVar("T")
 def chunked(seq: Iterable[T], size: int) -> Iterable[List[T]]:

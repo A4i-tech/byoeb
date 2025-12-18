@@ -48,15 +48,26 @@ class WhatsAppService(BaseChannelService):
         byoeb_message: ByoebMessageContext
     ) -> List[Dict[str, Any]]:
         wa_requests = []
+        print(f"[whatsapp.prepare_requests] message_type: '{byoeb_message.message_context.message_type}'")
+        print(f"[whatsapp.prepare_requests] has_interactive_button: {utils.has_interactive_button_additional_info(byoeb_message)}")
+        print(f"[whatsapp.prepare_requests] has_interactive_list: {utils.has_interactive_list_additional_info(byoeb_message)}")
+        print(f"[whatsapp.prepare_requests] has_text: {utils.has_text(byoeb_message)}")
+        print(f"[whatsapp.prepare_requests] has_audio: {utils.has_audio_additional_info(byoeb_message)}")
+        
         if utils.has_interactive_button_additional_info(byoeb_message):
+            print("[whatsapp.prepare_requests] Preparing interactive button message")
             wa_interactive_button_message = wa_req_payload.get_whatsapp_interactive_button_request_from_byoeb_message(byoeb_message)
             wa_requests.append(wa_interactive_button_message)
         elif utils.has_interactive_list_additional_info(byoeb_message):
+            print("[whatsapp.prepare_requests] Preparing interactive list message")
             wa_interactive_list_message = wa_req_payload.get_whatsapp_interactive_list_request_from_byoeb_message(byoeb_message)
             wa_requests.append(wa_interactive_list_message)
         elif utils.has_text(byoeb_message):
+            print("[whatsapp.prepare_requests] Preparing text message")
             wa_text_message = wa_req_payload.get_whatsapp_text_request_from_byoeb_message(byoeb_message)
             wa_requests.append(wa_text_message)
+        else:
+            print("[whatsapp.prepare_requests] WARNING: No text, button, or interactive list message prepared!")
         if utils.has_template_additional_info(byoeb_message):
             wa_template_message = wa_req_payload.get_whatsapp_template_request_from_byoeb_message(byoeb_message)
             # print("Whatsapp template message", json.dumps(wa_template_message))
