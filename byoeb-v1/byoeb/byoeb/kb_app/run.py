@@ -1,7 +1,14 @@
+# fixes crash during 'import chromadb' - see: https://docs.trychroma.com/docs/overview/troubleshooting#sqlite
+import sys
+__import__("pysqlite3")
+sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+
+
 import logging
 import asyncio
 import uvicorn
 from fastapi import FastAPI
+from byoeb.apis.health import health_apis_router
 from byoeb.apis.knowledge_base import kb_media_apis_router, kb_vector_apis_router
 
 # Configure logging
@@ -42,6 +49,7 @@ def create_app():
     """
 
     app = FastAPI()
+    app.include_router(health_apis_router)
     app.include_router(kb_media_apis_router)
     app.include_router(kb_vector_apis_router)
     return app
@@ -50,6 +58,6 @@ app = create_app()
 if __name__ == '__main__':
     uvicorn.run(
         app,
-        host="127.0.0.1",
-        port=5000
+        host="0.0.0.0",
+        port=8000
     )

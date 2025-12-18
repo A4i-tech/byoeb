@@ -5,7 +5,7 @@ import uuid
 import requests
 
 
-BASE_URL = os.getenv("RECIEVE_URL")
+BASE_URL = os.getenv("CHAT_SERVICE_URL")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 USER_NAME = os.getenv("USER_NAME", "byoeb-user")
 if BASE_URL is None or PHONE_NUMBER_ID is None or USER_NAME is None:
@@ -61,7 +61,7 @@ def _build_status_payload(errors=None):
 
 def test_status_payload_without_errors_returns_success():
     payload = _build_status_payload()
-    response = requests.post(BASE_URL, json=payload, timeout=15)
+    response = requests.post(BASE_URL + "/receive", json=payload, timeout=15)
     assert response.status_code == 200
 
 
@@ -74,5 +74,5 @@ def test_status_payload_with_errors_returns_success():
         }
     ]
     payload = _build_status_payload(errors=errors)
-    response = requests.post(BASE_URL, json=payload, timeout=15)
+    response = requests.post(BASE_URL + "/receive", json=payload, timeout=15)
     assert response.status_code == 200

@@ -35,7 +35,6 @@ TEAMS_WEBHOOK_URL             # Microsoft Teams webhook for notifications
 
 # Render.com (Staging)
 RENDER_API_KEY                # Render.com API key
-STAGING_ENVS                  # Raw contents of keys.env
 
 # Azure (Production)
 AZURE_WEBAPP_PUBLISH_PROFILE  # Web App Publish Profile raw XML string
@@ -44,7 +43,8 @@ AZURE_WEBAPP_PUBLISH_PROFILE  # Web App Publish Profile raw XML string
 Below are the required repository variables:
 ```sh
 # Render.com (Staging)
-RENDER_SERVICE_ID             # Render.com service ID
+RENDER_SERVICE_ID_CHAT_APP    # Render.com service ID for chat_app deployment
+RENDER_SERVICE_ID_KB_APP      # Render.com service ID for kb_app deployment
 
 # Azure (Production)
 AZURE_WEBAPP_NAME             # Name of the Azure Web App

@@ -6,19 +6,18 @@ import pytest
 import requests
 
 
-BASE_URL = os.getenv("RECIEVE_URL")
+BASE_URL = os.getenv("CHAT_SERVICE_URL")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 USER_NAME = os.getenv("USER_NAME", "byoeb-user")
 if BASE_URL is None:
-    raise RuntimeError("Environment variable (BASE_URL) is missing")
+    raise RuntimeError("Environment variable (CHAT_SERVICE_URL) is missing")
 if PHONE_NUMBER_ID is None:
     raise RuntimeError("Environment variable (PHONE_NUMBER_ID) is missing")
 
-BASE_URL = BASE_URL.replace("receive", "")
-MCP_URL = BASE_URL + "mcp?phone_number=" + PHONE_NUMBER_ID
-PURGE_URL = BASE_URL + "purge_request_cache"
-REGISTER_URL = BASE_URL + "register_users"
-DELETE_URL = BASE_URL + "delete_users"
+MCP_URL = BASE_URL + "/mcp?phone_number=" + PHONE_NUMBER_ID
+PURGE_URL = BASE_URL + "/purge_request_cache"
+REGISTER_URL = BASE_URL + "/register_users"
+DELETE_URL = BASE_URL + "/delete_users"
 
 def get_cache_hit(resp: Any) -> bool:
     return next((v for k, v in resp.additional_info if k == "Cache hit"), False)

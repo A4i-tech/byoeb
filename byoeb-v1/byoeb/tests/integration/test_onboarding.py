@@ -32,11 +32,11 @@ from byoeb.constants.onboarding_text import CONSENT_DICT, LANGUAGE_NAME_TO_CODE,
 from byoeb.constants.user_enums import UserType
 
 # Endpoint
-BASE_URL = os.getenv("RECIEVE_URL")
+BASE_URL = os.getenv("CHAT_SERVICE_URL")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 USER_NAME = os.getenv("USER_NAME", "byoeb-user")
 if BASE_URL is None or PHONE_NUMBER_ID is None:
-    print("Environment variables are missing (RECIEVE_URL / PHONE_NUMBER_ID)")
+    print("Environment variables are missing (CHAT_SERVICE_URL / PHONE_NUMBER_ID)")
     sys.exit(1)
 
 def get_current_timestamp() -> str:
@@ -126,8 +126,7 @@ def _wait_for_next_context_id(*, url: str, reply_to_message_id: str, sent_timest
 )
 def test_whatsapp_onboarding_flow(language_display: str, user_type_choice: str, consent_yes_choice: str):
     context_id = None
-    delete_url = BASE_URL.replace("receive", "delete_users")
-    requests.delete(delete_url, json=[PHONE_NUMBER_ID], timeout=30).raise_for_status()
+    requests.delete(BASE_URL + "/delete_users", json=[PHONE_NUMBER_ID], timeout=30).raise_for_status()
 
     lang_code = LANGUAGE_NAME_TO_CODE[language_display]
     user_type_prompt_substring = MESSAGE_DICT[lang_code]["text"].strip()[:16]
@@ -151,8 +150,8 @@ def test_whatsapp_onboarding_flow(language_display: str, user_type_choice: str, 
             timestamp = get_current_timestamp()
             payload = _text_message_payload(message_id=message_id, timestamp=timestamp, text="hi")
 
-            requests.post(BASE_URL, json=payload, timeout=30).raise_for_status()
-            url = BASE_URL.replace("receive", "get_bot_messages?timestamp=") + str(timestamp)
+            requests.post(BASE_URL + "/receive", json=payload, timeout=30).raise_for_status()
+            url = BASE_URL + "/get_bot_messages?timestamp=" + str(timestamp)
 
             context_id = _wait_for_next_context_id(url=url, reply_to_message_id=message_id, sent_timestamp=timestamp, prompt_substring="Select your language")
 
@@ -163,8 +162,8 @@ def test_whatsapp_onboarding_flow(language_display: str, user_type_choice: str, 
             timestamp = get_current_timestamp()
             payload = _interactive_list_reply_payload(message_id=message_id, timestamp=timestamp, context_id=context_id, selection_id=language_display, title=language_display, description="")
 
-            requests.post(BASE_URL, json=payload, timeout=30).raise_for_status()
-            url = BASE_URL.replace("receive", "get_bot_messages?timestamp=") + str(timestamp)
+            requests.post(BASE_URL + "/receive", json=payload, timeout=30).raise_for_status()
+            url = BASE_URL + "/get_bot_messages?timestamp=" + str(timestamp)
 
             context_id = _wait_for_next_context_id(url=url, reply_to_message_id=message_id, sent_timestamp=timestamp, prompt_substring=user_type_prompt_substring)
 
@@ -175,8 +174,8 @@ def test_whatsapp_onboarding_flow(language_display: str, user_type_choice: str, 
             timestamp = get_current_timestamp()
             payload = _interactive_button_reply_payload(message_id=message_id, timestamp=timestamp, context_id=context_id, button_id="others", title=user_type_choice)
 
-            requests.post(BASE_URL, json=payload, timeout=30).raise_for_status()
-            url = BASE_URL.replace("receive", "get_bot_messages?timestamp=") + str(timestamp)
+            requests.post(BASE_URL + "/receive", json=payload, timeout=30).raise_for_status()
+            url = BASE_URL + "/get_bot_messages?timestamp=" + str(timestamp)
 
             context_id = _wait_for_next_context_id(url=url, reply_to_message_id=message_id, sent_timestamp=timestamp, prompt_substring=consent_prompt_substring)
 
@@ -186,10 +185,10 @@ def test_whatsapp_onboarding_flow(language_display: str, user_type_choice: str, 
             message_id = generate_message_id()
             timestamp = get_current_timestamp()
             payload = _interactive_button_reply_payload(message_id=message_id, timestamp=timestamp, context_id=context_id, button_id="yes", title=consent_yes_choice)
-            requests.post(BASE_URL, json=payload, timeout=30).raise_for_status()
+            requests.post(BASE_URL + "/receive", json=payload, timeout=30).raise_for_status()
             state = VALIDATE_USER
         elif state == VALIDATE_USER:
-            get_url = BASE_URL.replace("receive", "get_users")
+            get_url = BASE_URL + "/get_users"
             user = None
             while True:
                 response = requests.post(get_url, json=[PHONE_NUMBER_ID], timeout=30)
@@ -209,7 +208,7 @@ def test_whatsapp_onboarding_flow(language_display: str, user_type_choice: str, 
             message_id = generate_message_id()
             timestamp = get_current_timestamp()
             payload = _text_message_payload(message_id=message_id, timestamp=timestamp, text="What is a antra injection?")
-            requests.post(BASE_URL, json=payload, timeout=30).raise_for_status()
+            requests.post(BASE_URL + "/receive", json=payload, timeout=30).raise_for_status()
             state = DONE
         else:
             raise RuntimeError(f"Unknown state: {state!r}")

@@ -8,19 +8,18 @@ HEADERS = {"accept": "application/json", "Content-Type": "application/json"}
 
 
 def _env_or_skip():
-    base_url = os.getenv("RECIEVE_URL")
+    base_url = os.getenv("CHAT_SERVICE_URL")
     phone_number_id = os.getenv("PHONE_NUMBER_ID")
     user_name = os.getenv("USER_NAME", "Pytest User")
     if not base_url:
-        pytest.skip("RECIEVE_URL not set")
+        pytest.skip("CHAT_SERVICE_URL not set")
     if not phone_number_id:
         pytest.skip("PHONE_NUMBER_ID not set")
-    base = base_url.replace("receive", "")
     endpoints = {
-        "register": f"{base}register_users",
-        "update": f"{base}update_users",
-        "delete": f"{base}delete_users",
-        "get": f"{base}get_users",
+        "register": f"{base_url}/register_users",
+        "update": f"{base_url}/update_users",
+        "delete": f"{base_url}/delete_users",
+        "get": f"{base_url}/get_users",
     }
     return endpoints, phone_number_id, user_name
 

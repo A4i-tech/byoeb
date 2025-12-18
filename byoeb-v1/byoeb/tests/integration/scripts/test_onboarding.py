@@ -8,7 +8,7 @@ import requests
 from byoeb.scripts import onboarding
 
 
-BASE_URL = os.getenv("RECIEVE_URL", "http://0.0.0.0:8000").replace("receive", "").rstrip("/")
+BASE_URL = os.getenv("CHAT_SERVICE_URL", "http://0.0.0.0:8000")
 DUMMY_PHONE_NUMBERS = ["9990000000001", "9990000000002"]
 
 

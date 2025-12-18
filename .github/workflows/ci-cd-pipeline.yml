@@ -201,14 +201,24 @@ jobs:
           teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
   # Step 5a: Deploy staging via Render reusable workflow
-  deploy-staging:
-    name: Deploy (staging)
+  deploy-staging-chat:
+    name: Deploy Chat App (staging)
     needs: publish-image
     if: success() && needs.publish-image.outputs.environment == 'staging'
     uses: ./.github/workflows/deploy-render.yml
     with:
-      service-id: ${{ vars.RENDER_SERVICE_ID }}
-      api-base-url: ${{ vars.RENDER_API_URL || 'https://api.render.com' }}
+      service-id: ${{ vars.RENDER_SERVICE_ID_CHAT_APP }}
+    secrets:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
+  deploy-staging-kb:
+    name: Deploy KB App (staging)
+    needs: publish-image
+    if: success() && needs.publish-image.outputs.environment == 'staging'
+    uses: ./.github/workflows/deploy-render.yml
+    with:
+      service-id: ${{ vars.RENDER_SERVICE_ID_KB_APP }}
     secrets:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
@@ -229,13 +239,13 @@ jobs:
   # Step 5: Run integration tests
   integration-tests:
     name: Run integration tests
-    needs: [deploy-staging, publish-image]
-    if: needs.deploy-staging.result == 'success'
+    needs: [deploy-staging-chat, deploy-staging-kb, publish-image]
+    if: needs.deploy-staging-chat.result == 'success'
     uses: ./.github/workflows/integration-tests.yml
     with:
-      service-url: ${{ needs.deploy-staging.outputs['service-url'] }}
+      chat-service-url: ${{ needs.deploy-staging-chat.outputs['service-url'] }}
+      kb-service-url: ${{ needs.deploy-staging-kb.outputs['service-url'] }}
       image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
       registry: ${{ needs.publish-image.outputs.registry }}
       environment: ${{ needs.publish-image.outputs.environment }}
-      deployment-url: ${{ needs.deploy-staging.outputs['service-url'] }}
     secrets: inherit

@@ -3,8 +3,12 @@ name: Integration Tests
 on:
   workflow_call:
     inputs:
-      service-url:
-        description: "Base URL of the deployed staging service"
+      chat-service-url:
+        description: "Base URL of the deployed staging chat-app service"
+        required: true
+        type: string
+      kb-service-url:
+        description: "Base URL of the deployed staging kb-app service"
         required: true
         type: string
       image-ref:
@@ -20,11 +24,6 @@ on:
         required: false
         default: "staging"
         type: string
-      deployment-url:
-        description: "URL of the deployed service"
-        required: false
-        default: ""
-        type: string
 
 jobs:
   integration-tests:
@@ -36,27 +35,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Determine receive endpoint
-        id: receive-endpoint
-        env:
-          SERVICE_URL: ${{ inputs.service-url }}
-        run: |
-          set -euo pipefail
-          if [ -z "$SERVICE_URL" ]; then
-            echo "service-url input must be provided." >&2
-            exit 1
-          fi
-          SERVICE_URL="${SERVICE_URL%/}"
-          printf 'url=%s/receive\n' "$SERVICE_URL" >> "$GITHUB_OUTPUT"
-
       - name: Wait for staging readiness
         env:
-          HEALTHCHECK_URL: ${{ inputs.service-url }}
+          CHAT_HEALTHCHECK_URL: ${{ inputs.chat-service-url }}
+          KB_HEALTHCHECK_URL: ${{ inputs.kb-service-url }}
         run: |
           set -euo pipefail
-          URL="${HEALTHCHECK_URL%/}"
+          CHAT_URL="${CHAT_HEALTHCHECK_URL%/}"
+          KB_URL="${KB_HEALTHCHECK_URL%/}"
           for attempt in {1..30}; do
-            if curl -sSf -o /dev/null "$URL/"; then
+            if curl -sSf -o /dev/null "$CHAT_URL/" && curl -sSf -o /dev/null "$KB_URL/"; then
               exit 0
             fi
             echo "Waiting for staging... ($attempt/30)"
@@ -76,13 +64,15 @@ jobs:
         id: run-tests
         continue-on-error: true
         env:
-          RECIEVE_URL: ${{ steps.receive-endpoint.outputs.url }}
+          CHAT_SERVICE_URL: ${{ inputs.chat-service-url }}
+          KB_SERVICE_URL: ${{ inputs.kb-service-url }}
           USER_NAME: ${{ secrets.USERNAME }}
           PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER }}
         run: |
           set -o pipefail
           docker run --rm \
-            -e RECIEVE_URL="$RECIEVE_URL" \
+            -e CHAT_SERVICE_URL="$CHAT_SERVICE_URL" \
+            -e KB_SERVICE_URL="$KB_SERVICE_URL" \
             -e USER_NAME="$USER_NAME" \
             -e PHONE_NUMBER_ID="$PHONE_NUMBER_ID" \
             "${{ inputs.image-ref }}" \
@@ -121,6 +111,7 @@ jobs:
             [
               { "name": "Stage", "value": "Workflow Complete" },
               { "name": "Environment", "value": "${{ inputs.environment }}" },
-              { "name": "Deployment", "value": "${{ inputs.deployment-url || 'N/A' }}" }
+              { "name": "Deployment (chat-app)", "value": "${{ inputs.chat-service-url }}" },
+              { "name": "Deployment (kb-app)", "value": "${{ inputs.kb-service-url }}" }
             ]
           teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}

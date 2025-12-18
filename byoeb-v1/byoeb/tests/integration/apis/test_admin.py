@@ -7,10 +7,10 @@ import pytest
 import requests
 
 
-BASE_URL = os.getenv("RECIEVE_URL")
+BASE_URL = os.getenv("CHAT_SERVICE_URL")
 if not BASE_URL:
-    raise RuntimeError("Environment variable (RECIEVE_URL) is missing")
-BASE_URL = BASE_URL.replace('/receive', '')
+    raise RuntimeError("Environment variable (CHAT_SERVICE_URL) is missing")
+
 ASHA_LOGS_URL = f"{BASE_URL}/asha_logs"
 
 
