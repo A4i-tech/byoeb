@@ -17,7 +17,7 @@ class Message(BaseModel):
     message_status: Optional[str] = Field(default=None, description="The status of the message")
 
 class WhatsAppResponse(BaseModel):
-    response_status: WhatsAppResponseStatus = Field(..., description="The status of the response")
+    response_status: Optional[WhatsAppResponseStatus] = Field(default=None, description="The status of the response")
     messaging_product: str = Field(..., description="The messaging product, e.g., 'whatsapp'")
     contacts: List[Contact] = Field(..., description="List of contacts to whom the message is sent")
     messages: List[Message] = Field(..., description="List of messages being sent")
