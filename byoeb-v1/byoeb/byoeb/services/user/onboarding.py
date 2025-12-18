@@ -3,7 +3,7 @@ import os
 import byoeb.services.user.constants as user_const
 import byoeb.services.chat.constants as chat_const
 from typing import List, Optional
-from byoeb.constants.user_enums import UserType, LanguageCode
+from byoeb.constants.user_enums import UserType
 from byoeb.constants.onboarding_text import (
     LANGUAGE_DISPLAY_NAMES,
     LANGUAGE_NAME_TO_CODE,
@@ -22,7 +22,6 @@ from byoeb_core.models.byoeb.message_context import (
     ReplyContext,
     MessageTypes
 )
-from byoeb.services.channel.whatsapp import WhatsAppService
 from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from byoeb_core.models.byoeb.user import User
 from datetime import datetime, timezone
@@ -222,10 +221,9 @@ async def handle_unknown_user(
     channel_factory: ChannelClientFactory,
 ):
     print("handle_unknown_user")
-    channel_service = WhatsAppService(channel_client_factory=channel_factory)
-    if not isinstance(channel_service, WhatsAppService):
-        raise ValueError("Invalid channel service type")
+    from byoeb.chat_app.configuration.dependency_setup import byoeb_user_send_response
     for message in messages:
+        channel_service = byoeb_user_send_response.get_channel_service(message.channel_type)
         print("message.reply_context", message.reply_context)
         if message.reply_context is None or message.reply_context.reply_id is None:
             print(f"onboarding message: {message}")

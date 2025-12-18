@@ -4,7 +4,6 @@ from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 import byoeb.utils.utils as utils
 import uuid
 import traceback
-import time
 from datetime import datetime
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -38,6 +37,12 @@ class QueueConsumer:
         self._channel_client_factory = channel_client_factory
         self._tracer = trace.get_tracer(__name__)
         self._batch_message_consumer_logger = AppInsightsLogHandler.getLogger("batch_message_consumer")
+        self.service =MessageConsmerService(
+            config=self._config,
+            user_db_service=self._user_db_service,
+            message_db_service=self._message_db_service,
+            channel_client_factory=self._channel_client_factory
+        )
     
     async def __create_azure_storage_queue_client(
         self,
@@ -119,12 +124,6 @@ class QueueConsumer:
         self
     ):
         await self.initialize()
-        message_consumer_svc = MessageConsmerService(
-            config=self._config,
-            user_db_service=self._user_db_service,
-            message_db_service=self._message_db_service,
-            channel_client_factory=self._channel_client_factory
-        )
         queue_retry_count = self._config["app"]["queue_retry_count"]
         dlq_client = await self.__get_or_create_dead_letter_queue_client()
         self._logger.info(f"Queue info: {self._az_storage_queue}")
@@ -167,7 +166,7 @@ class QueueConsumer:
 
                             consume_span.set_attribute("messaging.batch_size", len(message_content))
 
-                            successfully_processed_messages = await message_consumer_svc.consume(message_content) or []
+                            successfully_processed_messages = await self.service.consume(message_content) or []
                             
                             self._logger.info(f"consume() returned {len(successfully_processed_messages)} successfully processed messages")
 

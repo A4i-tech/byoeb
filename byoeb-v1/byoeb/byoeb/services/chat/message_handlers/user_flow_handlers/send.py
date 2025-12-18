@@ -33,6 +33,9 @@ class ByoebUserSendResponse(Handler):
         if channel_type == "whatsapp":
             from byoeb.services.channel.whatsapp import WhatsAppService
             return WhatsAppService(channel_client_factory)
+        if channel_type == "dummy":
+            from byoeb.services.channel.dummy import DummyChannelService
+            return DummyChannelService
         return None
 
     def __prepare_db_queries(

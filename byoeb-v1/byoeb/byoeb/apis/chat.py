@@ -1,9 +1,9 @@
 import base64
+from datetime import datetime, timezone
 import logging
 import json
-import time
 import uuid
-from typing import Any, List, Dict, Literal, Set
+from typing import Any, List, Dict, Literal, Optional, Set
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from pydantic import BaseModel, Field, PositiveInt
 from byoeb_core.models.byoeb.message_context import (
@@ -17,8 +17,8 @@ from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
 from byoeb.utils.utils import mcp_get_phone_number
 from fastapi import APIRouter, Query, Body
 from fastapi.responses import JSONResponse
-import byoeb.services.chat.constants as chat_constants
-import byoeb.utils.utils as utils
+
+from byoeb_core.models.byoeb.user import User
 
 # ---------------------------------------------------------
 # Setup
@@ -112,7 +112,11 @@ def chat_mcps_router(mcp):
             return self._items
 
     @mcp.tool
-    async def asha_chat(message: str, features: Set[Literal["audio", "history"]] = set()) -> AshaChatResponse:
+    async def asha_chat(
+        message: str,
+        features: Set[Literal["audio", "history"]] = set(),
+        reply_message_category: Optional[str] = None
+    ) -> AshaChatResponse:
         """
         Ask any health-related query and get a response.
         """
@@ -120,51 +124,35 @@ def chat_mcps_router(mcp):
         user_id = get_user_ids_from_phone_number_ids([phone_number])[0]
         users = await dependency_setup.user_db_service.get_users([user_id])
 
-        if len(users) == 0:
-            return AshaChatResponse(category="unknown_user", text=(
-                "Before I can answer your question, you must register yourself as an ASHA user. "
-                "Shall I start with the registration?"
-            ))
-
-        user = users[0]
-        message_id = f"chat-mcps-{user_id}-{uuid.uuid4()}"
-        ctx = ByoebMessageContext(
-            channel_type="whatsapp",
-            message_category="whatsapp",
-            user=user,
+        byoeb_message = ByoebMessageContext(
+            channel_type="dummy",
+            message_category=None,
+            user=users[0] if len(users) else User(phone_number_id=phone_number),
             message_context=MessageContext(
-                message_id=message_id,
+                message_id=f"mcp.{uuid.uuid1(node=107952125094529)}",
                 message_type=MessageTypes.REGULAR_TEXT.value,
                 message_source_text=message,
                 message_english_text=message,
                 media_info=None,
                 additional_info=dict(query_type="asha_work_related"),
             ),
-            reply_context=ReplyContext(
-                reply_id="reply-id-unknown",
-                reply_type="acknowledgement",
-                reply_source_text=message,
-                reply_english_text=message,
-                media_info=None,
-                message_category="notification",
-                additional_info=None,
-            ),
+            reply_context=ReplyContext(reply_id="", message_category=reply_message_category) if reply_message_category else ReplyContext(),
             cross_conversation_id=None,
             cross_conversation_context=None,
-            incoming_timestamp=None,
+            incoming_timestamp=int(datetime.now(timezone.utc).timestamp()),
             outgoing_timestamp=None,
         )
 
-        processed_ctx = await dependency_setup.byoeb_user_process.handle_process_message_workflow([ctx])
-        responses = await dependency_setup.byoeb_user_generate_response.handle_message_generate_workflow([processed_ctx]) or []
+        responses = await dependency_setup.message_consumer.service.consume([byoeb_message.model_dump_json()])
 
-        preferred_categories = {MessageCategory.BOT_TO_USER_RESPONSE.value, MessageCategory.TEXT_IDK.value, MessageCategory.AUDIO_IDK.value}
+        if not users:
+            # This is deliberately done after consume() so users get to utilize asha_chat tool to invoke
+            # complete user registration flows.
+            return AshaChatResponse(category=MessageCategory.TEXT_IDK.value, text=f"Please use the 'asha_register_user' tool to register yourself.")
+
         for resp in responses:
             if resp.message_context is None or resp.message_context.message_source_text is None:
                 continue
-            if resp.message_category not in preferred_categories:
-                continue
-
             response_text = resp.message_context.message_source_text
             info = resp.message_context.additional_info or {}
             additional_info = (AdditionalInfoBuilder()
@@ -175,17 +163,6 @@ def chat_mcps_router(mcp):
                 .add_history(features, resp)
                 .add_audio(features, info)
                 .build())
-
-            # persist QA for conversation continuity
-            qa = {
-                chat_constants.AUDIO_MESSAGE_ID: None,
-                chat_constants.TEXT_MESSAGE_ID: resp.message_context.message_id,
-                chat_constants.TIMESTAMP: str(int(time.time())),
-                chat_constants.QUESTION: processed_ctx.message_context.message_english_text,
-                chat_constants.ANSWER: resp.message_context.message_english_text,
-            } if not utils.is_idk(resp.message_context.message_english_text) else None
-            update_query = dependency_setup.user_db_service.user_activity_update_query(user, qa)
-            await dependency_setup.user_db_service.execute_queries({chat_constants.UPDATE: [update_query]})
-            return AshaChatResponse(category=resp.message_category, text=response_text, additional_info=additional_info)
+            return AshaChatResponse(category=resp.message_category or "Unknown", text=response_text, additional_info=additional_info)
 
         return AshaChatResponse(category=MessageCategory.TEXT_IDK.value, text="I cannot answer that at the moment.")
