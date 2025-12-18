@@ -8,7 +8,6 @@ from datetime import datetime
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from byoeb_core.message_queue.base import BaseQueue
-from byoeb.factory import ChannelClientFactory
 from byoeb.services.chat.message_consumer import MessageConsmerService
 from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from byoeb_integrations.message_queue.azure.async_azure_storage_queue import AsyncAzureStorageQueue
@@ -24,7 +23,6 @@ class QueueConsumer:
         config: dict,
         user_db_service: UserMongoDBService,
         message_db_service: MessageMongoDBService,
-        channel_client_factory: ChannelClientFactory,
         consuemr_type: str = None
     ):
         self._logger = logging.getLogger(__name__)
@@ -34,14 +32,12 @@ class QueueConsumer:
         self._config = config
         self._user_db_service = user_db_service
         self._message_db_service = message_db_service
-        self._channel_client_factory = channel_client_factory
         self._tracer = trace.get_tracer(__name__)
         self._batch_message_consumer_logger = AppInsightsLogHandler.getLogger("batch_message_consumer")
         self.service =MessageConsmerService(
             config=self._config,
             user_db_service=self._user_db_service,
-            message_db_service=self._message_db_service,
-            channel_client_factory=self._channel_client_factory
+            message_db_service=self._message_db_service
         )
     
     async def __create_azure_storage_queue_client(
