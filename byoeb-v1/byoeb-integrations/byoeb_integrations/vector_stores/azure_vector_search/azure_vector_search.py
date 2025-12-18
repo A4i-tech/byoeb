@@ -1,9 +1,9 @@
 import asyncio
+from functools import partial
 import logging
 from enum import Enum
-from typing import Any, AsyncIterator, Coroutine, List, Optional
-from tenacity import retry, stop_after_attempt, stop_after_delay, wait_exponential, wait_fixed
-from tqdm.asyncio import tqdm
+from typing import Any, AsyncIterator, Callable, Coroutine, List, Optional
+from tenacity import retry, stop_after_attempt, wait_fixed
 from byoeb_core.vector_stores.base import BaseVectorStore, VectorStoreMetadata
 from byoeb_core.llms.base import BaseLLM
 from azure.core.exceptions import HttpResponseError
@@ -178,7 +178,7 @@ class AzureVectorStore(BaseVectorStore):
         locking_id = None
 
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(15))
-        async def run(id: Any, coro: Coroutine):
+        async def run(id: Any, coro: Callable[[], Coroutine]):
             # any error causes run() to be blocked until the errored task
             # succeeds to a retry. this is needed so we dont bog down due
             # to several tasks retrying all at once.
@@ -187,7 +187,7 @@ class AzureVectorStore(BaseVectorStore):
                 async with lock: ...
             async with sem:
                 try:
-                    result = await coro
+                    result = await coro()
                 except:
                     if locking_id != id:
                         await lock.acquire()
@@ -208,7 +208,8 @@ class AzureVectorStore(BaseVectorStore):
                 current_documents = [node.model_dump(exclude_none=True, exclude_defaults=True) for node in nodes]
                 batch_client.upload_documents(documents=current_documents)
 
-        tasks = [run(id, self.__prepare_azure_node(
+        tasks = [run(id, partial(
+            self.__prepare_azure_node,
             id=id,
             chunk=chunk,
             metadata=metadata,

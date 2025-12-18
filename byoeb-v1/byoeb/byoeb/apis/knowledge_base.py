@@ -2,7 +2,7 @@ from io import BytesIO
 import logging
 import tempfile
 from byoeb.kb_app.configuration.dependency_setup import amedia_storage, vector_store
-from byoeb.services.knowledge_base.kb_service import upload as kb_upload
+from byoeb.services.knowledge_base.kb_service import get_default_kb_service
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
@@ -80,6 +80,16 @@ async def delete_file(file_name: str = Query(description="Path to the file")) ->
     await amedia_storage.adelete_file(file_name)
     return result
 
+@kb_vector_apis_router.delete("/index")
+async def deindex_file(files: set[str] = Query(description="Path to files to deindex")) -> dict[str, int]:
+    """
+    De-index a file in media storage from the vector storage.
+    """
+    existing = await amedia_storage.aget_all_files_properties()
+    selected = [file for file in existing if file.file_name in files]
+    service = get_default_kb_service()
+    return await service.delete(selected)
+
 @kb_vector_apis_router.get("/index")
 async def index_file(files: set[str] = Query(description="Path to files to load")):
     """
@@ -88,7 +98,8 @@ async def index_file(files: set[str] = Query(description="Path to files to load"
     _logger.info("🚀 Starting knowledge base load from blob store")
     existing = await amedia_storage.aget_all_files_properties()
     selected = [file for file in existing if file.file_name in files]
-    count = await kb_upload(selected)
+    service = get_default_kb_service()
+    count = await service.upload(selected)
     _logger.info(f"✅ Successfully loaded {count} documents into knowledge base")
     return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Loaded {count} documents"})
 

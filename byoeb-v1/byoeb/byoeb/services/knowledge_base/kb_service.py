@@ -212,11 +212,39 @@ class KBService:
         logger.info(f"📊 Final collection count: {collection_count}")
         return collection_count
 
+    async def delete(self, files: List[FileMetadata]) -> dict[str, int]:
+        self.vector_store.create_store()
+        files_data = await self._abulk_download_files(files)
+        chunks = self.text_parser.get_chunks_from_collection(files_data, splitter_type=LLamaIndexTextSplitterType.SENTENCE)
 
-def _get_default_kb_service():
+        chunk_filenames = {chunk.node_id: chunk.metadata["file_name"] for chunk in chunks}
+        progress_values = {f.metadata.file_name if f.metadata else "Unknown": 0 for f in files_data}
+        for chunk in chunks:
+            progress_values[chunk_filenames[chunk.node_id]] += 1
+
+        logger.info("🔄 Retrieving similar chunks for deletion")
+        similar_chunks: List[str] = []
+        progress = {k: tqdm(total=v, desc=k, position=i) for i, (k, v) in enumerate(progress_values.items())}
+        try:
+            evicted_totals = {k: 0 for k in progress_values.keys()}
+            async for id, buf, n_evicted in self._gather_similar_chunks(chunks, similar_chunks):
+                file_name = chunk_filenames[id]
+                bar = progress[file_name]
+                evicted_totals[file_name] += n_evicted
+                bar.set_description("%s (%d found)" % (file_name, evicted_totals[file_name]))
+                bar.update(len(buf))
+        finally:
+            for bar in progress.values():
+                bar.close()
+
+        logger.info("💾 Deleting chunks from vector store")
+        try:
+            await self.vector_store.adelete_chunks(ids=similar_chunks)
+        except NotImplementedError:
+            logger.info("Vector store does not support deletes; inserting matched chunks instead")
+
+        return evicted_totals
+
+
+def get_default_kb_service():
     return KBService(vector_store=vector_store, media_storage=amedia_storage, llm_client=llm_client)
-
-
-async def upload(files: List[FileMetadata]):
-    svc = _get_default_kb_service()
-    return await svc.upload(files)
