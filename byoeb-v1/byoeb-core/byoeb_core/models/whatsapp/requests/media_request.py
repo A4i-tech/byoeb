@@ -21,14 +21,14 @@ class WhatsAppAudio(BaseModel):
 
 class WhatsAppVideo(BaseModel):
     id: str = Field(..., description="The video id")
-    caption: Optional[str] = Field(None, description="The video caption")
-    link: Optional[str] = Field(None, description="The video URL")
+    caption: Optional[str] = Field(default=None, description="The video caption")
+    link: Optional[str] = Field(default=None, description="The video URL")
 
 class WhatsAppMediaMessage(BaseModel):
     messaging_product: str = Field(..., description="Product identifier, typically 'whatsapp'.")
     to: str = Field(..., description="Recipient phone number.")
     type: Optional[str] = Field(default=None, description="Type of message, default is 'media'.")
-    audio: Optional[WhatsAppAudio] = Field(None, description="Media message content, including body and actions.")
-    video: Optional[WhatsAppVideo] = Field(None, description="Media message content, including body and actions.")
-    context: Optional[WhatsappMessageReplyContext] = Field(None, description="The message context")
-    media: Optional[MediaData] = Field(None, description="Media message content, including body and actions.")
+    audio: Optional[WhatsAppAudio] = Field(default=None, description="Media message content, including body and actions.")
+    video: Optional[WhatsAppVideo] = Field(default=None, description="Media message content, including body and actions.")
+    context: Optional[WhatsappMessageReplyContext] = Field(default=None, description="The message context")
+    media: Optional[MediaData] = Field(default=None, description="Media message content, including body and actions.")
