@@ -21,10 +21,10 @@ class __DummyChannelService(BaseChannelService):
             messaging_product="whatsapp",
             response_status=WhatsAppResponseStatus(status='200'),
             contacts=[Contact(input=request["user"]["phone_number_id"], wa_id="00000000000")],
-            messages=[Message(id=request["reply_context"]["reply_id"])],
+            messages=[Message(id=(request.get("reply_context", None) or {}).get("reply_id", None) or f"unk.{uuid.uuid4()}")],
             media_message=None
         ) for request in requests]
-        message_ids = [r["reply_context"]["reply_id"] for r in requests]
+        message_ids = [r.messages[0].id for r in responses]
         return responses, message_ids
 
     def create_conv(self, byoeb_user_message: ByoebMessageContext,  responses: List[str]) -> List[ByoebMessageContext]:
