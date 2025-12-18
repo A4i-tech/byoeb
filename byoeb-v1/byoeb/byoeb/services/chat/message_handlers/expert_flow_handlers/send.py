@@ -26,6 +26,9 @@ class ByoebExpertSendResponse(Handler):
             from byoeb.services.channel.whatsapp import WhatsAppService
             from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
             return WhatsAppService(channel_client_factory)
+        if channel_type == "dummy":
+            from byoeb.services.channel.dummy import DummyChannelService
+            return DummyChannelService
         return None
     
     def __modify_user_messages_context(
