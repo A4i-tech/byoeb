@@ -123,32 +123,43 @@ class ByoebUserProcess(Handler):
                 "time_taken": end_time - start_time
             }})
             utils.log_to_text_file(f"Time taken for audio to text transcribe: {end_time - start_time} seconds")
-            # query_en, query_en_addcontext, query_type = await self.llm_translation_and_query_rewritting(message)
-            # print("audio_to_text", audio_to_text)
-            # translated_en_text = await text_translator.atranslate_text(
-            #     input_text=audio_to_text,
-            #     source_language=source_language,
-            #     target_language="en"
-            # )
             message.message_context.media_info.media_type = audio_message.mime_type
         
-        if message.reply_context.message_category != MessageCategory.AUDIO_IDK.value:
-                start_time = datetime.now(timezone.utc).timestamp()
-                query_en, query_en_addcontext, query_type, tokens = await self.llm_translation_and_query_rewritting(message)
-                end_time = datetime.now(timezone.utc).timestamp()
-                AppInsightsLogHandler.getLogger("query_rewriting").info(f"Rewrote queries for {message.message_context.message_id} in {end_time - start_time} using {tokens.get('completion_tokens')} completion and {tokens.get('prompt_tokens')} prompt tokens", extra={AppInsightsLogHandler.DETAILS: {
-                    "message_id": message.message_context.message_id,
-                    "time_taken": end_time - start_time,
-                    "completion_tokens": tokens.get("completion_tokens"),
-                    "prompt_tokens": tokens.get("prompt_tokens")
-                }})
-                # translated_en_text = await text_translator.atranslate_text(
-                #     input_text=source_text,
-                #     source_language=source_language,
-                #     target_language="en"
-                # )
-            
-        message.message_context.message_english_text = query_en_addcontext
+        # Check if this is an onboarding message BEFORE processing
+        is_onboarding_message = utils.is_onboard(message.message_context.message_source_text, message.user.user_language)
+        
+        # Skip LLM translation/rewriting for onboarding messages to prevent them from being sent to vector store/LLM
+        # Also skip for AUDIO_IDK messages (they don't need translation/rewriting)
+        if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
+            # AUDIO_IDK messages don't go through LLM translation/rewriting
+            # query_en_addcontext will remain None, and we'll use source text as fallback
+            pass
+        elif is_onboarding_message:
+            # For onboarding messages, set default values to prevent LLM processing
+            print(f"[process] Detected onboarding message: '{message.message_context.message_source_text[:50]}...'")
+            source_text = message.message_context.message_source_text
+            query_en = source_text
+            query_en_addcontext = source_text
+            query_type = "asha_work_related"
+        else:
+            # Normal messages: call LLM for translation and rewriting
+            print(f"[process] Processing normal message (not onboarding): '{message.message_context.message_source_text[:50]}...'")
+            start_time = datetime.now(timezone.utc).timestamp()
+            query_en, query_en_addcontext, query_type, tokens = await self.llm_translation_and_query_rewritting(message)
+            end_time = datetime.now(timezone.utc).timestamp()
+            AppInsightsLogHandler.getLogger("query_rewriting").info(f"Rewrote queries for {message.message_context.message_id} in {end_time - start_time} using {tokens.get('completion_tokens')} completion and {tokens.get('prompt_tokens')} prompt tokens", extra={AppInsightsLogHandler.DETAILS: {
+                "message_id": message.message_context.message_id,
+                "time_taken": end_time - start_time,
+                "completion_tokens": tokens.get("completion_tokens"),
+                "prompt_tokens": tokens.get("prompt_tokens")
+            }})
+        
+        # Set message_english_text - use query_en_addcontext if available, otherwise fallback to source text
+        if query_en_addcontext is not None:
+            message.message_context.message_english_text = query_en_addcontext
+        else:
+            # Fallback for AUDIO_IDK or other cases
+            message.message_context.message_english_text = message.message_context.message_source_text
         message.message_context.additional_info = {
             constants.QUERY_TYPE: query_type,
             constants.QUERY_EN: query_en,

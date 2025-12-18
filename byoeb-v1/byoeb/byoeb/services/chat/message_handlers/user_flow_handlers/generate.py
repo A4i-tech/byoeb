@@ -350,6 +350,7 @@ class ByoebUserGenerateResponse(Handler):
             message_source_text = response_source
             options = None
             send_related_questions = True
+            print(f"[__create_user_message] Using provided response_source directly: '{message_source_text[:100] if message_source_text else 'None'}...'")
         print("Options: ", options)
         end_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Translated response message in {end_time - start_time} seconds")
@@ -382,18 +383,26 @@ class ByoebUserGenerateResponse(Handler):
                     cache["media_info"] = {user_language: media_info}
                 else:
                     cache[user_language] = media_info
-                self.embedding_cache.update(cache_id, cache)
+                try:
+                    self.embedding_cache.update(cache_id, cache)
+                except Exception as e:
+                    print(f"Warning: Embedding cache update failed: {e}. Continuing without cache update.")
 
         utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
         description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
         message_type = None
         message_category=MessageCategory.BOT_TO_USER_RESPONSE.value
+        
+        print(f"[__create_user_message] Determining message_type. Incoming message_type: '{message.message_context.message_type}'")
+        
         if (message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value):
             message_type = MessageTypes.REGULAR_AUDIO.value
+            print(f"[__create_user_message] Set message_type to REGULAR_AUDIO (incoming was audio)")
         elif (message.message_context.message_type == MessageTypes.REGULAR_TEXT.value
               or message.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value
               or message.message_context.message_type == MessageTypes.INTERACTIVE_BUTTON.value):
             message_type = MessageTypes.INTERACTIVE_LIST.value
+            print(f"[__create_user_message] Set message_type to INTERACTIVE_LIST (incoming was text/interactive)")
         button_reply_additional_info = {}
         interactive_list_additional_info = {}
         text_additional_info = {}
@@ -437,11 +446,25 @@ class ByoebUserGenerateResponse(Handler):
                 constants.QUERY_TYPE: query_type
             }
         else:
+            # Default case: for normal text messages, use INTERACTIVE_LIST to show related questions
+            if message_type is None:
+                # If message_type wasn't set above, default to INTERACTIVE_LIST for text messages
+                # This ensures text responses are sent as text with interactive list (related questions)
+                if message.message_context.message_type != MessageTypes.REGULAR_AUDIO.value:
+                    message_type = MessageTypes.INTERACTIVE_LIST.value
+                    print(f"[__create_user_message] Set message_type to INTERACTIVE_LIST (default for non-audio)")
+                else:
+                    # If it was an audio message, keep it as audio
+                    message_type = MessageTypes.REGULAR_AUDIO.value
+                    print(f"[__create_user_message] Set message_type to REGULAR_AUDIO (default for audio)")
             interactive_list_additional_info = {
                 constants.DESCRIPTION: description,
                 constants.ROW_TEXTS: related_questions,
                 constants.QUERY_TYPE: query_type
             }
+        
+        print(f"[__create_user_message] Final message_type: '{message_type}', message_category: '{message_category}'")
+        print(f"[__create_user_message] related_questions count: {len(related_questions) if related_questions else 0}")
         reply_context= self.__create_reply_context(message)
         user_message = ByoebMessageContext(
             channel_type=message.channel_type,
@@ -455,8 +478,8 @@ class ByoebUserGenerateResponse(Handler):
             ),
             message_context=MessageContext(
                 message_type=message_type,
-                message_source_text=message_source_text,
-                message_english_text=response_en,
+                message_source_text=message_source_text,  # This should be in user's language (Hindi, etc.)
+                message_english_text=response_en,  # This is the English translation for internal use
                 additional_info={
                     **media_info,
                     **button_reply_additional_info,
@@ -469,7 +492,9 @@ class ByoebUserGenerateResponse(Handler):
             reply_context=reply_context,
             incoming_timestamp=message.incoming_timestamp,
         )
-        print("Message category: ", user_message.message_category)
+        print(f"[__create_user_message] Final message - category: {user_message.message_category}")
+        print(f"  source_text (user language): '{user_message.message_context.message_source_text[:100] if user_message.message_context.message_source_text else 'None'}...'")
+        print(f"  english_text (internal): '{user_message.message_context.message_english_text[:100] if user_message.message_context.message_english_text else 'None'}...'")
         return user_message
     
     def __create_expert_verification_message(
@@ -634,21 +659,71 @@ class ByoebUserGenerateResponse(Handler):
                 status=constants.PENDING,
                 related_questions=related_questions
             )
-        elif utils.is_onboard(message.message_context.message_source_text, message.user.user_language):
-            print("Is onboard message")
+        elif (utils.is_onboard(message.message_context.message_source_text, message.user.user_language) or
+              utils.is_onboard(message.message_context.message_english_text or "", message.user.user_language)):
+            print(f"Is onboard message - returning already registered response")
+            print(f"  message_source_text: '{message.message_context.message_source_text}'")
+            print(f"  message_english_text: '{message.message_context.message_english_text}'")
+            print(f"  user_language: '{message.user.user_language}'")
+            # Import constants for onboarding messages
+            from byoeb.constants.onboarding_text import ALREADY_REGISTERED_DICT, THANK_YOU_DICT, RELATED_QUESTIONS
+            from byoeb.constants.user_enums import UserType, LanguageCode
+            
+            user_language = message.user.user_language
+            user_type = message.user.user_type or UserType.ASHA.value
+            
+            print(f"  user_language: '{user_language}', user_type: '{user_type}'")
+            print(f"  Available languages in ALREADY_REGISTERED_DICT: {list(ALREADY_REGISTERED_DICT.keys())}")
+            print(f"  Available languages in THANK_YOU_DICT[{user_type}]: {list(THANK_YOU_DICT.get(user_type, {}).keys())}")
+            
+            # Get the "already registered" message in user's language
+            already_registered_msg = ALREADY_REGISTERED_DICT.get(user_language, ALREADY_REGISTERED_DICT[LanguageCode.ENGLISH.value])
+            print(f"  Retrieved already_registered_msg: '{already_registered_msg[:50]}...'")
+            
+            # Get the thank you message from THANK_YOU_DICT
+            thank_you_msg = THANK_YOU_DICT.get(user_type, {}).get(user_language, THANK_YOU_DICT.get(UserType.ASHA.value, {}).get(LanguageCode.ENGLISH.value, ""))
+            print(f"  Retrieved thank_you_msg: '{thank_you_msg[:50]}...'")
+            
+            # Combine messages
+            response_text = f"{already_registered_msg} {thank_you_msg}"
+            
+            print(f"  Constructed response_text in {user_language}: '{response_text[:100]}...'")
+            
+            # Use static RELATED_QUESTIONS instead of dynamic fetching
+            related_questions = RELATED_QUESTIONS["questions"].get(user_language, RELATED_QUESTIONS["questions"][LanguageCode.ENGLISH.value])
+            print(f"  Using static related_questions: {related_questions}")
+            
+            # Translate response to English for response_en (needed for internal processing)
+            from byoeb.chat_app.configuration.dependency_setup import text_translator
+            response_en = await text_translator.atranslate_text(
+                input_text=response_text,
+                source_language=user_language,
+                target_language="en"
+            )
+            print(f"  Translated response_en: '{response_en[:100]}...'")
+            
             query_type = "asha_work_related"
-            query = "antara injection, tobacco, chaaya goli"
-            retrieved_chunks_related_questions = await self._retrieve_top_k_chunks_for_related_questions(query, k=10)
-            related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
+            print(f"  Calling __create_user_message with response_source='{response_text[:50]}...'")
             byoeb_user_message = await self.__create_user_message(
                 message=message,
-                response_en="You are already connected to Ashabot.",
-                response_source=None,
+                response_en=response_en,
+                response_source=response_text,  # Pass the Hindi text directly - this should be used as message_source_text
                 query_type=query_type,
                 related_questions=related_questions
             )
+            print(f"  Created user message with source_text: '{byoeb_user_message.message_context.message_source_text[:100] if byoeb_user_message.message_context.message_source_text else 'None'}...'")
         else:
+            # Normal message flow - not AUDIO_IDK and not onboarding
+            print(f"[generate] Processing normal message")
+            print(f"  message_source_text: '{message.message_context.message_source_text[:100] if message.message_context.message_source_text else 'None'}...'")
+            print(f"  message_english_text: '{message.message_context.message_english_text[:100] if message.message_context.message_english_text else 'None'}...'")
+            print(f"  user_language: '{message.user.user_language}'")
+            
             message_english = message.message_context.message_english_text
+            if not message_english:
+                print(f"[generate] WARNING: message_english_text is None or empty, using message_source_text as fallback")
+                message_english = message.message_context.message_source_text
+            
             user_language = message.user.user_language
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
             cache_hit = False
@@ -658,7 +733,11 @@ class ByoebUserGenerateResponse(Handler):
                 embedding = await embedding_fn.aget_text_embedding(message_english)
                 end_time = datetime.now(timezone.utc).timestamp()
                 print(f"Generated cache embeddings in {end_time - start_time}s")
-                cache_result = self.embedding_cache.query(embedding, 0.9)
+                try:
+                    cache_result = self.embedding_cache.query(embedding, 0.9)
+                except Exception as e:
+                    print(f"Warning: Embedding cache query failed: {e}. Continuing without cache.")
+                    cache_result = None, None, None
             else:
                 embedding = None
                 cache_result = None, None, None
@@ -711,8 +790,12 @@ class ByoebUserGenerateResponse(Handler):
                     cache_val["answer"] = cache_val.get("answer", {})
                     cache_val["answer"][user_language] = response_en, response_source, related_questions, tokens, tokens_backup
                     miss_thresh = cache_result[0] if cache_result is not None else None
-                    cache_result = self.embedding_cache.store(embedding, cache_val)
-                    cache_result = miss_thresh, *cache_result[1:]
+                    try:
+                        cache_result = self.embedding_cache.store(embedding, cache_val)
+                        cache_result = miss_thresh, *cache_result[1:]
+                    except Exception as e:
+                        print(f"Warning: Embedding cache store failed: {e}. Continuing without cache.")
+                        cache_result = None, None, None
                 else:
                     cache_result = None, None, None
 
