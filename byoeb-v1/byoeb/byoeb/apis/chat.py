@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import uuid
 from typing import Any, List, Dict, Literal, Optional, Set
+import byoeb.chat_app.configuration.config as env_config
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from pydantic import BaseModel, Field, PositiveInt
 from byoeb_core.models.byoeb.message_context import (
@@ -61,11 +62,11 @@ async def get_bot_messages(
     responses = dependency_setup.message_db_service.get_latest_bot_messages_by_timestamp(str(timestamp), length)
     return [doc async for doc in responses]
 
-
-CHAT_HTML_PATH = Path(__file__).parent.resolve() / "ui_templates" / "chat.html"
-@chat_apis_router.get("/chat", include_in_schema=False)
-async def chat() -> FileResponse:
-    return FileResponse(CHAT_HTML_PATH)
+if env_config.env_ashabot_uat:
+    CHAT_HTML_PATH = Path(__file__).parent.resolve() / "ui_templates" / "chat.html"
+    @chat_apis_router.get("/chat", include_in_schema=False)
+    async def chat() -> FileResponse:
+        return FileResponse(CHAT_HTML_PATH)
 
 
 # ---------------------------------------------------------
