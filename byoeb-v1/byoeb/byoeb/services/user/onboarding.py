@@ -15,7 +15,6 @@ from byoeb.constants.onboarding_text import (
     NO_SET,
     USER_TYPE_OPTIONS,
 )
-from byoeb.factory import ChannelClientFactory
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
     MessageContext,
@@ -217,8 +216,7 @@ def create_user(
 async def handle_unknown_user(
     messages: List[ByoebMessageContext],
     message_db_service: MessageMongoDBService,
-    user_db_service: UserMongoDBService,
-    channel_factory: ChannelClientFactory,
+    user_db_service: UserMongoDBService
 ):
     print("handle_unknown_user")
     from byoeb.chat_app.configuration.dependency_setup import byoeb_user_send_response
