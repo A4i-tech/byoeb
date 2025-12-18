@@ -6,16 +6,13 @@ from byoeb.services.chat import constants
 from byoeb.services.chat import utils as chat_utils
 from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
 from byoeb.services.databases.mongo_db.user_db import UserMongoDBService
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb_core.models.byoeb.user import User
-from byoeb_core.channel.base import BaseChannel
 from byoeb.services.channel.whatsapp import WhatsAppService
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
     MessageContext,
-    ReplyContext,
     MessageTypes
 )
 from byoeb.background_jobs.consensus.config import bot_config
