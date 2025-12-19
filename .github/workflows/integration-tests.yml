@@ -86,7 +86,7 @@ jobs:
             -e USER_NAME="$USER_NAME" \
             -e PHONE_NUMBER_ID="$PHONE_NUMBER_ID" \
             "${{ inputs.image-ref }}" \
-            poetry run pytest tests/integration
+            python -m pytest tests/integration
 
       - name: Fail if tests failed
         if: ${{ steps.run-tests.outcome != 'success' }}
