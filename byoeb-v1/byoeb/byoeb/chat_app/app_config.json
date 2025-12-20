@@ -84,11 +84,7 @@
             {
                 "motive": "text_to_speech",
                 "service": "azure_cognitive",
-                "languages": ["en", "hi", "mr", "te"],
-                "attributes": {
-                    "resource_id": "/subscriptions/fa06c841-cd7a-4855-b39b-70621812fff3/resourceGroups/khushi_baby_asha/providers/Microsoft.CognitiveServices/accounts/khushi-baby-asha-speech-to-text",
-                    "region": "swedencentral"
-                }
+                "languages": ["en", "hi", "mr", "te"]
             },
             {
                 "motive": "speech_to_text",
@@ -112,10 +108,7 @@
             }
         ],
         "text": {
-            "azure_cognitive": {
-                "resource_id": "/subscriptions/fa06c841-cd7a-4855-b39b-70621812fff3/resourceGroups/khushi_baby_asha/providers/Microsoft.CognitiveServices/accounts/khushi-baby-asha-text-to-text",
-                "region": "swedencentral"
-            }
+            "azure_cognitive": {}
         }
     },
     "vector_store": {

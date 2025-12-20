@@ -49,6 +49,9 @@ env_azure_storage_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING
 
 # Azure Cognitive Services
 env_azure_cognitive_key = os.getenv("AZURE_COGNITIVE_KEY")
+env_azure_cognitive_region = os.getenv("AZURE_COGNITIVE_REGION")
+env_azure_cognitive_text_to_speech_resource = os.getenv("AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE")
+env_azure_cognitive_text_to_text_resource = os.getenv("AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE")
 
 #Azure Speech Key
 env_azure_speech_key= os.getenv("AZURE_SPEECH_KEY")

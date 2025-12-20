@@ -142,20 +142,22 @@ users_handler = UsersHandler(
 # Text translator
 from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
 # TODO: factory implementation
+if not env_config.env_azure_cognitive_region: raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE environment variable must be set to use text-to-text service")
+if not env_config.env_azure_cognitive_text_to_text_resource: raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE environment variable must be set to use text-to-text service")
 if env_config.env_azure_cognitive_key:
     print("✅ Azure Cognitive Services key set. Enabling Azure text translator.")
     text_translator = AsyncAzureTextTranslator(
         key=env_config.env_azure_cognitive_key,
-        region=app_config["translators"]["text"]["azure_cognitive"]["region"],
-        resource_id=app_config["translators"]["text"]["azure_cognitive"]["resource_id"],
+        region=env_config.env_azure_cognitive_region,
+        resource_id=env_config.env_azure_cognitive_text_to_text_resource,
     )
 else:
     from azure.identity import get_bearer_token_provider, DefaultAzureCredential
     print("⚠️ Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure text translator")
     text_translator = AsyncAzureTextTranslator(
     credential=DefaultAzureCredential(),
-    region=app_config["translators"]["text"]["azure_cognitive"]["region"],
-    resource_id=app_config["translators"]["text"]["azure_cognitive"]["resource_id"],
+    region=env_config.env_azure_cognitive_region,
+    resource_id=env_config.env_azure_cognitive_text_to_text_resource,
 )
 
 # Speech translator
