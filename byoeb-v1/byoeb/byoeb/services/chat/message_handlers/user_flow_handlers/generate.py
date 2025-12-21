@@ -595,17 +595,32 @@ class ByoebUserGenerateResponse(Handler):
 
         return await self.agenerate_answer(user_language, best_query, query_type, best_chunks)
 
-    async def needs_clarification(self, query: str, query_type: str, retrieved_chunks: list[Chunk]):
+    async def needs_clarification(self, query: str, query_type: str, user_language: str, retrieved_chunks: list[Chunk]):
         kb_topics = "\n".join(str(c.text) for c in retrieved_chunks)
-        system_prompt = bot_config["llm_response"]["clarification_prompts"]["system_prompt"]
+        task_description = bot_config["llm_response"]["clarification_prompts"]["system_prompt"]
+        response_translate = bot_config["llm_response"]["clarification_prompts"]["response_translate"][user_language]
+        output_format = bot_config["llm_response"]["clarification_prompts"]["output"]
+
+        system_prompt = task_description + "\n\n" + response_translate + "\n\n" + output_format
         user_prompt = bot_config["llm_response"]["clarification_prompts"]["user_prompt"] \
             .replace("<QUERY>", query) \
             .replace("<QUERY_TYPE>", query_type) \
             .replace("<KB_TOPICS>", kb_topics)
 
-        _, response = await llm_client.agenerate_response(self.__augment(system_prompt, user_prompt))
+        llm_response, response = await llm_client.agenerate_response(self.__augment(system_prompt, user_prompt))
         response = response.strip()
-        return response if response else None
+        if not response:
+            return None
+
+        clarification_en_match = re.search(r"<clarification_en\s*>(.*?)</clarification_en\s*>", response, re.DOTALL | re.IGNORECASE)
+        clarification_src_match = re.search(r"<clarification_src\s*>(.*?)</clarification_src\s*>", response, re.DOTALL | re.IGNORECASE)
+
+        clarification_en = clarification_en_match.group(1).strip() if clarification_en_match else None
+        clarification_src = clarification_src_match.group(1).strip() if clarification_src_match else None
+        if not clarification_en:
+            return None
+
+        return clarification_en, clarification_src
 
     @retry(
         stop=stop_after_attempt(3),  # Retry up to 3 times
@@ -729,11 +744,10 @@ class ByoebUserGenerateResponse(Handler):
                         tokens['expansion_prompt_tokens'] = exp_tokens.get('prompt_tokens', 0)
                     else:
                         print("Query expansion was unsuccessful, assessing whether clarification is required...")
-                        clarification_request = await self.needs_clarification(message_english, query_type, retrieved_chunks)
+                        clarification_request = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
                         if clarification_request:
                             is_idk = False
-                            response_en = clarification_request
-                            response_source = clarification_request
+                            response_en, response_source = clarification_request
                             tokens = {}
 
                 # response_en, response_source, tokens = await self.agenerate_answer(user_language, message_english, query_type, retrieved_chunks)
