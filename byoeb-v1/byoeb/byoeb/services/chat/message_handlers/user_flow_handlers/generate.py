@@ -619,7 +619,8 @@ class ByoebUserGenerateResponse(Handler):
         if not clarification_en:
             return None
 
-        return clarification_en, clarification_src
+        tokens = llm_client.get_response_tokens(llm_response)
+        return clarification_en, clarification_src, tokens
 
     @retry(
         stop=stop_after_attempt(3),  # Retry up to 3 times
@@ -746,8 +747,10 @@ class ByoebUserGenerateResponse(Handler):
                         clarification_request = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
                         if clarification_request:
                             is_idk = False
-                            response_en, response_source = clarification_request
-                            tokens = {}
+                            response_en, response_source, clarification_tokens = clarification_request
+                            tokens['clarification_used'] = True
+                            tokens['clarification_completion_tokens'] = clarification_tokens.get('completion_tokens', 0)
+                            tokens['clarification_prompt_tokens'] = clarification_tokens.get('prompt_tokens', 0)
 
                 # response_en, response_source, tokens = await self.agenerate_answer(user_language, message_english, query_type, retrieved_chunks)
 
