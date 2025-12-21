@@ -42,8 +42,15 @@
             "user_prompt": "Original: \"<QUERY>\"\nType: <QUERY_TYPE>\nKB topics: <KB_TOPICS>\nRewrite into 3 clearer versions."
         },
         "clarification_prompts": {
-            "system_prompt": "You rewrite user queries into a clarification request when the query\ncannot be answered without making assumptions.\n\nIf the query is answerable as-is, return an empty string.\nDo NOT answer the question.",
-            "user_prompt": "User query:\n<QUERY>\n\nQuery type:\n<QUERY_TYPE>\n\nKB context:\n<KB_TOPICS>\n\nIf clarification is needed, return ONLY the clarification request.\nIf not needed, return an empty string."
+            "system_prompt": "You rewrite user queries into a clarification request when the query cannot be answered without making assumptions.\n\nIf the query is answerable as-is, return an empty string.\nDo NOT answer the question.",
+            "response_translate": {
+                "hi": "2. Translate clarification_en into spoken Hindi to generate clarification_src, following the below rules:\n\n2a. Use simple Hindi that is spoken in everyday life. Do not use complex or uncommon Hindi words. Do not use words that are typically used only in formal or written Hindi. Also, feel free to use English words that are commonly used in Hindi, like \"लिवर\", \"इंजेक्शन\".\n\n2b. Write everything in **DEVANAGARI** script. Do not use Latin script.\n\n2c. While translating, remember that you are a **FEMALE** translator, and you are addressing a female.",
+                "en": "2. Set clarification_src = clarification_en.",
+                "mr": "2. Translate clarification_en into spoken Marathi to generate clarification_src, following the below rules:\n\n2a. Use simple Marathi that is spoken in everyday life. Do not use complex or uncommon Marathi words. Do not use words that are typically used only in formal or written Marathi. Also, feel free to use English words that are commonly used in Marathi, like \"लिवर\", \"इंजेक्शन\".\n\n2b. Write everything in **DEVANAGARI** script. Do not use Latin script.\n\n2c. While translating, remember that you are a **FEMALE** translator, and you are addressing a female.",
+                "te": "2. Translate clarification_en into spoken Telugu to generate clarification_src, following the below rules:\n\n2a. Use simple Telugu that is spoken in everyday life. Do not use complex or uncommon Telugu words. Do not use words that are typically used only in formal or written Telugu. Also, feel free to use English words that are commonly used in Telugu, like \"లివర్\", \"ఇంజెక్షన్\".\n\n2b. Write everything in **TELUGU** script. Do not use Latin script.\n\n2c. While translating, remember that you are a **FEMALE** translator, and you are addressing a female."
+            },
+            "output": "3. Output clarification_en and clarification_src in XML format. Do NOT generate any other opening or closing explanations or code. Sample output:\n\n<o>\n<clarification_en>Clarification request in English</clarification_en>\n<clarification_src>Clarification request in source language</clarification_src>\n</o>\n\nIf no clarification is needed, return an empty string.",
+            "user_prompt": "User query:\n<QUERY>\n\nQuery type:\n<QUERY_TYPE>\n\nKB context:\n<KB_TOPICS>\n\nIf clarification is needed, generate clarification_en and clarification_src as per the instructions.\nIf not needed, return an empty string."
         }
     },
     "template_messages": {
