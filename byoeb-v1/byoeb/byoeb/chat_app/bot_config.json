@@ -36,6 +36,14 @@
                 "output": "4. Output response_en, response_src, in XML format. Do **NOT** generate any other opening or closing explanations or code. Sample output:\n\n<output>\n\n<response_en>Response in **English** ONLY</response_en>\n\n<response_src>Response in source language</response_src>\n\n</output>"
             },
             "user_prompt": "<query_type><QUERY_TYPE></query_type>\n<query_en_addcontext><QUERY_EN_ADDCONTEXT></query_en_addcontext>\n<raw_knowledge_base><RAW_KB></raw_knowledge_base>\n<new_knowledge_base><NEW_KB></new_knowledge_base>"
+        },
+        "expansion_prompts": {
+            "system_prompt": "Rewrite vague ASHA questions to be more specific. Add medical context (postpartum, newborn, trimester) when implied. Convert statements to questions. Output 2-3 variations in <query_1></query_1> format.",
+            "user_prompt": "Original: \"<QUERY>\"\nType: <QUERY_TYPE>\nKB topics: <KB_TOPICS>\nRewrite into 3 clearer versions."
+        },
+        "clarification_prompts": {
+            "system_prompt": "You rewrite user queries into a clarification request when the query\ncannot be answered without making assumptions.\n\nIf the query is answerable as-is, return an empty string.\nDo NOT answer the question.",
+            "user_prompt": "User query:\n<QUERY>\n\nQuery type:\n<QUERY_TYPE>\n\nKB context:\n<KB_TOPICS>\n\nIf clarification is needed, return ONLY the clarification request.\nIf not needed, return an empty string."
         }
     },
     "template_messages": {

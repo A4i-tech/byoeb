@@ -570,6 +570,42 @@ class ByoebUserGenerateResponse(Handler):
             raise ValueError("Parsing failed, response or query_type is None.")
         return response_en, response_source, tokens
     
+    async def expand_and_retry(self, query: str, query_type: str, user_language: str, retrieved_chunks: list[Chunk]):
+        kb_topics = "\n".join(str(c.text) for c in retrieved_chunks)
+        system_prompt = bot_config["llm_response"]["expansion_prompts"]["system_prompt"]
+        user_prompt = bot_config["llm_response"]["expansion_prompts"]["user_prompt"] \
+            .replace("<QUERY>", query) \
+            .replace("<QUERY_TYPE>", query_type) \
+            .replace("<KB_TOPICS>", kb_topics)
+
+        _, response = await llm_client.agenerate_response(self.__augment(system_prompt, user_prompt))
+        expanded = re.findall(r"<query_\d+>(.*?)</query_\d+>", response, re.DOTALL)
+        if not expanded:
+            return None
+
+        best_chunks, best_query = [], expanded[0].strip()
+        best_score = 0
+
+        for q in expanded:
+            chunks = await self.__aretrieve_chunks(q.strip(), k=5, search_type=AzureVectorSearchType.DENSE.value)
+            score = sum(c.similarity for c in chunks) / max(len(chunks), 1)
+            if score > best_score:
+                best_score, best_chunks, best_query = score, chunks, q.strip()
+
+        return await self.agenerate_answer(user_language, best_query, query_type, best_chunks)
+
+    async def needs_clarification(self, query: str, query_type: str, retrieved_chunks: list[Chunk]):
+        kb_topics = "\n".join(str(c.text) for c in retrieved_chunks)
+        system_prompt = bot_config["llm_response"]["clarification_prompts"]["system_prompt"]
+        user_prompt = bot_config["llm_response"]["clarification_prompts"]["user_prompt"] \
+            .replace("<QUERY>", query) \
+            .replace("<QUERY_TYPE>", query_type) \
+            .replace("<KB_TOPICS>", kb_topics)
+
+        _, response = await llm_client.agenerate_response(self.__augment(system_prompt, user_prompt))
+        response = response.strip()
+        return response if response else None
+
     @retry(
         stop=stop_after_attempt(3),  # Retry up to 3 times
         wait=wait_exponential(multiplier=1, max=10),  # Exponential backoff with a max wait time of 10 seconds
@@ -666,40 +702,39 @@ class ByoebUserGenerateResponse(Handler):
             start_time = datetime.now(timezone.utc).timestamp()
             cache_val = cache_result[2]
             if cache_val and "answer" in cache_val and user_language in cache_val["answer"]:
-                response_en, response_source, related_questions, tokens, tokens_backup = cache_val["answer"][user_language]
+                response_en, response_source, related_questions, tokens = cache_val["answer"][user_language]
                 cache_hit = True
             else:
                 retrieved_chunks_task = self.__aretrieve_chunks(message_english, k=3)
-                retrieved_chunks_backup_task = self.__aretrieve_chunks(
-                    message_english,
-                    k=5,
-                    search_type=AzureVectorSearchType.DENSE.value
-                )
                 retrieved_chunks_related_questions_task = self._retrieve_top_k_chunks_for_related_questions(message_english, k=10)
-                retrieved_chunks, retrieved_chunks_backup, retrieved_chunks_related_questions = await asyncio.gather(
-                    retrieved_chunks_task,
-                    retrieved_chunks_backup_task,
-                    retrieved_chunks_related_questions_task
-                )
+                retrieved_chunks, retrieved_chunks_related_questions = await asyncio.gather(retrieved_chunks_task, retrieved_chunks_related_questions_task)
                 end_time = datetime.now(timezone.utc).timestamp()
                 AppInsightsLogHandler.getLogger("retrieve_chunks").info(f"Retrieved chunks from KB for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
                     "message_id": message.message_context.message_id,
                     "time_taken": end_time - start_time
                 }})
-                start_time = datetime.now(timezone.utc).timestamp()
-                response_task = self.agenerate_answer(user_language,message_english,query_type,retrieved_chunks)
-                response_backup_task = self.agenerate_answer(user_language,message_english,query_type,retrieved_chunks_backup)
-                response_result, response_backup_result = await asyncio.gather(
-                    response_task,
-                    response_backup_task
-                )
-                response_en, response_source, tokens = response_result
-                response_en_backup, response_source_backup, tokens_backup = response_backup_result
 
+                start_time = datetime.now(timezone.utc).timestamp()
+                response_en, response_source, tokens = await self.agenerate_answer(user_language, message_english, query_type, retrieved_chunks)
                 is_idk = utils.is_idk(response_en)
                 if is_idk:
-                    response_en = response_en_backup
-                    response_source = response_source_backup
+                    print("Response is IDK, attempting query expansion...")
+                    expanded_result = await self.expand_and_retry(message_english, query_type, user_language, retrieved_chunks[:3])
+                    if expanded_result and not utils.is_idk(expanded_result[0]):
+                        response_en, response_source, exp_tokens = expanded_result
+                        is_idk = False
+                        tokens['expansion_used'] = True
+                        tokens['expansion_completion_tokens'] = exp_tokens.get('completion_tokens', 0)
+                        tokens['expansion_prompt_tokens'] = exp_tokens.get('prompt_tokens', 0)
+                    else:
+                        print("Query expansion was unsuccessful, assessing whether clarification is required...")
+                        clarification_request = await self.needs_clarification(message_english, query_type, retrieved_chunks)
+                        if clarification_request:
+                            is_idk = False
+                            response_en = clarification_request
+                            response_source = clarification_request
+                            tokens = {}
+
                 # response_en, response_source, tokens = await self.agenerate_answer(user_language, message_english, query_type, retrieved_chunks)
 
                 if message.user.user_language == "en":
@@ -709,7 +744,7 @@ class ByoebUserGenerateResponse(Handler):
                 if not is_idk and embedding:
                     cache_val = cache_val or {}
                     cache_val["answer"] = cache_val.get("answer", {})
-                    cache_val["answer"][user_language] = response_en, response_source, related_questions, tokens, tokens_backup
+                    cache_val["answer"][user_language] = response_en, response_source, related_questions, tokens
                     miss_thresh = cache_result[0] if cache_result is not None else None
                     cache_result = self.embedding_cache.store(embedding, cache_val)
                     cache_result = miss_thresh, *cache_result[1:]
@@ -720,10 +755,7 @@ class ByoebUserGenerateResponse(Handler):
                 AppInsightsLogHandler.getLogger("generate_answer_and_related_questions").info(f"Generated related questions for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
                     "message_id": message.message_context.message_id,
                     "time_taken": end_time - start_time,
-                    "completion_tokens": tokens.get("completion_tokens"),
-                    "backup_completion_tokens": tokens_backup.get("completion_tokens"),
-                    "prompt_tokens": tokens.get("prompt_tokens"),
-                    "backup_prompt_tokens": tokens_backup.get("prompt_tokens")
+                    **tokens
                 }})
             byoeb_user_message = await self.__create_user_message(
                 message=message,
