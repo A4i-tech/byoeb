@@ -732,13 +732,13 @@ class ByoebUserGenerateResponse(Handler):
 
                 start_time = datetime.now(timezone.utc).timestamp()
                 response_en, response_source, tokens = await self.agenerate_answer(user_language, message_english, query_type, retrieved_chunks)
-                is_idk = utils.is_idk(response_en)
-                if is_idk:
+                skip_cache = utils.is_idk(response_en)  # whether to skip adding this response to cache
+                if skip_cache:
                     print("Response is IDK, attempting query expansion...")
                     expanded_result = await self.expand_and_retry(message_english, query_type, user_language, retrieved_chunks[:3])
                     if expanded_result and not utils.is_idk(expanded_result[0]):
                         response_en, response_source, exp_tokens = expanded_result
-                        is_idk = False
+                        skip_cache = False
                         tokens['expansion_used'] = True
                         tokens['expansion_completion_tokens'] = exp_tokens.get('completion_tokens', 0)
                         tokens['expansion_prompt_tokens'] = exp_tokens.get('prompt_tokens', 0)
@@ -746,7 +746,7 @@ class ByoebUserGenerateResponse(Handler):
                         print("Query expansion was unsuccessful, assessing whether clarification is required...")
                         clarification_request = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
                         if clarification_request:
-                            is_idk = False
+                            skip_cache = True
                             response_en, response_source, clarification_tokens = clarification_request
                             tokens['clarification_used'] = True
                             tokens['clarification_completion_tokens'] = clarification_tokens.get('completion_tokens', 0)
@@ -758,7 +758,7 @@ class ByoebUserGenerateResponse(Handler):
                     response_source = response_en
                 related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
 
-                if not is_idk and embedding:
+                if not skip_cache and embedding:
                     cache_val = cache_val or {}
                     cache_val["answer"] = cache_val.get("answer", {})
                     cache_val["answer"][user_language] = response_en, response_source, related_questions, tokens
