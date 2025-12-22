@@ -81,16 +81,16 @@ Researchers will log and analyze your messages only for research purposes, and w
 
 THANK_YOU_DICT = {
     UserType.ASHA.value: {
-        LanguageCode.HINDI.value: "आप गर्भावस्था, शिशु देखभाल, ... के बारे में मुझसे कोई भी सवाल पूछ सकते हैं।",
-        LanguageCode.ENGLISH.value: "You can ask me any question about pregnancy, childcare, ...",
-        LanguageCode.MARATHI.value: "तुम्ही गर्भावस्था, शिशु देखभाल, ... याबद्दल मला कोणताही प्रश्न विचारू शकता.",
-        LanguageCode.TELUGU.value: "మీరు గర్భధారణ, శిశు సంరక్షణ, ... గురించి నన్ను ఏదైనా ప్రశ్న అడగవచ్చు.",
+        LanguageCode.HINDI.value: "आप मुझसे गर्भावस्था, शिशु देखभाल और आशा के रूप में अपने काम के बारे में कोई भी प्रश्न 💬 लिख कर या🎙️वॉइस संदेश भेजकर पूछ सकते हैं। जैसे की:\nछाया टैबलेट कब लें?\nआभा आईडी क्या है?\n3 महीने के बच्चे को कौन से टीके दें?",
+        LanguageCode.ENGLISH.value: "You can ask me any question about pregnancy, childcare, and your work as an ASHA, by typing 💬 or sending me a voice message 🎙️. Like this:\nWhen to take chhaya tablet?\nWhat is ABHA ID?\nWhat vaccines to give a 3-month-old?",
+        LanguageCode.MARATHI.value: "तुम्ही गर्भावस्था, शिशु देखभाल आणि आशा म्हणून तुमच्या कामाबद्दल कोणताही प्रश्न 💬 टाइप करून किंवा 🎙️ व्हॉइस संदेश पाठवून विचारू शकता. उदाहरणार्थ:\nछाया टॅबलेट कधी घ्यावे?\nआभा आयडी म्हणजे काय?\n3 महिन्याच्या बाळाला कोणते लसीकरण द्यावे?",
+        LanguageCode.TELUGU.value: "మీరు గర్భధారణ, శిశు సంరక్షణ మరియు ఆశగా మీ పని గురించి 💬 టైప్ చేసి లేదా 🎙️ వాయిస్ సందేశం పంపడం ద్వారా నన్ను ఏదైనా ప్రశ్న అడగవచ్చు. ఇలా:\nఛాయా టాబ్లెట్ ఎప్పుడు తీసుకోవాలి?\nఆభా ఐడి అంటే ఏమిటి?\n3 నెలల బిడ్డకు ఏ వ్యాక్సిన్లు ఇవ్వాలి?",
     },
     UserType.ANM.value: {
-        LanguageCode.HINDI.value: "यदि मुझे किसी आशा के प्रश्न का उत्तर नहीं पता होगा, ...",
-        LanguageCode.ENGLISH.value: "Whenever I do not know the answer to an ASHA's question, ...",
-        LanguageCode.MARATHI.value: "जेव्हा मला एखाद्या आशा च्या प्रश्नाचे उत्तर माहित नसते, ...",
-        LanguageCode.TELUGU.value: "ASHA ప్రశ్నకు నాకు సమాధానం తెలియకపోతే, ...",
+        LanguageCode.HINDI.value: "इस कार्यक्रम के बारे में अधिक जानकारी के लिए कृपया हमारे हेल्पडेस्क नंबर +91 77270 79678 पर कॉल करें। आपके समर्थन के लिए धन्यवाद 😊",
+        LanguageCode.ENGLISH.value: "For more information about this program, please call our helpdesk number +91 77270 79678. Thank you for your support 😊",
+        LanguageCode.MARATHI.value: "या कार्यक्रमाबद्दल अधिक माहितीसाठी कृपया आमच्या हेल्पडेस्क नंबर +91 77270 79678 वर कॉल करा. तुमच्या समर्थनाबद्दल धन्यवाद 😊",
+        LanguageCode.TELUGU.value: "ఈ ప్రోగ్రాం గురించి మరిన్ని సమాచారం కోసం దయచేసి మా హెల్ప్‌డెస్క్ నంబర్ +91 77270 79678 కి కాల్ చేయండి. మీ మద్దతుకు ధన్యవాదాలు 😊",
     },
 }
 
