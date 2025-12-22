@@ -43,7 +43,7 @@ class ByoebUserProcess(Handler):
         i = 1
         for conversation in last_conversations:
             timestamp = int(conversation.get(constants.TIMESTAMP, 0))
-            if curr_time - timestamp > 1000:
+            if curr_time - timestamp > 1800:
                 continue  # Skip conversations older than 30 min
             
             question = conversation.get(constants.QUESTION, None)
