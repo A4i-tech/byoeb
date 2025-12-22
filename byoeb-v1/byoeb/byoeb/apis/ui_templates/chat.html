@@ -903,6 +903,16 @@
 
                 const user_msg = escapeHtml(userMsg);
                 const bot_msg = escapeHtml(botMsg);
+                const mediaInfo = m.message_context?.media_info;
+                const audioHtml = mediaInfo && mediaInfo.media_url ? `
+                    <div style="margin-top: 12px; padding: 12px; background: #f3f2f1; border-radius: 4px;">
+                        <audio controls style="height: 32px;">
+                            <source src="${mediaInfo.media_url}" type="${mediaInfo.mime_type || 'audio/ogg'}">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                ` : '';
+
                 let result = "";
                 if(user_msg.length > 0){
                     result += `<div class="message user">
@@ -916,6 +926,7 @@
                     result += `<div class="message bot">
                         <div class="message-wrapper">
                             <div class="bubble" onclick="showMessageDetail(${idx}, false)">${bot_msg}</div>
+                            ${audioHtml}
                             <div class="message-time">${time}</div>
                         </div>
                     </div>`;
