@@ -151,16 +151,7 @@ class AzureVectorStore(BaseVectorStore):
         )
         return azure_doc
 
-    def add_chunks(
-        self,
-        data_chunks: list, 
-        metadata: list,
-        ids: list = None,
-        **kwargs
-    ):
-        raise NotImplementedError
-
-    async def aadd_chunks(
+    async def add_chunks(
         self,
         data_chunks: list,
         metadata: list,
@@ -233,7 +224,7 @@ class AzureVectorStore(BaseVectorStore):
             uploaded += len(batch_nodes)
             batch_nodes = []
 
-    def update_chunks(
+    async def update_chunks(
         self,
         data_chunks: list, 
         metadata: list,
@@ -242,10 +233,7 @@ class AzureVectorStore(BaseVectorStore):
     ):
         raise NotImplementedError
 
-    def delete_chunks(self, ids: list, batch_size: int = 100, **kwargs):
-        raise NotImplementedError
-
-    async def adelete_chunks(self, ids: list, batch_size: int = 100, **kwargs) -> int:
+    async def delete_chunks(self, ids: list, batch_size: int = 100, **kwargs) -> int:
         if not ids:
             logger.info("No chunk ids supplied for deletion; skipping")
             return 0
@@ -282,18 +270,10 @@ class AzureVectorStore(BaseVectorStore):
         logger.info(f"✅ Deleted {deleted} chunks from Azure index '{self.__index_name}'")
         return deleted
 
-    def retrieve_top_k_chunks(
-        self,
-        text: str,
-        k: int,
-        **kwargs
-    ) -> List[Chunk]:
-        raise NotImplementedError
+    async def retrieve_similar_chunks(self, text: str) -> List[Chunk]:
+        return await self.retrieve_top_k_chunks(text=text, k=1, search_type=AzureVectorSearchType.DENSE.value, select=["id"], vector_field="text_vector_3072")
 
-    async def aretrieve_similar_chunks(self, text: str) -> List[Chunk]:
-        return await self.aretrieve_top_k_chunks(text=text, k=1, search_type=AzureVectorSearchType.DENSE.value, select=["id"], vector_field="text_vector_3072")
-
-    async def aretrieve_top_k_chunks(
+    async def retrieve_top_k_chunks(
         self,
         text: str,
         k: int,
