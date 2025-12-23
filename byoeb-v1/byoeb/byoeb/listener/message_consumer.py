@@ -94,7 +94,7 @@ class QueueConsumer:
     ) -> list:
         messages = []
         if isinstance(self._az_storage_queue, AsyncAzureStorageQueue):
-            msgs = await self._az_storage_queue.areceive_message(
+            msgs = await self._az_storage_queue.receive_message(
                 visibility_timeout=self._config["message_queue"]["azure"]["visibility_timeout"],
                 messages_per_page=self._config["message_queue"]["azure"]["messages_per_page"],
                 max_messages=self._config["app"]["batch_size"]
@@ -111,7 +111,7 @@ class QueueConsumer:
         if isinstance(self._az_storage_queue, AsyncAzureStorageQueue):
             tasks = []
             for message in messages:
-                task  = self._az_storage_queue.adelete_message(message)
+                task  = self._az_storage_queue.delete_message(message)
                 tasks.append(task)
             await asyncio.gather(*tasks)
 
@@ -149,7 +149,7 @@ class QueueConsumer:
 
                     for message in messages:
                         if message.dequeue_count > queue_retry_count:
-                            await dlq_client.asend_message(message.content)
+                            await dlq_client.send_message(message.content)
                             await self.__delete_message([message])
                             dlq_count += 1
                             continue

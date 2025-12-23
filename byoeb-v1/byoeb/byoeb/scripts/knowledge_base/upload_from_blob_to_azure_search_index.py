@@ -90,7 +90,7 @@ async def create_kb_from_blob_store():
     chunk_metadatas = raw_chunks_metadata + update_chunks_metadata
     
     logger.info(f"💾 Starting ingestion of {len(chunk_ids)} total chunks to vector store")
-    async for _ in vector_store.aadd_chunks(
+    async for _ in vector_store.add_chunks(
         ids=chunk_ids,
         data_chunks=chunk_texts,
         metadata=chunk_metadatas,

@@ -106,8 +106,8 @@ class MessageProducerService:
 
         try:
             # queue publish
-            print("[apublish_message] → queue.asend_message(...)")
-            result = await self.__queue_client.asend_message(
+            print("[apublish_message] → queue.send_message(...)")
+            result = await self.__queue_client.send_message(
                 byoeb_message.model_dump_json(),
                 time_to_live=self._config["message_queue"]["azure"]["time_to_live"]
             )
