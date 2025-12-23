@@ -90,7 +90,7 @@ class KBService:
 
         if similar_chunks:
             try:
-                await self.vector_store.adelete_chunks(ids=similar_chunks)
+                await self.vector_store.delete_chunks(ids=similar_chunks)
             except NotImplementedError:
                 logger.info("Vector store does not support deletes; inserting matched chunks instead")
 
