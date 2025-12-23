@@ -387,7 +387,7 @@ class ByoebUserGenerateResponse(Handler):
         utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
         description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
         message_type = None
-        message_category=MessageCategory.BOT_TO_USER_RESPONSE.value
+        message_category = message.message_category or MessageCategory.BOT_TO_USER_RESPONSE.value
         if (message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value):
             message_type = MessageTypes.REGULAR_AUDIO.value
         elif (message.message_context.message_type == MessageTypes.REGULAR_TEXT.value
@@ -748,6 +748,7 @@ class ByoebUserGenerateResponse(Handler):
                         if clarification_request:
                             skip_cache = True
                             response_en, response_source, clarification_tokens = clarification_request
+                            message.message_category = MessageCategory.AUDIO_DISAMBIGUATION.value if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value else MessageCategory.TEXT_DISAMBIGUATION.value
                             tokens['clarification_used'] = True
                             tokens['clarification_completion_tokens'] = clarification_tokens.get('completion_tokens', 0)
                             tokens['clarification_prompt_tokens'] = clarification_tokens.get('prompt_tokens', 0)

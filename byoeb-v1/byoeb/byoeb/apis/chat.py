@@ -130,7 +130,7 @@ def chat_mcps_router(mcp):
         message_id = f"chat-mcps-{user_id}-{uuid.uuid4()}"
         ctx = ByoebMessageContext(
             channel_type="whatsapp",
-            message_category="whatsapp",
+            message_category=None,
             user=user,
             message_context=MessageContext(
                 message_id=message_id,
@@ -158,7 +158,10 @@ def chat_mcps_router(mcp):
         processed_ctx = await dependency_setup.byoeb_user_process.handle_process_message_workflow([ctx])
         responses = await dependency_setup.byoeb_user_generate_response.handle_message_generate_workflow([processed_ctx]) or []
 
-        preferred_categories = {MessageCategory.BOT_TO_USER_RESPONSE.value, MessageCategory.TEXT_IDK.value, MessageCategory.AUDIO_IDK.value}
+        preferred_categories = {
+            MessageCategory.BOT_TO_USER_RESPONSE.value, MessageCategory.TEXT_IDK.value, MessageCategory.AUDIO_IDK.value,
+            MessageCategory.AUDIO_DISAMBIGUATION.value, MessageCategory.TEXT_DISAMBIGUATION.value
+        }
         for resp in responses:
             if resp.message_context is None or resp.message_context.message_source_text is None:
                 continue
