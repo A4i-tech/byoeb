@@ -101,12 +101,26 @@ class ChromaDBVectorStore(BaseVectorStore):
         batch_size: int = 100,
         **kwargs
     ):
+        """
+        Add data chunks (with metadata) to the collection.
+        Returns an async iterator that yields inserted IDs.
+        
+        :param data_chunks: List of data chunks (text, vectors, etc.)
+        :param metadata: List of dictionaries containing metadata corresponding to each data chunk
+        :param ids: List of unique ids for each data chunk
+        :param batch_size: Number of chunks to add per batch (default: 100)
+        :yields: Inserted chunk IDs one by one
+        """
         import asyncio
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
+        # Run the sync method in executor and yield IDs
+        inserted_ids = await loop.run_in_executor(
             None,
             lambda: self._add_chunks_sync(data_chunks=data_chunks, metadata=metadata, ids=ids, batch_size=batch_size, **kwargs),
         )
+        # Yield each ID asynchronously
+        for chunk_id in inserted_ids:
+            yield chunk_id
 
     def prepare_data(self, nodes: List):
         """Prepare data_chunks, metadata and ids lists from TextNode list."""
