@@ -164,7 +164,7 @@ async def agenerate_consensus_response(
     <END_STRUCT>, do not include anything else.
     '''
     prompt.append({"role": "user", "content": str(query_prompt)})
-    resp, text = await llm_client.agenerate_response(prompt)
+    resp, text = await llm_client.generate_response(prompt)
     parsed_response = parse_struct(text)
     print("Parsed response", parsed_response)
     consensus_answer = parsed_response.get("consensus_answer")

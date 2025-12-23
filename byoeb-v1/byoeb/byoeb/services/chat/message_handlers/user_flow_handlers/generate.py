@@ -70,7 +70,7 @@ class ByoebUserGenerateResponse(Handler):
         """
         from byoeb.chat_app.configuration.dependency_setup import vector_store
         start_time = datetime.now(timezone.utc).timestamp()
-        retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
+        retrieved_chunks = await vector_store.retrieve_top_k_chunks(
             text,
             k,
             search_type=search_type,
@@ -99,7 +99,7 @@ class ByoebUserGenerateResponse(Handler):
         """
         from byoeb.chat_app.configuration.dependency_setup import vector_store
         start_time = datetime.now(timezone.utc).timestamp()
-        retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
+        retrieved_chunks = await vector_store.retrieve_top_k_chunks(
             text,
             k,
             search_type=AzureVectorSearchType.DENSE.value,
@@ -559,7 +559,7 @@ class ByoebUserGenerateResponse(Handler):
         augmented_prompts = self.__augment(system_prompt, user_prompt)
 
         start_time = datetime.now(timezone.utc).timestamp()
-        llm_response, response_text = await llm_client.agenerate_response(augmented_prompts)
+        llm_response, response_text = await llm_client.generate_response(augmented_prompts)
         tokens = llm_client.get_response_tokens(llm_response)
         response_en, response_source = parse_response_xml(response_text)
         end_time = datetime.now(timezone.utc).timestamp()
@@ -584,7 +584,7 @@ class ByoebUserGenerateResponse(Handler):
         chunks = ", ".join(chunks_list)
         user_prompt = template_user_prompt.replace("<CHUNKS>", chunks)
         augmented_prompts = self.__augment(system_prompt, user_prompt)
-        llm_response, response_text = await llm_client.agenerate_response(augmented_prompts)
+        llm_response, response_text = await llm_client.generate_response(augmented_prompts)
         tokens = llm_client.get_response_tokens(llm_response)
         utils.log_to_text_file(f"Generated answer tokens: {str(tokens)}")
         next_questions = re.findall(r"<q_\d+>(.*?)</q_\d+>", response_text)

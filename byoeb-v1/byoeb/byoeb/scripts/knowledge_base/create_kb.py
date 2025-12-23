@@ -111,7 +111,7 @@ async def related_questions_initial_generation(llm_client: BaseLLM, data_chunk):
     user_prompt = user_prompt.replace("CHUNK", data_chunk)
     prompt = [{"role": "system", "content": system_prompt}]
     prompt.append({"role": "user", "content": user_prompt})
-    llm_response, resp = await llm_client.agenerate_response(prompt)
+    llm_response, resp = await llm_client.generate_response(prompt)
     n_value, pairs_content = parse_custom_xml(resp)
     if n_value is None or pairs_content is None:
         raise ValueError("Failed to parse the response from the LLM.")
@@ -203,7 +203,7 @@ async def related_questions_verification(llm_client: BaseLLM, data_chunk, qa_xml
     user_prompt = user_prompt.replace("CHUNK", data_chunk).replace("N", str(n)).replace("PAIRS", qa_xml)
     prompt = [{"role": "system", "content": system_prompt}]
     prompt.append({"role": "user", "content": user_prompt})
-    llm_response, resp = await llm_client.agenerate_response(prompt)
+    llm_response, resp = await llm_client.generate_response(prompt)
     pairs_feedback = parse_custom_xml(resp)
     if pairs_feedback is None:
         raise ValueError("Failed to parse the response from the LLM.")
@@ -298,7 +298,7 @@ async def related_questions_generation_feedback(llm_client: BaseLLM, data_chunk,
     user_prompt = user_prompt.replace("CHUNK", data_chunk).replace("N", str(n)).replace("PAIRS", feedback_xml)
     prompt = [{"role": "system", "content": system_prompt}]
     prompt.append({"role": "user", "content": user_prompt})
-    llm_response, resp = await llm_client.agenerate_response(prompt)
+    llm_response, resp = await llm_client.generate_response(prompt)
     n_value, pairs_content = parse_custom_xml(resp)
     if n_value is None or pairs_content is None:
         raise ValueError("Failed to parse the response from the LLM.")
@@ -440,7 +440,7 @@ async def agenerate_related_questions(
         """
         prompt = [{"role": "system", "content": translation_prompt}]
         prompt.append({"role": "user", "content": user_prompt})
-        llm_response, resp = await llm_client.agenerate_response(prompt)
+        llm_response, resp = await llm_client.generate_response(prompt)
         related_questions = re.findall(r"<q_\d+>(.*?)</q_\d+>", resp)
         related_questions_dict[lang] = related_questions
     return related_questions_dict
