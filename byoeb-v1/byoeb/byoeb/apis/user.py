@@ -19,9 +19,9 @@ user_apis_router = APIRouter(tags=["Users"])
 
 class UserLocation(BaseModel):
     district: str = Field(..., description="District name (required)", examples=["Jaipur"])
-    block: Optional[str] = Field(None, description="Block name", examples=["Sanganer"])
-    sector: Optional[str] = Field(None, description="Sector name", examples=["Sector 12"])
-    sub_center: Optional[str] = Field(None, description="Sub-center name", examples=["SC-45"])
+    block: Optional[str] = Field(default=None, description="Block name", examples=["Sanganer"])
+    sector: Optional[str] = Field(default=None, description="Sector name", examples=["Sector 12"])
+    sub_center: Optional[str] = Field(default=None, description="Sub-center name", examples=["SC-45"])
 
 
 class UserRegister(BaseModel):
@@ -29,18 +29,18 @@ class UserRegister(BaseModel):
     user_location: Optional[UserLocation] = Field(..., description="Location details (district is mandatory)")
     user_type: UserType = Field(..., description="Type of user (asha, anm, etc.)")
     user_language: LanguageCode = Field(..., description="Language code (hi, en, te, etc.)")
-    user_name: Optional[str] = Field(None, description="Name of the user", examples=["Sita Devi"])
-    test_user: Optional[bool] = Field(False, description="Flag to mark test users")
+    user_name: Optional[str] = Field(default=None, description="Name of the user", examples=["Sita Devi"])
+    test_user: Optional[bool] = Field(default=False, description="Flag to mark test users")
 
 
 class UserUpdate(BaseModel):
     phone_number_id: PhoneNumberId = Field(..., description="Phone number ID of the user")
-    user_name: Optional[str] = Field(None, description="Updated name of the user", examples=["John Doe"])
-    user_location: Optional[Dict[str, Any]] = Field(None, description="Updated location details")
-    user_language: Optional[LanguageCode] = Field(None, description="Updated language code")
-    user_type: Optional[UserType] = Field(None, description="Updated type of user")
-    user_name: Optional[str] = Field(None, description="Name of the user", examples=["Sita Devi"])
-    test_user: Optional[bool] = Field(None, description="Flag to mark test users")
+    user_name: Optional[str] = Field(default=None, description="Updated name of the user", examples=["John Doe"])
+    user_location: Optional[Dict[str, Any]] = Field(default=None, description="Updated location details")
+    user_language: Optional[LanguageCode] = Field(default=None, description="Updated language code")
+    user_type: Optional[UserType] = Field(default=None, description="Updated type of user")
+    user_name: Optional[str] = Field(default=None, description="Name of the user", examples=["Sita Devi"])
+    test_user: Optional[bool] = Field(default=None, description="Flag to mark test users")
 
 
 # -----------------------------
