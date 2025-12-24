@@ -79,16 +79,23 @@ class EmbeddingCache:
         res = self._search(emb)
         assert self.table is not None
 
-        if res and res[1] >= 0.999:  # hit
+        # For string embeddings, exact match means we can reuse the ID
+        # For vector embeddings, we should NOT reuse IDs even with high similarity
+        # because different embeddings need different IDs
+        if isinstance(emb, str) and res and res[1] >= 0.999:
+            # String key hit - reuse existing ID
             id = res[0]
-        elif isinstance(emb, str):  # miss, emb is str
+        elif isinstance(emb, str):
+            # String key miss - create deterministic ID from hash
             id = self._preprocess_id(emb)
-        else:  # miss, emb is vector
+        else:
+            # Vector embedding - always create new entry with new ID
             id_ = self.next_id
             id = self._preprocess_id(id_)
             self.next_id += 1
             self.table.add([{"id": id_, "vector": emb}])
 
+        # Store value and update LRU
         self.kv[id] = pickle.dumps(val)
         self._touch(id)
         self._evict()
