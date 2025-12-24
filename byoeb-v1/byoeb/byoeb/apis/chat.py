@@ -24,8 +24,6 @@ from byoeb_core.models.byoeb.user import User
 
 from byoeb_core.models.whatsapp.requests.media_request import MediaData
 
-from byoeb_core.models.whatsapp.requests.media_request import MediaData
-
 # ---------------------------------------------------------
 # Setup
 # ---------------------------------------------------------
@@ -186,17 +184,5 @@ def chat_mcps_router(mcp):
                 .add_audio(features, resp.message_context.media_info)
                 .build())
             return AshaChatResponse(category=resp.message_category or "Unknown", text=response_text, additional_info=additional_info)
-
-            # persist QA for conversation continuity
-            qa = {
-                chat_constants.AUDIO_MESSAGE_ID: None,
-                chat_constants.TEXT_MESSAGE_ID: resp.message_context.message_id,
-                chat_constants.TIMESTAMP: str(int(time.time())),
-                chat_constants.QUESTION: processed_ctx.message_context.message_english_text,
-                chat_constants.ANSWER: resp.message_context.message_english_text,
-            } if not utils.is_idk(resp.message_context.message_english_text) else None
-            update_query = dependency_setup.user_db_service.user_activity_update_query(user, qa)
-            await dependency_setup.user_db_service.execute_queries({chat_constants.UPDATE: [update_query]})
-            return AshaChatResponse(category=resp.message_category, text=response_text, additional_info=additional_info)
 
         return AshaChatResponse(category=MessageCategory.TEXT_IDK.value, text="I cannot answer that at the moment.")
