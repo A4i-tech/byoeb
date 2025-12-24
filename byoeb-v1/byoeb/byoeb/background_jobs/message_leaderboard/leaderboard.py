@@ -184,13 +184,23 @@ async def format_leaderboard_as_template_parameters(top3_df: pd.DataFrame, test_
     Returns:
         List of parameters for the template
     """
+    # Filter out test data (Test District) before formatting parameters
+    # This ensures test data is never included in WhatsApp messages
+    if len(top3_df) > 0 and 'district' in top3_df.columns:
+        # Filter out rows where district is "Test District" (case-insensitive)
+        # Handle NaN values by converting to string first, then filtering
+        mask = top3_df['district'].fillna('').astype(str).str.strip().str.lower() != 'test district'
+        filtered_df = top3_df[mask].copy()
+    else:
+        filtered_df = top3_df.copy()
+    
     # TEST MODE: Return only 3 parameters (first district only)
     if test_mode_3_params:
-        if len(top3_df) == 0:
+        if len(filtered_df) == 0:
             return ["Test District", "28", "1"]  # Default test values
         
         # Get first district data
-        first_row = top3_df.iloc[0]
+        first_row = filtered_df.iloc[0]
         district = str(first_row['district']).strip() if pd.notna(first_row['district']) else "Test District"
         message_count = str(int(first_row['message_count'])) if pd.notna(first_row['message_count']) else "28"
         unique_users = str(int(first_row['unique_users'])) if pd.notna(first_row['unique_users']) else "1"
@@ -211,8 +221,8 @@ async def format_leaderboard_as_template_parameters(top3_df: pd.DataFrame, test_
     # PRODUCTION MODE: Return 9 parameters (3 districts * 3 fields each)
     parameters = []
     
-    # Add parameters for existing districts
-    for idx, row in top3_df.iterrows():
+    # Add parameters for existing districts (already filtered to exclude Test District)
+    for idx, row in filtered_df.iterrows():
         district = str(row['district']).strip() if pd.notna(row['district']) else "N/A"
         message_count = str(int(row['message_count'])) if pd.notna(row['message_count']) else "0"
         unique_users = str(int(row['unique_users'])) if pd.notna(row['unique_users']) else "0"
