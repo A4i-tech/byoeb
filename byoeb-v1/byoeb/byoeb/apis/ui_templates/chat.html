@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Khushi Baby Asha Saheli - Chat</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -42,9 +42,13 @@
             display: none;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
-            padding-bottom: 16px;
+            padding: 16px 0;
             border-bottom: 1px solid #e1dfdd;
+            background: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            flex-shrink: 0;
         }
         #sidebarHeader h3 {
             margin: 0;
@@ -223,6 +227,8 @@
         #sidebarContent {
             flex: 1;
             overflow-y: auto;
+            min-height: 0;
+            padding: 16px 0;
         }
         .sidebar-section {
             margin-bottom: 12px;
@@ -410,11 +416,19 @@
                 min-height: 0;
                 display: flex;
                 flex-direction: column;
+                overflow: visible;
             }
             #chatHeader {
                 padding: 10px 12px;
                 flex-direction: row;
                 flex-shrink: 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                background: #fff;
+                border-bottom: 1px solid #e1dfdd;
+                box-shadow: 0 1.6px 3.6px rgba(0,0,0,0.132);
+                padding-top: max(16px, env(safe-area-inset-top));
             }
             #chatHeaderText h2 {
                 font-size: 16px;
@@ -429,6 +443,7 @@
                 gap: 6px;
                 flex: 1;
                 overflow-y: auto;
+                overflow-x: hidden;
             }
             #inputArea {
                 padding: 10px;
@@ -436,6 +451,11 @@
                 flex-shrink: 0;
                 position: sticky;
                 bottom: 0;
+                z-index: 100;
+                background: #fff;
+                border-top: 1px solid #e1dfdd;
+                box-shadow: 0 -1.6px 3.6px rgba(0,0,0,0.132);
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
             }
             .message-wrapper {
                 max-width: 95%;
@@ -451,6 +471,9 @@
             #chatHeader {
                 padding: 10px;
                 gap: 8px;
+                position: sticky;
+                top: 0;
+                z-index: 100;
             }
             #botAvatar {
                 width: 36px;
@@ -471,7 +494,12 @@
                 gap: 4px;
                 position: sticky;
                 bottom: 0;
+                z-index: 100;
                 flex-wrap: nowrap;
+                background: #fff;
+                border-top: 1px solid #e1dfdd;
+                box-shadow: 0 -1.6px 3.6px rgba(0,0,0,0.132);
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
             }
             #messageInput {
                 min-height: 36px;
@@ -588,11 +616,13 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <button class="primary" onclick="openUserModal()" style="width: 100%; margin-bottom: 16px;">
-                <i class="fas fa-edit"></i> View/Edit
-            </button>
+            <div style="display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; background: #fff; padding: 16px; border-top: 1px solid #e1dfdd; border-bottom: 1px solid #e1dfdd; position: sticky; top: 0; z-index: 50;">
+                <button class="primary" onclick="openUserModal()" style="width: 100%;">
+                    <i class="fas fa-edit"></i> View/Edit
+                </button>
+            </div>
             <div id="sidebarContent"></div>
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 16px; border-top: 1px solid #e1dfdd;">
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom)); border-top: 1px solid #e1dfdd; background: #fff; position: sticky; bottom: 0; z-index: 50; flex-shrink: 0;">
                 <button onclick="openLogoutModal()" style="width: 100%;">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
