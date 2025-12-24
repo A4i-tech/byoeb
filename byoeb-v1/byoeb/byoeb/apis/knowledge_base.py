@@ -101,7 +101,7 @@ async def search_chunks(
     """
     Query the store for a phrase.
     """
-    return await vector_store.aretrieve_top_k_chunks(text=query, k=k, search_type=search_type.value, select=["id", "text", "metadata"], vector_field="text_vector_3072")
+    return await vector_store.aretrieve_top_k_chunks(text=query, k=k, search_type=search_type.value, select=["id", "text", "metadata", "related_questions"], vector_field="text_vector_3072")
 
 @kb_vector_apis_router.get("/metadata")
 async def get_metadata() -> VectorStoreMetadata:

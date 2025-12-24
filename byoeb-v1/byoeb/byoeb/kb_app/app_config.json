@@ -28,7 +28,8 @@
     "media_storage": {
         "azure": {
             "account_url": "https://khushibabyashastorage.blob.core.windows.net",
-            "container_name": "ashacontainer"
+            "container_name": "ashacontainer",
+            "analysis_container_name": "ashamonthlyanalysis"
         }
     },
     "vector_store": {

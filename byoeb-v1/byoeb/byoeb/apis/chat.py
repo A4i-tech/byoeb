@@ -22,6 +22,8 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from byoeb_core.models.byoeb.user import User
 
+from byoeb_core.models.whatsapp.requests.media_request import MediaData
+
 # ---------------------------------------------------------
 # Setup
 # ---------------------------------------------------------
@@ -151,6 +153,8 @@ def chat_mcps_router(mcp):
             incoming_timestamp=int(datetime.now(timezone.utc).timestamp()),
             outgoing_timestamp=None,
         )
+        if isinstance(message, MediaData):
+            await dependency_setup.byoeb_user_process.annotate_audio_transcription(byoeb_message, message)
 
         await dependency_setup.message_consumer.service.consume([byoeb_message.model_dump_json()])
         if not users:

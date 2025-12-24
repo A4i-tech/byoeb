@@ -10,6 +10,9 @@ from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureO
 from byoeb_core.media_storage.base import BaseMediaStorage
 from byoeb_core.vector_stores.base import BaseVectorStore
 
+# Optional secondary storage for monthly analysis
+amedia_storage_analysis: BaseMediaStorage = None
+
 account_url = app_config["media_storage"]["azure"]["account_url"]
 container_name = app_config["media_storage"]["azure"]["container_name"]
 model = app_config["embeddings"]["azure"]["model"]
@@ -70,6 +73,24 @@ else:
         account_url=account_url,
         credentials=DefaultAzureCredential()
     )
+
+# Secondary client for monthly analysis (no fallback to primary container)
+analysis_container = app_config["media_storage"]["azure"].get("analysis_container_name")
+if analysis_container:
+    if env_config.env_azure_storage_connection_string:
+        amedia_storage_analysis = AsyncAzureBlobStorage(
+            container_name=analysis_container,
+            account_url=None,
+            credentials=None,
+            connection_string=env_config.env_azure_storage_connection_string
+        )
+    else:
+        amedia_storage_analysis = AsyncAzureBlobStorage(
+            container_name=analysis_container,
+            account_url=account_url,
+            credentials=DefaultAzureCredential()
+        )
+    print(f"✅ Azure Blob Storage (analysis) enabled for container: {analysis_container}")
 
 # Vector Store Type Configuration - use environment variable if set, otherwise fallback to app_config.json
 # Default to "azure_vector_search" if not specified (for backward compatibility)
