@@ -123,7 +123,7 @@ def chat_mcps_router(mcp):
 
     @mcp.tool
     async def asha_chat(
-        message: str,
+        message: str | MediaData,
         features: Set[Literal["audio", "history"]] = set(),
         reply_message_category: Optional[str] = None
     ) -> AshaChatResponse:
@@ -142,7 +142,7 @@ def chat_mcps_router(mcp):
             message_context=MessageContext(
                 message_id=message_id,
                 message_type=MessageTypes.REGULAR_TEXT.value,
-                message_source_text=message,
+                message_source_text=message if isinstance(message, str) else None,
                 message_english_text=None,
                 media_info=None,
                 additional_info=dict(query_type="asha_work_related"),
