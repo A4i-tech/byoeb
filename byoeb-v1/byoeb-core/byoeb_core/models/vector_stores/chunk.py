@@ -2,20 +2,20 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 class Chunk_metadata(BaseModel):
-    source: Optional[str] = Field(None, description="Source of the chunk")
+    source: Optional[str] = Field(default=None, description="Source of the chunk")
 
     # Optional fields
     update_timestamp: Optional[str] = Field(
-        None,
+        default=None,
         description="Timestamp when the chunk was last updated (optional)"
     )
 
     creation_timestamp: Optional[str] = Field(
-        None,
+        default=None,
         description="Timestamp when the chunk was created (optional)"
     )
     additional_metadata: Optional[dict] = Field(
-        {},
+        default={},
         description="Additional metadata associated with the chunk"
     )
 class Chunk(BaseModel):

@@ -1,5 +1,7 @@
 {
     "languages_translation_prompts": {
-        "hi": "You are an english to hindi translator."
+        "hi": "Translate English to Hindi (Devanagari script).",
+        "mr": "Translate English to Marathi (Devanagari script).",
+        "te": "Translate English to Telugu (Telugu script)."
     }
 }
