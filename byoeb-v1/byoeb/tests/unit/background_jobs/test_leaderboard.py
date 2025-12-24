@@ -1,6 +1,3 @@
-import os
-os.environ["AZURE_OPENAI_API_KEY"] = "sk-xxxx"  # workaround for AzureOpenAIEmbedding requiring this env
-
 import pytest
 from mongomock_motor import AsyncMongoMockClient
 from byoeb.chat_app.configuration.config import app_config

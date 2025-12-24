@@ -80,22 +80,35 @@
         }
     },
     "translators": {
-        "speech":{
-            "azure_cognitive": {
-                "resource_id": "/subscriptions/fa06c841-cd7a-4855-b39b-70621812fff3/resourceGroups/khushi_baby_asha/providers/Microsoft.CognitiveServices/accounts/khushi-baby-asha-speech-to-text",
-                "region": "swedencentral"
+        "speech": [
+            {
+                "motive": "text_to_speech",
+                "service": "azure_cognitive",
+                "languages": ["en", "hi", "mr", "te"]
             },
-            "azure_oai": {
-                "endpoint": "https://khushi-baby-asha-oai.openai.azure.com/",
-                "model": "whisper",
-                "api_version": "2024-06-01"
+            {
+                "motive": "speech_to_text",
+                "service": "azure_openai",
+                "languages": ["en", "hi", "mr", "te"],
+                "attributes": {"model": "whisper", "api_version": "2024-10-21"}
+            },
+            {
+                "motive": "speech_to_text",
+                "service": "azure_openai",
+                "languages": ["en", "hi", "te"],
+                "attributes": {"model": "gpt-4o-transcribe", "api_version": "2024-10-21"},
+                "gated": true
+            },
+            {
+                "motive": "speech_to_text",
+                "service": "azure_openai",
+                "languages": ["mr"],
+                "attributes": {"model": "whisper", "api_version": "2024-10-21"},
+                "gated": true
             }
-        },
+        ],
         "text": {
-            "azure_cognitive": {
-                "resource_id": "/subscriptions/fa06c841-cd7a-4855-b39b-70621812fff3/resourceGroups/khushi_baby_asha/providers/Microsoft.CognitiveServices/accounts/khushi-baby-asha-text-to-text",
-                "region": "swedencentral"
-            }
+            "azure_cognitive": {}
         }
     },
     "vector_store": {
