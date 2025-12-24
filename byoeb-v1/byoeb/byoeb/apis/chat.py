@@ -24,6 +24,8 @@ from byoeb_core.models.byoeb.user import User
 
 from byoeb_core.models.whatsapp.requests.media_request import MediaData
 
+from byoeb_core.models.whatsapp.requests.media_request import MediaData
+
 # ---------------------------------------------------------
 # Setup
 # ---------------------------------------------------------
@@ -122,11 +124,7 @@ def chat_mcps_router(mcp):
             return self._items
 
     @mcp.tool
-    async def asha_chat(
-        message: str,
-        features: Set[Literal["audio", "history"]] = set(),
-        reply_message_category: Optional[str] = None
-    ) -> AshaChatResponse:
+    async def asha_chat(message: str | MediaData, features: Set[Literal["audio", "history"]] = set()) -> AshaChatResponse:
         """
         Ask any health-related query and get a response.
         """
@@ -134,20 +132,35 @@ def chat_mcps_router(mcp):
         user_id = get_user_ids_from_phone_number_ids([phone_number])[0]
         users = await dependency_setup.user_db_service.get_users([user_id])
 
-        message_id = f"mcp.{uuid.uuid1(node=107952125094529)}"
+        if len(users) == 0:
+            return AshaChatResponse(category="unknown_user", text=(
+                "Before I can answer your question, you must register yourself as an ASHA user. "
+                "Shall I start with the registration?"
+            ))
+
+        user = users[0]
+        message_id = f"chat-mcps-{user_id}-{uuid.uuid4()}"
         byoeb_message = ByoebMessageContext(
-            channel_type="dummy",
-            message_category=None,
-            user=users[0] if len(users) else User(phone_number_id=phone_number),
+            channel_type="whatsapp",
+            message_category="whatsapp",
+            user=user,
             message_context=MessageContext(
                 message_id=message_id,
                 message_type=MessageTypes.REGULAR_TEXT.value,
-                message_source_text=message,
+                message_source_text=message if isinstance(message, str) else None,
                 message_english_text=None,
                 media_info=None,
                 additional_info=dict(query_type="asha_work_related"),
             ),
-            reply_context=ReplyContext(reply_id="", message_category=reply_message_category) if reply_message_category else ReplyContext(),
+            reply_context=ReplyContext(
+                reply_id="reply-id-unknown",
+                reply_type="acknowledgement",
+                reply_source_text=None,
+                reply_english_text=None,
+                media_info=None,
+                message_category="notification",
+                additional_info=None,
+            ),
             cross_conversation_id=None,
             cross_conversation_context=None,
             incoming_timestamp=int(datetime.now(timezone.utc).timestamp()),
@@ -156,11 +169,8 @@ def chat_mcps_router(mcp):
         if isinstance(message, MediaData):
             await dependency_setup.byoeb_user_process.annotate_audio_transcription(byoeb_message, message)
 
-        await dependency_setup.message_consumer.service.consume([byoeb_message.model_dump_json()])
-        if not users:
-            # This is deliberately done after consume() so users get to utilize asha_chat tool to invoke
-            # complete user registration flows.
-            return AshaChatResponse(category=MessageCategory.TEXT_IDK.value, text=f"Please use the 'asha_register_user' tool to register yourself.")
+        processed_ctx = await dependency_setup.byoeb_user_process.handle_process_message_workflow([byoeb_message])
+        responses = await dependency_setup.byoeb_user_generate_response.handle_message_generate_workflow([processed_ctx]) or []
 
         for resp in await dependency_setup.message_db_service.get_bot_messages_by_ids([message_id]):
             if resp.message_context is None or resp.message_context.message_source_text is None:
