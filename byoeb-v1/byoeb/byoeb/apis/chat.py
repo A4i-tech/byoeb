@@ -122,7 +122,11 @@ def chat_mcps_router(mcp):
             return self._items
 
     @mcp.tool
-    async def asha_chat(message: str | MediaData, features: Set[Literal["audio", "history"]] = set()) -> AshaChatResponse:
+    async def asha_chat(
+        message: str | MediaData,
+        features: Set[Literal["audio", "history"]] = set(),
+        reply_message_category: Optional[str] = None
+    ) -> AshaChatResponse:
         """
         Ask any health-related query and get a response.
         """
