@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -687,6 +686,17 @@
             <!-- Input -->
             <div id="inputArea">
                 <textarea id="messageInput" placeholder="Type your message..." rows="1"></textarea>
+
+                <button id="recordBtn" title="Hold to record">
+                    <i class="fas fa-microphone"></i>
+                </button>
+
+                <input type="file" id="audioUpload" accept="audio/*" hidden />
+
+                <button onclick="document.getElementById('audioUpload').click()" title="Upload audio">
+                    <i class="fas fa-upload"></i>
+                </button>
+
                 <button class="primary" onclick="sendMessage()" title="Send Message">
                     <i class="fas fa-paper-plane"></i>
                 </button>
@@ -699,9 +709,14 @@
         let userInfo = null;
         let messages = [];
         let isLoading = false;
-        let audioEnabled = false;
         let lastTimestamp = 0;
         let messageIds = new Set();
+
+        let mediaRecorder;
+        let recordedChunks = [];
+        let recordedBlob = null;
+        let isRecording = false;
+
         const API_BASE = '//' + window.location.host;
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -725,6 +740,34 @@
                 loadUserInfo();
                 loadMessages(false);
             }
+
+            document.getElementById('audioUpload').addEventListener('change', async e => {
+                const file = e.target.files[0];
+                if (!file) return;
+            
+                const audioCtx = new AudioContext();
+                const buffer = await file.arrayBuffer();
+                const decoded = await audioCtx.decodeAudioData(buffer);
+            
+                const dest = audioCtx.createMediaStreamDestination();
+                const source = audioCtx.createBufferSource();
+                source.buffer = decoded;
+                source.connect(dest);
+            
+                const recorder = new MediaRecorder(dest.stream);
+                const chunks = [];
+            
+                recorder.ondataavailable = e => chunks.push(e.data);
+                recorder.onstop = () => {
+                    recordedBlob = new Blob(chunks, { type: recorder.mimeType });
+                    document.getElementById('previewAudio').src = URL.createObjectURL(recordedBlob);
+                    openModal('audioConfirmModal');
+                };
+            
+                recorder.start();
+                source.start();
+                setTimeout(() => recorder.stop(), decoded.duration * 1000);
+            });
         });
 
         function updateSendButtonState() {
@@ -851,17 +894,12 @@
         }
 
         async function loadMessages(update_user = true) {
-            const ts = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
-            const res = await fetch(`${API_BASE}/get_bot_messages?timestamp=${ts}`);
+            const res = await fetch(`${API_BASE}/get_bot_messages?phone_number_id=${phoneNumber}&length=25`);
             if(!res.ok) return;
             const all = await res.json();
             
             const validCategories = ['language_selection', 'user_type', 'consent', 'bot_to_asha_response', 'audio_idk', 'text_idk'];
-            const newMessages = all.filter(m => 
-                m.user && 
-                m.user.phone_number_id === phoneNumber &&
-                validCategories.includes(m.message_category)
-            );
+            const newMessages = all.filter(m => m.user && validCategories.includes(m.message_category));
 
             newMessages.reverse();
             let changed = false;
@@ -901,6 +939,17 @@
                 const userMsg = m.reply_context?.reply_source_text || '';
                 const botMsg = m.message_context?.message_source_text || '';
                 const time = new Date((m.outgoing_timestamp || m.incoming_timestamp) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                if(m.is_audio){
+                    return `<div class="message user">
+                        <div class="message-wrapper">
+                            <div class="bubble" onclick="showMessageDetail(55, true)">Processing audio message  <div class="loading-indicator" style="display: inline-block;">
+                                <div class="loading-spinner" style="width: 1em;height: 1em;border-width: 2px;"></div>
+                            </div></div>
+                        <div class="message-time">04:24 AM</div>
+                    </div>
+                    </div>`
+                }
 
                 if (m.message_category === 'language_selection') {
                     const languages = m.message_context?.additional_info?.row_texts || [];
@@ -1111,11 +1160,14 @@
 
         async function sendMessage(msg, reply_message_category = null) {
             const input = document.getElementById('messageInput');
-            msg = msg || input.value.trim();
+            if(!msg){
+                msg = input.value.trim();
+            }
             const message = {
                 message_category: 'user_message',
                 reply_context: { reply_source_text: msg },
-                incoming_timestamp: Math.floor(Date.now() / 1000)
+                incoming_timestamp: Math.floor(Date.now() / 1000),
+                is_audio: typeof msg !== 'string'
             }
             messages.push(message);
             renderMessages();
@@ -1135,7 +1187,7 @@
                         method: 'tools/call',
                         params: { name: 'asha_chat', arguments: {
                             message: msg || input.value.trim(),
-                            features: audioEnabled ? ['audio'] : [],
+                            features: [],
                             reply_message_category: reply_message_category
                         } }
                     })
@@ -1262,6 +1314,72 @@
                 .replace(/\n/g, '<br>')
                 .replace(/\*(.*?)\*/g, '<b>$1</b>');
         }
+
+        const recordBtn = document.getElementById('recordBtn');
+        recordBtn.addEventListener('click', toggleRecording);
+
+        async function toggleRecording() {
+            if (!isRecording) {
+                await startRecording();
+            } else {
+                stopRecording();
+            }
+        }
+
+        async function startRecording() {
+            if (mediaRecorder) return;
+        
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            const mime = mediaRecorder.mimeType;
+            recordedChunks = [];
+        
+            mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+        
+            mediaRecorder.onstop = () => {
+                recordedBlob = new Blob(recordedChunks, { type: mime });
+                document.getElementById('previewAudio').src = URL.createObjectURL(recordedBlob);
+                openModal('audioConfirmModal');
+            };
+        
+            mediaRecorder.start();
+            isRecording = true;
+            recordBtn.classList.add('primary');
+            recordBtn.innerHTML = '<i class="fas fa-stop"></i>';
+        }
+
+        function stopRecording() {
+            if (!mediaRecorder) return;
+        
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(t => t.stop());
+            mediaRecorder = null;
+            isRecording = false;
+            recordBtn.classList.remove('primary');
+            recordBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+        }
+
+        async function confirmSendAudio() {
+            closeModal('audioConfirmModal');
+            const buf = await recordedBlob.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+            await sendMessage({"data": base64, "mime_type": recordedBlob.type})
+            recordedBlob = null;
+        }
     </script>
+    <div id="audioConfirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Send audio?</h2>
+            </div>
+            <div class="modal-body">
+                <audio id="previewAudio" controls style="width:100%"></audio>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('audioConfirmModal')">Cancel</button>
+                <button class="primary" onclick="confirmSendAudio()">Send</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

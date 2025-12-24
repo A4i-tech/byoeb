@@ -6,7 +6,8 @@ import uuid
 from typing import Any, List, Dict, Literal, Optional, Set
 import byoeb.chat_app.configuration.config as env_config
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
-from pydantic import BaseModel, Field, PositiveInt
+from pydantic import BaseModel, Field
+from byoeb_core.convertor.audio_convertor import to_ogg
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
     MediaContext,
@@ -20,7 +21,7 @@ from byoeb.utils.utils import mcp_get_phone_number
 from fastapi import APIRouter, Query, Body
 from fastapi.responses import FileResponse, JSONResponse
 
-from byoeb_core.models.byoeb.user import User
+from byoeb_core.models.byoeb.user import PhoneNumberId, User
 
 from byoeb_core.models.whatsapp.requests.media_request import MediaData
 
@@ -52,15 +53,16 @@ async def receive(body: Dict[str, Any] = Body(..., description="Raw WhatsApp web
 
 @chat_apis_router.get("/get_bot_messages", summary="Fetch bot messages after a given timestamp")
 async def get_bot_messages(
-    timestamp: int = Query(..., description="Unix timestamp to fetch messages since"),
-    length: PositiveInt = 1000
+    timestamp: Optional[int] = Query(default=None, description="Unix timestamp to fetch messages since"),
+    phone_number_id: Optional[PhoneNumberId] = Query(default=None, description="Phone number of the user to fetch messages of"),
+    length: int = Query(default=100, ge=1, le=1000, description="Maximum number of messages to return")
 ) -> List[ByoebMessageContext]:
     """
     Retrieves all bot messages stored in the database
     after the specified timestamp.
     """
-    responses = dependency_setup.message_db_service.get_latest_bot_messages_by_timestamp(str(timestamp), length)
-    return [doc async for doc in responses]
+    responses = await dependency_setup.message_db_service.get_latest_bot_messages_by_timestamp(timestamp, phone_number_id, length)
+    return responses
 
 if env_config.env_ashabot_uat:
     CHAT_HTML_PATH = Path(__file__).parent.resolve() / "ui_templates" / "chat.html"
@@ -169,6 +171,9 @@ def chat_mcps_router(mcp):
             outgoing_timestamp=None,
         )
         if isinstance(message, MediaData):
+            if message.mime_type != "audio/ogg":
+                message.data = to_ogg(message.data)
+                message.mime_type = "audio/ogg"
             await dependency_setup.byoeb_user_process.annotate_audio_transcription(byoeb_message, message)
 
         processed_ctx = await dependency_setup.byoeb_user_process.handle_process_message_workflow([byoeb_message])
