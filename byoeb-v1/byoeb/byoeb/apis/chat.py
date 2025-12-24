@@ -1,4 +1,3 @@
-import base64
 from datetime import datetime, timezone
 import logging
 import json
@@ -10,6 +9,7 @@ import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from pydantic import BaseModel, Field, PositiveInt
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
+    MediaContext,
     MessageContext,
     MessageTypes,
     ReplyContext,
@@ -111,9 +111,9 @@ def chat_mcps_router(mcp):
                 self._items.append(("Conversation history", resp.reply_context.additional_info["conversation_history"]))
             return self
 
-        def add_audio(self, features, info):
-            if "audio" in features and "mime_type" in info and "data" in info:
-                self._items.append(("Audio", (info["mime_type"], base64.b64encode(info["data"]))))
+        def add_audio(self, features, info: MediaContext | None):
+            if info and info.media_url and info.media_type:
+                self._items.append(("Audio", (info.media_type, info.media_url)))
             return self
 
         def build(self) -> list[tuple[str, Any]]:
@@ -132,15 +132,16 @@ def chat_mcps_router(mcp):
         user_id = get_user_ids_from_phone_number_ids([phone_number])[0]
         users = await dependency_setup.user_db_service.get_users([user_id])
 
+        message_id = f"mcp.{uuid.uuid1(node=107952125094529)}"
         byoeb_message = ByoebMessageContext(
             channel_type="dummy",
             message_category=None,
             user=users[0] if len(users) else User(phone_number_id=phone_number),
             message_context=MessageContext(
-                message_id=f"mcp.{uuid.uuid1(node=107952125094529)}",
+                message_id=message_id,
                 message_type=MessageTypes.REGULAR_TEXT.value,
                 message_source_text=message,
-                message_english_text=message,
+                message_english_text=None,
                 media_info=None,
                 additional_info=dict(query_type="asha_work_related"),
             ),
@@ -151,14 +152,13 @@ def chat_mcps_router(mcp):
             outgoing_timestamp=None,
         )
 
-        responses = await dependency_setup.message_consumer.service.consume([byoeb_message.model_dump_json()])
-
+        await dependency_setup.message_consumer.service.consume([byoeb_message.model_dump_json()])
         if not users:
             # This is deliberately done after consume() so users get to utilize asha_chat tool to invoke
             # complete user registration flows.
             return AshaChatResponse(category=MessageCategory.TEXT_IDK.value, text=f"Please use the 'asha_register_user' tool to register yourself.")
 
-        for resp in responses:
+        for resp in await dependency_setup.message_db_service.get_bot_messages_by_ids([message_id]):
             if resp.message_context is None or resp.message_context.message_source_text is None:
                 continue
             response_text = resp.message_context.message_source_text
@@ -169,7 +169,7 @@ def chat_mcps_router(mcp):
                 .add_cache_hit(info)
                 .add_cache_score(info)
                 .add_history(features, resp)
-                .add_audio(features, info)
+                .add_audio(features, resp.message_context.media_info)
                 .build())
             return AshaChatResponse(category=resp.message_category or "Unknown", text=response_text, additional_info=additional_info)
 
