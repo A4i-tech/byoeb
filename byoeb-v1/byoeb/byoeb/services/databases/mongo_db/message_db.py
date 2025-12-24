@@ -10,6 +10,8 @@ from collections import Counter, defaultdict
 from zoneinfo import ZoneInfo
 import pandas as pd
 
+from byoeb_core.models.byoeb.user import PhoneNumberId
+
 if TYPE_CHECKING:
     from byoeb.services.leaderboard.time_window_strategies import TimeWindowStrategy
 
@@ -427,12 +429,16 @@ class MessageMongoDBService(BaseMongoDBService):
         async for msg_obj in message_repository.find_all({"message_data.message_context.additional_info.status": status}):
             yield ByoebMessageContext(**msg_obj["message_data"])
 
-    async def get_latest_bot_messages_by_timestamp(self, timestamp: str, length: PositiveInt):
+    async def get_latest_bot_messages_by_timestamp(self, timestamp: Optional[int], phone_number_id: Optional[PhoneNumberId], length: PositiveInt):
         """Fetch bot messages with timestamps greater than the given timestamp; preserve prior in-Python sort behavior."""
         repository_factory = await self._get_repository_factory()
         message_repository = await repository_factory.get_message_repository()
-        async for msg_obj in message_repository.find_all({"timestamp": {"$gt": timestamp}}, sort=[("timestamp", -1)], limit=length):
-            yield ByoebMessageContext(**msg_obj["message_data"])
+
+        projection = {}
+        if timestamp is not None: projection["timestamp"] = {"$gt": str(timestamp)}
+        if phone_number_id is not None: projection["message_data.user.phone_number_id"] = phone_number_id
+        messages_obj = await message_repository.find_all(projection, sort={"timestamp": -1}, limit=length)
+        return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
 
     def correction_update_query(
         self,
