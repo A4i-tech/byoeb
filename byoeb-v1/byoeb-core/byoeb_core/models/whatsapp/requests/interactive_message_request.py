@@ -26,21 +26,21 @@ class InteractiveActionButton(BaseModel):
     reply: InteractiveReply = Field(..., description="Reply details for the button.")
 
 class InteractiveAction(BaseModel):
-    buttons: Optional[List[InteractiveActionButton]] = Field(None, description="List of buttons available in the action.")
-    button: Optional[str] = Field(None, description="button text")
-    sections: Optional[List[InteractiveActionSection]] = Field(None, description="List of sections available in the action.")
+    buttons: Optional[List[InteractiveActionButton]] = Field(default=None, description="List of buttons available in the action.")
+    button: Optional[str] = Field(default=None, description="button text")
+    sections: Optional[List[InteractiveActionSection]] = Field(default=None, description="List of sections available in the action.")
 
 class InteractiveBody(BaseModel):
-    text: Optional[str] = Field(None, description="Text displayed in the body of the interactive message.")
+    text: Optional[str] = Field(default=None, description="Text displayed in the body of the interactive message.")
 
 class Interactive(BaseModel):
     type: Optional[str] = Field(default="button", description="Type of interactive message, default is 'button'.")
-    body: Optional[InteractiveBody] = Field(None, description="Body content of the interactive message.")
-    action: Optional[InteractiveAction] = Field(None, description="Action details including available buttons.")
+    body: Optional[InteractiveBody] = Field(default=None, description="Body content of the interactive message.")
+    action: Optional[InteractiveAction] = Field(default=None, description="Action details including available buttons.")
 
 class WhatsAppInteractiveMessage(BaseModel):
     messaging_product: str = Field(..., description="Product identifier, typically 'whatsapp'.")
     to: str = Field(..., description="Recipient phone number.")
     type: Optional[str] = Field(default="interactive", description="Type of message, default is 'interactive'.")
-    interactive: Optional[Interactive] = Field(None, description="Interactive message content, including body and actions.")
-    context: Optional[WhatsappMessageReplyContext] = Field(None, description="The message context")
+    interactive: Optional[Interactive] = Field(default=None, description="Interactive message content, including body and actions.")
+    context: Optional[WhatsappMessageReplyContext] = Field(default=None, description="The message context")

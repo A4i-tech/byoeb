@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import Optional
 
 class Consensus(BaseModel):
-    user_id: Optional[str] = Field(None, title="User ID")
-    status: Optional[str] = Field(None, title="Status")
-    message_id: Optional[str] = Field(None, title="Message ID")
+    user_id: Optional[str] = Field(default=None, title="User ID")
+    status: Optional[str] = Field(default=None, title="Status")
+    message_id: Optional[str] = Field(default=None, title="Message ID")
