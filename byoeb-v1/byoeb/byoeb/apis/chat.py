@@ -24,8 +24,6 @@ from byoeb_core.models.byoeb.user import User
 
 from byoeb_core.models.whatsapp.requests.media_request import MediaData
 
-from byoeb_core.models.whatsapp.requests.media_request import MediaData
-
 # ---------------------------------------------------------
 # Setup
 # ---------------------------------------------------------
