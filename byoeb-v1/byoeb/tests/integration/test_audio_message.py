@@ -12,14 +12,13 @@ from byoeb_core.models.byoeb.user import User
 from fastmcp import Client
 
 
-BASE_URL = os.getenv("RECIEVE_URL")
+BASE_URL = os.getenv("CHAT_SERVICE_URL")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 USER_NAME = os.getenv("USER_NAME", "byoeb-user")
 if BASE_URL is None or PHONE_NUMBER_ID is None or USER_NAME is None:
     print("Environment variables are missing")
     sys.exit(1)
 
-BASE_URL = BASE_URL.replace("/receive", "")
 
 def _user(lang: LanguageCode) -> User:
     requests.delete(f"{BASE_URL}/delete_users", json=[PHONE_NUMBER_ID]).raise_for_status()
