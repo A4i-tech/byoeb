@@ -717,9 +717,7 @@
             </div>
 
             <!-- Messages -->
-            <div id="messagesContainer">
-                <div class="loading-indicator"><div class="loading-spinner"></div><div class="loading-text">Loading messages</div></div>
-            </div>
+            <div id="messagesContainer"></div>
 
             <!-- Input -->
             <div id="inputArea">
@@ -932,6 +930,11 @@
         }
 
         async function loadMessages(update_user = true) {
+            const el = document.getElementById('messagesContainer');
+            if(!el.innerHTML.length){
+                el.innerHTML = '<div class="loading-indicator"><div class="loading-spinner"></div><div class="loading-text">Loading messages</div></div>';
+            }
+
             const res = await fetch(`${API_BASE}/get_bot_messages?timestamp=${lastMessageTimestamp}&phone_number_id=${phoneNumber}&length=25`);
             if(!res.ok) return;
             const all = await res.json();
@@ -1184,10 +1187,12 @@
             localStorage.removeItem('khushi_phone');
             phoneNumber = null;
             userInfo = null;
+            lastMessageTimestamp = 0;
             messages = [];
             messageIds.clear();
             document.getElementById('chatContainer').classList.add('hidden');
             renderMessages();
+            document.getElementById("messagesContainer").innerHTML = "";
             closeLogoutModal();
             closeSidebar();
             openModal('phoneModal');
