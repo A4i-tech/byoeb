@@ -1223,7 +1223,7 @@
                 message_category: 'user_message',
                 reply_context: { reply_source_text: msg },
                 incoming_timestamp: Math.floor(Date.now() / 1000),
-                is_audio: typeof msg !== 'string'
+                is_audio: msg.constructor == Object
             }
             messages.push(message);
             renderMessages();
@@ -1417,10 +1417,14 @@
 
         async function confirmSendAudio() {
             closeModal('audioConfirmModal');
-            const buf = await recordedBlob.arrayBuffer();
-            const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-            await sendMessage({"data": base64, "mime_type": recordedBlob.type})
-            recordedBlob = null;
+            const mime = recordedBlob.type;
+
+            const fr = new FileReader();
+            const resolved = new Promise(r => fr.addEventListener("load", e => r(fr.result.split(',')[1])))
+            fr.readAsDataURL(recordedBlob);
+
+            const base64 = await resolved;
+            await sendMessage({"data": base64, "mime_type": mime})
         }
 
         function handleAudioPlay(audioEl) {
