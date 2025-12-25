@@ -1052,7 +1052,7 @@
                 const mediaInfo = m.message_context?.media_info;
                 const audioHtml = mediaInfo && mediaInfo.media_url ? `
                     <div style="margin-top: 12px; padding: 12px; background: #f3f2f1; border-radius: 4px;">
-                        <audio controls style="height: 32px;">
+                        <audio controls style="height: 32px;" onplay="handleAudioPlay(this)">
                             <source src="${mediaInfo.media_url}" type="${mediaInfo.mime_type || 'audio/ogg'}">
                             Your browser does not support the audio element.
                         </audio>
@@ -1186,6 +1186,7 @@
             closeLogoutModal();
             closeSidebar();
             openModal('phoneModal');
+            handleAudioPlay(null);
         }
 
         function openDeleteModal() {
@@ -1420,6 +1421,15 @@
             await sendMessage({"data": base64, "mime_type": recordedBlob.type})
             recordedBlob = null;
         }
+
+        function handleAudioPlay(audioEl) {
+            document.querySelectorAll('audio').forEach(a => {
+                if (a !== audioEl) {
+                    a.pause();
+                    a.currentTime = 0;
+                }
+            });
+        }
     </script>
     <div id="audioConfirmModal" class="modal">
         <div class="modal-content">
@@ -1427,7 +1437,7 @@
                 <h2>Send audio?</h2>
             </div>
             <div class="modal-body">
-                <audio id="previewAudio" controls style="width:100%"></audio>
+                <audio id="previewAudio" controls style="width:100%" onplay="handleAudioPlay(this)"></audio>
             </div>
             <div class="modal-footer">
                 <button onclick="closeModal('audioConfirmModal')">Cancel</button>
