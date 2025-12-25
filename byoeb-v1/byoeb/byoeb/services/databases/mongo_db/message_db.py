@@ -427,8 +427,8 @@ class MessageMongoDBService(BaseMongoDBService):
         messages_obj = await message_repository.find_all({"message_data.message_context.additional_info.status": status})
         return [ByoebMessageContext(**msg_obj["message_data"]) for msg_obj in messages_obj]
 
-    async def get_latest_bot_messages_by_timestamp(self, timestamp: Optional[int], phone_number_id: Optional[PhoneNumberId], length: PositiveInt):
-        """Fetch bot messages with timestamps greater than the given timestamp; preserve prior in-Python sort behavior."""
+    async def get_latest_bot_messages(self, timestamp: Optional[int], phone_number_id: Optional[PhoneNumberId], length: PositiveInt):
+        """Fetch bot messages sorted in descending order by timestamp."""
         repository_factory = await self._get_repository_factory()
         message_repository = await repository_factory.get_message_repository()
 
