@@ -1135,6 +1135,7 @@
             const category = msg.message_category || 'N/A';
             const replyType = msg.reply_context?.reply_type || 'N/A';
             const status = msg.message_context?.additional_info?.status || 'resolved';
+            const timeTaken = (msg.outgoing_timestamp - msg.incoming_timestamp) + " seconds";
             const rewrittenQuery = msg.reply_context?.reply_english_text || 'N/A';
             
             content.innerHTML = `
@@ -1154,6 +1155,9 @@
                 </div>
                 <div style="margin-bottom: 12px;">
                     <strong>Status:</strong> ${escapeHtml(status)}
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <strong>Time taken:</strong> ${timeTaken}
                 </div>
                 <div>
                     <strong>Rewritten:</strong> <em>${escapeHtml(rewrittenQuery)}</em>
