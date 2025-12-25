@@ -747,7 +747,7 @@
         let userInfo = null;
         let messages = [];
         let isLoading = false;
-        let lastTimestamp = 0;
+        let lastMessageTimestamp = 0;
         let messageIds = new Set();
 
         let mediaRecorder;
@@ -932,7 +932,7 @@
         }
 
         async function loadMessages(update_user = true) {
-            const res = await fetch(`${API_BASE}/get_bot_messages?phone_number_id=${phoneNumber}&length=25`);
+            const res = await fetch(`${API_BASE}/get_bot_messages?timestamp=${lastMessageTimestamp}&phone_number_id=${phoneNumber}&length=25`);
             if(!res.ok) return;
             const all = await res.json();
             
@@ -958,7 +958,7 @@
             
             if (all.length > 0) {
                 const maxTs = Math.max(...all.map(m => m.outgoing_timestamp || m.incoming_timestamp || 0));
-                lastTimestamp = maxTs;
+                lastMessageTimestamp = maxTs;
             }
             
             renderMessages();
