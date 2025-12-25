@@ -53,7 +53,7 @@ async def receive(body: Dict[str, Any] = Body(..., description="Raw WhatsApp web
 
 @chat_apis_router.get("/get_bot_messages", summary="Fetch bot messages after a given timestamp")
 async def get_bot_messages(
-    timestamp: Optional[int] = Query(default=None, description="Unix timestamp to fetch messages since"),
+    timestamp: Optional[int] = Query(default=None, description="Unix timestamp to fetch messages since (exclusive)"),
     phone_number_id: Optional[PhoneNumberId] = Query(default=None, description="Phone number of the user to fetch messages of"),
     length: int = Query(default=100, ge=1, le=1000, description="Maximum number of messages to return")
 ) -> List[ByoebMessageContext]:
@@ -61,8 +61,7 @@ async def get_bot_messages(
     Retrieves all bot messages stored in the database
     after the specified timestamp.
     """
-    responses = await dependency_setup.message_db_service.get_latest_bot_messages_by_timestamp(timestamp, phone_number_id, length)
-    return responses
+    return await dependency_setup.message_db_service.get_latest_bot_messages(timestamp, phone_number_id, length)
 
 if env_config.env_ashabot_uat:
     CHAT_HTML_PATH = Path(__file__).parent.resolve() / "ui_templates" / "chat.html"
