@@ -144,7 +144,6 @@
             resize: none;
             max-height: 100px;
             min-height: 40px;
-            padding: 8px 12px;
             border: 1px solid #b3b0ad;
             border-radius: 4px;
             font-family: inherit;
@@ -549,6 +548,44 @@
         .loading-text {
             font-size: 16px;
             font-weight: 500;
+        }
+        .bubble .related {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e1dfdd;
+        }
+
+        /* Related questions dropdown – chat-style */
+        .bubble .related select {
+            width: 100%;
+            text-align: center;
+            border: none;
+            background: transparent;
+            font-size: 13px;
+            font-weight: 500;
+            color: #0078d4;              /* palette primary */
+            padding: 6px 0;
+            cursor: pointer;
+        }
+
+        /* Remove browser focus/active styling */
+        .bubble .related select:focus,
+        .bubble .related select:active {
+            outline: none;
+            box-shadow: none;
+            border: none;
+        }
+
+        /* Dropdown list (browser-supported parts only) */
+        .bubble .related select option {
+            font-size: 13px;
+            color: #161514;
+            background: #ffffff;
+        }
+
+        /* Remove tap highlight on mobile */
+        .bubble .related select {
+            -webkit-tap-highlight-color: transparent;
         }
     </style>
 </head>
@@ -1022,6 +1059,20 @@
                     </div>
                 ` : '';
 
+                const rq = m.message_context?.additional_info?.related_questions;
+                const relatedHtml = rq?.length ? `
+                    <div class="related">
+                        <select
+                            onclick="event.stopPropagation()"
+                            onmousedown="event.stopPropagation()"
+                            onchange="event.stopPropagation(); this.value && sendMessage(this.value); this.value=''">
+
+                            <option value="">Related questions…</option>
+                            ${rq.map(q => `<option value="${escapeHtml(q)}">${escapeHtml(q)}</option>`).join('')}
+                        </select>
+                    </div>
+                ` : '';
+
                 let result = "";
                 if(user_msg.length > 0){
                     result += `<div class="message user">
@@ -1034,7 +1085,10 @@
                 if(bot_msg.length > 0){
                     result += `<div class="message bot">
                         <div class="message-wrapper">
-                            <div class="bubble" onclick="showMessageDetail(${idx}, false)">${bot_msg}</div>
+                            <div class="bubble" onclick="showMessageDetail(${idx}, false)">
+                                ${bot_msg}
+                                ${relatedHtml}
+                            </div>
                             ${audioHtml}
                             <div class="message-time">${time}</div>
                         </div>
