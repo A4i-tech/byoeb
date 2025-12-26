@@ -433,7 +433,11 @@ class MessageMongoDBService(BaseMongoDBService):
         """Fetch bot messages sorted in descending order by timestamp."""
         repository_factory = await self._get_repository_factory()
         message_repository = await repository_factory.get_message_repository()
-        async for msg_obj in message_repository.find_all({"timestamp": {"$gt": timestamp}}, sort=[("timestamp", -1)], limit=length):
+
+        projection = {}
+        if timestamp is not None: projection["timestamp"] = {"$gt": str(timestamp)}
+        if phone_number_id is not None: projection["message_data.user.phone_number_id"] = phone_number_id
+        async for msg_obj in message_repository.find_all(projection, sort=[("timestamp", -1)], limit=length):
             yield ByoebMessageContext(**msg_obj["message_data"])
 
     def correction_update_query(
