@@ -61,8 +61,14 @@ async def get_bot_messages(
     Retrieves all bot messages stored in the database
     after the specified timestamp.
     """
-    responses = dependency_setup.message_db_service.get_latest_bot_messages_by_timestamp(str(timestamp), length)
+    responses = dependency_setup.message_db_service.get_latest_bot_messages(timestamp, phone_number_id, length)
     return [doc async for doc in responses]
+
+if env_config.env_ashabot_uat:
+    CHAT_HTML_PATH = Path(__file__).parent.resolve() / "ui_templates" / "chat.html"
+    @chat_apis_router.get("/chat", include_in_schema=False)
+    async def chat() -> FileResponse:
+        return FileResponse(CHAT_HTML_PATH)
 
 
 # ---------------------------------------------------------
