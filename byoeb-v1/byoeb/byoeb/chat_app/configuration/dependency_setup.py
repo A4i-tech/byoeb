@@ -142,83 +142,27 @@ users_handler = UsersHandler(
 # Text translator
 from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
 # TODO: factory implementation
+if not env_config.env_azure_cognitive_region: raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE environment variable must be set to use text-to-text service")
+if not env_config.env_azure_cognitive_text_to_text_resource: raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE environment variable must be set to use text-to-text service")
 if env_config.env_azure_cognitive_key:
     print("✅ Azure Cognitive Services key set. Enabling Azure text translator.")
     text_translator = AsyncAzureTextTranslator(
         key=env_config.env_azure_cognitive_key,
-        region=app_config["translators"]["text"]["azure_cognitive"]["region"],
-        resource_id=app_config["translators"]["text"]["azure_cognitive"]["resource_id"],
+        region=env_config.env_azure_cognitive_region,
+        resource_id=env_config.env_azure_cognitive_text_to_text_resource,
     )
 else:
     from azure.identity import get_bearer_token_provider, DefaultAzureCredential
     print("⚠️ Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure text translator")
     text_translator = AsyncAzureTextTranslator(
     credential=DefaultAzureCredential(),
-    region=app_config["translators"]["text"]["azure_cognitive"]["region"],
-    resource_id=app_config["translators"]["text"]["azure_cognitive"]["resource_id"],
+    region=env_config.env_azure_cognitive_region,
+    resource_id=env_config.env_azure_cognitive_text_to_text_resource,
 )
 
 # Speech translator
-# TODO: factory implementation
-from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
-voice_dict = {
-    "male": {
-        "en-IN": "en-IN-PrabhatNeural",
-        "hi-IN": "hi-IN-MadhurNeural",
-        "mr-IN": "mr-IN-ManoharNeural",
-        "te-IN": "te-IN-MohanNeural"
-    },
-    "female": {
-        "en-IN": "en-IN-NeerjaNeural",
-        "hi-IN": "hi-IN-SwaraNeural",
-        "mr-IN": "mr-IN-AarohiNeural",
-        "te-IN": "te-IN-ShrutiNeural"
-    },
-}
-if env_config.env_azure_speech_key:
-    print("✅ Azure Cognitive Services key set. Enabling Azure speech translator.")
-    speech_translator = AsyncAzureSpeechTranslator(
-        key=env_config.env_azure_speech_key,
-        region=app_config["translators"]["speech"]["azure_cognitive"]["region"],
-        resource_id=app_config["translators"]["speech"]["azure_cognitive"]["resource_id"],
-    )
-else:
-    print("⚠️ Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure speech translator")
-    from azure.identity import get_bearer_token_provider, DefaultAzureCredential
-
-    token_provider = get_bearer_token_provider(
-        DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
-    )
-    speech_translator = AsyncAzureSpeechTranslator(
-        token_provider=token_provider,
-        region=app_config["translators"]["speech"]["azure_cognitive"]["region"],
-        resource_id=app_config["translators"]["speech"]["azure_cognitive"]["resource_id"],
-    )
-
-speech_translator.change_voice_dict(voice_dict)
-from byoeb_integrations.translators.speech.azure.async_azure_openai_whisper import AsyncAzureOpenAIWhisper
-
-if env_config.env_azure_openai_whisper_key:
-    print("✅ Azure OpenAI Whisper key set. Enabling Azure OpenAI Whisper translator.")
-    speech_translator_whisper = AsyncAzureOpenAIWhisper(
-    api_key=env_config.env_azure_openai_whisper_key,
-    model=app_config["translators"]["speech"]["azure_oai"]["model"],
-    azure_endpoint=app_config["translators"]["speech"]["azure_oai"]["endpoint"],
-    api_version=app_config["translators"]["speech"]["azure_oai"]["api_version"]
-    )
-else:
-    print("⚠️ Azure OpenAI Whisper key not set. Defaulting to DefaultAzureCredential for Azure OpenAI Whisper translator")
-    from azure.identity import get_bearer_token_provider, DefaultAzureCredential
-
-    token_provider = get_bearer_token_provider(
-        DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
-    )
-    speech_translator_whisper = AsyncAzureOpenAIWhisper(
-    token_provider=token_provider,
-    model=app_config["translators"]["speech"]["azure_oai"]["model"],
-    azure_endpoint=app_config["translators"]["speech"]["azure_oai"]["endpoint"],
-    api_version=app_config["translators"]["speech"]["azure_oai"]["api_version"]
-)
+from byoeb.services.chat.translator import TranslatorAdapter
+speech_translator = TranslatorAdapter(app_config["translators"]["speech"], app_config["app"]["azure_cognitive_endpoint"])
 
 # vector store
 import os
@@ -232,9 +176,9 @@ azure_openai_endpoint = env_config.env_azure_openai_endpoint or app_config["embe
 azure_openai_deployment_name = env_config.env_azure_openai_deployment_name or app_config["embeddings"]["azure"]["deployment_name"]
 
 # Azure OpenAI Embed - try API key first, fallback to token provider
-if env_config.env_azure_openai_whisper_key or env_config.env_azure_openai_key:
+if env_config.env_azure_openai_key:
     print("✅ Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
-    azure_openai_key = env_config.env_azure_openai_key or env_config.env_azure_openai_whisper_key
+    azure_openai_key = env_config.env_azure_openai_key
     azure_openai_embed = AzureOpenAIEmbed(
         model=app_config["embeddings"]["azure"]["model"],
         deployment_name=azure_openai_deployment_name,

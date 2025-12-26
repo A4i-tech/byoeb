@@ -9,16 +9,14 @@ class AsyncAzureSpeechTranslator(BaseSpeechTranslator):
         "male": {
             "en-IN": "en-IN-PrabhatNeural",
             "hi-IN": "hi-IN-MadhurNeural",
-            "kn-IN": "kn-IN-GaganNeural",
-            "ta-IN": "ta-IN-ValluvarNeural",
-            "te-IN": "te-IN-MohanNeural",
+            "mr-IN": "mr-IN-ManoharNeural",
+            "te-IN": "te-IN-MohanNeural"
         },
         "female": {
             "en-IN": "en-IN-NeerjaNeural",
             "hi-IN": "hi-IN-SwaraNeural",
-            "kn-IN": "kn-IN-SapnaNeural",
-            "ta-IN": "ta-IN-PallaviNeural",
-            "te-IN": "te-IN-ShrutiNeural",
+            "mr-IN": "mr-IN-AarohiNeural",
+            "te-IN": "te-IN-ShrutiNeural"
         },
     }
 
@@ -50,7 +48,7 @@ class AsyncAzureSpeechTranslator(BaseSpeechTranslator):
         self.__lock = asyncio.Lock()  # Ensures thread-safe access
         self.__ttl = 3600
 
-    def speech_to_text(self, audio_file: str, source_language: str, **kwargs) -> Any:
+    def speech_to_text(self, audio_data: str, source_language: str, **kwargs) -> Any:
         raise NotImplementedError
 
     async def aspeech_to_text(self, audio_data: bytes, source_language: str, **kwargs) -> str:

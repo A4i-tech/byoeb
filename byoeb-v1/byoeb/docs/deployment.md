@@ -21,8 +21,8 @@ Our CI/CD pipeline automatically handles:
 
 ### Pipeline Triggers:
 - **Push to `a4i/main`**: Deploys to production, runs unit tests
-- **Push to `staging`**: Deploys to staging, runs unit and integration tests
-- **Pull to `a4i/main` or `staging`**: Runs unit tests
+- **Push to `a4i/staging`**: Deploys to staging, runs unit and integration tests
+- **Pull to `a4i/main` or `a4i/staging`**: Runs unit tests
 - **Manual trigger**: Choose staging or production
 
 ## 3) Environment Variables
@@ -92,7 +92,7 @@ A Dockerfile is already present in `/byoeb-v1`. The CI/CD pipeline automatically
 ## 5) Deployment Process
 
 ### Automatic Deployment:
-1. **Push to `staging`**:
+1. **Push to `a4i/staging`**:
    - Builds Docker image with `staging-*` tags
    - Runs unit tests
    - Deploys to staging environment
