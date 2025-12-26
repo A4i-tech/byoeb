@@ -57,8 +57,8 @@ async def get_bot_messages(
     Retrieves all bot messages stored in the database
     after the specified timestamp.
     """
-    responses = await dependency_setup.message_db_service.get_latest_bot_messages_by_timestamp(str(timestamp), length)
-    return responses
+    responses = dependency_setup.message_db_service.get_latest_bot_messages_by_timestamp(str(timestamp), length)
+    return [doc async for doc in responses]
 
 
 # ---------------------------------------------------------
