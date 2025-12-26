@@ -216,10 +216,8 @@ class UserService(BaseUserService):
         user_ids: List[str],
     ) -> List[User]:
         query = {"_id": {"$in": user_ids}}
-        documents = await self.__user_repository.find_all(query)
-        print(f"Documents: {documents}")
         users_data: List[User] = []
-        for document in documents:
+        async for document in self.__user_repository.find_all(query):
             user_data = document['User']
             users_data.append(User(**user_data))
         return users_data
@@ -252,7 +250,7 @@ class UserService(BaseUserService):
             )
             byoeb_users.append(new_user)
         json_data_users = self.__prepare_user_insert_data(byoeb_users)
-        inserted_ids, _ = await self.__user_repository.insert_many(json_data_users)
+        inserted_ids = await self.__user_repository.insert_many(json_data_users)
         print(inserted_ids)
         ids = list(set(ids + inserted_ids))
         messages, update_queries, delete_queries = await self.__get_post_insert_users_queries(ids, byoeb_users)
@@ -315,5 +313,4 @@ class UserService(BaseUserService):
         await self.__user_repository.bulk_update([update_query])
 
     async def __get_all_user_ids(self) -> List[str]:
-        documents = await self.__user_repository.find_all({}, projection={"_id": 1})
-        return [doc["_id"] for doc in documents]
+        return [doc["_id"] async for doc in self.__user_repository.find_all({}, projection={"_id": 1})]

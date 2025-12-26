@@ -1,319 +1,215 @@
-import pytest
-import httpx
 import uuid
 import time
 import requests
-import json
-import re
-from urllib.parse import quote
 import os
+import sys
+import pytest
+
+from byoeb_core.models.byoeb.user import User
+from byoeb_core.models.whatsapp.incoming.interactive_message import (
+    ButtonReplyModel,
+    ChangeModel as InteractiveChange,
+    ContactModel as InteractiveContact,
+    ContextModel as InteractiveContext,
+    EntryModel as InteractiveEntry,
+    InteractiveModel,
+    ListReplyModel,
+    MessageModel as InteractiveMessage,
+    ValueModel as InteractiveValue,
+    WhatsAppInteractiveMessageBody,
+)
+from byoeb_core.models.whatsapp.incoming.regular_message import (
+    Change as RegularChange,
+    Contact as RegularContact,
+    Entry as RegularEntry,
+    Message as RegularMessage,
+    Profile as RegularProfile,
+    TextMessage,
+    Value as RegularValue,
+    WhatsAppRegularMessageBody,
+)
+from byoeb.constants.onboarding_text import CONSENT_DICT, LANGUAGE_NAME_TO_CODE, MESSAGE_DICT
+from byoeb.constants.user_enums import UserType
+
 # Endpoint
 BASE_URL = os.getenv("RECIEVE_URL")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
-USER_NAME = os.getenv("USER_NAME")
-ONBOARDING_PAYLOADS = [
- {
-    "object": "whatsapp_business_account",
-    "entry": [
-        {
-            "id": "211506508713627",
-            "changes": [
-                {
-                    "value": {
-                        "messaging_product": "whatsapp",
-                        "metadata": {
-                            "display_phone_number": "919001386867",
-                            "phone_number_id": "183958451475612"
-                        },
-                        "contacts": [
-                            {
-                                "profile": {
-                                    "name": USER_NAME
-                                },
-                                "wa_id": PHONE_NUMBER_ID
-                            }
-                        ],
-                        "messages": [
-                            {
-                                "from": PHONE_NUMBER_ID,
-                                "id": "",
-                                "timestamp": "1758573528",
-                                "text": {
-                                    "body": "hi"
-                                },
-                                "type": "text"
-                            }
-                        ]
-                    },
-                    "field": "messages"
-                }
-            ]
-        }
-    ]
-}
-,
-{
-  "object": "whatsapp_business_account",
-  "entry": [
-    {
-      "id": "211506508713627",
-      "changes": [
-        {
-           "value": {
-            "messaging_product": "whatsapp",
-            "metadata": {
-              "display_phone_number": "919001386867",
-              "phone_number_id": "183958451475612"
-            },
-            "contacts": [
-              {
-                "profile": {
-                                    "name": USER_NAME
-                                },
-                                "wa_id": PHONE_NUMBER_ID
-              }
-            ],
-            "messages": [
-              {
-                "from": PHONE_NUMBER_ID,
-                "id": "",
-                "timestamp": "1758576570",
-                "context": {
-                  "from": "183958451475612",
-                  "id": ""
-                },
-                "type": "interactive",
-                "interactive": {
-                  "type": "list_reply",
-                  "list_reply": {
-                    "id": "English",
-                    "title": "English",
-                    "description": ""
-                  }
-                }
-              }
-            ]
-          },
-          "field": "messages"
-        }
-      ]
-    }
-  ]
-}
-,
-{
-  "object": "whatsapp_business_account",
-  "entry": [
-    {
-      "id": "211506508713627",
-        "changes": [
-        {
-          "value": {
-            "messaging_product": "whatsapp",
-            "metadata": {
-              "display_phone_number": "919001386867",
-              "phone_number_id": "183958451475612"
-            },
-            "contacts": [
-              {
-                "profile": { "name": USER_NAME },
-                "wa_id": PHONE_NUMBER_ID
-              }
-            ],
-            "messages": [
-              {
-                "from": PHONE_NUMBER_ID,
-                "id": "",
-                "timestamp": "1758576682",
-                "context": {
-                  "from": "183958451475612",
-                  "id": ""
-                },
-                "type": "interactive",
-                "interactive": {
-                  "type": "button_reply",
-                  "button_reply": {
-                    "id": "others",
-                    "title": "Others"
-                  }
-                }
-              }
-            ]
-          },
-          "field": "messages"
-        }
-      ]
-    }
-  ]
-}
-,
-{
-  "object": "whatsapp_business_account",
-  "entry": [
-    {
-      "id": "211506508713627",
-      "changes": [
-        {
-          "value": {
-            "messaging_product": "whatsapp",
-            "metadata": {
-              "display_phone_number": "919001386867",
-              "phone_number_id": "183958451475612"
-            },
-            "contacts": [
-              {
-                "profile": { "name": USER_NAME },
-                "wa_id": PHONE_NUMBER_ID
-              }
-            ],
-            "messages": [
-              {
-                "from": PHONE_NUMBER_ID,
-                "id": "",
-                "timestamp": "1758577083",
-                "context": {
-                  "from": "183958451475612",
-                  "id": ""
-                },
-                "type": "interactive",
-                "interactive": {
-                  "type": "button_reply",
-                  "button_reply": {
-                    "id": "yes",
-                    "title": "Yes"
-                  }
-                }
-              }
-            ]
-          },
-          "field": "messages"
-        }
-      ]
-    }
-  ]
-},
-{
-    "object": "whatsapp_business_account",
-    "entry": [
-        {
-            "id": "211506508713627",
-            "changes": [
-                {
-                    "value": {
-                        "messaging_product": "whatsapp",
-                        "metadata": {
-                            "display_phone_number": "919001386867",
-                            "phone_number_id": "183958451475612"
-                        },
-                       "contacts": [
-              {
-                "profile": { "name": USER_NAME },
-                "wa_id": PHONE_NUMBER_ID
-              }
-            ],
-            "messages": [
-              {
-                "from": PHONE_NUMBER_ID,
-                                "id": "",
-                                "timestamp": "",
-                                "text": {
-                                    "body": "What is a antra injection?"
-                                },
-                                "type": "text"
-                            }
-                        ]
-                    },
-                    "field": "messages"
-                }
-            ]
-        }
-    ]
-}
-]
+USER_NAME = os.getenv("USER_NAME", "byoeb-user")
+if BASE_URL is None or PHONE_NUMBER_ID is None:
+    print("Environment variables are missing (RECIEVE_URL / PHONE_NUMBER_ID)")
+    sys.exit(1)
 
-def get_current_timestamp():
+def get_current_timestamp() -> str:
     return str(int(time.time()))
 
-def generate_message_id():
+def generate_message_id() -> str:
     return f"wamid.{uuid.uuid4().hex}"
 
-def test_whatsapp_onboarding_flow():
+def _regular_webhook(*, message: RegularMessage) -> WhatsAppRegularMessageBody:
+    return WhatsAppRegularMessageBody(object="whatsapp_business_account", entry=[
+        RegularEntry(id="211506508713627", changes=[
+            RegularChange(field="messages", value=RegularValue(
+                messaging_product="whatsapp",
+                contacts=[RegularContact(profile=RegularProfile(name=USER_NAME), wa_id=PHONE_NUMBER_ID)],
+                messages=[message],
+            ))
+        ])
+    ])
+
+def _interactive_webhook(*, message: InteractiveMessage) -> WhatsAppInteractiveMessageBody:
+    return WhatsAppInteractiveMessageBody(object="whatsapp_business_account", entry=[
+        InteractiveEntry(id="211506508713627", changes=[
+            InteractiveChange(field="messages", value=InteractiveValue(
+                messaging_product="whatsapp",
+                contacts=[InteractiveContact(profile={"name": USER_NAME}, wa_id=PHONE_NUMBER_ID)],
+                messages=[message],
+            ))
+        ])
+    ])
+
+def _dump_payload(body) -> dict:
+    return body.model_dump(by_alias=True, exclude_none=True)
+
+def _text_message_payload(*, message_id: str, timestamp: str, text: str):
+    msg = RegularMessage(id=message_id, timestamp=timestamp, type="text", text=TextMessage(body=text))
+    msg.from_ = PHONE_NUMBER_ID
+    return _dump_payload(_regular_webhook(message=msg))
+
+def _interactive_list_reply_payload( *, message_id: str, timestamp: str, context_id: str, selection_id: str, title: str, description: str = ""):
+    msg = InteractiveMessage(
+        id=message_id,
+        timestamp=timestamp,
+        type="interactive",
+        context=InteractiveContext(id=context_id),
+        interactive=InteractiveModel(type="list_reply", list_reply=ListReplyModel(id=selection_id, title=title, description=description)),
+    )
+    msg.from_ = PHONE_NUMBER_ID
+    return _dump_payload(_interactive_webhook(message=msg))
+
+def _interactive_button_reply_payload(*, message_id: str, timestamp: str, context_id: str, button_id: str, title: str):
+    msg = InteractiveMessage(
+        id=message_id,
+        timestamp=timestamp,
+        type="interactive",
+        context=InteractiveContext(id=context_id),
+        interactive=InteractiveModel(type="button_reply", button_reply=ButtonReplyModel(id=button_id, title=title)),
+    )
+    msg.from_ = PHONE_NUMBER_ID
+    return _dump_payload(_interactive_webhook(message=msg))
+
+def _wait_for_next_context_id(*, url: str, reply_to_message_id: str, sent_timestamp: str, prompt_substring: str, timeout_s: int = 120, poll_interval_s: int = 5) -> str:
+    deadline = time.time() + timeout_s
+    while True:
+        bot_messages = requests.get(url, timeout=30).json()
+        for msg in bot_messages:
+            if (
+                msg.get("reply_context", {}).get("reply_id") == reply_to_message_id
+                and msg.get("outgoing_timestamp") not in (None, "None", "")
+                and int(str(msg["outgoing_timestamp"])) > int(sent_timestamp)
+                and prompt_substring in (msg.get("message_context", {}).get("message_source_text") or "")
+            ):
+                return msg["message_context"]["message_id"]
+
+        if time.time() >= deadline:
+            raise TimeoutError(f"Timed out waiting for bot prompt containing {prompt_substring!r}")
+
+        time.sleep(poll_interval_s)
+
+@pytest.mark.parametrize(
+    "language_display,user_type_choice,consent_yes_choice",
+    [
+        ("English", "Others", "Yes"),
+        ("हिंदी", "अन्य", "हाँ"),
+        ("मराठी", "इतर", "होय"),
+        ("తెలుగు", "ఇతరులు", "అవును"),
+    ],
+)
+def test_whatsapp_onboarding_flow(language_display: str, user_type_choice: str, consent_yes_choice: str):
     context_id = None
-    print("Starting onboarding flow test...")
-    x=0
-    m_id=[]
-    delete_url = BASE_URL.replace("receive","delete_users")
-    headers = {
-    "accept": "application/json",
-    "Content-Type": "application/json"
-    }
-    data = [PHONE_NUMBER_ID] 
+    delete_url = BASE_URL.replace("receive", "delete_users")
+    requests.delete(delete_url, json=[PHONE_NUMBER_ID], timeout=30).raise_for_status()
 
-    response = requests.delete(delete_url, headers=headers, data=json.dumps(data))
-    response.raise_for_status()
-    print("Delete user response:", response.status_code, response.text)
+    lang_code = LANGUAGE_NAME_TO_CODE[language_display]
+    user_type_prompt_substring = MESSAGE_DICT[lang_code]["text"].strip()[:16]
+    consent_prompt_substring = CONSENT_DICT[UserType.ASHA.value][lang_code]["text"].strip()[:16]
 
-    c_id=[]
-    for step, payload_template in enumerate(ONBOARDING_PAYLOADS):
-            payload = payload_template.copy()
-            msg = payload["entry"][0]["changes"][0]["value"]["messages"][0]
-            msg["id"] = generate_message_id()
-            msg["timestamp"] = get_current_timestamp()
-            m_id.append(msg["id"])
-            if step > 0 and step!=4:
-                msg["context"]["id"] = context_id
-                c_id.append(context_id)
-                print("context_id:",context_id)
-            print("-------------------------STEP",step+1,"-------------------------")
-            response = requests.post(BASE_URL, json=payload)
-            url = BASE_URL.replace("receive","get_bot_messages?timestamp=")+str(msg["timestamp"])
-            print("paylod: ",payload)
-            bot_message = requests.get(url)
-            bot_message=bot_message.json()
+    START = "start"
+    LANGUAGE_SELECTED = "language_selected"
+    USER_TYPE_SELECTED = "user_type_selected"
+    CONSENTED = "consented"
+    VALIDATE_USER = "validate_user"
+    ASKED_QUESTION = "asked_question"
+    DONE = "done"
 
-            valid_timestamps = [ int(str(m["outgoing_timestamp"])) for m in bot_message if m.get("outgoing_timestamp") not in (None, "None", "")]
-            max_timestamp=max(valid_timestamps) if valid_timestamps else 0
-            print("max_timestamp:",max_timestamp, "msg timestamp:", msg['timestamp'])
-          
-                  
-            if step<len(ONBOARDING_PAYLOADS)-2:
-              print("Waiting for bot response...")
+    begin = time.time()
 
-              while max_timestamp<int(msg['timestamp']):
-                  time.sleep(5)
-                  print("Checking for new bot messages...")
-                  bot_message = requests.get(url)
-                  bot_message=bot_message.json()
-                  valid_timestamps1 = [ int(str(m["outgoing_timestamp"])) for m in bot_message if m.get("outgoing_timestamp") not in (None, "None", "")]
-                  max_timestamp=max(valid_timestamps1) if valid_timestamps1 else 0
-                  print("max_timestamp in while:",max_timestamp)
-              print("Bot response received.")
-              for i in bot_message:
-                  if i["reply_context"]["reply_id"]==msg["id"] and i["outgoing_timestamp"]!=None and  int(str(i["outgoing_timestamp"]))>int(msg['timestamp']):
-                    if "language" in i["message_context"]["message_source_text"] and step==0:   
-                        context_id=i["message_context"]["message_id"]
-                        #print(i)
-                        break 
-                    elif "Who are you" in i["message_context"]["message_source_text"] and step==1:
-                        context_id=i["message_context"]["message_id"]
-                        #print(i)
-                        break
-                    elif "Researchers" in i["message_context"]["message_source_text"] and step==2:
-                        context_id=i["message_context"]["message_id"]
-                        #print(i)
-                        break
-                    elif step==4 and "pregnancy" in i["message_context"]["message_source_text"]:
-                        context_id=i["message_context"]["message_id"]
-                        #print(i)
-                        break
-                
-              print(f"Step {step+1} response: {response.json()}")
-              assert response.status_code == 200, f"Step {step+1} failed"
+    state = START
+    while state != DONE:
+        print("-------------------------STATE", f"({state})", "-------------------------")
+        if state == START:
+            message_id = generate_message_id()
+            timestamp = get_current_timestamp()
+            payload = _text_message_payload(message_id=message_id, timestamp=timestamp, text="hi")
 
-    get_url = BASE_URL.replace("receive","get_users")
-    response = requests.post(get_url, headers={"Accept": "application/json"}, json=[PHONE_NUMBER_ID])
-    response.raise_for_status()
-    message = response.json()
-    assert len(message) == 1
+            requests.post(BASE_URL, json=payload, timeout=30).raise_for_status()
+            url = BASE_URL.replace("receive", "get_bot_messages?timestamp=") + str(timestamp)
 
+            context_id = _wait_for_next_context_id(url=url, reply_to_message_id=message_id, sent_timestamp=timestamp, prompt_substring="Select your language")
 
+            state = LANGUAGE_SELECTED
+        elif state == LANGUAGE_SELECTED:
+            assert context_id is not None, f"Missing context_id before state={state!r}"
+            message_id = generate_message_id()
+            timestamp = get_current_timestamp()
+            payload = _interactive_list_reply_payload(message_id=message_id, timestamp=timestamp, context_id=context_id, selection_id=language_display, title=language_display, description="")
+
+            requests.post(BASE_URL, json=payload, timeout=30).raise_for_status()
+            url = BASE_URL.replace("receive", "get_bot_messages?timestamp=") + str(timestamp)
+
+            context_id = _wait_for_next_context_id(url=url, reply_to_message_id=message_id, sent_timestamp=timestamp, prompt_substring=user_type_prompt_substring)
+
+            state = USER_TYPE_SELECTED
+        elif state == USER_TYPE_SELECTED:
+            assert context_id is not None, f"Missing context_id before state={state!r}"
+            message_id = generate_message_id()
+            timestamp = get_current_timestamp()
+            payload = _interactive_button_reply_payload(message_id=message_id, timestamp=timestamp, context_id=context_id, button_id="others", title=user_type_choice)
+
+            requests.post(BASE_URL, json=payload, timeout=30).raise_for_status()
+            url = BASE_URL.replace("receive", "get_bot_messages?timestamp=") + str(timestamp)
+
+            context_id = _wait_for_next_context_id(url=url, reply_to_message_id=message_id, sent_timestamp=timestamp, prompt_substring=consent_prompt_substring)
+
+            state = CONSENTED
+        elif state == CONSENTED:
+            assert context_id is not None, f"Missing context_id before state={state!r}"
+            message_id = generate_message_id()
+            timestamp = get_current_timestamp()
+            payload = _interactive_button_reply_payload(message_id=message_id, timestamp=timestamp, context_id=context_id, button_id="yes", title=consent_yes_choice)
+            requests.post(BASE_URL, json=payload, timeout=30).raise_for_status()
+            state = VALIDATE_USER
+        elif state == VALIDATE_USER:
+            get_url = BASE_URL.replace("receive", "get_users")
+            user = None
+            while True:
+                response = requests.post(get_url, json=[PHONE_NUMBER_ID], timeout=30)
+                response.raise_for_status()
+                users = response.json()
+                if len(users) == 1:
+                    user = User(**users[0])
+                    break
+                time.sleep(2)
+
+            assert user is not None
+            assert user.user_language == lang_code
+            assert user.user_type == UserType.OTHERS.value
+            assert int(user.created_timestamp or 0) > begin
+            state = ASKED_QUESTION
+        elif state == ASKED_QUESTION:
+            message_id = generate_message_id()
+            timestamp = get_current_timestamp()
+            payload = _text_message_payload(message_id=message_id, timestamp=timestamp, text="What is a antra injection?")
+            requests.post(BASE_URL, json=payload, timeout=30).raise_for_status()
+            state = DONE
+        else:
+            raise RuntimeError(f"Unknown state: {state!r}")

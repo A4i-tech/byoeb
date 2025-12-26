@@ -20,7 +20,8 @@ def has_interactive_list_additional_info(
     return (
         byoeb_message.message_context.additional_info is not None and
         constants.DESCRIPTION in byoeb_message.message_context.additional_info and
-        constants.ROW_TEXTS in byoeb_message.message_context.additional_info
+        constants.ROW_TEXTS in byoeb_message.message_context.additional_info and
+        byoeb_message.message_context.additional_info[constants.ROW_TEXTS]
     )
 
 def has_interactive_button_additional_info(

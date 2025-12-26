@@ -5,7 +5,7 @@ class BaseSpeechTranslator(ABC):
     @abstractmethod
     def speech_to_text(
         self,
-        audio_file: str,
+        audio_data: str,
         source_language: str,
         **kwargs
     ) -> Any:
@@ -14,7 +14,7 @@ class BaseSpeechTranslator(ABC):
     @abstractmethod
     async def aspeech_to_text(
         self,
-        audio_file: bytes,
+        audio_data: bytes,
         source_language: str,
         **kwargs
     ) -> str:
