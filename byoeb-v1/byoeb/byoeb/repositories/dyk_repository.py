@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Iterable, List, Optional, Set
+from typing import AsyncIterator, Iterable, List, Optional, Set
 import uuid
 
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.models.dyk import DykRecord, DykEntry
+from byoeb.repositories.base_repository import BaseRepository
 
-class DykRepository(ABC):
+class DykRepository(BaseRepository, ABC):
     """Repository interface for DYK-related database operations."""
 
     @abstractmethod
@@ -21,11 +22,6 @@ class DykRepository(ABC):
     @abstractmethod
     async def find(self, id: uuid.UUID) -> Optional[DykEntry]:
         """Fetch a DYK entry by ID, returning None if not found."""
-        ...
-
-    @abstractmethod
-    async def find_all(self, offset: int, length: int) -> List[DykEntry]:
-        """Return a paginated slice of DYK entries ordered by storage default."""
         ...
 
     @abstractmethod
@@ -57,7 +53,7 @@ class DykRepository(ABC):
         ...
 
     @abstractmethod
-    async def find_pending_of_langs(self, langs: Iterable[LanguageCode]) -> List[DykRecord]:
+    def find_pending_of_langs(self, langs: Iterable[LanguageCode]) -> AsyncIterator[DykRecord]:
         """
         Get all pending DYKs for the given languages.
 
@@ -70,7 +66,7 @@ class DykRepository(ABC):
         ...
 
     @abstractmethod
-    async def find_pending_of_batches(self, langs: Iterable[LanguageCode], batch_ids: List[str]) -> List[DykRecord]:
+    def find_pending_of_batches(self, langs: Iterable[LanguageCode], batch_ids: List[str]) -> AsyncIterator[DykRecord]:
         """
         Get pending DYKs for the given languages and batch IDs.
 
@@ -84,7 +80,7 @@ class DykRepository(ABC):
         ...
 
     @abstractmethod
-    async def find_pending_batch_ids(self) -> List[str]:
+    def find_pending_batch_ids(self) -> AsyncIterator[str]:
         """
         Get all unique batch IDs with pending DYKs.
 
@@ -94,7 +90,7 @@ class DykRepository(ABC):
         ...
 
     @abstractmethod
-    async def find_sent_dyk_ids(self, user_ids: List[str]) -> List[Set[str]]:
+    def find_sent_dyk_ids(self, user_ids: List[str]) -> AsyncIterator[Set[str]]:
         """
         Get sets of DYK IDs already sent to the given users.
 
@@ -120,12 +116,15 @@ class DykRepository(ABC):
         ...
 
     @abstractmethod
-    async def update_status(self, ids: List[str], status: str):
+    async def update_status(self, ids: List[str], status: str) -> int:
         """
         Update the status of multiple DYK records.
 
         Args:
             ids (List[str]): Record IDs to update.
             status (str): New status value.
+
+        Returns:
+            int: Number of records updated.
         """
         ...

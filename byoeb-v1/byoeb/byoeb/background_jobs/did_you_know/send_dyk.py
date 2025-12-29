@@ -8,7 +8,6 @@ from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
 from byoeb.models.dyk import DykLanguageEntry, DykRecord
 from byoeb.repositories.dyk_repository import DykRepository
 from byoeb.repositories.user_repository import UserRepository
-from byoeb.utils.utils import chunked
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.repositories.repository_factory import get_repository_factory
 from byoeb.services.channel.whatsapp import WhatsAppService
@@ -44,25 +43,30 @@ async def pick_candidates(dyk_repo: DykRepository, user_repo: UserRepository, la
     select_test_only = os.getenv("TEST_USERS_ONLY", "false").lower() == "true"
     if len(user_types) > 0:
         if select_test_only and hasattr(user_repo, "find_test_users_by_types"):
-            potential_candidates = await user_repo.find_test_users_by_types(user_types)
+            potential_candidates = user_repo.find_test_users_by_types(user_types)
         else:
-            potential_candidates = await user_repo.find_users_by_types(user_types)
+            potential_candidates = user_repo.find_users_by_types(user_types)
     else:
         if select_test_only:
             run_logger.debug(f"{pick_candidates.__name__}: TEST_USERS_ONLY enabled - selecting test users")
-            potential_candidates = await user_repo.find_test_users()
+            potential_candidates = user_repo.find_test_users()
         else:
             run_logger.debug(f"{pick_candidates.__name__}: no user_types provided - selecting all users")
-            potential_candidates = await user_repo.find_all({})
+            potential_candidates = user_repo.find_all({})
     
-    filtern_user_ids = set(record.user_id for record in await dyk_repo.find_pending_of_langs(langs))
-    users = map(lambda x: User(**x["User"]), potential_candidates)
-    users = filter(lambda x: x.user_id not in filtern_user_ids, users)
-
-    for chunk in chunked(users, batch_size):
-        if len(chunk) == 0:
+    filtern_user_ids = set()
+    async for record in dyk_repo.find_pending_of_langs(langs):
+        filtern_user_ids.add(record.user_id)
+    buffer: List[User] = []
+    async for doc in potential_candidates:
+        user = User(**doc["User"])
+        if user.user_id in filtern_user_ids:
             continue
-        yield chunk
+        buffer.append(user)
+        if len(buffer) == batch_size:
+            yield buffer
+    if buffer:
+        yield buffer
 
 
 async def queue(dyk_repo: DykRepository, candidates: DykBatch) -> Tuple[str, int, int]:
@@ -123,8 +127,8 @@ def message_simple(user: User, record: DykRecord, entry: DykLanguageEntry, ts: i
         user=user,
         message_context=MessageContext(
             message_id=f"did-you-know-{record.id}",
-            message_source_text=entry.fact,
-            message_english_text=entry.fact,
+            message_source_text=None,
+            message_english_text=None,
             media_info=None,
             message_type=MessageTypes.TEMPLATE_TEXT.value,
             additional_info={
@@ -144,7 +148,7 @@ def message_simple(user: User, record: DykRecord, entry: DykLanguageEntry, ts: i
 def message_with_related_questions(user: User, record: DykRecord, entry: DykLanguageEntry, ts: int) -> ByoebMessageContext:
     message = LANGUAGE_TEMPLATES[record.dyk_lang].replace("{message}", entry.fact)
     button_titles = sample(entry.related_questions, k=min(len(entry.related_questions), 3)) if entry.related_questions else []
-    additional_info = {"button_titles": button_titles} if button_titles else {}
+    additional_info = {constants.BUTTON_TITLES: button_titles} if button_titles else None
     message_type = MessageTypes.INTERACTIVE_BUTTON.value if button_titles else MessageTypes.REGULAR_TEXT.value
     return ByoebMessageContext(
         channel_type="whatsapp",
@@ -168,11 +172,10 @@ def message_with_related_questions(user: User, record: DykRecord, entry: DykLang
 
 async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_service: WhatsAppService, batch_id: str, langs: Iterable[LanguageCode]) -> Tuple[int, int]:
     """ Dispatches queued DYK messages to WhatsApp. Returns number of successful and unsuccessful operations. """
-
-    pending = await dyk_repo.find_pending_of_batches(langs, [batch_id])
+    pending = [p async for p in dyk_repo.find_pending_of_batches(langs, [batch_id])]
     users: dict[str, Optional[User]] = {p.user_id: None for p in pending}
-    for user in await user_repo.find_users_by_ids(list(users.keys())):
-        user = User(**user["User"])
+    async for user_doc in user_repo.find_users_by_ids(list(users.keys())):
+        user = User(**user_doc["User"])
         users[str(user.user_id)] = user
 
     ts = int(datetime.now(timezone.utc).timestamp())
@@ -270,7 +273,7 @@ async def main(user_types: List[str], batch_size: int) -> None:
 
     # dispatch (...to whatsapp. pick a batch of candidates and send them their assigned dyks)
     whatsapp_service = WhatsAppService(channel_client_factory)
-    batch_ids = await dyk_repo.find_pending_batch_ids()
+    batch_ids = [b async for b in dyk_repo.find_pending_batch_ids()]
     retries = 0
     while True:
         if retries > 0:
