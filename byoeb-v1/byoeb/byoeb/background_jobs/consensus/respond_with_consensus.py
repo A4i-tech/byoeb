@@ -5,19 +5,14 @@ import sys
 import threading
 import datetime
 from byoeb.services.chat import constants
-from byoeb.services.chat import utils as chat_utils
 from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
 from byoeb.services.databases.mongo_db.user_db import UserMongoDBService
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
-from byoeb_core.models.byoeb.user import User
-from byoeb_core.channel.base import BaseChannel
 from byoeb.services.channel.whatsapp import WhatsAppService
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
     MessageContext,
-    ReplyContext,
     MessageTypes
 )
 from byoeb.background_jobs.consensus.config import bot_config
@@ -97,6 +92,7 @@ async def create_user_message(
     translated_audio_message = await speech_translator.atext_to_speech(
         input_text=response,
         source_language=user_language,
+        test_user=message.user.test_user
     )
     related_questions = message.message_context.additional_info.get(constants.RELATED_QUESTIONS)
     description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
@@ -221,8 +217,7 @@ async def process_queries_consensus(
     whatsapp_service: WhatsAppService
 ):
     waiting_status = constants.WAITING
-    messages = await message_db_service.get_bot_messages_by_status(waiting_status)
-    for message in messages:
+    async for message in message_db_service.get_bot_messages_by_status(waiting_status):
         if consensus_timeout(message.outgoing_timestamp):
             timeout_message = bot_config["template_messages"]["user"]["consensus"]["timeout"][message.user.user_language]
             user_message = await create_user_message(message, timeout_message)
