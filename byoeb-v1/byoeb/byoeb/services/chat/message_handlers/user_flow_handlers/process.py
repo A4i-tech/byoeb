@@ -4,11 +4,13 @@ import byoeb.services.chat.constants as constants
 from tenacity import retry, stop_after_attempt, wait_exponential
 from byoeb.chat_app.configuration.config import bot_config
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageTypes
 from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.models.message_category import MessageCategory
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
+
+from byoeb_core.models.whatsapp.requests.media_request import MediaData
 
 class ByoebUserProcess(Handler):
 
@@ -93,60 +95,53 @@ class ByoebUserProcess(Handler):
         utils.log_to_text_file(f"Query rewritting and transcribe in {end_time - start_time} seconds: {str(tokens)} {response_text}")
         return query_en, query_en_addcontext, query_type, tokens
 
+    async def annotate_audio_transcription(self, message: ByoebMessageContext, audio_message: Optional[MediaData] = None):
+        # dependency injection
+        from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
+        from byoeb.chat_app.configuration.dependency_setup import speech_translator
+        from byoeb_core.convertor.audio_convertor import ogg_opus_to_wav_bytes
+
+        start_time = datetime.now(timezone.utc).timestamp()
+        if audio_message is None:
+            media_id = message.message_context.media_info.media_id
+            channel_client = await channel_client_factory.get(message.channel_type)
+            _, audio_message, err = await channel_client.adownload_media(media_id)
+
+        audio_message_wav = ogg_opus_to_wav_bytes(audio_message.data)
+        audio_to_text = await speech_translator.aspeech_to_text(audio_message_wav, message.user.user_language, test_user=message.user.test_user)
+        message.message_context.message_source_text = audio_to_text
+        end_time = datetime.now(timezone.utc).timestamp()
+        AppInsightsLogHandler.getLogger("audio_to_text").info(f"Time taken for audio to text transcribe: {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {
+            "message_id": message.message_context.message_id,
+            "time_taken": end_time - start_time
+        }})
+        utils.log_to_text_file(f"Time taken for audio to text transcribe: {end_time - start_time} seconds")
+        if message.message_context.media_info:
+            message.message_context.media_info.media_type = audio_message.mime_type
+
     async def handle_process_message_workflow(
         self,
         messages: List[ByoebMessageContext]
     ) -> ByoebMessageContext:
-        # dependency injection
-        from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
-        from byoeb.chat_app.configuration.dependency_setup import speech_translator_whisper
-        from byoeb_core.convertor.audio_convertor import ogg_opus_to_wav_bytes
 
         message = messages[0].model_copy(deep=True)
-        channel_type = message.channel_type
-        source_language = message.user.user_language
         query_type = None
         query_en = None
         query_en_addcontext = None
 
         if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
-            start_time = datetime.now(timezone.utc).timestamp()
-            media_id = message.message_context.media_info.media_id
-            channel_client = await channel_client_factory.get(channel_type)
-            _, audio_message, err = await channel_client.adownload_media(media_id)
-            audio_message_wav = ogg_opus_to_wav_bytes(audio_message.data)
-            audio_to_text = await speech_translator_whisper.aspeech_to_text(audio_message_wav, source_language)
-            message.message_context.message_source_text = audio_to_text
-            end_time = datetime.now(timezone.utc).timestamp()
-            AppInsightsLogHandler.getLogger("audio_to_text").info(f"Time taken for audio to text transcribe: {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {
-                "message_id": message.message_context.message_id,
-                "time_taken": end_time - start_time
-            }})
-            utils.log_to_text_file(f"Time taken for audio to text transcribe: {end_time - start_time} seconds")
-            # query_en, query_en_addcontext, query_type = await self.llm_translation_and_query_rewritting(message)
-            # print("audio_to_text", audio_to_text)
-            # translated_en_text = await text_translator.atranslate_text(
-            #     input_text=audio_to_text,
-            #     source_language=source_language,
-            #     target_language="en"
-            # )
-            message.message_context.media_info.media_type = audio_message.mime_type
-        
+            await self.annotate_audio_transcription(message)
+
         if message.reply_context.message_category != MessageCategory.AUDIO_IDK.value:
-                start_time = datetime.now(timezone.utc).timestamp()
-                query_en, query_en_addcontext, query_type, tokens = await self.llm_translation_and_query_rewritting(message)
-                end_time = datetime.now(timezone.utc).timestamp()
-                AppInsightsLogHandler.getLogger("query_rewriting").info(f"Rewrote queries for {message.message_context.message_id} in {end_time - start_time} using {tokens.get('completion_tokens')} completion and {tokens.get('prompt_tokens')} prompt tokens", extra={AppInsightsLogHandler.DETAILS: {
-                    "message_id": message.message_context.message_id,
-                    "time_taken": end_time - start_time,
-                    "completion_tokens": tokens.get("completion_tokens"),
-                    "prompt_tokens": tokens.get("prompt_tokens")
-                }})
-                # translated_en_text = await text_translator.atranslate_text(
-                #     input_text=source_text,
-                #     source_language=source_language,
-                #     target_language="en"
-                # )
+            start_time = datetime.now(timezone.utc).timestamp()
+            query_en, query_en_addcontext, query_type, tokens = await self.llm_translation_and_query_rewritting(message)
+            end_time = datetime.now(timezone.utc).timestamp()
+            AppInsightsLogHandler.getLogger("query_rewriting").info(f"Rewrote queries for {message.message_context.message_id} in {end_time - start_time} using {tokens.get('completion_tokens')} completion and {tokens.get('prompt_tokens')} prompt tokens", extra={AppInsightsLogHandler.DETAILS: {
+                "message_id": message.message_context.message_id,
+                "time_taken": end_time - start_time,
+                "completion_tokens": tokens.get("completion_tokens"),
+                "prompt_tokens": tokens.get("prompt_tokens")
+            }})
             
         message.message_context.message_english_text = query_en_addcontext
         message.message_context.additional_info = {
