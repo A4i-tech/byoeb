@@ -6,7 +6,7 @@ This test verifies that when an already onboarded user sends onboarding messages
 with the system" message instead of processing it through LLM/vector store.
 
 This script:
-1. Updates user language in MongoDB for each test
+1. Registers user using API endpoints (/delete_users + /register_users) for each test
 2. Sends POST requests to http://localhost:8000/receive
 3. Tests various onboarding message variations across languages
 4. Tests normal questions to ensure normal flow works
@@ -94,119 +94,57 @@ test_results = {
     "results": []
 }
 
-
-async def get_mongo_collection():
-    """Get MongoDB collection using the same setup as the application."""
-    try:
-        from byoeb.factory import MongoDBFactory
-        from byoeb.chat_app.configuration.config import app_config
-        from byoeb.factory.mongo_db import Scope
-        from byoeb_integrations.databases.mongo_db.azure.async_azure_cosmos_mongo_db import AsyncAzureCosmosMongoDBCollection
-    except ImportError as e:
-        print(f"❌ Import error: {e}")
-        print(f"Current sys.path: {sys.path[:3]}...")  # Show first 3 paths
-        print(f"byoeb_root: {byoeb_root}")
-        print(f"Looking for byoeb module at: {os.path.join(byoeb_root, 'byoeb')}")
-        raise
-    
-    mongo_factory = MongoDBFactory(
-        config=app_config,
-        scope=Scope.SINGLETON.value
-    )
-    
-    db_client = await mongo_factory.get("azure_cosmos_mongo_db")
-    collection_name = app_config["databases"]["mongo_db"]["user_collection"]
-    # Use get_collection (synchronous) and wrap it
-    motor_collection = db_client.get_collection(collection_name)
-    collection = AsyncAzureCosmosMongoDBCollection(collection=motor_collection)
-    
-    return collection, app_config
+# Track registered languages to avoid duplicate registrations
+_registered_languages = set()
 
 
-async def find_user_by_phone(phone_number: str) -> Dict[str, Any]:
+async def find_user_by_phone(phone_number: str) -> Optional[Dict[str, Any]]:
     """Find user by phone number."""
-    collection, config = await get_mongo_collection()
-    
-    # Query to find user by phone_number_id
-    filter_dict = {"User.phone_number_id": phone_number}
-    user_doc = await collection.afetch_one(filter_dict)
-    
-    return user_doc
-
-
-async def update_user_language(phone_number: str, language: str) -> bool:
-    """Update user language in the database."""
     try:
-        collection, config = await get_mongo_collection()
-        
-        # Find user by phone number
-        filter_dict = {"User.phone_number_id": phone_number}
-        user_doc = await collection.afetch_one(filter_dict)
-        
-        if not user_doc:
-            print(f"❌ User with phone number {phone_number} not found in database")
-            return False
-        
-        # Get user ID for more reliable update
-        user_id = user_doc.get("_id")
-        if not user_id:
-            print(f"❌ User document does not have _id field")
-            return False
-        
-        # Check current language
-        current_lang = user_doc.get("User", {}).get("user_language", "N/A")
-        print(f"   Current language: {current_lang}")
-        
-        # If already set to the target language, consider it successful
-        if current_lang == language:
-            print(f"✅ User language is already set to {language} ({LANGUAGES.get(language, language)})")
-            return True
-        
-        # Update user language using _id (more reliable than nested field filter)
-        # Try both approaches: using _id and using the original filter
-        update_dict = {"$set": {"User.user_language": language}}
-        
-        # First try with _id (most reliable)
-        id_filter = {"_id": user_id}
-        print(f"   Attempting update with _id filter: {id_filter}")
-        print(f"   Update dict: {update_dict}")
-        
-        result = await collection.aupdate_one(id_filter, update_dict)
-        
-        if result:
-            print(f"✅ Updated user language to {language} ({LANGUAGES.get(language, language)})")
-            # Verify the update
-            updated_doc = await collection.afetch_one(id_filter)
-            if updated_doc:
-                new_lang = updated_doc.get("User", {}).get("user_language", "N/A")
-                print(f"   Verified new language: {new_lang}")
-            return True
-        else:
-            # If _id update failed, try with original filter
-            print(f"   Update with _id returned False, trying with phone filter...")
-            result2 = await collection.aupdate_one(filter_dict, update_dict)
-            
-            if result2:
-                print(f"✅ Updated user language to {language} using phone filter")
-                return True
-            
-            print(f"❌ Failed to update user language to {language}")
-            print(f"   Both update attempts returned False")
-            # Verify if update actually happened despite return value
-            updated_doc = await collection.afetch_one(id_filter)
-            if updated_doc:
-                new_lang = updated_doc.get("User", {}).get("user_language", "N/A")
-                if new_lang == language:
-                    print(f"   ⚠️  Update actually succeeded! New language: {new_lang}")
-                    return True
-                else:
-                    print(f"   Language is still: {new_lang} (expected: {language})")
-            return False
-            
+        response = requests.post(ENDPOINT_URL.replace("/receive", "/get_users"), json=[phone_number])
+        response.raise_for_status()
+        users = response.json()
+        if users and len(users) > 0:
+            return users[0]
+        return None
     except Exception as e:
-        print(f"❌ Error updating user language: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"⚠️  Could not fetch user: {e}")
+        return None
+
+
+def register_user_with_language(language: str) -> bool:
+    """Register user with the specified language using API endpoints.
+    
+    This function ensures the user is registered only once per language,
+    avoiding duplicate registrations for the same language.
+    
+    Args:
+        language: Language code to register the user with
+        
+    Returns:
+        True if registration was successful or already registered, False otherwise
+    """
+    # Check if already registered for this language
+    if language in _registered_languages:
+        print(f"ℹ️  User already registered with language {language} ({LANGUAGES.get(language, language)}). Skipping registration.")
+        return True
+    
+    print(f"🔄 Registering user with language {language}...")
+    try:
+        requests.delete(ENDPOINT_URL.replace("/receive", "/delete_users"), json=[TEST_PHONE_NUMBER]).raise_for_status()
+        requests.post(ENDPOINT_URL.replace("/receive", "/register_users"), json=[{
+            "phone_number_id": TEST_PHONE_NUMBER,
+            "user_location": {"district": "Jaipur"},
+            "user_type": "asha",
+            "user_language": language,
+            "user_name": "Test User",
+            "test_user": True
+        }]).raise_for_status()
+        _registered_languages.add(language)
+        print(f"✅ User registered with language {language} ({LANGUAGES.get(language, language)})")
+        return True
+    except Exception as e:
+        print(f"⚠️  Warning: Could not register user. Continuing anyway... ({e})")
         return False
 
 
@@ -454,13 +392,10 @@ async def test_onboarding_messages(language: str):
     print(f"🧪 Testing Onboarding Messages for {LANGUAGES.get(language, language)} ({language})")
     print(f"{'#'*80}\n")
     
-    # Update user language in database
-    print(f"🔄 Updating user language to {language}...")
-    success = await update_user_language(TEST_PHONE_NUMBER, language)
-    if not success:
-        print(f"⚠️  Warning: Could not update user language. Continuing anyway...")
+    # Register user with the specified language using API endpoints (only once per language)
+    register_user_with_language(language)
     
-    # Wait a bit for database update to propagate
+    # Wait a bit for registration to propagate
     await asyncio.sleep(1)
     
     # Test each onboarding message
@@ -513,13 +448,10 @@ async def test_normal_question(language: str):
     print(f"🧪 Testing Normal Question for {LANGUAGES.get(language, language)} ({language})")
     print(f"{'#'*80}\n")
     
-    # Update user language in database
-    print(f"🔄 Updating user language to {language}...")
-    success = await update_user_language(TEST_PHONE_NUMBER, language)
-    if not success:
-        print(f"⚠️  Warning: Could not update user language. Continuing anyway...")
+    # Register user with the specified language using API endpoints (only once per language)
+    register_user_with_language(language)
     
-    # Wait a bit for database update to propagate
+    # Wait a bit for registration to propagate
     await asyncio.sleep(1)
     
     # Test normal question
@@ -566,16 +498,18 @@ async def verify_user_exists():
     user_doc = await find_user_by_phone(TEST_PHONE_NUMBER)
     
     if user_doc:
-        user_data = user_doc.get("User", {})
-        print(f"✅ User found:")
-        print(f"   - User ID: {user_doc.get('_id', 'N/A')}")
-        print(f"   - Phone: {user_data.get('phone_number_id', 'N/A')}")
-        print(f"   - Language: {user_data.get('user_language', 'N/A')}")
-        print(f"   - User Type: {user_data.get('user_type', 'N/A')}")
+        # Handle both API response format and potential nested User structure
+        if isinstance(user_doc, dict):
+            user_data = user_doc.get("User", user_doc)
+            print(f"✅ User found:")
+            print(f"   - User ID: {user_doc.get('_id', 'N/A')}")
+            print(f"   - Phone: {user_data.get('phone_number_id', 'N/A')}")
+            print(f"   - Language: {user_data.get('user_language', 'N/A')}")
+            print(f"   - User Type: {user_data.get('user_type', 'N/A')}")
         return True
     else:
-        print(f"❌ User with phone number {TEST_PHONE_NUMBER} not found in database")
-        print(f"   Please ensure the user is onboarded before running tests")
+        print(f"ℹ️  User with phone number {TEST_PHONE_NUMBER} not found")
+        print(f"   Tests will register the user automatically")
         return False
 
 
@@ -593,11 +527,10 @@ async def main():
     except:
         print(f"⚠️  Warning: Could not verify endpoint accessibility. Make sure server is running.")
     
-    # Verify user exists
+    # Verify user exists (optional - tests will register user if needed)
     user_exists = await verify_user_exists()
     if not user_exists:
-        print("\n❌ Test user not found. Please onboard the user first.")
-        return
+        print("\nℹ️  Test user not found. Tests will register the user automatically.")
     
     print("\n" + "="*80)
     print("Starting Tests...")
