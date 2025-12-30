@@ -301,6 +301,96 @@ class ByoebUserGenerateResponse(Handler):
             constants.MIME_TYPE: "audio/ogg",
         }
          
+    def __detect_script(self, text: str) -> str:
+        """Detect the script used in the text."""
+        if not text:
+            return "unknown"
+        
+        # Telugu script range: 0C00-0C7F
+        if any('\u0C00' <= char <= '\u0C7F' for char in text):
+            return "te"
+        # Devanagari script (Hindi/Marathi): 0900-097F
+        elif any('\u0900' <= char <= '\u097F' for char in text):
+            return "devanagari"
+        # Latin script
+        elif any(char.isascii() and char.isalpha() for char in text):
+            return "latin"
+        else:
+            return "unknown"
+    
+    def __is_response_in_correct_language(self, response_source: str, user_language: str) -> bool:
+        """Check if response_source is in the correct language for the user."""
+        if not response_source or not response_source.strip():
+            return False
+        
+        detected_script = self.__detect_script(response_source)
+        
+        # For Telugu, must be in Telugu script
+        if user_language == "te":
+            if detected_script != "te":
+                print(f"[__is_response_in_correct_language] Telugu user but response is in {detected_script} script (expected Telugu)")
+                return False
+            # Check for Telugu-specific words
+            telugu_indicators = ["ఏమిటి", "ఎప్పుడు", "ఎందుకు", "ఉపయోగిస్తారు", "అంటే", "ఇవ్వాలి"]
+            has_telugu_indicators = any(ind in response_source for ind in telugu_indicators)
+            if not has_telugu_indicators:
+                print(f"[__is_response_in_correct_language] Telugu response doesn't contain Telugu indicators")
+                return False
+            return True
+        
+        # For Marathi, must be in Devanagari script
+        elif user_language == "mr":
+            if detected_script != "devanagari":
+                print(f"[__is_response_in_correct_language] Marathi user but response is in {detected_script} script (expected Devanagari)")
+                return False
+            # Check for Marathi-specific words (distinguish from Hindi)
+            # Marathi uses "आहे" (ahe) while Hindi uses "है" (hai)
+            # Marathi uses "आणि" (ani) while Hindi uses "और" (aur)
+            # Marathi uses "म्हणजे" (mhanje) while Hindi uses "मतलब" (matlab)
+            marathi_indicators = ["आहे", "आणि", "म्हणजे", "काय", "कधी", "वापरतात", "द्यावे", "जातात", "टीके", "गर्भावस्थेत"]
+            hindi_indicators = ["है", "और", "कहा", "जाता", "दिया", "किया", "के", "को", "में", "से"]
+            
+            has_marathi_indicators = any(ind in response_source for ind in marathi_indicators)
+            has_hindi_indicators = any(ind in response_source for ind in hindi_indicators)
+            
+            # Count occurrences for better detection
+            marathi_count = sum(response_source.count(ind) for ind in marathi_indicators)
+            hindi_count = sum(response_source.count(ind) for ind in hindi_indicators)
+            
+            # If it has more Hindi indicators than Marathi, it's likely Hindi
+            if hindi_count > marathi_count and hindi_count > 2:
+                print(f"[__is_response_in_correct_language] Marathi user but response has more Hindi indicators ({hindi_count}) than Marathi ({marathi_count})")
+                return False
+            
+            # If it has Hindi indicators but no Marathi indicators, it's likely Hindi
+            if has_hindi_indicators and not has_marathi_indicators and hindi_count > 1:
+                print(f"[__is_response_in_correct_language] Marathi user but response has Hindi indicators ({hindi_count}) without Marathi indicators")
+                return False
+            
+            # If it has Marathi indicators, it's likely correct
+            if has_marathi_indicators:
+                return True
+            
+            # If no clear indicators but it's in Devanagari, be lenient (might be correct but generic)
+            # Only reject if we're very confident it's Hindi
+            if hindi_count > 3:
+                print(f"[__is_response_in_correct_language] Marathi response has many Hindi indicators ({hindi_count}) but no Marathi indicators")
+                return False
+            
+            # Default to accepting if in Devanagari (might be correct Marathi)
+            return True
+        
+        # For Hindi, must be in Devanagari script
+        elif user_language == "hi":
+            return detected_script == "devanagari"
+        
+        # For English, must be in Latin script
+        elif user_language == "en":
+            return detected_script == "latin" or detected_script == "unknown"
+        
+        # Unknown language, accept it
+        return True
+    
     async def __create_source_text(
         self,
         message: ByoebMessageContext,
@@ -336,7 +426,12 @@ class ByoebUserGenerateResponse(Handler):
         default_message_category: Optional[MessageCategory] = None
     ) -> ByoebMessageContext:
         start_time = datetime.now(timezone.utc).timestamp()
-        if response_source is None:
+        user_language = message.user.user_language
+        
+        # If response_source is None or empty, translate from English
+        # This ensures we always have a response in the correct language
+        if response_source is None or (isinstance(response_source, str) and not response_source.strip()):
+            print(f"[__create_user_message] response_source is None or empty, translating from English to {user_language}")
             message_source_text, options, send_related_questions = await self.__create_source_text(
                 message=message,
                 response_text=response_en,
@@ -349,14 +444,27 @@ class ByoebUserGenerateResponse(Handler):
                 query_type=query_type,
             )
         else:
-            message_source_text = response_source
-            options = None
-            send_related_questions = True
-            print(f"[__create_user_message] Using provided response_source directly: '{message_source_text[:100] if message_source_text else 'None'}...'")
+            # Validate that response_source is in the correct language
+            is_correct_language = self.__is_response_in_correct_language(response_source, user_language)
+            
+            if not is_correct_language:
+                print(f"[__create_user_message] response_source is in WRONG language for user_language {user_language}, falling back to translation")
+                print(f"[__create_user_message] response_source preview: '{response_source[:150]}...'")
+                # Fall back to translation from English
+                message_source_text, options, send_related_questions = await self.__create_source_text(
+                    message=message,
+                    response_text=response_en,
+                    query_type=query_type,
+                )
+            else:
+                # Use provided response_source - it's in the correct language
+                message_source_text = response_source
+                options = None
+                send_related_questions = True
+                print(f"[__create_user_message] Using provided response_source directly for language {user_language}: '{message_source_text[:100] if message_source_text else 'None'}...'")
         print("Options: ", options)
         end_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Translated response message in {end_time - start_time} seconds")
-        user_language = message.user.user_language
 
         cache_info = {"cache_score": cache_details[0]} if cache_details[0] is not None else {}
         if cache_hit:
@@ -583,16 +691,24 @@ class ByoebUserGenerateResponse(Handler):
         user_prompt = template_user_prompt.replace("<QUERY_TYPE>", query_type).replace("<QUERY_EN_ADDCONTEXT>", query).replace("<RAW_KB>", raw_kb_list).replace("<NEW_KB>", update_kb_list)
         augmented_prompts = self.__augment(system_prompt, user_prompt)
 
+        print(f"[agenerate_answer] Generating answer for user_language: {user_language}")
+        print(f"[agenerate_answer] System prompt language section: {bot_config['llm_response']['answer_prompts']['system_prompt']['response_translate'].get(user_language, 'NOT FOUND')[:200]}...")
+
         start_time = datetime.now(timezone.utc).timestamp()
         llm_response, response_text = await llm_client.generate_response(augmented_prompts)
         tokens = llm_client.get_response_tokens(llm_response)
         response_en, response_source = parse_response_xml(response_text)
         end_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Generated answer tokens and response in {end_time - start_time} seconds: {str(tokens)} {response_text}")
-        print("Generated answer: ", response_en)
-        print("Query type: ", query_type)
+        print(f"[agenerate_answer] Generated answer_en: {response_en[:100] if response_en else 'None'}...")
+        print(f"[agenerate_answer] Generated answer_source (for language {user_language}): {response_source[:100] if response_source else 'None'}...")
+        print(f"[agenerate_answer] Query type: {query_type}")
+        
         if response_en is None or query_type is None:
             raise ValueError("Parsing failed, response or query_type is None.")
+        # Log warning if response_source is None or empty for non-English languages
+        if (response_source is None or not response_source.strip()) and user_language not in ["en", "hi"]:
+            print(f"[agenerate_answer] WARNING: response_source is None or empty for language {user_language}. Will fall back to translation from English.")
         return response_en, response_source, tokens, list(retrieved_chunks.values())
 
     async def needs_clarification(self, query: str, query_type: str, user_language: str, retrieved_chunks: list[Chunk]) -> Optional[tuple[str, str, dict[str, int]]]:
@@ -663,7 +779,6 @@ class ByoebUserGenerateResponse(Handler):
             return []
 
         return result
-
     @retry(
         stop=stop_after_attempt(3),  # Retry up to 3 times
         wait=wait_exponential(multiplier=1, max=10),  # Exponential backoff with a max wait time of 10 seconds
