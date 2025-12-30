@@ -939,7 +939,7 @@
             if(!res.ok) return;
             const all = await res.json();
             
-            const validCategories = ['language_selection', 'user_type', 'consent', 'bot_to_asha_response', 'audio_idk', 'text_idk'];
+            const validCategories = ['language_selection', 'user_type', 'consent', 'bot_to_asha_response', 'audio_idk', 'text_idk', 'text_disambiguation', 'audio_disambiguation'];
             const newMessages = all.filter(m => m.user && validCategories.includes(m.message_category));
 
             newMessages.reverse();
