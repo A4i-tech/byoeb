@@ -10,7 +10,6 @@ from byoeb.repositories.mongodb_message_repository import MongoMessageRepository
 from byoeb.repositories.mongodb_user_repository import MongoUserRepository
 from byoeb.factory import MongoDBFactory
 from byoeb.chat_app.configuration.config import app_config
-from byoeb_integrations.databases.mongo_db.azure.async_azure_cosmos_mongo_db import AsyncAzureCosmosMongoDBCollection
 
 # Global repository factory instance
 _repository_factory: Optional['RepositoryFactory'] = None
@@ -30,9 +29,7 @@ class RepositoryFactory:
         if self._dyk_repository is None:
             mongo_db = await self._mongo_factory.get(app_config["app"]["db_provider"])
             user_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["dyk_collection"])
-            # Wrap with AsyncAzureCosmosMongoDBCollection like existing services
-            wrapped_collection = AsyncAzureCosmosMongoDBCollection(collection=user_collection)
-            self._dyk_repository = MongoDykRepository(wrapped_collection)
+            self._dyk_repository = MongoDykRepository(user_collection)
         return self._dyk_repository
 
     async def get_message_repository(self) -> MessageRepository:
@@ -40,9 +37,7 @@ class RepositoryFactory:
         if self._message_repository is None:
             mongo_db = await self._mongo_factory.get(app_config["app"]["db_provider"])
             message_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["message_collection"])
-            # Wrap with AsyncAzureCosmosMongoDBCollection like existing services
-            wrapped_collection = AsyncAzureCosmosMongoDBCollection(collection=message_collection)
-            self._message_repository = MongoMessageRepository(wrapped_collection)
+            self._message_repository = MongoMessageRepository(message_collection)
         return self._message_repository
 
     async def get_user_repository(self) -> UserRepository:
@@ -50,9 +45,7 @@ class RepositoryFactory:
         if self._user_repository is None:
             mongo_db = await self._mongo_factory.get(app_config["app"]["db_provider"])
             user_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["user_collection"])
-            # Wrap with AsyncAzureCosmosMongoDBCollection like existing services
-            wrapped_collection = AsyncAzureCosmosMongoDBCollection(collection=user_collection)
-            self._user_repository = MongoUserRepository(wrapped_collection)
+            self._user_repository = MongoUserRepository(user_collection)
         return self._user_repository
 
     async def reset_repositories(self):

@@ -1,25 +1,24 @@
 
 import io
-import os
-import azure.cognitiveservices.speech as speechsdk
 from openai import AsyncAzureOpenAI
+from openai.lib.azure import AsyncAzureADTokenProvider
 from enum import Enum
 from byoeb_core.translators.speech.base import BaseSpeechTranslator
-from typing import Any
+from typing import Any, Optional
 
-class AzureOpenAIWhisperParamsEnum(Enum):
+class AzureOpenAISpeechParamsEnum(Enum):
     TEMPERATURE = "temperature"
 
-class AsyncAzureOpenAIWhisper(BaseSpeechTranslator):
+class AsyncAzureOpenAISpeechTranslator(BaseSpeechTranslator):
     __DEFAULT_TEMPERATURE = 0
     
     def __init__(
         self,
         model: str,
-        azure_endpoint: str,
-        token_provider: str = None,
-        api_key: str = None,
-        api_version: str = None,
+        endpoint: str,
+        token_provider: Optional[AsyncAzureADTokenProvider] = None,
+        api_key: Optional[str] = None,
+        api_version: Optional[str] = None,
         **kwargs
     ):
         client = None
@@ -27,29 +26,28 @@ class AsyncAzureOpenAIWhisper(BaseSpeechTranslator):
             raise ValueError("model must be provided")
         if api_version is None:
             raise ValueError("api_version must be provided")
-        if azure_endpoint is None:
+        if endpoint is None:
             raise ValueError("azure_endpoint must be provided")
         if token_provider is not None:
             client = AsyncAzureOpenAI(
-                azure_endpoint=azure_endpoint,
+                azure_endpoint=endpoint,
                 azure_ad_token_provider=token_provider,
                 api_version=api_version
             )
         elif api_key is not None:
             client = AsyncAzureOpenAI(
                 api_key=api_key,
-                azure_endpoint=azure_endpoint,
+                azure_endpoint=endpoint,
                 api_version=api_version
             )
         else:
             raise ValueError("Either token_provider or api_key must be provided")
-        
         self.__model = model
         self.__client = client
 
     def speech_to_text(
         self,
-        audio_file: str,
+        audio_data: str,
         source_language: str,
         **kwargs
     ) -> Any:
@@ -58,11 +56,11 @@ class AsyncAzureOpenAIWhisper(BaseSpeechTranslator):
     async def aspeech_to_text(
         self,
         audio_data: bytes,
-        source_language: str = None,
+        source_language: Optional[str] = None,
         **kwargs
     ) -> str:
         temperature = kwargs.get(
-            AzureOpenAIWhisperParamsEnum.TEMPERATURE.value,
+            AzureOpenAISpeechParamsEnum.TEMPERATURE.value,
             self.__DEFAULT_TEMPERATURE
         )
         audio_file_like = io.BytesIO(audio_data)

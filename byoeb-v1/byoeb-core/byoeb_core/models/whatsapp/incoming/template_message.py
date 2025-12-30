@@ -6,33 +6,33 @@ class Context(BaseModel):
     id: str = Field(..., description="The ID of the context message.")
 
 class Button(BaseModel):
-    payload: Optional[str] = Field(None, description="Payload data sent with the button interaction.")
-    text: Optional[str] = Field(None, description="Text displayed on the button.")
+    payload: Optional[str] = Field(default=None, description="Payload data sent with the button interaction.")
+    text: Optional[str] = Field(default=None, description="Text displayed on the button.")
 
 class Message(BaseModel):
-    context: Optional[Context] = Field(None, description="The context of the message.")
+    context: Optional[Context] = Field(default=None, description="The context of the message.")
     from_: str = Field(..., alias="from", description="The WhatsApp ID of the sender.")
     id: str = Field(..., description="The ID of the incoming message.")
     timestamp: str = Field(..., description="The timestamp of the message.")
     type: str = Field(..., description="The type of the message (e.g., button).")
-    button: Optional[Button] = Field(None, description="Details of the button interaction.")
+    button: Optional[Button] = Field(default=None, description="Details of the button interaction.")
 
 class Profile(BaseModel):
-    name: Optional[str] = Field(None, description="Name of the WhatsApp user.")
+    name: Optional[str] = Field(default=None, description="Name of the WhatsApp user.")
 
 class Contact(BaseModel):
-    profile: Optional[Profile] = Field(None, description="Profile information of the contact.")
+    profile: Optional[Profile] = Field(default=None, description="Profile information of the contact.")
     wa_id: str = Field(..., description="WhatsApp ID of the contact.")
 
 class Metadata(BaseModel):
-    display_phone_number: Optional[str] = Field(None, description="Display phone number of the business account.")
-    phone_number_id: Optional[str] = Field(None, description="Phone number ID of the business account.")
+    display_phone_number: Optional[str] = Field(default=None, description="Display phone number of the business account.")
+    phone_number_id: Optional[str] = Field(default=None, description="Phone number ID of the business account.")
 
 class Value(BaseModel):
     messaging_product: str = Field(..., description="Messaging product being used (e.g., WhatsApp).")
     metadata: Metadata = Field(..., description="Metadata about the phone numbers.")
     contacts: List[Contact] = Field(..., description="List of contacts associated with the message.")
-    messages: Optional[List[Message]] = Field(None, description="List of messages received.")
+    messages: Optional[List[Message]] = Field(default=None, description="List of messages received.")
 
 class Change(BaseModel):
     value: Value = Field(..., description="The main payload of the webhook event.")

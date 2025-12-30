@@ -6,7 +6,7 @@ import aiohttp
 import logging
 import asyncio
 from enum import Enum
-from abc import ABC, abstractmethod
+from abc import ABC
 from byoeb_core.models.whatsapp.requests import (
     WhatsAppMessage,
     WhatsAppInteractiveMessage,

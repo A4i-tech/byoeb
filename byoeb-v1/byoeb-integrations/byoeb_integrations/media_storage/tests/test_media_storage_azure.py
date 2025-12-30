@@ -1,8 +1,6 @@
-import json
+import tempfile
 import pytest
 import asyncio
-import os
-from pydub import AudioSegment
 from pydub.generators import Sine
 from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
 from byoeb_core.media_storage.base import BaseMediaStorage
@@ -109,9 +107,9 @@ async def aazure_blob_storage_audio_ops():
     assert (isinstance(async_azure_blob_storage, BaseMediaStorage)) is True
     # Example usage: Create a 1-second, 440Hz sine wave tone and save it to "audio_sample.wav"
     file_name = "audio_hello"
-    file_path = "audio_hello.wav"
-    create_audio_sample(file_path, duration_ms=1000, frequency=440)
-    await async_azure_blob_storage.aupload_file(file_name, file_path)
+    with tempfile.NamedTemporaryFile(suffix=".wav", mode="wb") as f:
+        create_audio_sample(f.name, duration_ms=1000, frequency=440)
+        await async_azure_blob_storage.aupload_file(file_name, f.name)
     status, response = await async_azure_blob_storage.aget_file_properties(file_name)
     if isinstance(response, FileMetadata):
        response=FileMetadata(**response.model_dump())
