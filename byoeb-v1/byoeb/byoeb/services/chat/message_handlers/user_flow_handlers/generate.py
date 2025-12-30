@@ -333,6 +333,7 @@ class ByoebUserGenerateResponse(Handler):
         status = None,
         cache_details: CacheResult = (None, None, None),  # used for audio cache
         cache_hit: bool = False,
+        default_message_category: Optional[MessageCategory] = None
     ) -> ByoebMessageContext:
         start_time = datetime.now(timezone.utc).timestamp()
         if response_source is None:
@@ -388,7 +389,7 @@ class ByoebUserGenerateResponse(Handler):
         utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
         description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
         message_type = None
-        message_category = message.message_category or MessageCategory.BOT_TO_USER_RESPONSE.value
+        message_category = (default_message_category or MessageCategory.BOT_TO_USER_RESPONSE).value
         if (message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value):
             message_type = MessageTypes.REGULAR_AUDIO.value
         elif (message.message_context.message_type == MessageTypes.REGULAR_TEXT.value
@@ -721,6 +722,7 @@ class ByoebUserGenerateResponse(Handler):
             message_english = message.message_context.message_english_text
             user_language = message.user.user_language
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
+            default_message_category = None
             cache_hit = False
 
             if embedding_fn and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
@@ -762,7 +764,7 @@ class ByoebUserGenerateResponse(Handler):
                     print("Query expansion was unsuccessful, assessing whether clarification is required...")
                     clarification = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
                     if clarification:
-                        message.message_category = MessageCategory.AUDIO_DISAMBIGUATION.value if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value else MessageCategory.TEXT_DISAMBIGUATION.value
+                        default_message_category = MessageCategory.AUDIO_DISAMBIGUATION if message.message_context.message_type == MessageTypes.REGULAR_AUDIO else MessageCategory.TEXT_DISAMBIGUATION
                         response_en, response_source, tokens = clarification
 
                 related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
@@ -792,7 +794,8 @@ class ByoebUserGenerateResponse(Handler):
                 status=constants.PENDING,
                 related_questions=related_questions,
                 cache_details=cache_result,
-                cache_hit=cache_hit
+                cache_hit=cache_hit,
+                default_message_category=default_message_category
             )
         print("Created user message")
         byoeb_expert_message = None
