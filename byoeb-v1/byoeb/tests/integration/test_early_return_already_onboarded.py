@@ -26,6 +26,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import requests
 from dotenv import load_dotenv
+import pytest
 
 # Add the byoeb directory to the path (adjust for tests/integration location)
 # This allows importing 'byoeb' module when running the script directly
@@ -41,9 +42,12 @@ environment_path = os.path.join(byoeb_root, 'keys.env')
 if os.path.exists(environment_path):
     load_dotenv(environment_path, override=True)
 
+# Import LanguageCode for parametrization
+from byoeb.constants.user_enums import LanguageCode
+
 # Test configuration
-ENDPOINT_URL = "http://localhost:8000/receive"
-TEST_PHONE_NUMBER = "917567071072"
+ENDPOINT_URL = os.getenv("RECIEVE_URL", "http://localhost:8000/receive")
+TEST_PHONE_NUMBER = os.getenv("PHONE_NUMBER_ID", "917567071072")
 TEST_USER_ID = None  # Will be fetched from database
 
 # Language codes
@@ -272,31 +276,119 @@ def send_request(payload: Dict[str, Any]) -> requests.Response:
 def get_bot_messages(timestamp: str) -> List[Dict[str, Any]]:
     """Get bot messages after a given timestamp."""
     try:
-        url = ENDPOINT_URL.replace("/receive", "/get_bot_messages") + f"?timestamp={timestamp}"
+        # Convert timestamp to int for the API
+        timestamp_int = int(timestamp)
+        url = ENDPOINT_URL.replace("receive", "get_bot_messages") + f"?timestamp={timestamp_int}"
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
-            return response.json()
+            result = response.json()
+            # Ensure result is a list of dictionaries
+            if isinstance(result, list):
+                return [m for m in result if isinstance(m, dict)]
+            elif isinstance(result, dict):
+                return [result]
+            return []
+        else:
+            print(f"⚠️  get_bot_messages returned status {response.status_code}: {response.text[:200]}")
         return []
     except Exception as e:
         print(f"⚠️  Could not fetch bot messages: {e}")
+        import traceback
+        traceback.print_exc()
         return []
 
 
 def wait_for_bot_response(user_timestamp: str, timeout: int = 30) -> List[Dict[str, Any]]:
     """Wait for bot response after user message timestamp."""
+    # Bot message categories (messages FROM bot TO user)
+    BOT_MESSAGE_CATEGORIES = {
+        "bot_to_asha", "bot_to_asha_response", "bot_to_anm", "bot_to_anm_response",
+        "bot_to_anm_verification", "bot_to_anm_consensus", "audio_idk", "text_idk",
+        "audio_idk_reconfirmation"
+    }
+    
+    user_timestamp_int = int(user_timestamp)
     start_time = time.time()
+    attempt = 0
+    debug_printed = False
+    
     while time.time() - start_time < timeout:
-        bot_messages = get_bot_messages(user_timestamp)
-        valid_timestamps = [
-            int(str(m["outgoing_timestamp"]))
-            for m in bot_messages
-            if m.get("outgoing_timestamp") not in (None, "None", "")
-        ]
-        if valid_timestamps:
-            max_timestamp = max(valid_timestamps)
-            if max_timestamp > int(user_timestamp):
-                return bot_messages
+        attempt += 1
+        all_messages = get_bot_messages(user_timestamp)
+        
+        # Debug: Print message structure on first attempt if no messages found
+        if attempt == 1 and len(all_messages) == 0:
+            print(f"   🔍 Debug: No messages returned from API for timestamp {user_timestamp_int}")
+        elif attempt == 1 and not debug_printed and len(all_messages) > 0:
+            # Print structure of first message for debugging
+            first_msg = all_messages[0]
+            print(f"   🔍 Debug: First message keys: {list(first_msg.keys())}")
+            print(f"   🔍 Debug: message_category: {first_msg.get('message_category', 'N/A')}")
+            print(f"   🔍 Debug: outgoing_timestamp: {first_msg.get('outgoing_timestamp', 'N/A')}")
+            debug_printed = True
+        
+        # Filter to only bot messages (exclude user messages)
+        bot_messages = []
+        for m in all_messages:
+            if not isinstance(m, dict):
+                continue
+            # Check message_category at top level
+            msg_category = m.get("message_category", "")
+            # Also check reply_context.message_category if available
+            reply_ctx = m.get("reply_context", {})
+            if isinstance(reply_ctx, dict):
+                reply_category = reply_ctx.get("message_category", "")
+            else:
+                reply_category = ""
+            
+            # Include if it's a bot message category
+            if msg_category in BOT_MESSAGE_CATEGORIES or reply_category in BOT_MESSAGE_CATEGORIES:
+                bot_messages.append(m)
+            # Exclude user messages
+            elif msg_category in {"asha_to_bot", "anm_to_bot", "user_to_bot"}:
+                continue  # Skip user messages
+            # If category is unclear but has outgoing_timestamp, assume it's a bot message
+            elif m.get("outgoing_timestamp") not in (None, "None", ""):
+                bot_messages.append(m)
+        
+        if bot_messages:
+            valid_timestamps = []
+            for m in bot_messages:
+                outgoing_ts = m.get("outgoing_timestamp")
+                if outgoing_ts not in (None, "None", ""):
+                    try:
+                        valid_timestamps.append(int(str(outgoing_ts)))
+                    except (ValueError, TypeError):
+                        pass
+            
+            if valid_timestamps:
+                max_timestamp = max(valid_timestamps)
+                if max_timestamp > user_timestamp_int:
+                    print(f"   ✅ Found {len(bot_messages)} bot response(s) after {attempt} attempt(s), {int(time.time() - start_time)}s elapsed")
+                    return bot_messages
+            else:
+                if attempt % 5 == 0:  # Print every 5th attempt
+                    print(f"   ⏳ Waiting... (attempt {attempt}, {len(bot_messages)} bot messages found but no valid timestamps)")
+        else:
+            if attempt % 5 == 0:  # Print every 5th attempt
+                elapsed = int(time.time() - start_time)
+                total_msgs = len(all_messages) if isinstance(all_messages, list) else 0
+                # Debug: Show sample message categories if available
+                if total_msgs > 0 and attempt == 5:
+                    sample_categories = [m.get("message_category", "N/A") for m in all_messages[:3]]
+                    print(f"   ⏳ Waiting... (attempt {attempt}, {elapsed}s elapsed, {total_msgs} total messages, 0 bot messages)")
+                    print(f"   🔍 Debug: Sample message categories: {sample_categories}")
+                else:
+                    print(f"   ⏳ Waiting... (attempt {attempt}, {elapsed}s elapsed, {total_msgs} total messages, 0 bot messages)")
         time.sleep(2)
+    
+    print(f"   ⚠️  Timeout after {timeout}s - no bot response received")
+    # Final debug: Show what we got
+    final_messages = get_bot_messages(user_timestamp)
+    if final_messages:
+        print(f"   🔍 Debug: Final check - {len(final_messages)} messages found")
+        for i, msg in enumerate(final_messages[:3], 1):
+            print(f"   🔍 Debug: Message {i} - category: {msg.get('message_category', 'N/A')}, outgoing_ts: {msg.get('outgoing_timestamp', 'N/A')}")
     return []
 
 
@@ -355,6 +447,7 @@ def store_test_result(
     return result
 
 
+@pytest.mark.parametrize("language", [lang.value for lang in LanguageCode])
 async def test_onboarding_messages(language: str):
     """Test onboarding messages for a specific language."""
     print(f"\n{'#'*80}")
@@ -387,8 +480,8 @@ async def test_onboarding_messages(language: str):
         
         # Wait for bot response
         print("⏳ Waiting for bot response...")
-        await asyncio.sleep(3)  # Give server time to process
-        bot_responses = wait_for_bot_response(timestamp, timeout=30)
+        await asyncio.sleep(5)  # Give server more time to process and store message
+        bot_responses = wait_for_bot_response(timestamp, timeout=45)
         
         # Store result
         result = store_test_result(
@@ -413,6 +506,7 @@ async def test_onboarding_messages(language: str):
         await asyncio.sleep(2)
 
 
+@pytest.mark.parametrize("language", [lang.value for lang in LanguageCode])
 async def test_normal_question(language: str):
     """Test a normal question to ensure normal flow works."""
     print(f"\n{'#'*80}")
@@ -440,8 +534,8 @@ async def test_normal_question(language: str):
     
     # Wait for bot response
     print("⏳ Waiting for bot response...")
-    await asyncio.sleep(3)  # Give server time to process
-    bot_responses = wait_for_bot_response(timestamp, timeout=30)
+    await asyncio.sleep(5)  # Give server more time to process and store message
+    bot_responses = wait_for_bot_response(timestamp, timeout=45)
     
     # Store result
     result = store_test_result(
