@@ -18,26 +18,17 @@ class BaseVectorStore(ABC):
         pass
 
     @abstractmethod
-    def add_chunks(
-        self,
-        data_chunks: list, 
-        metadata: list,
-        ids: list,
-        **kwargs
-    ) -> List[str]:
-        pass
-
-    def aadd_chunks(
+    async def add_chunks(
         self,
         data_chunks: list, 
         metadata: list,
         ids: list,
         **kwargs
     ) -> AsyncIterator[str]:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
-    def update_chunks(
+    async def update_chunks(
         self,
         data_chunks: list, 
         metadata: list,
@@ -45,50 +36,26 @@ class BaseVectorStore(ABC):
         **kwargs
     ) -> Any:
         pass
-
-    async def aupdate_chunks(
-        self,
-        data_chunks: list, 
-        metadata: list,
-        ids: list,
-        **kwargs
-    ) -> Any:
-        raise NotImplementedError
     
     @abstractmethod
-    def delete_chunks(
-        self,
-        ids: list,
-        **kwargs
-    ) -> Any:
-        pass
-
-    async def adelete_chunks(
+    async def delete_chunks(
         self,
         ids: list,
         **kwargs
     ) -> int:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
-    def retrieve_top_k_chunks(
+    async def retrieve_top_k_chunks(
         self,
         text: str,
         k: int,
         **kwargs
     ) -> List[Chunk]:
         pass
-    
-    async def aretrieve_top_k_chunks(
-        self,
-        text: str,
-        k: int,
-        **kwargs
-    ) -> List[Chunk]:
-        raise NotImplementedError
 
     @abstractmethod
-    async def aretrieve_similar_chunks(self, text: str) -> List[Chunk]:
+    async def retrieve_similar_chunks(self, text: str) -> List[Chunk]:
         pass
 
     @abstractmethod

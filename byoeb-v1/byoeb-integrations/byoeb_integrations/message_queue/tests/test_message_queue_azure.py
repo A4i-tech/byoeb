@@ -32,19 +32,19 @@ def stub_async_azure_storage_queue(mocker):
         def __init__(self):
             self._messages = []
 
-        async def asend_message(self, message: str):
+        async def send_message(self, message: str):
             self._messages.append(_FakeMsg(message))
             # shape this to whatever your code logs/expects
             return {"message_id": "fake-id", "status": "ok"}
 
-        async def areceive_message(self, messages_per_page=None, visibility_timeout=None):
+        async def receive_message(self, messages_per_page=None, visibility_timeout=None):
             async def _gen():
                 # yield any messages currently queued; simple single-page behavior
                 while self._messages:
                     yield self._messages.pop(0)
             return _gen()
 
-        async def adelete_message(self, msg):
+        async def delete_message(self, msg):
             # already popped on receive; nothing to do
             return None
 
@@ -77,14 +77,14 @@ async def aazure_queue_ops():
     i = 0
     while i < 3:
         message = "Hello World"
-        results = await async_storage_queue.asend_message(message)
+        results = await async_storage_queue.send_message(message)
         print(results)
-        rmessage = await async_storage_queue.areceive_message(
+        rmessage = await async_storage_queue.receive_message(
             messages_per_page=MESSAGE_QUEUE_MESSAGES_PER_PAGE,
         )
         async for msg in rmessage:
             # print(msg)
-            await async_storage_queue.adelete_message(msg)
+            await async_storage_queue.delete_message(msg)
             assert msg is not None
             assert msg.content == message
         

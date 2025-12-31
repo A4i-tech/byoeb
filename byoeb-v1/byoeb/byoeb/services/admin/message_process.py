@@ -81,7 +81,7 @@ async def llm_translation_and_query_rewritting(system_prompt, question, conversa
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt}
     ]
-    llm_response, response_text = await llm_translate_and_rewrite_client.agenerate_response(augmented_prompts)
+    llm_response, response_text = await llm_translate_and_rewrite_client.generate_response(augmented_prompts)
     tokens = llm_translate_and_rewrite_client.get_response_tokens(llm_response)
     query_en, query_en_addcontext, query_type  = parse_xml_with_regex(response_text)
     if query_en is None or query_en_addcontext is None or query_type is None:
@@ -107,10 +107,10 @@ async def get_embedding(text):
             print(f"Bad status code: {e.response.status_code} - {e.response.text}")
             return None
         
-async def aretrieve_top_k_chunks(query_text, k, search_type, embedding_type = "text-embedding-3-large", select=None):
+async def retrieve_top_k_chunks(query_text, k, search_type, embedding_type = "text-embedding-3-large", select=None):
     print(f"Retrieving top {k} chunks for query: {query_text} with search type: {search_type} and embedding type: {embedding_type}")
     if embedding_type == "text-embedding-3-large":
-        retrieved_chunks = await vector_store.aretrieve_top_k_chunks(
+        retrieved_chunks = await vector_store.retrieve_top_k_chunks(
             query_text,
             k,
             search_type=search_type,
@@ -169,7 +169,7 @@ async def aretrieve_top_k_chunks(query_text, k, search_type, embedding_type = "t
     stop=stop_after_attempt(3),  # Retry up to 3 times
     wait=wait_exponential(multiplier=1, max=10),  # Exponential backoff with a max wait time of 10 seconds
 )
-async def agenerate_answer(
+async def generate_answer(
     system_prompt,
     query,
     query_type,
@@ -202,7 +202,7 @@ async def agenerate_answer(
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt}
     ]
-    llm_response, response_text = await llm_client.agenerate_response(augmented_prompts)
+    llm_response, response_text = await llm_client.generate_response(augmented_prompts)
     tokens = llm_client.get_response_tokens(llm_response)
     response_en, response_source = parse_response_xml(response_text)
     if response_en is None or query_type is None:
@@ -223,8 +223,8 @@ async def process_message(input: QueryInput) -> QueryOutput:
     conversation_history = get_conversation_history(user_id, history_length)
     print(conversation_history)
     query_en, query_en_addcontext, query_type, tokens = await llm_translation_and_query_rewritting(translation_and_rewritting_prompt, question, conversation_history)
-    retrieved_chunks = await aretrieve_top_k_chunks(query_en_addcontext, top_k, search_type, embedding_type)
-    response_en, response_source, tokens = await agenerate_answer(answer_prompt, query_en_addcontext, query_type, retrieved_chunks)
+    retrieved_chunks = await retrieve_top_k_chunks(query_en_addcontext, top_k, search_type, embedding_type)
+    response_en, response_source, tokens = await generate_answer(answer_prompt, query_en_addcontext, query_type, retrieved_chunks)
     retrieved_data = []
     for i, chunk in enumerate(retrieved_chunks):
         data = {
