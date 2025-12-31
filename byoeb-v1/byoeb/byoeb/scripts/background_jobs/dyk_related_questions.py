@@ -21,6 +21,7 @@ async def populate_missing_related_questions(concurrency: int) -> Dict[str, int]
     updated = 0
     populated = 0
     sem = asyncio.Semaphore(concurrency)
+    counter_lock = asyncio.Lock()
     progress = tqdm(desc="Processing DYK entries", unit="entry")
 
     async def run(entry):
@@ -30,8 +31,9 @@ async def populate_missing_related_questions(concurrency: int) -> Dict[str, int]
             progress.update(1)
             if langs:
                 await repo.add(entry)
-                updated += 1
-                populated += len(langs)
+                async with counter_lock:
+                    updated += 1
+                    populated += len(langs)
                 for p in langs:
                     print(json.dumps(p))
 
