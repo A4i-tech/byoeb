@@ -48,35 +48,27 @@ class DummyVectorStore(BaseVectorStore):
     def delete_store(self):
         self.chunks.clear()
 
-    def add_chunks(self, data_chunks, metadata, ids, **kwargs):
+
+    async def add_chunks(self, data_chunks, metadata, ids, **kwargs):
         inserted_ids = []
         for text, md, cid in zip(data_chunks, metadata, ids or []):
             self.chunks.append({"id": cid, "text": text, "metadata": md})
             inserted_ids.append(cid)
-        return inserted_ids
-
-    async def aadd_chunks(self, data_chunks, metadata, ids, **kwargs):
-        for id in self.add_chunks(data_chunks=data_chunks, metadata=metadata, ids=ids, **kwargs):
+        for id in inserted_ids:
             yield id
 
-    def update_chunks(self, data_chunks, metadata, ids, **kwargs):
+    async def update_chunks(self, data_chunks, metadata, ids, **kwargs):
         raise NotImplementedError
 
-    def delete_chunks(self, ids, **kwargs):
+    async def delete_chunks(self, ids, **kwargs) -> int:
         n = len([None for chunk in self.chunks if chunk["id"] in ids])
         self.chunks = [chunk for chunk in self.chunks if chunk["id"] not in ids]
         return n
 
-    async def adelete_chunks(self, ids, **kwargs):
-        return self.delete_chunks(ids, **kwargs)
-
-    def retrieve_top_k_chunks(self, text, k, **kwargs):
+    async def retrieve_top_k_chunks(self, text, k, **kwargs):
         return []
 
-    async def aretrieve_top_k_chunks(self, text, k, **kwargs):
-        return []
-
-    async def aretrieve_similar_chunks(self, text: str):
+    async def retrieve_similar_chunks(self, text: str):
         self.retrieve_calls += 1
         return []
 

@@ -87,7 +87,7 @@ class ByoebUserProcess(Handler):
         user_prompt = template_user_prompt.replace("<QUERY>", source_text).replace("<CONVERSATION_HISTORY>", conversation_history_str)
         augmented_prompts = self.__augment(system_prompt, user_prompt)
         start_time = datetime.now(timezone.utc).timestamp()
-        llm_response, response_text = await llm_translate_and_rewrite_client.agenerate_response(augmented_prompts)
+        llm_response, response_text = await llm_translate_and_rewrite_client.generate_response(augmented_prompts)
         tokens = llm_translate_and_rewrite_client.get_response_tokens(llm_response)
         query_en, query_en_addcontext, query_type  = parse_xml_with_regex(response_text)
         if query_en is None or query_en_addcontext is None or query_type is None:

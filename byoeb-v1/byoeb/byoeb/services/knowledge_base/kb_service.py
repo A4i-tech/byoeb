@@ -43,7 +43,7 @@ class KBService:
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(15))
         async def run(id: str, text: str):
             async with sem:
-                return id, await self.vector_store.aretrieve_similar_chunks(text=text)
+                return id, await self.vector_store.retrieve_similar_chunks(text=text)
 
         tasks = []
         for c in chunks:
@@ -90,7 +90,7 @@ class KBService:
 
         if similar_chunks:
             try:
-                await self.vector_store.adelete_chunks(ids=similar_chunks)
+                await self.vector_store.delete_chunks(ids=similar_chunks)
             except NotImplementedError:
                 logger.info("Vector store does not support deletes; inserting matched chunks instead")
 
@@ -100,7 +100,7 @@ class KBService:
 
         bs = batch_size or 32
         try:
-            async for id in self.vector_store.aadd_chunks(
+            async for id in self.vector_store.add_chunks(
                 data_chunks=data_chunks,
                 metadata=metadata_list,
                 ids=insert_ids,
@@ -110,9 +110,8 @@ class KBService:
                 yield id
             logger.info(f"✅ Uploaded {len(insert_ids)} chunks to {type(self.vector_store).__name__} (upserted {len(similar_chunks)})")
         except AttributeError:
-            logger.debug("vector_store has no aadd_chunks; falling back to sync add_chunks")
-            for id in self.vector_store.add_chunks(data_chunks=data_chunks, metadata=metadata_list, ids=insert_ids, batch_size=bs):
-                yield id
+            logger.debug("vector_store has no add_chunks; this should not happen with async-only API")
+            raise
 
     async def _abulk_download_files(self, all_files: List[FileMetadata]) -> List[FileData]:
         def create_batches(batch_size=5):

@@ -127,11 +127,11 @@ def test_valid_llm_llama_indexed_client(kwargs):
     )
     assert llm.get_llm_client() is not None
 
-async def agenerate_response(llm, msg):
+async def generate_response(llm, msg):
     start = time.time()
     prompt = [{"role": "system", "content": "You are a helpful assistant."}]
     prompt.append({"role": "user", "content": msg})
-    _, response = await llm.agenerate_response(
+    _, response = await llm.generate_response(
         prompts=prompt,
         temperature=0.5
     )
@@ -143,28 +143,28 @@ async def test_llama_index_azure_openai(llm_llama):
     msg = "Hello, how are you?"
     prompt = [{"role": "system", "content": "You are a helpful assistant."}]
     prompt.append({"role": "user", "content": msg})
-    llm_resp, response = await llm_llama.agenerate_response(
+    llm_resp, response = await llm_llama.generate_response(
         prompts=prompt
     )
     assert response is not None
     print(llm_llama.get_response_tokens(llm_resp))
 
-def test_agenerate_response(llm):
+def test_generate_response(llm):
     prompt1 = "Hello, how are you?"
     prompt2 = "What is your role?"
 
     ex = queue.Queue()
     async def run_prompt(llm, prompt):
         try:
-            await agenerate_response(llm, prompt)
+            await generate_response(llm, prompt)
         except Exception as e:
             ex.put(e)
             raise e
 
     start = time.time()
-    thread1 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm, prompt1)))
-    thread2 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm, prompt2)))
-    thread3 = threading.Thread(target=lambda: asyncio.run(agenerate_response(llm, prompt1+prompt2)))
+    thread1 = threading.Thread(target=lambda: asyncio.run(generate_response(llm, prompt1)))
+    thread2 = threading.Thread(target=lambda: asyncio.run(generate_response(llm, prompt2)))
+    thread3 = threading.Thread(target=lambda: asyncio.run(generate_response(llm, prompt1+prompt2)))
 
     # Start threads
     thread1.start()
@@ -183,7 +183,7 @@ def test_agenerate_response(llm):
 
     print(f"Elapsed Time: {end-start}")
     # start = time.time()
-    # atest_agenerate_response(prompt1)
-    # atest_agenerate_response(prompt2)
-    # atest_agenerate_response(prompt1+prompt2)
+    # atest_generate_response(prompt1)
+    # atest_generate_response(prompt2)
+    # atest_generate_response(prompt1+prompt2)
     # end = time.time()

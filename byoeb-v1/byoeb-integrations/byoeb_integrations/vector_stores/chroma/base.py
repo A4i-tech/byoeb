@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from typing import List
 import chromadb
 import hashlib
@@ -39,9 +40,9 @@ class ChromaDBVectorStore(BaseVectorStore):
             embedding_function=embedding_function
         )
 
-    def add_chunks(
+    def _add_chunks_sync(
         self,
-        data_chunks: list, 
+        data_chunks: list,
         metadata: list,
         ids: list,
         batch_size: int = 100,
@@ -92,6 +93,35 @@ class ChromaDBVectorStore(BaseVectorStore):
         logger.debug(f"✅ Successfully added all {total_chunks} chunks to ChromaDB")
         return ids
 
+    async def add_chunks(
+        self,
+        data_chunks: list, 
+        metadata: list,
+        ids: list,
+        batch_size: int = 100,
+        **kwargs
+    ):
+        """
+        Add data chunks (with metadata) to the collection.
+        Returns an async iterator that yields inserted IDs.
+        
+        :param data_chunks: List of data chunks (text, vectors, etc.)
+        :param metadata: List of dictionaries containing metadata corresponding to each data chunk
+        :param ids: List of unique ids for each data chunk
+        :param batch_size: Number of chunks to add per batch (default: 100)
+        :yields: Inserted chunk IDs one by one
+        """
+        import asyncio
+        loop = asyncio.get_running_loop()
+        # Run the sync method in executor and yield IDs
+        inserted_ids = await loop.run_in_executor(
+            None,
+            lambda: self._add_chunks_sync(data_chunks=data_chunks, metadata=metadata, ids=ids, batch_size=batch_size, **kwargs),
+        )
+        # Yield each ID asynchronously
+        for chunk_id in inserted_ids:
+            yield chunk_id
+
     def prepare_data(self, nodes: List):
         """Prepare data_chunks, metadata and ids lists from TextNode list."""
         data_chunks = [node.text for node in nodes]
@@ -99,72 +129,31 @@ class ChromaDBVectorStore(BaseVectorStore):
         ids = [node.node_id if hasattr(node, 'node_id') and node.node_id else hashlib.md5(node.text.encode()).hexdigest() for node in nodes]
         return data_chunks, metadata, ids
 
-    async def aadd_chunks(
-        self,
-        data_chunks,
-        metadata,
-        ids,
-        batch_size: int = 100,
-        **kwargs
-    ):
-        """Async wrapper for add_chunks to run in executor to avoid blocking the event loop."""
-        import asyncio
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
-        if loop is None:
-            # No running loop; safe to call synchronously
-            result = self.add_chunks(data_chunks=data_chunks, metadata=metadata, ids=ids, batch_size=batch_size, **kwargs)
-        else:
-            result = await loop.run_in_executor(
-                None,
-                self.add_chunks,
-                data_chunks,
-                metadata,
-                ids,
-                batch_size
-            )
-        for id in result:
-            yield id
-
-    def update_chunks(
+    async def update_chunks(
         self,
         data_chunks: list,
         metadata: list,
         ids: list,
         **kwargs
     ):
-        """
-        Update data chunks and metadata in the collection.
-        
-        :param data_chunks: List of data chunks to update
-        :param metadata: List of dictionaries containing updated metadata
-        :param ids: List of unique ids corresponding to the data chunks
-        """
-        self.collection.update(documents=data_chunks, metadatas=metadata, ids=ids)
+        import asyncio
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: self.collection.update(documents=data_chunks, metadatas=metadata, ids=ids),
+        )
 
-    def delete_chunks(
+    async def delete_chunks(
         self,
         ids: list,
         **kwargs
-    ):
-        """
-        Delete data chunks from the collection using their ids.
-        
-        :param ids: List of ids for the data chunks to delete
-        """
-        self.collection.delete(ids=ids)
+    ) -> int:
+        import asyncio
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, lambda: self.collection.delete(ids=ids))
+        return len(ids)
 
-    async def adelete_chunks(
-        self,
-        ids: list,
-        **kwargs
-    ):
-        self.collection.delete(ids=ids)
-
-    def retrieve_top_k_chunks(
+    def _retrieve_top_k_chunks_sync(
         self,
         text: str,
         k: int,
@@ -234,7 +223,7 @@ class ChromaDBVectorStore(BaseVectorStore):
             logger.error(traceback.format_exc())
             return []
 
-    async def aretrieve_top_k_chunks(
+    async def retrieve_top_k_chunks(
         self,
         text: str,
         k: int,
@@ -253,21 +242,14 @@ class ChromaDBVectorStore(BaseVectorStore):
         :return: The top k data chunks and their corresponding metadata
         """
         import asyncio
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            # Fallback if no event loop is running
-            loop = asyncio.get_event_loop()
-        # Run the synchronous method in an executor to avoid blocking the event loop
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
-            self.retrieve_top_k_chunks,
-            text,
-            k
+            lambda: self._retrieve_top_k_chunks_sync(text=text, k=k, **kwargs),
         )
 
-    async def aretrieve_similar_chunks(self, text: str) -> List[Chunk]:
-        return await self.aretrieve_top_k_chunks(text=text, k=1)
+    async def retrieve_similar_chunks(self, text: str) -> List[Chunk]:
+        return await self.retrieve_top_k_chunks(text=text, k=1)
 
     def get_client(self):
         """
