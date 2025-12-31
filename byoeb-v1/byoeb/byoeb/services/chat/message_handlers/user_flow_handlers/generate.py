@@ -584,7 +584,7 @@ class ByoebUserGenerateResponse(Handler):
             .replace("<QUERY_TYPE>", query_type) \
             .replace("<KB_TOPICS>", kb_topics)
 
-        llm_response, response = await llm_client.agenerate_response(self.__augment(system_prompt, user_prompt))
+        llm_response, response = await llm_client.generate_response(self.__augment(system_prompt, user_prompt))
         response = response.strip()
         if not response:
             return None
@@ -624,7 +624,7 @@ class ByoebUserGenerateResponse(Handler):
         augmented_prompts = self.__augment(system_prompt, user_prompt)
 
         start_time = datetime.now(timezone.utc).timestamp()
-        llm_response, response_text = await llm_client.agenerate_response(augmented_prompts)
+        llm_response, response_text = await llm_client.generate_response(augmented_prompts)
         tokens = llm_client.get_response_tokens(llm_response)
         end_time = datetime.now(timezone.utc).timestamp()
 
