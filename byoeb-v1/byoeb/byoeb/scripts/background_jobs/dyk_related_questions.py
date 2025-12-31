@@ -10,7 +10,6 @@ from byoeb.repositories.repository_factory import get_repository_factory
 from byoeb_integrations.vector_stores.related_questions import aget_related_questions
 from tqdm import tqdm
 
-
 async def populate_missing_related_questions(concurrency: int) -> Dict[str, int]:
     """Populate related questions only for languages that do not have them."""
     from byoeb.kb_app.configuration.dependency_setup import llm_client
@@ -68,7 +67,7 @@ async def populate_entry(entry: DykEntry, translation_prompts: Dict[str, str], l
     for lang in missing_langs:
         questions = related.get(lang.value)
         if questions:
-            entry.languages[lang].related_questions = [text[:20] for text in questions]
+            entry.languages[lang].related_questions = questions
             updated_payloads.append({
                 "dyk_id": str(entry.id),
                 "language": lang.value,

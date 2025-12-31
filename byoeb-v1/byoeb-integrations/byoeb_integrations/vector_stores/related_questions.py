@@ -4,6 +4,7 @@ import re
 from typing import Dict, List, Optional
 from byoeb_core.llms.base import BaseLLM
 from byoeb_core.vector_stores.base import BaseVectorStore
+import grapheme
 from pydantic import TypeAdapter
 from tenacity import retry, stop_after_attempt, wait_fixed
 
@@ -29,29 +30,27 @@ async def _aget_search_queries(text: str, llm_client: BaseLLM) -> List[str]:
 
 async def _aget_related_questions(llm_client: BaseLLM, system_prompt: str, user_prompt: str, length: int) -> List[str]:
     resp = None
-    error = ""
+    errors = ""
+    prompts = [
+        {"role": "system", "content": system_prompt + f"\n\nEach question must be strictly <= {length} characters (i.e., grapheme clusters)."},
+        {"role": "user", "content": user_prompt}
+    ]
     for _ in range(5):
-        prompts = [
-            {"role": "system", "content": system_prompt + f"\n\nEach question must be strictly <= {length} characters."},
-            {"role": "user", "content": user_prompt}
-        ]
-        if error:
-            # empirically, this works better than tenacity retries - the LLM is placed in a feedback loop
-            # where it gets an opportunity to correct its mistake.
-            prompts.append({"role": "assistant", "content": resp})
-            prompts.append({"role": "user", "content": error})
-
         _, resp = await llm_client.agenerate_response(prompts)
         related_questions = re.findall(r"<q_\d+>(.*?)</q_\d+>", resp)
-        error = ""
+        prompts.append({"role": "assistant", "content": resp})
+        errors = []
         for question in related_questions:
-            if len(question) > length:
-                error += f"- Related question '{question}' too long: {len(question)} > {length}\n"
+            n_grapheme = grapheme.length(question)
+            if n_grapheme > length:
+                errors.append(f"- Related question '{question}' is too long ({n_grapheme} > {length}).")
 
-        if not error:
+        if not errors:
             return related_questions
 
-    raise ValueError(error)
+        prompts.append({"role": "user", "content": "\n".join(errors) + "\n\nPlease try again."})
+
+    raise ValueError(", ".join(errors))
 
 
 async def aget_related_questions(

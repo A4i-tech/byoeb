@@ -9,6 +9,7 @@ from byoeb.constants.user_enums import LanguageCode
 from byoeb.models.dyk import DykEntry, DykRecord
 from byoeb.repositories.dyk_repository import DykRepository
 
+import grapheme
 from pymongo.asynchronous.collection import AsyncCollection
 from pymongo.results import DeleteResult
 
@@ -171,7 +172,7 @@ class MongoDykRepository(DykRepository, MongoBaseRepository):
     def _validate_button_lengths(self, entry: DykEntry) -> None:
         for lang, record in entry.languages.items():
             for question in record.related_questions or []:
-                if len(question) > self._MAX_BUTTON_TEXT_LENGTH:
+                if grapheme.length(question) > self._MAX_BUTTON_TEXT_LENGTH:
                     raise ValueError(f"Related question '{question}' ({lang.value}) exceeds "f"{self._MAX_BUTTON_TEXT_LENGTH} characters.")
 
     def _doc_to_entry(self, document: Dict[str, Any]) -> DykEntry:
