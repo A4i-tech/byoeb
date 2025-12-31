@@ -37,11 +37,20 @@ class QueueProducerFactory:
                 queue_name=queue_name
             )
         else:
-            # Fallback to managed identity (for backward compatibility)
+            # Use managed identity - require environment variable for account URL
             from azure.identity import DefaultAzureCredential
+            from byoeb.chat_app.configuration.config import env_azure_storage_queue_account_url
+            
+            if not env_azure_storage_queue_account_url:
+                raise ValueError(
+                    "AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable must be set. "
+                    "This prevents accidental access to production resources. "
+                    "Set it in keys.env (staging or production section)."
+                )
+            
             default_credential = DefaultAzureCredential()
             return await AsyncAzureStorageQueue.aget_or_create(
-                account_url=self._config["message_queue"]["azure"]["account_url"],
+                account_url=env_azure_storage_queue_account_url,
                 queue_name=queue_name,
                 credentials=default_credential
             )
