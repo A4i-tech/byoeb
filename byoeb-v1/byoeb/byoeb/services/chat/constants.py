@@ -12,6 +12,8 @@ QUERY_EN = "query_en"
 IDK = "idk"
 BOT_AUDIO_IDK_MESSAGE_ID = "bot_audio_idk_message_id"
 IDK_MESSAGE_ID = "idk_message_id"
+CACHE_SCORE = "cache_score"
+CACHE_HIT = "cache_hit"
 
 DATA = "data"
 MIME_TYPE = "mime_type"

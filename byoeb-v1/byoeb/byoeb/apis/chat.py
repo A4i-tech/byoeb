@@ -6,6 +6,7 @@ import uuid
 from typing import Any, List, Dict, Literal, Optional, Set
 import byoeb.chat_app.configuration.config as env_config
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
+from byoeb.services.chat import constants
 from pydantic import BaseModel, Field
 from byoeb_core.convertor.audio_convertor import to_ogg
 from byoeb_core.models.byoeb.message_context import (
@@ -33,6 +34,7 @@ CHAT_API_NAME = "chat_api"
 chat_apis_router = APIRouter(tags=["Chat"])
 _logger = logging.getLogger(CHAT_API_NAME)
 
+
 # ---------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------
@@ -45,17 +47,14 @@ async def receive(body: Dict[str, Any] = Body(..., description="Raw WhatsApp web
     _logger.info(f"Received WhatsApp request: {json.dumps(body, ensure_ascii=False)}")
     response = await dependency_setup.message_producer_handler.handle(body)
     _logger.info(f"Handler response: {response}")
-    return JSONResponse(
-        status_code=response.status_code,
-        content=response.message if isinstance(response.message, str) else str(response.message)
-    )
+    return JSONResponse(status_code=response.status_code, content=response.message if isinstance(response.message, str) else str(response.message))
 
 
 @chat_apis_router.get("/get_bot_messages", summary="Fetch bot messages after a given timestamp")
 async def get_bot_messages(
     timestamp: Optional[int] = Query(default=None, description="Unix timestamp to fetch messages since (exclusive)"),
     phone_number_id: Optional[PhoneNumberId] = Query(default=None, description="Phone number of the user to fetch messages of"),
-    length: int = Query(default=100, ge=1, le=1000, description="Maximum number of messages to return")
+    length: int = Query(default=100, ge=1, le=1000, description="Maximum number of messages to return"),
 ) -> List[ByoebMessageContext]:
     """
     Retrieves all bot messages stored in the database
@@ -64,8 +63,10 @@ async def get_bot_messages(
     responses = dependency_setup.message_db_service.get_latest_bot_messages(timestamp, phone_number_id, length)
     return [doc async for doc in responses]
 
+
 if env_config.env_ashabot_uat:
     CHAT_HTML_PATH = Path(__file__).parent.resolve() / "ui_templates" / "chat.html"
+
     @chat_apis_router.get("/chat", include_in_schema=False)
     async def chat() -> FileResponse:
         return FileResponse(CHAT_HTML_PATH)
@@ -74,6 +75,7 @@ if env_config.env_ashabot_uat:
 # ---------------------------------------------------------
 # MCP Tool
 # ---------------------------------------------------------
+
 
 def chat_mcps_router(mcp):
     class AshaChatResponse(BaseModel):
@@ -91,28 +93,23 @@ def chat_mcps_router(mcp):
             return self
 
         def add_description_rows(self, info):
-            if "description" in info and "row_texts" in info:
-                self._items.append((info["description"], info["row_texts"]))
+            if constants.DESCRIPTION in info and constants.ROW_TEXTS in info:
+                self._items.append((info[constants.DESCRIPTION], info[constants.ROW_TEXTS]))
             return self
 
         def add_cache_hit(self, info):
-            if "cache_hit" in info:
-                self._items.append(("Cache hit", info["cache_hit"]))
+            if constants.CACHE_HIT in info:
+                self._items.append(("Cache hit", info[constants.CACHE_HIT]))
             return self
 
         def add_cache_score(self, info):
-            if "cache_score" in info:
-                self._items.append(("Cache score", info["cache_score"]))
+            if constants.CACHE_SCORE in info:
+                self._items.append(("Cache score", info[constants.CACHE_SCORE]))
             return self
 
         def add_history(self, features, resp):
-            if (
-                "history" in features
-                and resp.reply_context
-                and resp.reply_context.additional_info
-                and "conversation_history" in resp.reply_context.additional_info
-            ):
-                self._items.append(("Conversation history", resp.reply_context.additional_info["conversation_history"]))
+            if "history" in features and resp.reply_context and resp.reply_context.additional_info and constants.CONV_HISTORY in resp.reply_context.additional_info:
+                self._items.append(("Conversation history", resp.reply_context.additional_info[constants.CONV_HISTORY]))
             return self
 
         def add_audio(self, features, info: MediaContext | None):
@@ -124,11 +121,7 @@ def chat_mcps_router(mcp):
             return self._items
 
     @mcp.tool
-    async def asha_chat(
-        message: str | MediaData,
-        features: Set[Literal["audio", "history"]] = set(),
-        reply_message_category: Optional[str] = None
-    ) -> AshaChatResponse:
+    async def asha_chat(message: str | MediaData, features: Set[Literal["audio", "history"]] = set(), reply_message_category: Optional[str] = None) -> AshaChatResponse:
         """
         Ask any health-related query and get a response.
         """
@@ -136,18 +129,11 @@ def chat_mcps_router(mcp):
         user_id = get_user_ids_from_phone_number_ids([phone_number])[0]
         users = await dependency_setup.user_db_service.get_users([user_id])
 
-        if len(users) == 0:
-            return AshaChatResponse(category="unknown_user", text=(
-                "Before I can answer your question, you must register yourself as an ASHA user. "
-                "Shall I start with the registration?"
-            ))
-
-        user = users[0]
         message_id = f"chat-mcps-{user_id}-{uuid.uuid4()}"
         byoeb_message = ByoebMessageContext(
-            channel_type="whatsapp",
-            message_category="whatsapp",
-            user=user,
+            channel_type="dummy",
+            message_category=None,
+            user=users[0] if len(users) else User(phone_number_id=phone_number),
             message_context=MessageContext(
                 message_id=message_id,
                 message_type=MessageTypes.REGULAR_TEXT.value,
@@ -156,15 +142,7 @@ def chat_mcps_router(mcp):
                 media_info=None,
                 additional_info=dict(query_type="asha_work_related"),
             ),
-            reply_context=ReplyContext(
-                reply_id="reply-id-unknown",
-                reply_type="acknowledgement",
-                reply_source_text=None,
-                reply_english_text=None,
-                media_info=None,
-                message_category="notification",
-                additional_info=None,
-            ),
+            reply_context=ReplyContext(reply_id="", message_category=reply_message_category) if reply_message_category else ReplyContext(),
             cross_conversation_id=None,
             cross_conversation_context=None,
             incoming_timestamp=int(datetime.now(timezone.utc).timestamp()),
@@ -176,8 +154,11 @@ def chat_mcps_router(mcp):
                 message.mime_type = "audio/ogg"
             await dependency_setup.byoeb_user_process.annotate_audio_transcription(byoeb_message, message)
 
-        processed_ctx = await dependency_setup.byoeb_user_process.handle_process_message_workflow([byoeb_message])
-        responses = await dependency_setup.byoeb_user_generate_response.handle_message_generate_workflow([processed_ctx]) or []
+        await dependency_setup.message_consumer.service.consume([byoeb_message.model_dump_json()])
+        if not users:
+            # This is deliberately done after consume() so users get to utilize asha_chat tool to invoke
+            # complete user registration flows.
+            return AshaChatResponse(category=MessageCategory.TEXT_IDK.value, text=f"Please use the 'asha_register_user' tool to register yourself.")
 
         for resp in await dependency_setup.message_db_service.get_bot_messages_by_ids([message_id]):
             if resp.message_context is None or resp.message_context.message_source_text is None:

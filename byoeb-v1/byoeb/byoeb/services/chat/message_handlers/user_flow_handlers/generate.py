@@ -357,9 +357,9 @@ class ByoebUserGenerateResponse(Handler):
         utils.log_to_text_file(f"Translated response message in {end_time - start_time} seconds")
         user_language = message.user.user_language
 
-        cache_info = {"cache_score": cache_details[0]} if cache_details[0] is not None else {}
+        cache_info = {constants.CACHE_SCORE: cache_details[0]} if cache_details[0] is not None else {}
         if cache_hit:
-            cache_info["cache_hit"] = cache_hit
+            cache_info[constants.CACHE_HIT] = cache_hit
         if cache_details[1] is not None:
             cache_id = cache_details[1]
             cache = cache_details[2]
@@ -733,7 +733,7 @@ class ByoebUserGenerateResponse(Handler):
                 cache_result = self.embedding_cache.query(embedding, 0.9)
             else:
                 embedding = None
-                cache_result = None, None, None
+                cache_result: CacheResult = None, None, None
 
             cache_val = cache_result[2]
             if cache_val and "answer" in cache_val and user_language in cache_val["answer"]:

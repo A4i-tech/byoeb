@@ -264,17 +264,17 @@ class ByoebUserSendResponse(Handler):
         # byoeb_user_verification_status = byoeb_expert_message.message_context.additional_info.get(verification_status)
         print("[send] extracting additional_info fields (ROW_TEXTS, QUERY_TYPE, STATUS)")
         related_questions = byoeb_user_message.message_context.additional_info.get(constants.ROW_TEXTS)
-        query_type = byoeb_user_message.message_context.additional_info.get(constants.QUERY_TYPE)
-        status = byoeb_user_message.message_context.additional_info.get(constants.STATUS)
         print("[send] related_questions=", related_questions)
-        print("[send] query_type=", query_type)
-        print("[send] status=", status)
+        print("[send] query_type=", byoeb_user_message.message_context.additional_info.get(constants.QUERY_TYPE))
+        print("[send] status=", byoeb_user_message.message_context.additional_info.get(constants.STATUS))
 
+        existing_additional_info = byoeb_user_message.message_context.additional_info or {}
         byoeb_user_message.message_context.additional_info = {
+            **{k: v for k, v in existing_additional_info.items() if k in {
+                constants.QUERY_TYPE, constants.STATUS, constants.CACHE_SCORE, constants.CACHE_HIT
+            }},
             # verification_status: byoeb_user_verification_status,
-            constants.RELATED_QUESTIONS: related_questions,
-            constants.QUERY_TYPE: query_type,
-            constants.STATUS: status
+            constants.RELATED_QUESTIONS: related_questions
         }
         print("[send] creating bot_to_user_convs via channel_service.create_conv")
         bot_to_user_convs = channel_service.create_conv(
