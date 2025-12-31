@@ -6,6 +6,7 @@ import uuid
 from typing import Any, List, Dict, Literal, Optional, Set
 import byoeb.chat_app.configuration.config as env_config
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
+from byoeb.services.chat import constants
 from pydantic import BaseModel, Field
 from byoeb_core.convertor.audio_convertor import to_ogg
 from byoeb_core.models.byoeb.message_context import (
@@ -91,18 +92,18 @@ def chat_mcps_router(mcp):
             return self
 
         def add_description_rows(self, info):
-            if "description" in info and "row_texts" in info:
-                self._items.append((info["description"], info["row_texts"]))
+            if constants.DESCRIPTION in info and constants.ROW_TEXTS in info:
+                self._items.append((info[constants.DESCRIPTION], info[constants.ROW_TEXTS]))
             return self
 
         def add_cache_hit(self, info):
-            if "cache_hit" in info:
-                self._items.append(("Cache hit", info["cache_hit"]))
+            if constants.CACHE_HIT in info:
+                self._items.append(("Cache hit", info[constants.CACHE_HIT]))
             return self
 
         def add_cache_score(self, info):
-            if "cache_score" in info:
-                self._items.append(("Cache score", info["cache_score"]))
+            if constants.CACHE_SCORE in info:
+                self._items.append(("Cache score", info[constants.CACHE_SCORE]))
             return self
 
         def add_history(self, features, resp):
@@ -110,13 +111,13 @@ def chat_mcps_router(mcp):
                 "history" in features
                 and resp.reply_context
                 and resp.reply_context.additional_info
-                and "conversation_history" in resp.reply_context.additional_info
+                and constants.CONV_HISTORY in resp.reply_context.additional_info
             ):
-                self._items.append(("Conversation history", resp.reply_context.additional_info["conversation_history"]))
+                self._items.append(("Conversation history", resp.reply_context.additional_info[constants.CONV_HISTORY]))
             return self
 
         def add_audio(self, features, info: MediaContext | None):
-            if info and info.media_url and info.media_type:
+            if "audio" in features and info and info.media_url and info.media_type:
                 self._items.append(("Audio", (info.media_type, info.media_url)))
             return self
 
