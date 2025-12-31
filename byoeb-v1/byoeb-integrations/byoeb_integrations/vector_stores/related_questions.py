@@ -21,7 +21,7 @@ async def _aget_search_queries(text: str, llm_client: BaseLLM) -> List[str]:
         "Return ONLY a JSON list of strings. No explanations. "
         "Text:\n\n" + text
     )}]
-    _, resp = await llm_client.agenerate_response(prompt)
+    _, resp = await llm_client.generate_response(prompt)
     start = resp.find("[")
     end = resp.rfind("]") + 1
     words = json.loads(resp[start:end])
@@ -36,7 +36,7 @@ async def _aget_related_questions(llm_client: BaseLLM, system_prompt: str, user_
         {"role": "user", "content": user_prompt}
     ]
     for _ in range(5):
-        _, resp = await llm_client.agenerate_response(prompts)
+        _, resp = await llm_client.generate_response(prompts)
         related_questions = re.findall(r"<q_\d+>(.*?)</q_\d+>", resp)
         prompts.append({"role": "assistant", "content": resp})
         errors = []
@@ -66,14 +66,14 @@ async def aget_related_questions(
         if vector_store:
             from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorSearchType
             queries = await _aget_search_queries(text, llm_client)
-            results = await asyncio.gather(*[vector_store.aretrieve_top_k_chunks(
+            results = await asyncio.gather(*[vector_store.retrieve_top_k_chunks(
                 q,
                 k=2,
                 search_type=AzureVectorSearchType.DENSE.value,
                 select=["id", "text"],
                 vector_field="text_vector_3072"
             ) for q in queries])
-            related_chunks = [c.text for r in results for c in r]
+            related_chunks = [str(c.text) for r in results for c in r]
 
         related_chunks_text = "\n\n".join(related_chunks)
         system_prompt = (

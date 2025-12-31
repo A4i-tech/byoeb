@@ -65,7 +65,7 @@ class _DummyEmbed:
         return [[0.0] * 3072 for _ in texts]
 
 
-async def _fake_agenerate_response(*args, **kwargs):
+async def _fake_generate_response(*args, **kwargs):
     """LLM stub: returns a tuple of strings (as your code expects)."""
     tagged = (
         "<q_1>What is photosynthesis?</q_1>"
@@ -83,7 +83,7 @@ def embedding_fn_stub():
 @pytest.fixture
 def llm_client_stub():
     ns = SimpleNamespace()
-    ns.agenerate_response = AsyncMock(side_effect=_fake_agenerate_response)
+    ns.generate_response = AsyncMock(side_effect=_fake_generate_response)
     return ns
 
 
@@ -160,7 +160,7 @@ async def test_azure_vector_search_upload_documents(embedding_fn_stub, llm_clien
         embedding_fn_stub,
         credential=DefaultAzureCredential()
     )
-    async for _ in azure_vector_search.aadd_chunks(
+    async for _ in azure_vector_search.add_chunks(
         ids=ids,
         data_chunks=texts,
         metadata=metadatas,
@@ -185,7 +185,7 @@ async def test_azure_vector_search_query(embedding_fn_stub):
     )
     for query_text in query_texts:
         start_time = datetime.now().timestamp()
-        results = await azure_vector_search.aretrieve_top_k_chunks(
+        results = await azure_vector_search.retrieve_top_k_chunks(
             text=query_text,
             k=3,
             search_type=AzureVectorSearchType.DENSE.value,

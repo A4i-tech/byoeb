@@ -3,11 +3,7 @@ from typing import Any, Dict
 
 class BaseLLM(ABC):
     @abstractmethod
-    def generate_response(self, query: str) -> Any:
-        pass
-
-    @abstractmethod
-    async def agenerate_response(
+    async def generate_response(
         self,
         prompts,
         **kwargs

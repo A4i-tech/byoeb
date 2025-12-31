@@ -129,8 +129,7 @@ message_consumer = QueueConsumer(
     queue_name=app_config["message_queue"]["azure"]["queue_bot"],
     consuemr_type=app_config["app"]["queue_provider"],
     user_db_service=user_db_service,
-    message_db_service=message_db_service,
-    channel_client_factory=channel_client_factory
+    message_db_service=message_db_service
 )
 
 # user handler

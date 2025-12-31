@@ -114,3 +114,12 @@ def ogg_opus_to_wav_bytes(ogg_bytes: bytes) -> bytes:
 
     return wav_buffer.read()
 
+def to_ogg(any_bytes: bytes) -> bytes:
+    any_buffer = io.BytesIO(any_bytes)
+    audio = AudioSegment.from_file(any_buffer)
+
+    ogg_buffer = io.BytesIO()
+    audio.export(ogg_buffer, format="ogg")
+    ogg_buffer.seek(0)
+    return ogg_buffer.read()
+

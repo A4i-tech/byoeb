@@ -4,12 +4,10 @@ from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 import byoeb.utils.utils as utils
 import uuid
 import traceback
-import time
 from datetime import datetime
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from byoeb_core.message_queue.base import BaseQueue
-from byoeb.factory import ChannelClientFactory
 from byoeb.services.chat.message_consumer import MessageConsmerService
 from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDBService
 from byoeb_integrations.message_queue.azure.async_azure_storage_queue import AsyncAzureStorageQueue
@@ -25,7 +23,6 @@ class QueueConsumer:
         config: dict,
         user_db_service: UserMongoDBService,
         message_db_service: MessageMongoDBService,
-        channel_client_factory: ChannelClientFactory,
         consuemr_type: str = None
     ):
         self._logger = logging.getLogger(__name__)
@@ -35,9 +32,13 @@ class QueueConsumer:
         self._config = config
         self._user_db_service = user_db_service
         self._message_db_service = message_db_service
-        self._channel_client_factory = channel_client_factory
         self._tracer = trace.get_tracer(__name__)
         self._batch_message_consumer_logger = AppInsightsLogHandler.getLogger("batch_message_consumer")
+        self.service =MessageConsmerService(
+            config=self._config,
+            user_db_service=self._user_db_service,
+            message_db_service=self._message_db_service
+        )
     
     async def __create_azure_storage_queue_client(
         self,
@@ -94,7 +95,7 @@ class QueueConsumer:
     ) -> list:
         messages = []
         if isinstance(self._az_storage_queue, AsyncAzureStorageQueue):
-            msgs = await self._az_storage_queue.areceive_message(
+            msgs = await self._az_storage_queue.receive_message(
                 visibility_timeout=self._config["message_queue"]["azure"]["visibility_timeout"],
                 messages_per_page=self._config["message_queue"]["azure"]["messages_per_page"],
                 max_messages=self._config["app"]["batch_size"]
@@ -111,7 +112,7 @@ class QueueConsumer:
         if isinstance(self._az_storage_queue, AsyncAzureStorageQueue):
             tasks = []
             for message in messages:
-                task  = self._az_storage_queue.adelete_message(message)
+                task  = self._az_storage_queue.delete_message(message)
                 tasks.append(task)
             await asyncio.gather(*tasks)
 
@@ -119,12 +120,6 @@ class QueueConsumer:
         self
     ):
         await self.initialize()
-        message_consumer_svc = MessageConsmerService(
-            config=self._config,
-            user_db_service=self._user_db_service,
-            message_db_service=self._message_db_service,
-            channel_client_factory=self._channel_client_factory
-        )
         queue_retry_count = self._config["app"]["queue_retry_count"]
         dlq_client = await self.__get_or_create_dead_letter_queue_client()
         self._logger.info(f"Queue info: {self._az_storage_queue}")
@@ -149,7 +144,7 @@ class QueueConsumer:
 
                     for message in messages:
                         if message.dequeue_count > queue_retry_count:
-                            await dlq_client.asend_message(message.content)
+                            await dlq_client.send_message(message.content)
                             await self.__delete_message([message])
                             dlq_count += 1
                             continue
@@ -167,7 +162,7 @@ class QueueConsumer:
 
                             consume_span.set_attribute("messaging.batch_size", len(message_content))
 
-                            successfully_processed_messages = await message_consumer_svc.consume(message_content) or []
+                            successfully_processed_messages = await self.service.consume(message_content) or []
                             
                             self._logger.info(f"consume() returned {len(successfully_processed_messages)} successfully processed messages")
 
