@@ -51,8 +51,15 @@ def log_async_call(name):
 if env_config.env_appinsights_connection_string:
     from azure.monitor.opentelemetry import configure_azure_monitor
     print("✅ App Insights connection string set. Enabling Azure logging.")
+    # Require environment variable for logger name to prevent accidental production access
+    if not env_config.env_app_logger_name:
+        raise ValueError(
+            "APP_LOGGER_NAME environment variable must be set. "
+            "This prevents accidental access to production resources. "
+            "Set it in keys.env (staging or production section)."
+        )
     configure_azure_monitor(
-        logger_name=app_config["app_logger"]["azure"]["logger_name"],
+        logger_name=env_config.env_app_logger_name,
         connection_string=env_config.env_appinsights_connection_string,
         instrumentations=["fastapi", "urllib3"]
     )
@@ -123,9 +130,16 @@ message_producer_handler = QueueProducerHandler(
 
 # message consumer
 from byoeb.listener.message_consumer import QueueConsumer
+# Require environment variable for queue account URL to prevent accidental production access
+if not env_config.env_azure_storage_queue_account_url:
+    raise ValueError(
+        "AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable must be set. "
+        "This prevents accidental access to production resources. "
+        "Set it in keys.env (staging or production section)."
+    )
 message_consumer = QueueConsumer(
     config=app_config,
-    account_url=app_config["message_queue"]["azure"]["account_url"],
+    account_url=env_config.env_azure_storage_queue_account_url,
     queue_name=app_config["message_queue"]["azure"]["queue_bot"],
     consuemr_type=app_config["app"]["queue_provider"],
     user_db_service=user_db_service,
@@ -171,9 +185,21 @@ from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search im
 from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
 from byoeb_core.vector_stores.base import BaseVectorStore
 
-# Use environment variables for Azure OpenAI endpoint and deployment if set, otherwise fallback to app_config.json
-azure_openai_endpoint = env_config.env_azure_openai_endpoint or app_config["embeddings"]["azure"]["endpoint"]
-azure_openai_deployment_name = env_config.env_azure_openai_deployment_name or app_config["embeddings"]["azure"]["deployment_name"]
+# Require environment variables for Azure OpenAI endpoint and deployment to prevent accidental production access
+if not env_config.env_azure_openai_endpoint:
+    raise ValueError(
+        "AZURE_OPENAI_ENDPOINT environment variable must be set. "
+        "This prevents accidental access to production resources. "
+        "Set it in keys.env (staging or production section)."
+    )
+if not env_config.env_azure_openai_deployment_name:
+    raise ValueError(
+        "AZURE_OPENAI_DEPLOYMENT_NAME environment variable must be set. "
+        "This prevents accidental access to production resources. "
+        "Set it in keys.env (staging or production section)."
+    )
+azure_openai_endpoint = env_config.env_azure_openai_endpoint
+azure_openai_deployment_name = env_config.env_azure_openai_deployment_name
 
 # Azure OpenAI Embed - try API key first, fallback to token provider
 if env_config.env_azure_openai_key:
@@ -208,9 +234,21 @@ vector_store_type = env_config.env_vector_store_type or "azure_vector_search"
 vector_store: BaseVectorStore = None
 
 if vector_store_type == "azure_vector_search":
-    # Azure Search Service Configuration - use environment variables if set, otherwise fallback to app_config.json
-    azure_search_service_name = env_config.env_azure_search_service_name or app_config["vector_store"]["azure_vector_search"]["service_name"]
-    azure_search_doc_index_name = env_config.env_azure_search_index_name or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
+    # Require environment variables for Azure Search to prevent accidental production access
+    if not env_config.env_azure_search_service_name:
+        raise ValueError(
+            "AZURE_SEARCH_SERVICE_NAME environment variable must be set. "
+            "This prevents accidental access to production resources. "
+            "Set it in keys.env (staging or production section)."
+        )
+    if not env_config.env_azure_search_index_name:
+        raise ValueError(
+            "AZURE_SEARCH_INDEX_NAME environment variable must be set. "
+            "This prevents accidental access to production resources. "
+            "Set it in keys.env (staging or production section)."
+        )
+    azure_search_service_name = env_config.env_azure_search_service_name
+    azure_search_doc_index_name = env_config.env_azure_search_index_name
     
     if env_config.env_azure_search_api_key:
         from azure.core.credentials import AzureKeyCredential
@@ -347,8 +385,22 @@ from byoeb_core.media_storage.base import BaseMediaStorage
 from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
 from azure.identity import DefaultAzureCredential
 
-container_name = app_config["media_storage"]["azure"]["container_name"]
-account_url = app_config["media_storage"]["azure"]["account_url"]
+# Require environment variables for storage URLs to prevent accidental production access
+if not env_config.env_azure_storage_blob_account_url:
+    raise ValueError(
+        "AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set. "
+        "This prevents accidental access to production resources. "
+        "Set it in keys.env (staging or production section)."
+    )
+if not env_config.env_azure_storage_container_name:
+    raise ValueError(
+        "AZURE_STORAGE_CONTAINER_NAME environment variable must be set. "
+        "This prevents accidental access to production resources. "
+        "Set it in keys.env (staging or production section)."
+    )
+
+container_name = env_config.env_azure_storage_container_name
+account_url = env_config.env_azure_storage_blob_account_url
 
 if env_config.env_azure_storage_connection_string:
     media_storage: BaseMediaStorage = AsyncAzureBlobStorage(

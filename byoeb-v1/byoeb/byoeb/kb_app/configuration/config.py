@@ -27,6 +27,9 @@ env_openai_org_id = os.getenv("OPENAI_ORG_ID")
 
 # Azure Storage
 env_azure_storage_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+env_azure_storage_blob_account_url = os.getenv("AZURE_STORAGE_BLOB_ACCOUNT_URL")
+env_azure_storage_container_name = os.getenv("AZURE_STORAGE_CONTAINER_NAME")
+env_azure_storage_analysis_container_name = os.getenv("AZURE_STORAGE_ANALYSIS_CONTAINER_NAME")
 
 # Azure Search (optional - for API key authentication)
 env_azure_search_api_key = os.getenv("AZURE_SEARCH_API_KEY")
