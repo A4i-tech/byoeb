@@ -118,12 +118,12 @@ class MongoDykRepository(DykRepository, MongoBaseRepository):
         return updated
 
     async def find_pending_of_langs(self, langs: Iterable[LanguageCode]) -> AsyncIterator[DykRecord]:
-        cursor = self._collection.find({"status": "pending", "dyk_lang": {"$in": [x.value for x in langs]}})
+        cursor = self._queue_collection.find({"status": "pending", "dyk_lang": {"$in": [x.value for x in langs]}})
         async for result in cursor:
             yield DykRecord.model_validate({"id": str(result.pop("_id")), **result})
 
     async def find_pending_of_batches(self, langs: Iterable[LanguageCode], batch_ids: List[str]) -> AsyncIterator[DykRecord]:
-        cursor = self._collection.find({
+        cursor = self._queue_collection.find({
             "status": "pending",
             "dyk_lang": {"$in": [x.value for x in langs]},
             "batch_id": {"$in": batch_ids}
@@ -132,7 +132,7 @@ class MongoDykRepository(DykRepository, MongoBaseRepository):
             yield DykRecord.model_validate({"id": str(result.pop("_id")), **result})
 
     async def find_pending_batch_ids(self) -> AsyncIterator[str]:
-        cursor = await self._collection.aggregate([
+        cursor = await self._queue_collection.aggregate([
             {"$match": {"status": "pending"}},
             {"$group": {"_id": "$batch_id"}}
         ])
@@ -151,7 +151,7 @@ class MongoDykRepository(DykRepository, MongoBaseRepository):
             yield result_map[uid]
     
     async def insert(self, records: List[DykRecord]) -> List[str]:
-        result = await self._collection.insert_many(
+        result = await self._queue_collection.insert_many(
             [json.loads(record.model_dump_json(exclude={"id"})) for record in records],
             ordered=False
         )
@@ -160,8 +160,12 @@ class MongoDykRepository(DykRepository, MongoBaseRepository):
             raise AssertionError("Failed to insert records (expected %d, got %d)" % (len(records), len(inserted_ids)))
         return inserted_ids
     
-    async def update_status(self, ids: List[str], status: str):
-        await self._queue_collection.aupdate({"_id": {"$in": [ObjectId(id) for id in ids]}}, {"$set": {"status": status}})
+    async def update_status(self, ids: List[str], status: str) -> int:
+        result = await self._queue_collection.update_many(
+            {"_id": {"$in": [ObjectId(id) for id in ids]}},
+            {"$set": {"status": status}}
+        )
+        return result.modified_count
 
     def _validate_button_lengths(self, entry: DykEntry) -> None:
         for lang, record in entry.languages.items():

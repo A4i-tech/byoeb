@@ -35,18 +35,8 @@ async def populate_missing_related_questions(concurrency: int) -> Dict[str, int]
                 for p in langs:
                     print(json.dumps(p))
 
-    tasks = []
-    offset = 0
-
     try:
-        while True:
-            batch = await repo.find_all(offset, concurrency)
-            if not batch:
-                break
-            for e in batch:
-                tasks.append(asyncio.create_task(run(e)))
-            offset += len(batch)
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*[run(DykEntry.model_validate(e)) async for e in repo.find_all()])
     finally:
         progress.close()
 
