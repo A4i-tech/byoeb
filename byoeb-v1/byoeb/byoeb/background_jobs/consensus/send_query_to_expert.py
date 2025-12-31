@@ -6,16 +6,13 @@ from byoeb.services.chat import constants
 from byoeb.services.chat import utils as chat_utils
 from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
 from byoeb.services.databases.mongo_db.user_db import UserMongoDBService
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb_core.models.byoeb.user import User
-from byoeb_core.channel.base import BaseChannel
 from byoeb.services.channel.whatsapp import WhatsAppService
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
     MessageContext,
-    ReplyContext,
     MessageTypes
 )
 from byoeb.background_jobs.consensus.config import bot_config
@@ -165,8 +162,7 @@ async def send_pending_queries_to_expert(
     experts = await user_db_service.get_users_by_type(EXPERT_TYPE)
     experts.sort(key=lambda expert: expert.activity_timestamp or 0, reverse=True)
     # experts = [expert for expert in experts if expert.phone_number_id == "918904954952"]
-    messages = await message_db_service.get_bot_messages_by_status(waiting_status)
-    for message in messages:
+    async for message in message_db_service.get_bot_messages_by_status(waiting_status):
         # if message.user.phone_number_id != "918837701828":
         #     continue
         # print(message.reply_context.reply_id)

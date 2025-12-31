@@ -217,8 +217,7 @@ async def process_queries_consensus(
     whatsapp_service: WhatsAppService
 ):
     waiting_status = constants.WAITING
-    messages = await message_db_service.get_bot_messages_by_status(waiting_status)
-    for message in messages:
+    async for message in message_db_service.get_bot_messages_by_status(waiting_status):
         if consensus_timeout(message.outgoing_timestamp):
             timeout_message = bot_config["template_messages"]["user"]["consensus"]["timeout"][message.user.user_language]
             user_message = await create_user_message(message, timeout_message)
