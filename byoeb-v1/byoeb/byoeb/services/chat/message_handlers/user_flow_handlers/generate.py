@@ -753,7 +753,11 @@ class ByoebUserGenerateResponse(Handler):
                     query_expansion_search_ops = [(None, AzureVectorSearchType.HYBRID.value, 3), (None, AzureVectorSearchType.DENSE.value, 3)]
                     print("Response is IDK, attempting query expansion:", query_expansions_queries)
                     for q in query_expansions_queries:
-                        response_en2, response_source2, tokens2, retrieved_chunks2 = await self.agenerate_answer(user_language, q, self._asha_work_related, query_expansion_search_ops)
+                        try:
+                            response_en2, response_source2, tokens2, retrieved_chunks2 = await self.agenerate_answer(user_language, q, self._asha_work_related, query_expansion_search_ops)
+                        except Exception as e:
+                            utils.log_to_text_file(f"Query expansion failed for query '{q}': {e}")
+                            continue
                         retrieved_chunks = list({c.chunk_id: c for c in retrieved_chunks + retrieved_chunks2}.values())
                         if not utils.is_idk(response_en2):
                             skip_cache = False
