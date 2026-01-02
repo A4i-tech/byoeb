@@ -1,6 +1,6 @@
 import pytest
 from mongomock_motor import AsyncMongoMockClient
-from byoeb.chat_app.configuration.config import app_config
+from byoeb.chat_app.configuration.config import app_config, env_mongo_db_database_name
 from byoeb.background_jobs.message_leaderboard import leaderboard
 from byoeb.repositories.repository_factory import RepositoryFactory
 from byoeb.repositories.mongodb_message_repository import MongoMessageRepository
@@ -12,7 +12,14 @@ async def use_mongomock(monkeypatch, docs_by_collection):
     Patch repository factory methods to use mongomock collections and reset cached services.
     """
     client = AsyncMongoMockClient()
-    db_name = app_config["databases"]["mongo_db"]["database_name"]
+    # Use database name from environment variable (keys.env)
+    if not env_mongo_db_database_name:
+        raise ValueError(
+            "MONGO_DB_DATABASE_NAME environment variable must be set. "
+            "This prevents accidental access to production resources. "
+            "Set it in keys.env (staging or production section)."
+        )
+    db_name = env_mongo_db_database_name
     db = client[db_name]
 
     for collection_name, docs in docs_by_collection.items():
