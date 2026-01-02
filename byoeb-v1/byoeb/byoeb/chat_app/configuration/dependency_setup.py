@@ -429,7 +429,13 @@ from byoeb.chat_app.configuration.config import env_mongo_db_connection_string
 
 # MongoDB connection configuration for scheduler job store
 MONGODB_URL = env_mongo_db_connection_string
-MONGODB_DATABASE = app_config["databases"]["mongo_db"]["database_name"]
+if not env_config.env_mongo_db_database_name:
+    raise ValueError(
+        "MONGO_DB_DATABASE_NAME environment variable must be set. "
+        "This prevents accidental access to production resources. "
+        "Set it in keys.env (staging or production section)."
+    )
+MONGODB_DATABASE = env_config.env_mongo_db_database_name
 MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
 
 # Initialize MongoDB client and job store

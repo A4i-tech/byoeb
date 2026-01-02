@@ -23,3 +23,6 @@ os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"] = "test-deployment"
 os.environ["AZURE_SEARCH_SERVICE_NAME"] = "test-search-service"
 os.environ["AZURE_SEARCH_INDEX_NAME"] = "test-index"
 os.environ["APP_LOGGER_NAME"] = "test-logger"
+# Set MONGO_DB_DATABASE_NAME only if not already set (allows CI/CD secrets to override)
+if "MONGO_DB_DATABASE_NAME" not in os.environ:
+    os.environ["MONGO_DB_DATABASE_NAME"] = "test-db"
