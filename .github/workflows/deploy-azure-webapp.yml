@@ -18,7 +18,7 @@ on:
     secrets:
       AZURE_WEBAPP_PUBLISH_PROFILE:
         required: true
-      TEAMS_WEBHOOK_URL:
+      TEAMS_WORKFLOW_URL:
         required: false
 
 env:
@@ -64,33 +64,20 @@ jobs:
         if: ${{ failure() }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
-          summary: '❌ Deploy Failed'
-          activity-title: '❌ Deploy Failed'
-          theme-color: 'FF0000'
-          facts: |
-            [
-              {
-                "name": "Stage",
-                "value": "Deploy (Production)"
-              },
-              {
-                "name": "Environment",
-                "value": "production"
-              }
-            ]
-          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          workflow-url: ${{ secrets.TEAMS_WORKFLOW_URL }}
+          heading: ASHABot
+          heading-color: Attention
+          services: >-
+            [{"name":"Failure stage","description":"Deploy (Production)","url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"},
+            {"name":"Environment","description":"Production"}]
 
       - name: Notify Teams of workflow success (production)
         if: ${{ success() }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
-          summary: '✅ Workflow Complete'
-          activity-title: '✅ Workflow Complete'
-          theme-color: '00FF00'
-          facts: |
-            [
-              { "name": "Stage", "value": "Workflow Complete" },
-              { "name": "Environment", "value": "production" },
-              { "name": "Deployment", "value": "${{ steps.deploy-to-webapp.outputs.webapp-url || 'N/A' }}" }
-            ]
-          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          workflow-url: ${{ secrets.TEAMS_WORKFLOW_URL }}
+          heading: ASHABot
+          heading-color: Good
+          services: >-
+            [{"name":"Deployment","url":"${{ steps.deploy-to-webapp.outputs.webapp-url || '' }}"},
+            {"name":"Environment","description":"Production"}]

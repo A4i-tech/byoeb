@@ -26,7 +26,7 @@ on:
       RENDER_API_KEY:
         description: "Render API key"
         required: true
-      TEAMS_WEBHOOK_URL:
+      TEAMS_WORKFLOW_URL:
         description: "Microsoft Teams webhook URL"
         required: false
 
@@ -113,18 +113,8 @@ jobs:
         if: ${{ failure() }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
-          summary: '❌ Deploy Failed'
-          activity-title: '❌ Deploy Failed'
-          theme-color: 'FF0000'
-          facts: |
-            [
-              {
-                "name": "Stage",
-                "value": "Deploy (Staging)"
-              },
-              {
-                "name": "Environment",
-                "value": "staging"
-              }
-            ]
-          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          workflow-url: ${{ secrets.TEAMS_WORKFLOW_URL }}
+          heading: ASHABot
+          heading-color: Attention
+          services: >-
+            [{"name":"Failure stage","description":"Deploy (Staging)","url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]

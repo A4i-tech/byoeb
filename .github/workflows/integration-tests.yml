@@ -15,16 +15,6 @@ on:
         description: "Registry hosting the container image"
         required: true
         type: string
-      environment:
-        description: "Target environment name"
-        required: false
-        default: "staging"
-        type: string
-      deployment-url:
-        description: "URL of the deployed service"
-        required: false
-        default: ""
-        type: string
 
 jobs:
   integration-tests:
@@ -98,29 +88,20 @@ jobs:
         if: ${{ failure() }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
-          summary: '❌ Pipeline Stage Failed'
-          activity-title: '❌ Pipeline Stage Failed'
-          theme-color: 'FF0000'
-          facts: |
-            [
-              {
-                "name": "Stage",
-                "value": "Integration Tests"
-              }
-            ]
-          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          workflow-url: ${{ secrets.TEAMS_WORKFLOW_URL }}
+          heading: ASHABot
+          heading-color: Attention
+          services: >-
+            [{"name":"Failure stage","description":"Integration Tests","url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"},
+            {"name":"Environment","description":"Staging"}]
 
       - name: Notify Teams of workflow success (staging)
         if: ${{ success() }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
-          summary: '✅ Workflow Complete'
-          activity-title: '✅ Workflow Complete'
-          theme-color: '00FF00'
-          facts: |
-            [
-              { "name": "Stage", "value": "Workflow Complete" },
-              { "name": "Environment", "value": "${{ inputs.environment }}" },
-              { "name": "Deployment", "value": "${{ inputs.deployment-url || 'N/A' }}" }
-            ]
-          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          workflow-url: ${{ secrets.TEAMS_WORKFLOW_URL }}
+          heading: ASHABot
+          heading-color: Good
+          services: >-
+            [{"name":"Deployment","url":"${{ inputs.service-url }}"},
+            {"name":"Environment","description":"Staging"}]

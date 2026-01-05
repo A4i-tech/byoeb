@@ -125,14 +125,8 @@ jobs:
         if: ${{ failure() }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
-          summary: '❌ Pipeline Stage Failed'
-          activity-title: '❌ Pipeline Stage Failed'
-          theme-color: 'FF0000'
-          facts: |
-            [
-              {
-                "name": "Stage",
-                "value": "Unit Tests (${{ inputs.directory }})"
-              }
-            ]
-          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          workflow-url: ${{ secrets.TEAMS_WORKFLOW_URL }}
+          heading: ASHABot
+          heading-color: Attention
+          services: >-
+            [{"name":"Failure stage","description":"Unit Tests (${{ inputs.directory }})","url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]

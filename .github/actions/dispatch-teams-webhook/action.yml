@@ -1,70 +1,109 @@
-name: Dispatch Teams Notification
-description: Send a message card to Microsoft Teams via an incoming webhook.
+name: Teams Workflow Notification
+description: Send a compact, readable Teams Adaptive Card via Workflow URL
+
 inputs:
-  summary:
-    description: Short summary shown in the Teams notification.
+  workflow-url:
     required: true
-  activity-title:
-    description: Main title rendered inside the Teams card.
-    required: true
-  theme-color:
-    description: Hex color used to highlight the notification.
+    description: Teams Workflow URL
+  heading:
     required: false
-    default: '0076D7'
-  facts:
-    description: "JSON array of {\"name\": \"...\", \"value\": \"...\"} facts to append."
+    description: Heading text for the notification
+  heading-color:
     required: false
-    default: '[]'
-  teams-webhook-url:
-    description: Incoming Microsoft Teams webhook URL (falls back to TEAMS_WEBHOOK_URL env var).
+    default: Good
+    description: Adaptive Card color for heading (Good | Attention | Accent)
+  services:
     required: false
-    default: ''
+    description: |
+      JSON array of services.
+      Each item: { "name": "Frontend", "description": "Built and deployed", "url": "https://..." }
+
 runs:
   using: composite
   steps:
-    - name: Dispatch notification to Microsoft Teams
-      shell: bash
-      env:
-        FACTS_INPUT: ${{ inputs.facts }}
-        WEBHOOK_URL_INPUT: ${{ inputs.teams-webhook-url }}
+    - shell: bash
       run: |
         set -euo pipefail
 
-        WEBHOOK_URL="${WEBHOOK_URL_INPUT:-${TEAMS_WEBHOOK_URL:-}}"
+        SERVICES_INPUT='${{ inputs.services }}'
+        SERVICES_INPUT="${SERVICES_INPUT:-[]}"
 
-        if [ -z "$WEBHOOK_URL" ]; then
-          echo "TEAMS_WEBHOOK_URL secret not provided. Skipping Teams notification."
-          exit 0
-        fi
+        HEADING_INPUT='${{ inputs.heading }}'
+        REPO_NAME='${{ github.event.repository.name }}'
+        HEADING="${HEADING_INPUT:-$REPO_NAME}"
 
-        FACTS='[]'
-
-        add_fact() {
-          local name="$1"
-          local value="$2"
-          if [ -z "$value" ]; then
-            return
-          fi
-          FACTS="$(jq --arg name "$name" --arg value "$value" '. + [{"name":$name,"value":$value}]' <<< "$FACTS")"
-        }
-
-        add_fact "Branch" "${{ github.ref_name }}"
-        add_fact "Commit" "${{ github.sha }}"
-        add_fact "Workflow" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        add_fact "Actor" "${{ github.actor }}"
-
-        if [ -n "$(echo "$FACTS_INPUT" | tr -d '[:space:]')" ]; then
-          FACTS="$(jq --argjson extra "$FACTS_INPUT" '. + $extra' <<< "$FACTS")"
-        fi
+        # 1. Transform input JSON into Adaptive Card Column objects
+        # 2. Group them into chunks of 3 (for the 3 columns constraint)
+        # 3. Map groups into ColumnSet objects (rows)
+        BODY_ITEMS="$(echo "$SERVICES_INPUT" | jq -c '
+          map({
+            type: "Column",
+            width: "stretch",
+            items: (
+              [
+                { type: "TextBlock", text: .name, weight: "Bolder" },
+                { type: "TextBlock", text: .description, spacing: "None", wrap: true, size: "Small" }
+              ]
+              + (if (.url // "") != "" then
+                  [{ type: "TextBlock", text: "[Open](\(.url))", spacing: "None", isSubtle: true, size: "Small" }]
+                else [] end)
+            )
+          }) 
+          | to_entries 
+          | group_by(.key / 3 | floor) 
+          | map({
+              type: "ColumnSet",
+              spacing: "Medium",
+              columns: map(.value)
+            })
+        ')"
 
         PAYLOAD="$(jq -cn \
-          --arg summary "${{ inputs.summary }}" \
-          --arg activity "${{ inputs.activity-title }}" \
-          --arg color "${{ inputs.theme-color }}" \
-          --argjson facts "$FACTS" \
-          '{ "@type":"MessageCard", "@context":"http://schema.org/extensions", "themeColor":$color, "summary":$summary, "sections":[{"activityTitle":$activity,"facts":$facts}] }' \
+          --arg heading "$HEADING" \
+          --arg heading_color "${{ inputs['heading-color'] }}" \
+          --arg branch "${{ github.ref_name }}" \
+          --arg branch_url "${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}" \
+          --arg author "${{ github.event.head_commit.author.name || github.actor }}" \
+          --arg time "${{ github.event.head_commit.timestamp }}" \
+          --arg commit_url "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" \
+          --argjson bodyItems "$BODY_ITEMS" \
+          '{
+            type: "message",
+            attachments: [
+              {
+                contentType: "application/vnd.microsoft.card.adaptive",
+                content: {
+                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  type: "AdaptiveCard",
+                  version: "1.4",
+                  body: [
+                    {
+                      type: "TextBlock",
+                      text: $heading,
+                      weight: "Bolder",
+                      size: "Large",
+                      color: $heading_color,
+                      wrap: true
+                    },
+                    {
+                      type: "TextBlock",
+                      text: "[\($branch)](\($branch_url)) · by \($author) · \($time) · [View commit](\($commit_url))",
+                      wrap: true,
+                      isSubtle: true,
+                      spacing: "None"
+                    },
+                    {
+                      type: "Container",
+                      spacing: "Medium",
+                      items: $bodyItems
+                    }
+                  ]
+                }
+              }
+            ]
+          }'
         )"
 
-        curl -sS -X POST -H "Content-Type: application/json" \
+        curl -f -H "Content-Type: application/json" \
           -d "$PAYLOAD" \
-          "$WEBHOOK_URL" || true
+          "${{ inputs['workflow-url'] }}"

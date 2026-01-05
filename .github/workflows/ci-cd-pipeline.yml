@@ -77,21 +77,11 @@ jobs:
         if: ${{ failure() && github.event_name != 'pull_request' }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
-          summary: '❌ Pipeline Stage Failed'
-          activity-title: '❌ Pipeline Stage Failed'
-          theme-color: 'FF0000'
-          facts: |
-            [
-              {
-                "name": "Stage",
-                "value": "Build"
-              },
-              {
-                "name": "Actor",
-                "value": "${{ github.actor }}"
-              }
-            ]
-          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          workflow-url: ${{ secrets.TEAMS_WORKFLOW_URL }}
+          heading: ASHABot
+          heading-color: Attention
+          services: >-
+            [{"name":"Failure stage","description":"Build","url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]
 
   # Step 4: Publish Docker Image (only if tests passed)
   publish-image:
@@ -184,21 +174,11 @@ jobs:
         if: ${{ failure() && github.event_name != 'pull_request' && (github.ref_name == 'a4i/staging' || github.ref_name == 'a4i/main') }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
-          summary: '❌ Pipeline Stage Failed'
-          activity-title: '❌ Pipeline Stage Failed'
-          theme-color: 'FF0000'
-          facts: |
-            [
-              {
-                "name": "Stage",
-                "value": "${{ github.ref_name == 'a4i/main' && 'Publish Image (Production)' || 'Publish Image (Staging)' }}"
-              },
-              {
-                "name": "Environment",
-                "value": "${{ github.ref_name == 'a4i/main' && 'production' || 'staging' }}"
-              }
-            ]
-          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          workflow-url: ${{ secrets.TEAMS_WORKFLOW_URL }}
+          heading: ASHABot
+          heading-color: Attention
+          services: >-
+            [{"name":"Failure stage","description":"${{ github.ref_name == 'a4i/main' && 'Publish Image (Production)' || 'Publish Image (Staging)' }}","url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]
 
   # Step 5a: Deploy staging via Render reusable workflow
   deploy-staging:
@@ -211,7 +191,7 @@ jobs:
       api-base-url: ${{ vars.RENDER_API_URL || 'https://api.render.com' }}
     secrets:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+      TEAMS_WORKFLOW_URL: ${{ secrets.TEAMS_WORKFLOW_URL }}
 
   # Step 5b: Deploy production via reusable workflow
   deploy-production:
@@ -224,7 +204,7 @@ jobs:
       image-tag: ${{ needs.publish-image.outputs['image-tag'] }}
     secrets:
       AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+      TEAMS_WORKFLOW_URL: ${{ secrets.TEAMS_WORKFLOW_URL }}
 
   # Step 5: Run integration tests
   integration-tests:
@@ -236,6 +216,4 @@ jobs:
       service-url: ${{ needs.deploy-staging.outputs['service-url'] }}
       image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
       registry: ${{ needs.publish-image.outputs.registry }}
-      environment: ${{ needs.publish-image.outputs.environment }}
-      deployment-url: ${{ needs.deploy-staging.outputs['service-url'] }}
     secrets: inherit
