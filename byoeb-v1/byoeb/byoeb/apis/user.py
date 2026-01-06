@@ -1,13 +1,14 @@
 from typing import Any, List, Optional, Dict
 from byoeb_core.models.byoeb.user import PhoneNumberId, User
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from byoeb_core.models.byoeb.response import ByoebStatusCodes
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from byoeb.constants.user_enums import LanguageCode, UserType
 from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
-from byoeb.utils.utils import mcp_get_phone_number
+from fastmcp.server.dependencies import get_access_token
+from byoeb.apis.auth import require_mcp_tenant_header
 
 USER_API_NAME = "user_api"
 user_apis_router = APIRouter(tags=["Users"])
@@ -122,15 +123,24 @@ def user_mcps_router(mcp):
         """
         Register a new Asha user.
         """
-        phone_number = mcp_get_phone_number()
+        require_mcp_tenant_header()
+        access_token = get_access_token()
+        if access_token is None:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
+        phone_number_id = (access_token.claims or {}).get("phone_number_id")
+        if not phone_number_id:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Missing phone_number_id for MCP request",
+            )
         response = await dependency_setup.users_handler.aregister([
             dict(
-                user_id=get_user_ids_from_phone_number_ids([phone_number])[0],
+                user_id=get_user_ids_from_phone_number_ids([phone_number_id])[0],
                 user_name=data.name,
                 user_location=dict(country="IN", region=data.state),
                 user_language=data.language.value,
                 user_type=UserType.ASHA.value,
-                phone_number_id=phone_number,
+                phone_number_id=phone_number_id,
             )
         ])
         return response

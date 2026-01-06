@@ -129,13 +129,15 @@
             "users:manage",
             "messages:read",
             "auth:users:write",
-            "auth:tenants:write"
+            "auth:tenants:write",
+            "mcp:access"
         ],
         "operator": [
             "admin:access",
             "jobs:run",
             "users:manage",
-            "messages:read"
+            "messages:read",
+            "mcp:access"
         ],
         "viewer": [
             "messages:read"

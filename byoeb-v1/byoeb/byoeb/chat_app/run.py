@@ -15,7 +15,7 @@ import yaml
 from fastapi import Depends, FastAPI
 from fastmcp import FastMCP
 from contextlib import asynccontextmanager
-from byoeb.apis.auth import auth_apis_router, get_current_user, require_permissions, require_tenant
+from byoeb.apis.auth import auth_apis_router, get_current_user, require_permissions, require_tenant, MCPTokenVerifier
 from byoeb.services.auth.models import AuthPermission
 from byoeb.apis.health import health_apis_router, health_mcps_router
 from byoeb.apis.channel_register import register_apis_router
@@ -94,7 +94,7 @@ def create_apps():
     app.include_router(register_apis_router)
     app.include_router(health_apis_router)
 
-    mcp = FastMCP()
+    mcp = FastMCP(auth=MCPTokenVerifier(required_scopes=[AuthPermission.MCP_ACCESS.value]))
     health_mcps_router(mcp)
     chat_mcps_router(mcp)
     user_mcps_router(mcp)

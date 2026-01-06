@@ -16,12 +16,12 @@ from byoeb_core.models.byoeb.message_context import (
 )
 from byoeb.models.message_category import MessageCategory
 from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
-from byoeb.utils.utils import mcp_get_phone_number
 from typing import Annotated
 from fastapi import APIRouter, Query, Body, Depends, Request, HTTPException, status, Header
 from pydantic import StringConstraints
 from fastapi.responses import JSONResponse
-from byoeb.apis.auth import get_current_user, require_permissions, require_tenant
+from fastmcp.server.dependencies import get_access_token
+from byoeb.apis.auth import get_current_user, require_permissions, require_tenant, require_mcp_tenant_header
 from byoeb.services.auth.models import AuthPermission
 from byoeb.chat_app.configuration import config as env_config
 import byoeb.services.chat.constants as chat_constants
@@ -149,8 +149,17 @@ def chat_mcps_router(mcp):
         """
         Ask any health-related query and get a response.
         """
-        phone_number = mcp_get_phone_number()
-        user_id = get_user_ids_from_phone_number_ids([phone_number])[0]
+        require_mcp_tenant_header()
+        access_token = get_access_token()
+        if access_token is None:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
+        phone_number_id = (access_token.claims or {}).get("phone_number_id")
+        if not phone_number_id:
+            return AshaChatResponse(category="unknown_user", text=(
+                "Before I can answer your question, you must register yourself as an ASHA user. "
+                "Shall I start with the registration?"
+            ))
+        user_id = get_user_ids_from_phone_number_ids([phone_number_id])[0]
         users = await dependency_setup.user_db_service.get_users([user_id])
 
         if len(users) == 0:
