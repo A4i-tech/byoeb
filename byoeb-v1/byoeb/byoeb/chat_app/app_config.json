@@ -39,7 +39,9 @@
             "dyk_storage_collection": "ashadykstorage",
             "user_collection": "ashausers",
             "message_collection": "ashamessages",
-            "jobs_collection": "ashajobs"
+            "jobs_collection": "ashajobs",
+            "auth_user_collection": "ashaauthusers",
+            "auth_tenant_collection": "ashaauthtenants"
         }
     },
     "embeddings": {
@@ -119,5 +121,24 @@
     "app_logger": {
         "azure": {
         }
+    },
+    "default_tenant_roles": {
+        "admin": [
+            "admin:access",
+            "jobs:run",
+            "users:manage",
+            "messages:read",
+            "auth:users:write",
+            "auth:tenants:write"
+        ],
+        "operator": [
+            "admin:access",
+            "jobs:run",
+            "users:manage",
+            "messages:read"
+        ],
+        "viewer": [
+            "messages:read"
+        ]
     }
 }

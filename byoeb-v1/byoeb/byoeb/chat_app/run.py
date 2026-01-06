@@ -12,9 +12,11 @@ import tempfile
 import asyncio
 import uvicorn
 import yaml
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastmcp import FastMCP
 from contextlib import asynccontextmanager
+from byoeb.apis.auth import auth_apis_router, get_current_user, require_permissions, require_tenant
+from byoeb.services.auth.models import AuthPermission
 from byoeb.apis.health import health_apis_router, health_mcps_router
 from byoeb.apis.channel_register import register_apis_router
 from byoeb.apis.chat import chat_apis_router, chat_mcps_router
@@ -75,10 +77,20 @@ def create_apps():
     """
 
     app = FastAPI(lifespan=lifespan)
-    app.include_router(admin_apis_router)
-    app.include_router(background_apis_router)
+    app.include_router(auth_apis_router)
+    app.include_router(
+        admin_apis_router,
+        dependencies=[Depends(require_permissions(AuthPermission.ADMIN_ACCESS)), Depends(require_tenant)],
+    )
+    app.include_router(
+        background_apis_router,
+        dependencies=[Depends(require_permissions(AuthPermission.JOBS_RUN)), Depends(require_tenant)],
+    )
     app.include_router(chat_apis_router)
-    app.include_router(user_apis_router)
+    app.include_router(
+        user_apis_router,
+        dependencies=[Depends(require_permissions(AuthPermission.USERS_MANAGE)), Depends(require_tenant)],
+    )
     app.include_router(register_apis_router)
     app.include_router(health_apis_router)
 

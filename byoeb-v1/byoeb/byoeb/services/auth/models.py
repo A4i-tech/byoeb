@@ -1,0 +1,25 @@
+from enum import Enum
+from uuid import UUID
+from pydantic import BaseModel, Field
+
+
+class AuthPermission(str, Enum):
+    ADMIN_ACCESS = "admin:access"
+    JOBS_RUN = "jobs:run"
+    USERS_MANAGE = "users:manage"
+    MESSAGES_READ = "messages:read"
+    AUTH_USERS_WRITE = "auth:users:write"
+    AUTH_TENANTS_WRITE = "auth:tenants:write"
+
+
+class AuthTenant(BaseModel):
+    tenant_id: UUID
+    name: str
+    roles: dict[str, list[AuthPermission]] = Field(default_factory=dict)
+
+
+class AuthUser(BaseModel):
+    username: str
+    tenant_id: UUID
+    roles: list[str] = Field(default_factory=list)
+    permissions: list[AuthPermission] = Field(default_factory=list)

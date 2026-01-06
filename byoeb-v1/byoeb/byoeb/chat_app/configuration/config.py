@@ -38,6 +38,7 @@ env_app = os.getenv("APP_ENV", "LOCAL").lower()
 env_whatsapp_token = os.getenv("WHATSAPP_VERIFICATION_TOKEN")
 env_whatsapp_auth_token = os.getenv("WHATSAPP_AUTH_TOKEN")
 env_whatsapp_phone_number_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+env_whatsapp_app_secret = os.getenv("WHATSAPP_APP_SECRET")
 
 # OpenAI
 env_openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -118,3 +119,8 @@ for entry in (env_ashabot_feature_flags or "").split(","):
         feature_flags.add(FeatureFlag(entry))
     except ValueError:
         raise RuntimeError("Unexpected feature flag: " + entry)
+
+# Auth
+env_auth_token_secret = os.getenv("AUTH_TOKEN_SECRET")
+env_auth_token_ttl_seconds = os.getenv("AUTH_TOKEN_TTL_SECONDS")
+env_auth_password_iterations = os.getenv("AUTH_PASSWORD_ITERATIONS")
