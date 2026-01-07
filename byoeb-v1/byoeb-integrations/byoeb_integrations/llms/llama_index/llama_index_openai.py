@@ -38,9 +38,6 @@ class AsyncLLamaIndexOpenAILLM(BaseLLM):
             organization=organization,
         )
         self.__client = client
-
-    def generate_response(self, query: str) -> Any:
-        raise NotImplementedError
     
     def __convert_to_chat_message(
         self,
@@ -55,7 +52,7 @@ class AsyncLLamaIndexOpenAILLM(BaseLLM):
                 content=prompt["content"]
             ))
         return chat_messages
-    async def agenerate_response(
+    async def generate_response(
         self,
         prompts: list,
         **kwargs

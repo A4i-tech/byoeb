@@ -69,7 +69,7 @@ class AsyncAzureStorageQueue(BaseQueue):
         except Exception as e:
             raise e
         
-    async def asend_message(
+    async def send_message(
         self,
         message,
         **kwargs
@@ -83,7 +83,7 @@ class AsyncAzureStorageQueue(BaseQueue):
             time_to_live=time_to_live
         )
 
-    async def areceive_message(
+    async def receive_message(
         self,
         **kwargs
     ) -> Any:
@@ -106,32 +106,12 @@ class AsyncAzureStorageQueue(BaseQueue):
         )
         return messages
         
-    async def adelete_message(
+    async def delete_message(
         self,
         message,
         **kwargs
     ) -> Any:
         await self.__queue_client.delete_message(message)
-
-    def send_message(
-        self,
-        message,
-        **kwargs
-    ) -> Any:
-        raise NotImplementedError
-    
-    def receive_message(
-        self,
-        **kwargs
-    ) -> Any:
-        raise NotImplementedError
-    
-    def delete_message(
-        self,
-        message,
-        **kwargs
-    ) -> Any:
-        raise NotImplementedError
     
     def get_azure_queue_client(self):
         return self.__queue_client
