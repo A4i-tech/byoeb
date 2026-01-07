@@ -1,56 +1,62 @@
 import asyncio
 import json
-from typing import AsyncIterator, Dict, Iterable, List, Set
+import uuid
+from typing import Any, AsyncIterator, Awaitable, Dict, Iterable, List, Optional, Set
 
 from bson import ObjectId
 from byoeb.repositories.mongodb_base_repository import MongoBaseRepository
 from byoeb.constants.user_enums import LanguageCode
-from byoeb.models.dyk import DykRecord
+from byoeb.models.dyk import DykEntry, DykRecord
 from byoeb.repositories.dyk_repository import DykRepository
 
 import grapheme
+from pymongo.asynchronous.collection import AsyncCollection
+from pymongo.results import DeleteResult
 
 
 class MongoDykRepository(DykRepository, MongoBaseRepository):
+    """MongoDB implementation of DykRepository."""
 
     _MAX_BUTTON_TEXT_LENGTH = 20
 
-    def __init__(self, queue_collection_client: BaseDocumentCollection, storage_collection_client: BaseDocumentCollection):
-        self._queue_collection = queue_collection_client
-        self._queue_collection_name = app_config["databases"]["mongo_db"]["dyk_queue_collection"]
-        self._storage_collection = storage_collection_client
-        self._storage_collection_name = app_config["databases"]["mongo_db"]["dyk_storage_collection"]
+    def __init__(self, storage_collection: AsyncCollection, queue_collection: AsyncCollection):
+        super().__init__(storage_collection)
+        self._queue_collection = queue_collection
 
     async def add(self, entry: DykEntry):
         self._validate_button_lengths(entry)
         document = json.loads(entry.model_dump_json())
         document["_id"] = str(entry.id)
-        await self._storage_collection.aupdate_one({"_id": str(entry.id)}, {"$set": document}, upsert=True)
+        await self._collection.update_one({"_id": str(entry.id)}, {"$set": document}, upsert=True)
 
     async def delete(self, id: uuid.UUID):
-        await self._storage_collection.adelete_one({"_id": str(id)})
+        await self._collection.delete_one({"_id": str(id)})
 
     async def find(self, id: uuid.UUID) -> Optional[DykEntry]:
-        document = await self._storage_collection.afetch_one({"_id": str(id)})
+        document = await self._collection.find_one({"_id": str(id)})
         if not document:
             return None
         return self._doc_to_entry(document)
 
-    async def find_all(self, offset: int, length: int) -> List[DykEntry]:
-        documents = await self._storage_collection.afetch_all({}, skip=offset, limit=length)
-        return [self._doc_to_entry(doc) for doc in documents]
-
     async def find_by_language(self, lang: LanguageCode, offset: int, length: int) -> List[DykEntry]:
         query = {f"languages.{lang.value}": {"$exists": True}}
-        documents = await self._storage_collection.afetch_all(query, skip=offset, limit=length)
+        documents = self._collection.find(query, skip=offset, limit=length)
         return [self._doc_to_entry(doc) for doc in documents]
+
+    async def find_available_languages(self) -> List[LanguageCode]:
+        docs = await self._collection.aggregate([
+            {"$project": {"l": {"$objectToArray": {"$ifNull": ["$languages", {}]}}}},
+            {"$unwind": "$l"},
+            {"$group": {"_id": "$l.k"}}
+        ])
+        return [LanguageCode(v) async for d in docs if (v := self._normalize_language_key(d["_id"]))]
 
     async def select_next(self, user_id: str, lang: LanguageCode) -> Optional[uuid.UUID]:
         match_filter: Dict[str, Any] = {f"languages.{lang.value}": {"$exists": True}}
         pipeline = [
             {"$match": match_filter},
             {"$lookup": {
-                "from": self._queue_collection_name,
+                "from": self._queue_collection.name,
                 "let": {"dykId": "$_id"},
                 "pipeline": [
                     {"$match": {"$expr": {"$and": [
@@ -65,17 +71,15 @@ class MongoDykRepository(DykRepository, MongoBaseRepository):
             {"$sample": {"size": 1}},
             {"$project": {"_id": 1}}
         ]
-
-        docs = await self._storage_collection.aaggregate(pipeline)
-        if not docs:
-            return None
-        doc_id = docs[0].get("_id")
-        if doc_id is None:
-            return None
-        try:
-            return uuid.UUID(str(doc_id))
-        except ValueError:
-            return None
+        async for doc in await self._collection.aggregate(pipeline):
+            doc_id = doc.get("_id")
+            if doc_id is None:
+                break
+            try:
+                return uuid.UUID(str(doc_id))
+            except ValueError:
+                break
+        return None
 
     async def synchronize(self) -> int:
         pipeline = [
@@ -89,29 +93,25 @@ class MongoDykRepository(DykRepository, MongoBaseRepository):
                 "ids": {"$addToSet": "$_id"}
             }}
         ]
-        language_docs = await self._storage_collection.aaggregate(pipeline)
         language_to_ids: Dict[str, Set[str]] = {}
-        for doc in language_docs:
+        async for doc in await self._collection.aggregate(pipeline):
             lang_value = self._normalize_language_key(doc.get("_id"))
             if not lang_value:
                 continue
             language_to_ids[lang_value] = set(doc.get("ids", []))
 
         lang_values = list(language_to_ids.keys())
-        tasks = []
-        # delete pending ops with unknown language
-        langs_to_keep = [lang.value for lang in records.keys()]
-        tasks.append(self._collection.delete_many({
-            "status": "pending",
-            "dyk_lang": {"$nin": langs_to_keep}
-        }))
-
-        # delete pending ops with unknown DYK uuid
-        for lang, dyks in records.items():
-            tasks.append(self._collection.delete_many({
+        tasks: list[Awaitable[DeleteResult]] = []
+        if lang_values:
+            tasks.append(self._queue_collection.delete_many({
                 "status": "pending",
-                "dyk_lang": lang.value,
-                "dyk_id": {"$nin": list(dyks)}
+                "dyk_lang": {"$nin": lang_values}
+            }))
+        for lang, ids in language_to_ids.items():
+            tasks.append(self._queue_collection.delete_many({
+                "status": "pending",
+                "dyk_lang": lang,
+                "dyk_id": {"$nin": list(ids)}
             }))
 
         updated = 0

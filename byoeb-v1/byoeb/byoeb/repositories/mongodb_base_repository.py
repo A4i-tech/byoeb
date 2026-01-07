@@ -6,7 +6,6 @@ from abc import ABC
 
 class MongoBaseRepository(BaseRepository, ABC):
 
-    @final
     def __init__(self, collection: AsyncCollection):
         self._collection = collection
 

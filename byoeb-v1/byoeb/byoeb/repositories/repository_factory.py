@@ -28,8 +28,9 @@ class RepositoryFactory:
         """Get or create DYK repository instance."""
         if self._dyk_repository is None:
             mongo_db = await self._mongo_factory.get(app_config["app"]["db_provider"])
-            user_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["dyk_collection"])
-            self._dyk_repository = MongoDykRepository(user_collection)
+            storage_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["dyk_storage_collection"])
+            queue_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["dyk_queue_collection"])
+            self._dyk_repository = MongoDykRepository(storage_collection, queue_collection)
         return self._dyk_repository
 
     async def get_message_repository(self) -> MessageRepository:
