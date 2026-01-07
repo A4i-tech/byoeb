@@ -1,9 +1,11 @@
 # fixes crash during 'import chromadb' - see: https://docs.trychroma.com/docs/overview/troubleshooting#sqlite
 import sys
-import importlib.util
-if importlib.util.find_spec("pysqlite3") is not None:
+try:
     __import__("pysqlite3")
     sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+except ImportError:
+    # pysqlite3 not available, use standard sqlite3 (may cause issues with ChromaDB on some platforms)
+    pass
 
 import os
 
@@ -20,6 +22,10 @@ os.environ["AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE"] = "/subscriptions/00000000-0
 os.environ["AZURE_STORAGE_BLOB_ACCOUNT_URL"] = "https://test-storage.blob.core.windows.net"
 os.environ["AZURE_STORAGE_QUEUE_ACCOUNT_URL"] = "https://test-storage.queue.core.windows.net"
 os.environ["AZURE_STORAGE_CONTAINER_NAME"] = "test-container"
+# Required queue names (must be set to prevent accidental production access)
+os.environ["AZURE_QUEUE_STATUS"] = "test-statusmessages"
+os.environ["AZURE_QUEUE_BOT"] = "test-botmessages"
+os.environ["AZURE_QUEUE_DEAD_LETTER"] = "test-deadletterqueue"
 os.environ["AZURE_OPENAI_ENDPOINT"] = "https://test-openai.openai.azure.com/"
 os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"] = "test-deployment"
 os.environ["AZURE_SEARCH_SERVICE_NAME"] = "test-search-service"

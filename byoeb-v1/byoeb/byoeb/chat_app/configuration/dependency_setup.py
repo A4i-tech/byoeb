@@ -133,10 +133,12 @@ if not env_config.env_azure_storage_queue_account_url:
         "This prevents accidental access to production resources. "
         "Set it in keys.env (staging or production section)."
     )
+# Environment variable is required (validated at startup in config.py)
+queue_name = env_config.env_azure_queue_bot
 message_consumer = QueueConsumer(
     config=app_config,
     account_url=env_config.env_azure_storage_queue_account_url,
-    queue_name=app_config["message_queue"]["azure"]["queue_bot"],
+    queue_name=queue_name,
     consuemr_type=app_config["app"]["queue_provider"],
     user_db_service=user_db_service,
     message_db_service=message_db_service,
