@@ -53,11 +53,7 @@ if env_config.env_appinsights_connection_string:
     print("✅ App Insights connection string set. Enabling Azure logging.")
     # Require environment variable for logger name to prevent accidental production access
     if not env_config.env_app_logger_name:
-        raise ValueError(
-            "APP_LOGGER_NAME environment variable must be set. "
-            "This prevents accidental access to production resources. "
-            "Set it in keys.env (staging or production section)."
-        )
+        raise ValueError("APP_LOGGER_NAME environment variable must be set.")
     configure_azure_monitor(
         logger_name=env_config.env_app_logger_name,
         connection_string=env_config.env_appinsights_connection_string,
