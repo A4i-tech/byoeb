@@ -72,7 +72,9 @@ class QueueConsumer:
     async def __get_or_create_dead_letter_queue_client(
         self
     ) -> BaseQueue:
-        dlq_name = self._config["message_queue"]["azure"]["dead_letter_queue"]
+        # Environment variable is required (validated at startup in config.py)
+        from byoeb.chat_app.configuration.config import env_azure_queue_dead_letter
+        dlq_name = env_azure_queue_dead_letter
         self._dlq_client = await self.__create_azure_storage_queue_client(dlq_name)
         return self._dlq_client
     

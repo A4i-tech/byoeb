@@ -66,10 +66,16 @@ class QueueProducerFactory:
                 return self._az_storage_queues[message_type]
             
             # Determine queue name based on message type
+            # Environment variables are required (validated at startup in config.py)
+            from byoeb.chat_app.configuration.config import (
+                env_azure_queue_status,
+                env_azure_queue_bot
+            )
+            
             if message_type == "status":
-                queue_name = self._config["message_queue"]["azure"]["queue_status"]
+                queue_name = env_azure_queue_status
             else:
-                queue_name = self._config["message_queue"]["azure"]["queue_bot"]
+                queue_name = env_azure_queue_bot
             
             self._az_storage_queues[message_type] = await self.__create_azure_storage_queue_client(queue_name)
             return self._az_storage_queues[message_type]
