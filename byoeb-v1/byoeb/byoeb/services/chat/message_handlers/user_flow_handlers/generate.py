@@ -742,10 +742,8 @@ class ByoebUserGenerateResponse(Handler):
             else:
                 start_time = datetime.now(timezone.utc).timestamp()
                 skip_cache = True
-                (response_en, response_source, tokens, retrieved_chunks), retrieved_chunks_related_questions = await asyncio.gather(
-                    self.agenerate_answer(user_language, message_english, query_type),
-                    self._retrieve_top_k_chunks_for_related_questions(message_english, k=10)
-                )
+                retrieved_chunks_related_questions = asyncio.create_task(self._retrieve_top_k_chunks_for_related_questions(message_english, k=10))
+                response_en, response_source, tokens, retrieved_chunks = await self.agenerate_answer(user_language, message_english, query_type)
                 if not utils.is_idk(response_en):  # got answer on first try :)
                     skip_cache = False
                 else:
@@ -771,7 +769,7 @@ class ByoebUserGenerateResponse(Handler):
                         default_message_category = MessageCategory.AUDIO_DISAMBIGUATION if message.message_context.message_type == MessageTypes.REGULAR_AUDIO else MessageCategory.TEXT_DISAMBIGUATION
                         response_en, response_source, tokens = clarification
 
-                related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
+                related_questions = self.get_related_questions(message.user.user_language, await retrieved_chunks_related_questions, message.message_context.message_source_text)
 
                 if not skip_cache and embedding:
                     cache_val = cache_val or {}
