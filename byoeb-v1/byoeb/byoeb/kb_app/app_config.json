@@ -30,10 +30,6 @@
     },
     "media_storage": {
         "azure": {
-            "account_url": "https://your-storage-account.blob.core.windows.net",
-            "container_name": "your-container",
-            "analysis_container_name": "your-analysis-container",
-            "_comment": "Override AZURE_STORAGE_BLOB_ACCOUNT_URL, AZURE_STORAGE_CONTAINER_NAME, and AZURE_STORAGE_ANALYSIS_CONTAINER_NAME via environment variables for production"
         }
     },
     "vector_store": {
