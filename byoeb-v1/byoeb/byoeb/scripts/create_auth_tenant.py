@@ -14,9 +14,11 @@ def main() -> int:
 
     database_name = app_config["databases"]["mongo_db"]["database_name"]
     collection_name = app_config["databases"]["mongo_db"]["auth_tenant_collection"]
+    role_collection_name = app_config["databases"]["mongo_db"]["auth_tenant_roles_collection"]
 
     client = MongoClient(args.mongo_uri, uuidRepresentation="standard")
     collection = client[database_name][collection_name]
+    role_collection = client[database_name][role_collection_name]
 
     tenant_id = uuid.uuid4()
     existing = collection.find_one({"_id": tenant_id})
@@ -25,7 +27,8 @@ def main() -> int:
         return 1
 
     roles = app_config.get("default_tenant_roles", {})
-    collection.insert_one({"_id": tenant_id, "name": args.name, "roles": roles})
+    collection.insert_one({"_id": tenant_id, "name": args.name})
+    role_collection.insert_one({"_id": tenant_id, "roles": roles})
     print(f"Tenant created: {tenant_id}")
     return 0
 
