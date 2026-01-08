@@ -1,47 +1,10 @@
 from typing import Optional
 from uuid import UUID
 from byoeb_core.models.byoeb.user import PhoneNumberId
-from bson.binary import Binary, UuidRepresentation
 from byoeb.repositories.repository_factory import get_repository_factory
 from byoeb.services.auth.models import AuthPermission, AuthTenant, AuthUser
 from byoeb.services.auth.security import verify_password, hash_password
 from byoeb.chat_app.configuration.config import app_config
-
-
-async def _get_auth_user_doc(username: str) -> Optional[dict]:
-    repo_factory = await get_repository_factory()
-    auth_repo = await repo_factory.get_auth_repository()
-    return await auth_repo.find_user_by_username(username)
-
-
-async def _get_auth_tenant_doc(tenant_id: UUID) -> Optional[dict]:
-    repo_factory = await get_repository_factory()
-    auth_repo = await repo_factory.get_auth_repository()
-    return await auth_repo.find_tenant_by_id(tenant_id)
-
-def _as_uuid(value: object) -> Optional[UUID]:
-    if isinstance(value, UUID):
-        return value
-    if isinstance(value, Binary):
-        try:
-            return value.as_uuid()
-        except Exception:
-            return None
-    if isinstance(value, str):
-        try:
-            return UUID(value)
-        except ValueError:
-            return None
-    return None
-
-
-def _as_bson_uuid(value: UUID) -> Binary:
-    return Binary.from_uuid(value, uuid_representation=UuidRepresentation.STANDARD)
-
-
-def _load_tenant_roles() -> dict[str, list[str]]:
-    roles = app_config.get("default_tenant_roles", {})
-    return {role: list(perms) for role, perms in roles.items()}
 
 
 def _coerce_role_permissions(roles: dict[str, list[str]]) -> dict[str, list[AuthPermission]]:
@@ -73,12 +36,19 @@ def _compute_permissions(tenant_doc: dict, user_roles: list[str]) -> list[AuthPe
 async def _build_auth_user(user_doc: dict | None) -> Optional[AuthUser]:
     if not user_doc:
         return None
-    tenant_id = _as_uuid(user_doc.get("tenant_id"))
-    tenant_doc = await _get_auth_tenant_doc(tenant_id) if tenant_id else None
+    tenant_id = user_doc.get("tenant_id")
+    if not isinstance(tenant_id, UUID):
+        tenant_id = None
+    tenant_doc = None
+    if tenant_id:
+        repo_factory = await get_repository_factory()
+        auth_repo = await repo_factory.get_auth_repository()
+        tenant_doc = await auth_repo.find_tenant_by_id(tenant_id)
     if not tenant_doc:
         return None
     roles = list(user_doc.get("roles", []))
     return AuthUser(
+        id=str(user_doc.get("_id")),
         username=user_doc.get("username", ""),
         tenant_id=tenant_id,
         roles=roles,
@@ -88,23 +58,27 @@ async def _build_auth_user(user_doc: dict | None) -> Optional[AuthUser]:
 
 
 async def authenticate_user(username: str, password: str) -> Optional[AuthUser]:
-    user_doc = await _get_auth_user_doc(username)
+    repo_factory = await get_repository_factory()
+    auth_repo = await repo_factory.get_auth_repository()
+    user_doc = await auth_repo.find_user_by_username(username)
     if not user_doc or not verify_password(password, user_doc):
         return None
     return await _build_auth_user(user_doc)
 
 
 async def get_user_by_username(username: str) -> Optional[AuthUser]:
-    user_doc = await _get_auth_user_doc(username)
+    repo_factory = await get_repository_factory()
+    auth_repo = await repo_factory.get_auth_repository()
+    user_doc = await auth_repo.find_user_by_username(username)
     return await _build_auth_user(user_doc)
 
 
 async def create_auth_user(payload) -> Optional[AuthUser]:
-    tenant_doc = await _get_auth_tenant_doc(payload.tenant_id)
-    if not tenant_doc:
-        raise ValueError("Tenant does not exist")
     repo_factory = await get_repository_factory()
     auth_repo = await repo_factory.get_auth_repository()
+    tenant_doc = await auth_repo.find_tenant_by_id(payload.tenant_id)
+    if not tenant_doc:
+        raise ValueError("Tenant does not exist")
     existing = await auth_repo.find_user_by_username(payload.username)
     if existing:
         return None
@@ -114,15 +88,16 @@ async def create_auth_user(payload) -> Optional[AuthUser]:
     if not set(roles).issubset(tenant_roles):
         raise ValueError("One or more roles are not defined for this tenant")
     phone_number_id = payload.phone_number_id
-    await auth_repo.insert_one({
+    inserted_id = await auth_repo.insert_one({
         "username": payload.username,
-        "tenant_id": _as_bson_uuid(payload.tenant_id),
+        "tenant_id": payload.tenant_id,
         "roles": roles,
         "phone_number_id": phone_number_id,
         "password_salt": password_salt,
         "password_hash": password_hash,
     })
     return AuthUser(
+        id=str(inserted_id),
         username=payload.username,
         tenant_id=payload.tenant_id,
         roles=roles,
@@ -138,13 +113,15 @@ async def update_auth_user(
     password: Optional[str] = None,
     phone_number_id: Optional[PhoneNumberId] = None,
 ) -> Optional[AuthUser]:
-    user_doc = await _get_auth_user_doc(username)
+    repo_factory = await get_repository_factory()
+    auth_repo = await repo_factory.get_auth_repository()
+    user_doc = await auth_repo.find_user_by_username(username)
     if not user_doc:
         return None
-    stored_tenant_id = _as_uuid(user_doc.get("tenant_id"))
+    stored_tenant_id = user_doc.get("tenant_id") if isinstance(user_doc.get("tenant_id"), UUID) else None
     if stored_tenant_id != tenant_id:
         raise PermissionError("Tenant access forbidden")
-    tenant_doc = await _get_auth_tenant_doc(tenant_id)
+    tenant_doc = await auth_repo.find_tenant_by_id(tenant_id)
     if not tenant_doc:
         raise ValueError("Tenant not found")
 
@@ -163,8 +140,6 @@ async def update_auth_user(
         updates["phone_number_id"] = phone_number_id
 
     if updates:
-        repo_factory = await get_repository_factory()
-        auth_repo = await repo_factory.get_auth_repository()
         await auth_repo.update_user_by_username(username, updates)
 
     return await _build_auth_user({**user_doc, **updates})
@@ -176,9 +151,9 @@ async def create_auth_tenant(tenant_id: UUID, name: str) -> Optional[AuthTenant]
     existing = await auth_repo.find_tenant_by_id(tenant_id)
     if existing:
         return None
-    roles = _load_tenant_roles()
-    await auth_repo.insert_tenant({"tenant_id": _as_bson_uuid(tenant_id), "name": name, "roles": roles})
-    return AuthTenant(tenant_id=tenant_id, name=name, roles=_coerce_role_permissions(roles))
+    roles = {role: list(perms) for role, perms in app_config.get("default_tenant_roles", {}).items()}
+    await auth_repo.insert_tenant({"_id": tenant_id, "name": name, "roles": roles})
+    return AuthTenant(id=tenant_id, name=name, roles=_coerce_role_permissions(roles))
 
 
 async def update_auth_tenant_roles(tenant_id: UUID, roles: dict[str, list[AuthPermission]]) -> Optional[AuthTenant]:
@@ -191,4 +166,4 @@ async def update_auth_tenant_roles(tenant_id: UUID, roles: dict[str, list[AuthPe
     updated = await auth_repo.update_tenant_roles(tenant_id, serialized)
     if not updated:
         return None
-    return AuthTenant(tenant_id=tenant_id, name=existing.get("name", ""), roles=roles)
+    return AuthTenant(id=tenant_id, name=existing.get("name", ""), roles=roles)

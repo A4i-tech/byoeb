@@ -17,12 +17,13 @@ class AuthPermission(str, Enum):
 
 
 class AuthTenant(BaseModel):
-    tenant_id: UUID
+    id: UUID
     name: str
     roles: dict[str, list[AuthPermission]] = Field(default_factory=dict)
 
 
 class AuthUser(BaseModel):
+    id: str
     username: str
     tenant_id: UUID
     roles: list[str] = Field(default_factory=list)

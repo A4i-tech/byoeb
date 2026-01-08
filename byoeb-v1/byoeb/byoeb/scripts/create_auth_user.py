@@ -1,7 +1,6 @@
 import argparse
 import getpass
 import uuid
-from typing import Sequence
 
 from pymongo import MongoClient
 
@@ -9,18 +8,14 @@ from byoeb.chat_app.configuration.config import app_config
 from byoeb.services.auth.security import hash_password
 
 
-def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+def main() -> int:
     parser = argparse.ArgumentParser(description="Create an admin user in the auth collection.")
     parser.add_argument("--mongo-uri", required=True, help="MongoDB connection string.")
     parser.add_argument("--username", required=True, help="Auth username.")
     parser.add_argument("--password", help="Auth password (prompted if omitted).")
     parser.add_argument("--tenant-id", required=True, help="Tenant ID for the auth user.")
     parser.add_argument("--roles", required=True, help="Comma-separated roles.")
-    return parser.parse_args(argv)
-
-
-def main() -> int:
-    args = _parse_args()
+    args = parser.parse_args()
     password = args.password or getpass.getpass("Password: ")
     if not password:
         raise SystemExit("Password is required.")
@@ -44,7 +39,7 @@ def main() -> int:
         return 1
 
     tenant_collection = client[database_name][app_config["databases"]["mongo_db"]["auth_tenant_collection"]]
-    tenant_doc = tenant_collection.find_one({"tenant_id": tenant_id})
+    tenant_doc = tenant_collection.find_one({"_id": tenant_id})
     if not tenant_doc:
         print("Tenant not found. No changes made.")
         return 1
@@ -53,13 +48,8 @@ def main() -> int:
         print("One or more roles are not defined for this tenant. No changes made.")
         return 1
 
-    collection.insert_one({
-        "username": args.username,
-        "tenant_id": tenant_id,
-        "roles": roles,
-        "password_salt": password_salt,
-        "password_hash": password_hash,
-    })
+    collection.insert_one({"username": args.username, "tenant_id": tenant_id, "roles": roles,
+                           "password_salt": password_salt, "password_hash": password_hash})
     print("Auth user created.")
     return 0
 

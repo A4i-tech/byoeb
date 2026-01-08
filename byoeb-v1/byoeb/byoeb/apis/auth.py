@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated, Iterable, Optional
+from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -59,63 +59,34 @@ async def issue_token(form_data: OAuth2PasswordRequestForm = Depends()) -> Token
     return TokenResponse(access_token=token, expires_in=ttl_seconds)
 
 
-def _raise_auth_error(message: str) -> None:
-    raise HTTPException(
-        status.HTTP_401_UNAUTHORIZED,
-        message,
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-def _decode_token_payload(token: str) -> dict | None:
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> AuthUser:
     try:
-        return decode_access_token(token)
+        payload = decode_access_token(token)
     except ValueError:
-        return None
-
-
-async def _get_current_user_from_token(token: str) -> AuthUser:
-    payload = _decode_token_payload(token)
-    if payload is None:
-        _raise_auth_error("Invalid or expired token")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token", headers={"WWW-Authenticate": "Bearer"})
     username = payload.get("sub")
     if not username:
-        _raise_auth_error("Invalid token subject")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token subject", headers={"WWW-Authenticate": "Bearer"})
     user = await get_user_by_username(username)
     if not user:
-        _raise_auth_error("User not found")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found", headers={"WWW-Authenticate": "Bearer"})
     return user
-
-
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> AuthUser:
-    return await _get_current_user_from_token(token)
-
-
-def _validate_tenant_access(user: AuthUser, tenant_id: UUID) -> UUID:
-    if user.tenant_id != tenant_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Tenant access forbidden")
-    return tenant_id
 
 
 async def require_tenant(
     tenant_id: Annotated[UUID, Header(alias="X-Tenant-ID")],
     user: AuthUser = Depends(get_current_user),
 ) -> UUID:
-    return _validate_tenant_access(user, tenant_id)
-
-
-def _permission_values(perms: list[AuthPermission | str]) -> set[str]:
-    return {perm.value if isinstance(perm, AuthPermission) else perm for perm in perms}
-
-def _has_required_permissions(
-    granted: Iterable[AuthPermission | str],
-    required: Iterable[AuthPermission | str],
-) -> bool:
-    return bool(_permission_values(list(granted)).intersection(_permission_values(list(required))))
+    if user.tenant_id != tenant_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Tenant access forbidden")
+    return tenant_id
 
 
 def require_permissions(*required_permissions: AuthPermission | str):
+    required = {perm.value if isinstance(perm, AuthPermission) else perm for perm in required_permissions}
     async def _require_permissions(user: AuthUser = Depends(get_current_user)) -> AuthUser:
-        if not _has_required_permissions(user.permissions, required_permissions):
+        granted = {perm.value if isinstance(perm, AuthPermission) else perm for perm in user.permissions}
+        if not granted.intersection(required):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Permission access forbidden")
         return user
 
@@ -124,8 +95,9 @@ def require_permissions(*required_permissions: AuthPermission | str):
 
 class MCPTokenVerifier(TokenVerifier):
     async def verify_token(self, token: str) -> AccessToken | None:
-        payload = _decode_token_payload(token)
-        if payload is None:
+        try:
+            payload = decode_access_token(token)
+        except ValueError:
             return None
         username = payload.get("sub")
         if not username:
