@@ -26,6 +26,7 @@ def main() -> int:
 
     database_name = app_config["databases"]["mongo_db"]["database_name"]
     collection_name = app_config["databases"]["mongo_db"]["auth_user_collection"]
+    role_collection_name = app_config["databases"]["mongo_db"]["auth_tenant_roles_collection"]
     roles = [role.strip() for role in args.roles.split(",") if role.strip()]
 
     password_salt, password_hash = hash_password(password)
@@ -43,7 +44,9 @@ def main() -> int:
     if not tenant_doc:
         print("Tenant not found. No changes made.")
         return 1
-    tenant_roles = set((tenant_doc.get("roles") or {}).keys())
+    role_collection = client[database_name][role_collection_name]
+    roles_doc = role_collection.find_one({"_id": tenant_id}) or {}
+    tenant_roles = set((roles_doc.get("roles") or {}).keys())
     if not set(roles).issubset(tenant_roles):
         print("One or more roles are not defined for this tenant. No changes made.")
         return 1

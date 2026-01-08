@@ -20,8 +20,7 @@ def _coerce_role_permissions(roles: dict[str, list[str]]) -> dict[str, list[Auth
     return result
 
 
-def _compute_permissions(tenant_doc: dict, user_roles: list[str]) -> list[AuthPermission]:
-    roles_map = tenant_doc.get("roles") or {}
+def _compute_permissions(roles_map: dict[str, list[str]], user_roles: list[str]) -> list[AuthPermission]:
     permissions: set[AuthPermission] = set()
     for role in user_roles:
         role_perms = roles_map.get(role, [])
@@ -40,10 +39,13 @@ async def _build_auth_user(user_doc: dict | None) -> Optional[AuthUser]:
     if not isinstance(tenant_id, UUID):
         tenant_id = None
     tenant_doc = None
+    roles_map: dict[str, list[str]] = {}
     if tenant_id:
         repo_factory = await get_repository_factory()
         auth_repo = await repo_factory.get_auth_repository()
         tenant_doc = await auth_repo.find_tenant_by_id(tenant_id)
+        roles_doc = await auth_repo.find_tenant_roles_by_id(tenant_id)
+        roles_map = (roles_doc or {}).get("roles") or {}
     if not tenant_doc:
         return None
     roles = list(user_doc.get("roles", []))
@@ -52,7 +54,7 @@ async def _build_auth_user(user_doc: dict | None) -> Optional[AuthUser]:
         username=user_doc.get("username", ""),
         tenant_id=tenant_id,
         roles=roles,
-        permissions=_compute_permissions(tenant_doc, roles),
+        permissions=_compute_permissions(roles_map, roles),
         phone_number_id=user_doc.get("phone_number_id"),
     )
 
@@ -84,7 +86,8 @@ async def create_auth_user(payload) -> Optional[AuthUser]:
         return None
     password_salt, password_hash = hash_password(payload.password)
     roles = [role.strip() for role in payload.roles]
-    tenant_roles = set((tenant_doc.get("roles") or {}).keys())
+    roles_doc = await auth_repo.find_tenant_roles_by_id(payload.tenant_id)
+    tenant_roles = set(((roles_doc or {}).get("roles") or {}).keys())
     if not set(roles).issubset(tenant_roles):
         raise ValueError("One or more roles are not defined for this tenant")
     phone_number_id = payload.phone_number_id
@@ -101,7 +104,7 @@ async def create_auth_user(payload) -> Optional[AuthUser]:
         username=payload.username,
         tenant_id=payload.tenant_id,
         roles=roles,
-        permissions=_compute_permissions(tenant_doc, roles),
+        permissions=_compute_permissions((roles_doc or {}).get("roles") or {}, roles),
         phone_number_id=phone_number_id,
     )
 
@@ -121,14 +124,14 @@ async def update_auth_user(
     stored_tenant_id = user_doc.get("tenant_id") if isinstance(user_doc.get("tenant_id"), UUID) else None
     if stored_tenant_id != tenant_id:
         raise PermissionError("Tenant access forbidden")
-    tenant_doc = await auth_repo.find_tenant_by_id(tenant_id)
-    if not tenant_doc:
+    if not await auth_repo.find_tenant_by_id(tenant_id):
         raise ValueError("Tenant not found")
 
     updates: dict[str, object] = {}
     if roles is not None:
         cleaned_roles = [role.strip() for role in roles]
-        tenant_roles = set((tenant_doc.get("roles") or {}).keys())
+        roles_doc = await auth_repo.find_tenant_roles_by_id(tenant_id)
+        tenant_roles = set(((roles_doc or {}).get("roles") or {}).keys())
         if not set(cleaned_roles).issubset(tenant_roles):
             raise ValueError("One or more roles are not defined for this tenant")
         updates["roles"] = cleaned_roles
@@ -152,7 +155,7 @@ async def create_auth_tenant(tenant_id: UUID, name: str) -> Optional[AuthTenant]
     if existing:
         return None
     roles = {role: list(perms) for role, perms in app_config.get("default_tenant_roles", {}).items()}
-    await auth_repo.insert_tenant({"_id": tenant_id, "name": name, "roles": roles})
+    await auth_repo.insert_tenant({"_id": tenant_id, "name": name}, roles)
     return AuthTenant(id=tenant_id, name=name, roles=_coerce_role_permissions(roles))
 
 
