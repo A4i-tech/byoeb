@@ -2,8 +2,11 @@ from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
 from uuid import UUID
 
+from byoeb.repositories.base_repository import BaseRepository
 
-class AuthRepository(ABC):
+
+class AuthRepository(BaseRepository, ABC):
+
     @abstractmethod
     async def find_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
         raise NotImplementedError
