@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ASHA Logs Login</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+            background: #faf9f8;
+            color: #161514;
+        }
+        .page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .card {
+            width: 100%;
+            max-width: 420px;
+            background: #fff;
+            border: 1px solid #e1dfdd;
+            border-radius: 4px;
+            box-shadow: 0 3.2px 7.2px rgba(0,0,0,0.132);
+            padding: 24px;
+        }
+        h1 {
+            margin: 0 0 8px 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        p {
+            margin: 0 0 20px 0;
+            font-size: 13px;
+            color: #605e5c;
+        }
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #b3b0ad;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            background: #fff;
+            color: #161514;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #0078d4;
+            box-shadow: 0 0 0 1px #0078d4;
+        }
+        .field {
+            margin-bottom: 16px;
+        }
+        button {
+            padding: 8px 16px;
+            border: 1px solid #0078d4;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 14px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.1s ease-in-out;
+            background: #0078d4;
+            color: #fff;
+            width: 100%;
+        }
+        button:hover {
+            background: #106ebe;
+            border-color: #106ebe;
+        }
+        .status {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #605e5c;
+            min-height: 18px;
+        }
+        .tenant-section {
+            margin-top: 12px;
+            display: none;
+        }
+        .tenant-section.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="card">
+            <h1>ASHA Logs</h1>
+            <p>Sign in to continue.</p>
+            <form id="login-form">
+                <div class="field">
+                    <label for="username">Username</label>
+                    <input id="username" type="text" autocomplete="username" required>
+                </div>
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input id="password" type="password" autocomplete="current-password" required>
+                </div>
+                <button id="login-btn" type="submit">Sign In</button>
+            </form>
+            <div id="tenant-section" class="tenant-section">
+                <div class="field">
+                    <label for="tenant-select">Choose Tenant</label>
+                    <select id="tenant-select"></select>
+                </div>
+                <button id="tenant-btn" type="button">Continue</button>
+            </div>
+            <div id="status" class="status"></div>
+        </div>
+    </div>
+
+    <script>
+        const TOKEN_KEY = 'asha_auth_token';
+        const TENANT_KEY = 'asha_tenant_id';
+        const form = document.getElementById('login-form');
+        const statusEl = document.getElementById('status');
+        const tenantSection = document.getElementById('tenant-section');
+        const tenantSelect = document.getElementById('tenant-select');
+        const tenantBtn = document.getElementById('tenant-btn');
+        const loginBtn = document.getElementById('login-btn');
+
+        let cachedUsername = '';
+        let cachedPassword = '';
+        let redirectTo = '/asha_logs';
+        let initialToken = '';
+
+        function setStatus(message) {
+            statusEl.textContent = message;
+        }
+
+        function setRedirectTarget() {
+            const params = new URLSearchParams(window.location.search);
+            redirectTo = params.get('redirect') || '/asha_logs';
+        }
+
+        function storeAuth(token, tenantId) {
+            localStorage.setItem(TOKEN_KEY, token);
+            localStorage.setItem(TENANT_KEY, tenantId);
+        }
+
+        function redirect() {
+            window.location.href = redirectTo;
+        }
+
+        async function fetchToken(username, password, tenantId) {
+            const body = new URLSearchParams({ username, password });
+            const headers = { "Content-Type": "application/x-www-form-urlencoded" };
+            if (tenantId) {
+                headers["X-Tenant-ID"] = tenantId;
+            }
+            const response = await fetch('/auth/token', { method: 'POST', headers, body });
+            if (!response.ok) {
+                return null;
+            }
+            return await response.json();
+        }
+
+        async function fetchTenants(token) {
+            const response = await fetch('/auth/tenants', {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                return [];
+            }
+            return await response.json();
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            tenantSection.classList.remove('active');
+            setStatus('Signing in...');
+            loginBtn.disabled = true;
+            cachedUsername = document.getElementById('username').value.trim();
+            cachedPassword = document.getElementById('password').value;
+
+            const tokenResponse = await fetchToken(cachedUsername, cachedPassword, null);
+            if (!tokenResponse) {
+                setStatus('Login failed. Check username/password.');
+                loginBtn.disabled = false;
+                return;
+            }
+            initialToken = tokenResponse.access_token;
+            const tenants = await fetchTenants(initialToken);
+            if (!tenants.length) {
+                setStatus('No tenants found for this user.');
+                loginBtn.disabled = false;
+                return;
+            }
+            if (tenants.length === 1) {
+                storeAuth(initialToken, tenants[0].tenant_id);
+                redirect();
+                return;
+            }
+            tenantSelect.innerHTML = tenants.map(t => (
+                `<option value="${t.tenant_id}">${t.name || t.tenant_id}</option>`
+            )).join('');
+            tenantSection.classList.add('active');
+            setStatus('Select a tenant to continue.');
+        }
+
+        async function handleTenantSelect() {
+            const tenantId = tenantSelect.value;
+            if (!tenantId) {
+                setStatus('Please select a tenant.');
+                return;
+            }
+            setStatus('Signing in...');
+            const tokenResponse = await fetchToken(cachedUsername, cachedPassword, tenantId);
+            if (!tokenResponse) {
+                setStatus('Login failed. Check username/password.');
+                return;
+            }
+            storeAuth(tokenResponse.access_token, tenantId);
+            redirect();
+        }
+
+        form.addEventListener('submit', handleLogin);
+        tenantBtn.addEventListener('click', handleTenantSelect);
+        window.addEventListener('DOMContentLoaded', setRedirectTarget);
+    </script>
+</body>
+</html>

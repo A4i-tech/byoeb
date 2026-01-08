@@ -22,7 +22,7 @@ from byoeb.apis.channel_register import register_apis_router
 from byoeb.apis.chat import chat_apis_router, chat_mcps_router
 from byoeb.apis.user import user_apis_router, user_mcps_router
 from byoeb.apis.background_jobs import background_apis_router
-from byoeb.apis.admin import admin_apis_router
+from byoeb.apis.admin import admin_apis_router, admin_public_router
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +78,7 @@ def create_apps():
 
     app = FastAPI(lifespan=lifespan)
     app.include_router(auth_apis_router)
+    app.include_router(admin_public_router)
     app.include_router(
         admin_apis_router,
         dependencies=[Depends(require_permissions(AuthPermission.ADMIN_ACCESS)), Depends(require_tenant)],
