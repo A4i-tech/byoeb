@@ -4,10 +4,8 @@ Factory for creating repository instances.
 from typing import Optional
 from byoeb.repositories.dyk_repository import DykRepository
 from byoeb.repositories.auth_repository import AuthRepository
-from byoeb.repositories.auth_tenant_repository import AuthTenantRepository
 from byoeb.repositories.mongodb_dyk_repository import MongoDykRepository
 from byoeb.repositories.mongodb_auth_repository import MongoAuthRepository
-from byoeb.repositories.mongodb_auth_tenant_repository import MongoAuthTenantRepository
 from byoeb.repositories.message_repository import MessageRepository
 from byoeb.repositories.user_repository import UserRepository
 from byoeb.repositories.mongodb_message_repository import MongoMessageRepository
@@ -28,7 +26,6 @@ class RepositoryFactory:
         self._message_repository: Optional[MessageRepository] = None
         self._user_repository: Optional[UserRepository] = None
         self._auth_repository: Optional[AuthRepository] = None
-        self._auth_tenant_repository: Optional[AuthTenantRepository] = None
 
     async def get_dyk_repository(self) -> DykRepository:
         """Get or create DYK repository instance."""
@@ -60,16 +57,9 @@ class RepositoryFactory:
         if self._auth_repository is None:
             mongo_db = await self._mongo_factory.get(app_config["app"]["db_provider"])
             auth_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["auth_user_collection"])
-            self._auth_repository = MongoAuthRepository(auth_collection)
-        return self._auth_repository
-
-    async def get_auth_tenant_repository(self) -> AuthTenantRepository:
-        """Get or create auth tenant repository instance."""
-        if self._auth_tenant_repository is None:
-            mongo_db = await self._mongo_factory.get(app_config["app"]["db_provider"])
             tenant_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["auth_tenant_collection"])
-            self._auth_tenant_repository = MongoAuthTenantRepository(tenant_collection)
-        return self._auth_tenant_repository
+            self._auth_repository = MongoAuthRepository(auth_collection, tenant_collection)
+        return self._auth_repository
 
     async def reset_repositories(self):
         """Reset repository instances (useful for testing)."""
@@ -77,7 +67,6 @@ class RepositoryFactory:
         self._message_repository = None
         self._user_repository = None
         self._auth_repository = None
-        self._auth_tenant_repository = None
 
 async def get_repository_factory() -> RepositoryFactory:
     """Get or create repository factory instance."""

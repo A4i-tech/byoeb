@@ -16,8 +16,8 @@ async def _get_auth_user_doc(username: str) -> Optional[dict]:
 
 async def _get_auth_tenant_doc(tenant_id: UUID) -> Optional[dict]:
     repo_factory = await get_repository_factory()
-    tenant_repo = await repo_factory.get_auth_tenant_repository()
-    return await tenant_repo.find_tenant_by_id(tenant_id)
+    auth_repo = await repo_factory.get_auth_repository()
+    return await auth_repo.find_tenant_by_id(tenant_id)
 
 def _as_uuid(value: object) -> Optional[UUID]:
     if isinstance(value, UUID):
@@ -172,23 +172,23 @@ async def update_auth_user(
 
 async def create_auth_tenant(tenant_id: UUID, name: str) -> Optional[AuthTenant]:
     repo_factory = await get_repository_factory()
-    tenant_repo = await repo_factory.get_auth_tenant_repository()
-    existing = await tenant_repo.find_tenant_by_id(tenant_id)
+    auth_repo = await repo_factory.get_auth_repository()
+    existing = await auth_repo.find_tenant_by_id(tenant_id)
     if existing:
         return None
     roles = _load_tenant_roles()
-    await tenant_repo.insert_one({"tenant_id": _as_bson_uuid(tenant_id), "name": name, "roles": roles})
+    await auth_repo.insert_tenant({"tenant_id": _as_bson_uuid(tenant_id), "name": name, "roles": roles})
     return AuthTenant(tenant_id=tenant_id, name=name, roles=_coerce_role_permissions(roles))
 
 
 async def update_auth_tenant_roles(tenant_id: UUID, roles: dict[str, list[AuthPermission]]) -> Optional[AuthTenant]:
     repo_factory = await get_repository_factory()
-    tenant_repo = await repo_factory.get_auth_tenant_repository()
-    existing = await tenant_repo.find_tenant_by_id(tenant_id)
+    auth_repo = await repo_factory.get_auth_repository()
+    existing = await auth_repo.find_tenant_by_id(tenant_id)
     if not existing:
         return None
     serialized = {role: [perm.value for perm in perms] for role, perms in roles.items()}
-    updated = await tenant_repo.update_tenant_roles(tenant_id, serialized)
+    updated = await auth_repo.update_tenant_roles(tenant_id, serialized)
     if not updated:
         return None
     return AuthTenant(tenant_id=tenant_id, name=existing.get("name", ""), roles=roles)
