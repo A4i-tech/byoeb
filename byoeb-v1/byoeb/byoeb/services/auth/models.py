@@ -23,9 +23,8 @@ class AuthTenant(BaseModel):
 
 
 class AuthUser(BaseModel):
-    id: str
+    id: UUID
     username: str
     tenant_id: UUID
     roles: list[str] = Field(default_factory=list)
-    permissions: list[AuthPermission] = Field(default_factory=list)
     phone_number_id: Optional[PhoneNumberId] = None

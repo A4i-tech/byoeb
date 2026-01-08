@@ -6,6 +6,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Tuple
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +45,9 @@ def verify_password(password: str, user_doc: Dict[str, Any]) -> bool:
     return False
 
 
-def create_access_token(subject: str) -> Tuple[str, int]:
+def create_access_token(subject: str, tenant_id: UUID) -> Tuple[str, int]:
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=_TOKEN_TTL_SECONDS)
-    payload = {"sub": subject, "exp": int(expires_at.timestamp())}
+    payload = {"sub": subject, "tenant_id": str(tenant_id), "exp": int(expires_at.timestamp())}
     payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     signature = hmac.new(_TOKEN_SECRET.encode("utf-8"), payload_bytes, hashlib.sha256).digest()
     token = ".".join([

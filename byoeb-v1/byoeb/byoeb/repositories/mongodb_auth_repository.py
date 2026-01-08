@@ -22,6 +22,13 @@ class MongoAuthRepository(AuthRepository, MongoBaseRepository):
         result = await self._collection.update_one({"username": username}, {"$set": updates})
         return result.modified_count > 0
 
+    async def update_user_roles_for_tenant(self, username: str, tenant_id: UUID, roles: list[str]) -> bool:
+        result = await self._collection.update_one(
+            {"username": username, "tenants.tenant_id": tenant_id},
+            {"$set": {"tenants.$.roles": roles}},
+        )
+        return result.modified_count > 0
+
     async def find_tenant_by_id(self, tenant_id: UUID) -> Optional[Dict[str, Any]]:
         return await self._tenant_collection.find_one({"_id": tenant_id})
 
