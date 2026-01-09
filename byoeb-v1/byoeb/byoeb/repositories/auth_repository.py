@@ -20,6 +20,14 @@ class AuthRepository(BaseRepository, ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def add_user_tenant(self, username: str, tenant_id: UUID, roles: list[str]) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def remove_user_tenant(self, username: str, tenant_id: UUID) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_tenant_by_id(self, tenant_id: UUID) -> Optional[Dict[str, Any]]:
         raise NotImplementedError
 

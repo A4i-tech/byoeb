@@ -1,6 +1,5 @@
 from typing import Optional, Dict, Any
 from uuid import UUID
-from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.asynchronous.collection import AsyncCollection
 from byoeb.repositories.mongodb_base_repository import MongoBaseRepository
 from byoeb.repositories.auth_repository import AuthRepository
@@ -29,6 +28,20 @@ class MongoAuthRepository(AuthRepository, MongoBaseRepository):
         )
         return result.modified_count > 0
 
+    async def add_user_tenant(self, username: str, tenant_id: UUID, roles: list[str]) -> bool:
+        result = await self._collection.update_one(
+            {"username": username},
+            {"$push": {"tenants": {"tenant_id": tenant_id, "roles": roles}}},
+        )
+        return result.modified_count > 0
+
+    async def remove_user_tenant(self, username: str, tenant_id: UUID) -> bool:
+        result = await self._collection.update_one(
+            {"username": username},
+            {"$pull": {"tenants": {"tenant_id": tenant_id}}},
+        )
+        return result.modified_count > 0
+
     async def find_tenant_by_id(self, tenant_id: UUID) -> Optional[Dict[str, Any]]:
         return await self._tenant_collection.find_one({"_id": tenant_id})
 
@@ -37,13 +50,9 @@ class MongoAuthRepository(AuthRepository, MongoBaseRepository):
         return result.modified_count > 0
 
     async def insert_tenant(self, tenant_doc: Dict[str, Any], roles: Dict[str, Any]) -> str:
-        async def task(session: AsyncClientSession) -> str:
-            result = await self._tenant_collection.insert_one(tenant_doc, session=session)
-            await self._role_collection.insert_one({"_id": tenant_doc["_id"], "roles": roles}, session=session)
-            return str(result.inserted_id)
-
-        async with self._role_collection.database.client.start_session() as session:
-            return await session.with_transaction(task)
+        result = await self._tenant_collection.insert_one(tenant_doc)
+        await self._role_collection.insert_one({"_id": tenant_doc["_id"], "roles": roles})
+        return str(result.inserted_id)
 
     async def find_tenant_roles_by_id(self, tenant_id: UUID) -> Optional[Dict[str, Any]]:
         return await self._role_collection.find_one({"_id": tenant_id})

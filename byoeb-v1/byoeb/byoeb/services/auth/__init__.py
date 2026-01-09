@@ -5,6 +5,12 @@ from byoeb.services.auth.auth_service import (
     create_auth_tenant,
     update_auth_user,
 )
+from byoeb.services.auth.session import (
+    TokenClaims,
+    get_permissions_for_roles,
+    parse_access_token,
+    resolve_user_from_token,
+)
 from byoeb.services.auth.security import create_access_token, decode_access_token, hash_password, verify_password
 
 __all__ = [
@@ -19,4 +25,8 @@ __all__ = [
     "decode_access_token",
     "hash_password",
     "verify_password",
+    "TokenClaims",
+    "get_permissions_for_roles",
+    "parse_access_token",
+    "resolve_user_from_token",
 ]

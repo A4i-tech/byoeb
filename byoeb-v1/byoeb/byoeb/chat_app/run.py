@@ -14,9 +14,11 @@ import uvicorn
 import yaml
 from fastapi import Depends, FastAPI
 from fastmcp import FastMCP
+from mcp.server.auth.settings import ClientRegistrationOptions
 from contextlib import asynccontextmanager
-from byoeb.apis.auth import auth_apis_router, get_current_user, require_permissions, require_tenant, MCPTokenVerifier
+from byoeb.apis.auth import auth_apis_router, get_current_user, require_permissions, require_tenant
 from byoeb.services.auth.models import AuthPermission
+from byoeb.services.auth.mcp_oauth_provider import MCPAuthProvider
 from byoeb.apis.health import health_apis_router, health_mcps_router
 from byoeb.apis.channel_register import register_apis_router
 from byoeb.apis.chat import chat_apis_router, chat_mcps_router
@@ -79,23 +81,22 @@ def create_apps():
     app = FastAPI(lifespan=lifespan)
     app.include_router(auth_apis_router)
     app.include_router(admin_public_router)
-    app.include_router(
-        admin_apis_router,
-        dependencies=[Depends(require_permissions(AuthPermission.ADMIN_ACCESS)), Depends(require_tenant)],
-    )
-    app.include_router(
-        background_apis_router,
-        dependencies=[Depends(require_permissions(AuthPermission.JOBS_RUN)), Depends(require_tenant)],
-    )
+    app.include_router(admin_apis_router, dependencies=[Depends(require_permissions(AuthPermission.ADMIN_ACCESS)), Depends(require_tenant)])
+    app.include_router(background_apis_router, dependencies=[Depends(require_permissions(AuthPermission.JOBS_RUN)), Depends(require_tenant)])
     app.include_router(chat_apis_router)
-    app.include_router(
-        user_apis_router,
-        dependencies=[Depends(require_permissions(AuthPermission.USERS_MANAGE)), Depends(require_tenant)],
-    )
+    app.include_router(user_apis_router, dependencies=[Depends(require_permissions(AuthPermission.USERS_MANAGE)), Depends(require_tenant)])
     app.include_router(register_apis_router)
     app.include_router(health_apis_router)
 
-    mcp = FastMCP(auth=MCPTokenVerifier(required_scopes=[AuthPermission.MCP_ACCESS.value]))
+    mcp = FastMCP(auth=MCPAuthProvider(
+        base_url="http://127.0.0.1:8000",
+        required_scopes=[AuthPermission.MCP_ACCESS.value],
+        client_registration_options=ClientRegistrationOptions(
+            enabled=True,
+            valid_scopes=[AuthPermission.MCP_ACCESS.value],
+            default_scopes=[AuthPermission.MCP_ACCESS.value],
+        ),
+    ))
     health_mcps_router(mcp)
     chat_mcps_router(mcp)
     user_mcps_router(mcp)

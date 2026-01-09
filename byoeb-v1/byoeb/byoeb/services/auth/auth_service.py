@@ -8,6 +8,11 @@ from byoeb.services.auth.security import verify_password, hash_password
 from byoeb.chat_app.configuration.config import app_config
 
 
+async def _get_auth_repo():
+    repo_factory = await get_repository_factory()
+    return await repo_factory.get_auth_repository()
+
+
 def _coerce_role_permissions(roles: dict[str, list[str]]) -> dict[str, list[AuthPermission]]:
     result: dict[str, list[AuthPermission]] = {}
     for role, perms in roles.items():
@@ -24,8 +29,7 @@ def _coerce_role_permissions(roles: dict[str, list[str]]) -> dict[str, list[Auth
 async def _build_auth_user(user_doc: dict | None, tenant_id: UUID) -> Optional[AuthUser]:
     if not user_doc or not isinstance(tenant_id, UUID):
         return None
-    repo_factory = await get_repository_factory()
-    auth_repo = await repo_factory.get_auth_repository()
+    auth_repo = await _get_auth_repo()
     if not await auth_repo.find_tenant_by_id(tenant_id):
         return None
     user_id = user_doc.get("_id")
@@ -48,8 +52,7 @@ async def _build_auth_user(user_doc: dict | None, tenant_id: UUID) -> Optional[A
 
 
 async def authenticate_user(username: str, password: str, tenant_id: UUID) -> Optional[AuthUser]:
-    repo_factory = await get_repository_factory()
-    auth_repo = await repo_factory.get_auth_repository()
+    auth_repo = await _get_auth_repo()
     user_doc = await auth_repo.find_user_by_username(username)
     if not user_doc or not verify_password(password, user_doc):
         return None
@@ -57,15 +60,13 @@ async def authenticate_user(username: str, password: str, tenant_id: UUID) -> Op
 
 
 async def get_user_by_username(username: str, tenant_id: UUID) -> Optional[AuthUser]:
-    repo_factory = await get_repository_factory()
-    auth_repo = await repo_factory.get_auth_repository()
+    auth_repo = await _get_auth_repo()
     user_doc = await auth_repo.find_user_by_username(username)
     return await _build_auth_user(user_doc, tenant_id)
 
 
 async def create_auth_user(payload) -> Optional[AuthUser]:
-    repo_factory = await get_repository_factory()
-    auth_repo = await repo_factory.get_auth_repository()
+    auth_repo = await _get_auth_repo()
     tenant_doc = await auth_repo.find_tenant_by_id(payload.tenant_id)
     if not tenant_doc:
         raise ValueError("Tenant does not exist")
@@ -104,8 +105,7 @@ async def update_auth_user(
     password: Optional[str] = None,
     phone_number_id: Optional[PhoneNumberId] = None,
 ) -> Optional[AuthUser]:
-    repo_factory = await get_repository_factory()
-    auth_repo = await repo_factory.get_auth_repository()
+    auth_repo = await _get_auth_repo()
     user_doc = await auth_repo.find_user_by_username(username)
     if not user_doc:
         return None
@@ -141,8 +141,7 @@ async def update_auth_user(
 
 
 async def create_auth_tenant(tenant_id: UUID, name: str) -> Optional[AuthTenant]:
-    repo_factory = await get_repository_factory()
-    auth_repo = await repo_factory.get_auth_repository()
+    auth_repo = await _get_auth_repo()
     existing = await auth_repo.find_tenant_by_id(tenant_id)
     if existing:
         return None
@@ -152,8 +151,7 @@ async def create_auth_tenant(tenant_id: UUID, name: str) -> Optional[AuthTenant]
 
 
 async def update_auth_tenant_roles(tenant_id: UUID, roles: dict[str, list[AuthPermission]]) -> Optional[AuthTenant]:
-    repo_factory = await get_repository_factory()
-    auth_repo = await repo_factory.get_auth_repository()
+    auth_repo = await _get_auth_repo()
     existing = await auth_repo.find_tenant_by_id(tenant_id)
     if not existing:
         return None
@@ -162,3 +160,121 @@ async def update_auth_tenant_roles(tenant_id: UUID, roles: dict[str, list[AuthPe
     if not updated:
         return None
     return AuthTenant(id=tenant_id, name=existing.get("name", ""), roles=roles)
+
+
+async def get_tenant_roles(tenant_id: UUID) -> Optional[dict[str, list[str]]]:
+    auth_repo = await _get_auth_repo()
+    if not await auth_repo.find_tenant_by_id(tenant_id):
+        return None
+    roles_doc = await auth_repo.find_tenant_roles_by_id(tenant_id) or {}
+    return roles_doc.get("roles") or {}
+
+
+async def set_tenant_role_permissions(
+    tenant_id: UUID,
+    role: str,
+    permissions: list[AuthPermission],
+) -> Optional[dict[str, list[str]]]:
+    roles_map = await get_tenant_roles(tenant_id)
+    if roles_map is None or role not in roles_map:
+        return None
+    roles_map[role] = [perm.value for perm in permissions]
+    auth_repo = await _get_auth_repo()
+    return roles_map if await auth_repo.update_tenant_roles(tenant_id, roles_map) else None
+
+
+async def add_tenant_role(
+    tenant_id: UUID,
+    role: str,
+    permissions: list[AuthPermission],
+) -> Optional[dict[str, list[str]]]:
+    roles_map = await get_tenant_roles(tenant_id)
+    if roles_map is None or role in roles_map:
+        return None
+    roles_map[role] = [perm.value for perm in permissions]
+    auth_repo = await _get_auth_repo()
+    return roles_map if await auth_repo.update_tenant_roles(tenant_id, roles_map) else None
+
+
+async def delete_tenant_role(tenant_id: UUID, role: str) -> Optional[dict[str, list[str]]]:
+    roles_map = await get_tenant_roles(tenant_id)
+    if roles_map is None or role not in roles_map:
+        return None
+    roles_map.pop(role, None)
+    auth_repo = await _get_auth_repo()
+    return roles_map if await auth_repo.update_tenant_roles(tenant_id, roles_map) else None
+
+
+async def add_user_role(username: str, tenant_id: UUID, role: str) -> Optional[AuthUser]:
+    auth_repo = await _get_auth_repo()
+    user_doc = await auth_repo.find_user_by_username(username)
+    if not user_doc:
+        return None
+    tenant_entry = next(
+        (tenant for tenant in user_doc.get("tenants", []) if tenant.get("tenant_id") == tenant_id),
+        None,
+    )
+    if not tenant_entry:
+        raise PermissionError("Tenant access forbidden")
+    roles_doc = await auth_repo.find_tenant_roles_by_id(tenant_id) or {}
+    tenant_roles = set((roles_doc.get("roles") or {}).keys())
+    if role not in tenant_roles:
+        raise ValueError("Role is not defined for this tenant")
+    roles = list(tenant_entry.get("roles", []))
+    if role not in roles:
+        roles.append(role)
+        await auth_repo.update_user_roles_for_tenant(username, tenant_id, roles)
+        tenant_entry["roles"] = roles
+    return await _build_auth_user(user_doc, tenant_id)
+
+
+async def remove_user_role(username: str, tenant_id: UUID, role: str) -> Optional[AuthUser]:
+    auth_repo = await _get_auth_repo()
+    user_doc = await auth_repo.find_user_by_username(username)
+    if not user_doc:
+        return None
+    tenant_entry = next(
+        (tenant for tenant in user_doc.get("tenants", []) if tenant.get("tenant_id") == tenant_id),
+        None,
+    )
+    if not tenant_entry:
+        raise PermissionError("Tenant access forbidden")
+    roles = [r for r in tenant_entry.get("roles", []) if r != role]
+    await auth_repo.update_user_roles_for_tenant(username, tenant_id, roles)
+    tenant_entry["roles"] = roles
+    return await _build_auth_user(user_doc, tenant_id)
+
+
+async def add_user_tenant(username: str, tenant_id: UUID, roles: list[str]) -> Optional[AuthUser]:
+    auth_repo = await _get_auth_repo()
+    user_doc = await auth_repo.find_user_by_username(username)
+    if not user_doc:
+        return None
+    if not await auth_repo.find_tenant_by_id(tenant_id):
+        raise ValueError("Tenant not found")
+    if any(tenant.get("tenant_id") == tenant_id for tenant in user_doc.get("tenants", [])):
+        raise ValueError("User already assigned to tenant")
+
+    roles_doc = await auth_repo.find_tenant_roles_by_id(tenant_id) or {}
+    tenant_roles = set((roles_doc.get("roles") or {}).keys())
+    if not set(roles).issubset(tenant_roles):
+        raise ValueError("One or more roles are not defined for this tenant")
+
+    if not await auth_repo.add_user_tenant(username, tenant_id, roles):
+        return None
+    user_doc.setdefault("tenants", []).append({"tenant_id": tenant_id, "roles": roles})
+    return await _build_auth_user(user_doc, tenant_id)
+
+
+async def remove_user_tenant(username: str, tenant_id: UUID) -> bool:
+    auth_repo = await _get_auth_repo()
+    user_doc = await auth_repo.find_user_by_username(username)
+    if not user_doc:
+        return False
+    tenant_entry = next(
+        (tenant for tenant in user_doc.get("tenants", []) if tenant.get("tenant_id") == tenant_id),
+        None,
+    )
+    if not tenant_entry:
+        return False
+    return await auth_repo.remove_user_tenant(username, tenant_id)

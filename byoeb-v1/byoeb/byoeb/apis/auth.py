@@ -3,7 +3,6 @@ from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status, Body
-from fastmcp.server.auth import AccessToken, TokenVerifier
 from fastmcp.server.dependencies import get_access_token, get_http_request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field, StringConstraints
@@ -13,12 +12,21 @@ from byoeb.services.auth.auth_service import (
     authenticate_user,
     create_auth_tenant,
     create_auth_user,
+    get_tenant_roles,
+    add_tenant_role,
+    delete_tenant_role,
+    set_tenant_role_permissions,
+    add_user_role,
+    remove_user_role,
+    add_user_tenant,
+    remove_user_tenant,
     get_user_by_username,
     update_auth_user,
     update_auth_tenant_roles,
 )
 from byoeb.services.auth.models import AuthPermission, AuthTenant, AuthUser
-from byoeb.services.auth.security import create_access_token, decode_access_token
+from byoeb.services.auth.security import create_access_token
+from byoeb.services.auth.session import get_permissions_for_roles, parse_access_token
 from byoeb.repositories.repository_factory import get_repository_factory
 
 
@@ -45,6 +53,24 @@ class TenantSummary(BaseModel):
     name: str
     roles: list[str] = Field(default_factory=list)
 
+class RoleChangeRequest(BaseModel):
+    role: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=64)]
+    permissions: list[AuthPermission] = Field(min_length=1)
+
+class UserRoleRequest(BaseModel):
+    username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=64)]
+    role: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=64)]
+
+class UserRolesRequest(BaseModel):
+    username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=64)]
+    roles: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=64)]] = Field(min_length=1)
+
+class UserTenantRequest(BaseModel):
+    username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=64)]
+    roles: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=64)]] = Field(min_length=1)
+
+class UserTenantRemoveRequest(BaseModel):
+    username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=64)]
 
 class UpdateUserRequest(BaseModel):
     username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=64)]
@@ -79,16 +105,12 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
 ) -> AuthUser:
     try:
-        payload = decode_access_token(token)
+        claims = parse_access_token(token)
     except ValueError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token", headers={"WWW-Authenticate": "Bearer"})
-    tenant_claim = payload.get("tenant_id")
-    if tenant_claim and str(tenant_id) != str(tenant_claim):
+    if tenant_id != claims.tenant_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Tenant access forbidden")
-    username = payload.get("sub")
-    if not username:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token subject", headers={"WWW-Authenticate": "Bearer"})
-    user = await get_user_by_username(username, tenant_id)
+    user = await get_user_by_username(claims.username, tenant_id)
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found", headers={"WWW-Authenticate": "Bearer"})
     return user
@@ -106,55 +128,12 @@ async def require_tenant(
 def require_permissions(*required_permissions: AuthPermission | str):
     required = {perm.value if isinstance(perm, AuthPermission) else perm for perm in required_permissions}
     async def _require_permissions(user: AuthUser = Depends(get_current_user)) -> AuthUser:
-        repo_factory = await get_repository_factory()
-        auth_repo = await repo_factory.get_auth_repository()
-        roles_doc = await auth_repo.find_tenant_roles_by_id(user.tenant_id)
-        roles_map = (roles_doc or {}).get("roles") or {}
-        granted = {perm for role in user.roles for perm in roles_map.get(role, [])}
-        if not granted.intersection(required):
+        granted = set(await get_permissions_for_roles(user.tenant_id, user.roles))
+        if not granted & required:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Permission access forbidden")
         return user
 
     return _require_permissions
-
-
-class MCPTokenVerifier(TokenVerifier):
-    async def verify_token(self, token: str) -> AccessToken | None:
-        try:
-            payload = decode_access_token(token)
-        except ValueError:
-            return None
-        username = payload.get("sub")
-        if not username:
-            return None
-        tenant_claim = payload.get("tenant_id")
-        if not tenant_claim:
-            return None
-        try:
-            tenant_id = UUID(tenant_claim)
-        except ValueError:
-            return None
-        user = await get_user_by_username(username, tenant_id)
-        if not user:
-            return None
-        repo_factory = await get_repository_factory()
-        auth_repo = await repo_factory.get_auth_repository()
-        roles_doc = await auth_repo.find_tenant_roles_by_id(user.tenant_id)
-        roles_map = (roles_doc or {}).get("roles") or {}
-        permissions = list({perm for role in user.roles for perm in roles_map.get(role, [])})
-        return AccessToken(
-            token=token,
-            client_id=user.username,
-            scopes=permissions,
-            expires_at=payload.get("exp"),
-            resource_owner=user.username,
-            claims={
-                "tenant_id": str(user.tenant_id),
-                "roles": user.roles,
-                "permissions": permissions,
-                "phone_number_id": str(user.phone_number_id) if user.phone_number_id else None,
-            },
-        )
 
 
 def require_mcp_tenant_header() -> UUID:
@@ -169,7 +148,10 @@ def require_mcp_tenant_header() -> UUID:
     request = get_http_request()
     tenant_header = request.headers.get("x-tenant-id")
     if not tenant_header:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Missing X-Tenant-ID header")
+        try:
+            return UUID(str(tenant_claim))
+        except ValueError:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid tenant in token")
     try:
         tenant_id = UUID(tenant_header)
     except ValueError:
@@ -225,7 +207,7 @@ async def update_user(
 
 @auth_apis_router.post("/auth/tenants", dependencies=[Depends(require_permissions(AuthPermission.AUTH_TENANTS_WRITE))])
 async def create_tenant(
-    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=128)],
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=128), Body(..., embed=True)],
 ) -> AuthTenant:
     tenant_id = uuid.uuid4()
     created = await create_auth_tenant(tenant_id, name)
@@ -245,18 +227,132 @@ async def update_tenant_roles(
     return updated
 
 
+@auth_apis_router.get("/auth/tenants/roles")
+async def list_tenant_roles(
+    tenant_id: UUID = Depends(require_tenant),
+) -> dict[str, list[str]]:
+    roles = await get_tenant_roles(tenant_id)
+    if roles is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tenant not found")
+    return roles
+
+
+@auth_apis_router.post("/auth/tenants/roles", dependencies=[Depends(require_permissions(AuthPermission.AUTH_TENANTS_WRITE))])
+async def create_tenant_role(
+    payload: RoleChangeRequest,
+    tenant_id: UUID = Depends(require_tenant),
+) -> dict[str, list[str]]:
+    updated = await add_tenant_role(tenant_id, payload.role, payload.permissions)
+    if updated is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Role already exists or tenant not found")
+    return updated
+
+
+@auth_apis_router.put("/auth/tenants/roles/{role}", dependencies=[Depends(require_permissions(AuthPermission.AUTH_TENANTS_WRITE))])
+async def update_tenant_role_permissions(
+    role: str,
+    permissions: list[AuthPermission] = Body(..., min_length=1),
+    tenant_id: UUID = Depends(require_tenant),
+) -> dict[str, list[str]]:
+    updated = await set_tenant_role_permissions(tenant_id, role, permissions)
+    if updated is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Role or tenant not found")
+    return updated
+
+
+@auth_apis_router.delete("/auth/tenants/roles/{role}", dependencies=[Depends(require_permissions(AuthPermission.AUTH_TENANTS_WRITE))])
+async def delete_tenant_role_permissions(
+    role: str,
+    tenant_id: UUID = Depends(require_tenant),
+) -> dict[str, list[str]]:
+    updated = await delete_tenant_role(tenant_id, role)
+    if updated is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Role or tenant not found")
+    return updated
+
+
+@auth_apis_router.put("/auth/users/roles", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])
+async def set_user_roles(
+    payload: UserRolesRequest,
+    tenant_id: UUID = Depends(require_tenant),
+) -> AuthUser:
+    updated = await update_auth_user(
+        username=payload.username,
+        tenant_id=tenant_id,
+        roles=payload.roles,
+    )
+    if not updated:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    return updated
+
+
+@auth_apis_router.post("/auth/users/roles", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])
+async def add_user_role_api(
+    payload: UserRoleRequest,
+    tenant_id: UUID = Depends(require_tenant),
+) -> AuthUser:
+    try:
+        updated = await add_user_role(payload.username, tenant_id, payload.role)
+    except PermissionError as exc:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(exc))
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
+    if not updated:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    return updated
+
+
+@auth_apis_router.delete("/auth/users/roles", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])
+async def remove_user_role_api(
+    payload: UserRoleRequest,
+    tenant_id: UUID = Depends(require_tenant),
+) -> AuthUser:
+    try:
+        updated = await remove_user_role(payload.username, tenant_id, payload.role)
+    except PermissionError as exc:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(exc))
+    if not updated:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    return updated
+
+
+@auth_apis_router.post("/auth/users/tenants", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])
+async def add_user_tenant_api(
+    payload: UserTenantRequest,
+    tenant_id: UUID = Depends(require_tenant),
+) -> AuthUser:
+    try:
+        updated = await add_user_tenant(payload.username, tenant_id, payload.roles)
+    except ValueError as exc:
+        detail = str(exc)
+        if "Tenant not found" in detail:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail)
+    if not updated:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    return updated
+
+
+@auth_apis_router.delete("/auth/users/tenants", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])
+async def remove_user_tenant_api(
+    payload: UserTenantRemoveRequest,
+    tenant_id: UUID = Depends(require_tenant),
+) -> dict[str, str]:
+    updated = await remove_user_tenant(payload.username, tenant_id)
+    if not updated:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User or tenant not found")
+    return {"status": "removed"}
+
+
 @auth_apis_router.get("/auth/tenants")
 async def list_my_tenants(token: str = Depends(oauth2_scheme)) -> list[TenantSummary]:
     try:
-        payload = decode_access_token(token)
+        claims = parse_access_token(token)
     except ValueError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token", headers={"WWW-Authenticate": "Bearer"})
-    username = payload.get("sub")
-    if not username:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token subject", headers={"WWW-Authenticate": "Bearer"})
     repo_factory = await get_repository_factory()
     auth_repo = await repo_factory.get_auth_repository()
-    user_doc = await auth_repo.find_user_by_username(username)
+    user_doc = await auth_repo.find_user_by_username(claims.username)
     if not user_doc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found", headers={"WWW-Authenticate": "Bearer"})
     results: list[TenantSummary] = []
