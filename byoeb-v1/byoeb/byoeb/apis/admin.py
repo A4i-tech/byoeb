@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
 from byoeb.services.admin.message_process import process_message, clear_history as clear_user_history
+from byoeb.services.auth.models import AuthPermission
 
 REGISTER_API_NAME = 'admin_apis'
 
@@ -23,17 +24,22 @@ template_dir = os.path.join(current_dir, 'ui_templates')
 templates = Jinja2Templates(directory=template_dir)
 file_path = "asha_data.xlsx"
 
-@admin_public_router.get("/asha_logs")
+@admin_public_router.get("/asha_logs", include_in_schema=False)
 async def asha_logs(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("index.html", {"request": request})
 
-@admin_public_router.get("/login")
+@admin_public_router.get("/login", include_in_schema=False)
 async def login(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("login.html", {"request": request})
 
-@admin_public_router.get("/experiment")
+@admin_public_router.get("/admin", include_in_schema=False)
+async def admin(request: Request) -> HTMLResponse:
+    permissions = [perm.value for perm in AuthPermission]
+    return templates.TemplateResponse("admin.html", {"request": request, "permissions": permissions})
+
+@admin_public_router.get("/experiment", include_in_schema=False)
 async def experiment(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("admin.html", {"request": request})
+    return templates.TemplateResponse("experiment.html", {"request": request})
 
 @admin_apis_router.post("/asha_logs")
 async def asha_logs_form(start: datetime = Form(...), end: datetime = Form(...)) -> StreamingResponse:
