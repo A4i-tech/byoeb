@@ -274,12 +274,12 @@ class MCPAuthProvider(AuthProvider):
         routes = [
             Route("/.well-known/oauth-authorization-server", endpoint=cors_middleware(MetadataHandler(metadata).handle, ["GET", "OPTIONS"]), methods=["GET", "OPTIONS"]),
             *([Route(scoped_metadata_path, endpoint=cors_middleware(MetadataHandler(metadata).handle, ["GET", "OPTIONS"]), methods=["GET", "OPTIONS"])] if scoped_metadata_path else []),
-            Route("/authorize", endpoint=self._authorize, methods=["GET", "POST"]),
-            Route("/token", endpoint=cors_middleware(self._token, ["POST", "OPTIONS"]), methods=["POST", "OPTIONS"]),
+            Route((mcp_path or "") + "/authorize", endpoint=self._authorize, methods=["GET", "POST"]),
+            Route((mcp_path or "") + "/token", endpoint=cors_middleware(self._token, ["POST", "OPTIONS"]), methods=["POST", "OPTIONS"]),
         ]
         if self._client_registration_options.enabled:
             registration_handler = RegistrationHandler(self, options=self._client_registration_options)
-            routes.append(Route("/register", endpoint=cors_middleware(registration_handler.handle, ["POST", "OPTIONS"]), methods=["POST", "OPTIONS"]))
+            routes.append(Route((mcp_path or "") + "/register", endpoint=cors_middleware(registration_handler.handle, ["POST", "OPTIONS"]), methods=["POST", "OPTIONS"]))
         resource_url = self._get_resource_url(mcp_path)
         if resource_url:
             scopes_supported = self._client_registration_options.valid_scopes or self.required_scopes
@@ -294,6 +294,9 @@ class MCPAuthProvider(AuthProvider):
         self._ensure_loop()
         auth_service = await get_auth_service()
         await auth_service.register_oauth_client(client_info)
+
+    def _get_resource_url(self, path: str | None = None) -> AnyHttpUrl | None:
+        return super()._get_resource_url()
 
     def _token_generator(self, grant_type, client, user=None, scope=None, expires_in=None, include_refresh_token=True):
         access_token, ttl_seconds = TOKEN_SERVICE.create_access_token(user.username, user.tenant_id)
