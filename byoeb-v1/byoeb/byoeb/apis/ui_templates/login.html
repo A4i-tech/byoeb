@@ -277,7 +277,7 @@
         function setRedirectTarget() {
             const params = new URLSearchParams(window.location.search);
             redirectTo = params.get('redirect') || '/asha_logs';
-            const paramKeys = ['response_type', 'client_id', 'redirect_uri', 'state', 'scope', 'code_challenge', 'code_challenge_method', 'resource'];
+            const paramKeys = ['response_type', 'client_id', 'redirect_uri', 'state', 'scope', 'code_challenge', 'code_challenge_method', 'resource', 'auth_path'];
             oauthParams = {};
             paramKeys.forEach(key => {
                 const value = params.get(key);
@@ -393,7 +393,7 @@
 
         async function finalizeOAuth(tenantId) {
             setStatus('Completing authorization...');
-            form.action = '/authorize';
+            form.action = oauthParams.auth_path || '/authorize';
             form.method = 'POST';
             setHiddenField('tenant_id', tenantId);
             Object.entries(oauthParams).forEach(([key, value]) => setHiddenField(key, value));

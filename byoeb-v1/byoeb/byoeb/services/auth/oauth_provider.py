@@ -263,35 +263,23 @@ class MCPAuthProvider(AuthProvider):
 
     def get_routes(self, mcp_path: str | None = None) -> list[Route]:
         assert self.base_url is not None
-        metadata = build_metadata(
-            self.base_url,
-            None,
-            self._client_registration_options,
-            self._revocation_options,
-        )
+        metadata = build_metadata(self.base_url, None, self._client_registration_options, self._revocation_options)
         metadata.token_endpoint_auth_methods_supported.append("none")
+        scoped_metadata_path = None
+        if mcp_path:
+            suffix = mcp_path.rstrip("/")
+            if not suffix.startswith("/"):
+                suffix = f"/{suffix}"
+            scoped_metadata_path = f"/.well-known/oauth-authorization-server{suffix}"
         routes = [
-            Route(
-                "/.well-known/oauth-authorization-server",
-                endpoint=cors_middleware(MetadataHandler(metadata).handle, ["GET", "OPTIONS"]),
-                methods=["GET", "OPTIONS"],
-            ),
+            Route("/.well-known/oauth-authorization-server", endpoint=cors_middleware(MetadataHandler(metadata).handle, ["GET", "OPTIONS"]), methods=["GET", "OPTIONS"]),
+            *([Route(scoped_metadata_path, endpoint=cors_middleware(MetadataHandler(metadata).handle, ["GET", "OPTIONS"]), methods=["GET", "OPTIONS"])] if scoped_metadata_path else []),
             Route("/authorize", endpoint=self._authorize, methods=["GET", "POST"]),
-            Route(
-                "/token",
-                endpoint=cors_middleware(self._token, ["POST", "OPTIONS"]),
-                methods=["POST", "OPTIONS"],
-            ),
+            Route("/token", endpoint=cors_middleware(self._token, ["POST", "OPTIONS"]), methods=["POST", "OPTIONS"]),
         ]
         if self._client_registration_options.enabled:
             registration_handler = RegistrationHandler(self, options=self._client_registration_options)
-            routes.append(
-                Route(
-                    "/register",
-                    endpoint=cors_middleware(registration_handler.handle, ["POST", "OPTIONS"]),
-                    methods=["POST", "OPTIONS"],
-                )
-            )
+            routes.append(Route("/register", endpoint=cors_middleware(registration_handler.handle, ["POST", "OPTIONS"]), methods=["POST", "OPTIONS"]))
         resource_url = self._get_resource_url(mcp_path)
         if resource_url:
             scopes_supported = self._client_registration_options.valid_scopes or self.required_scopes
@@ -320,9 +308,12 @@ class MCPAuthProvider(AuthProvider):
         self._ensure_loop()
         if request.method == "GET":
             query = request.url.query
+            auth_path = request.url.path
             location = "/login"
             if query:
-                location = f"{location}?{query}"
+                location = f"{location}?{query}&auth_path={auth_path}"
+            else:
+                location = f"{location}?auth_path={auth_path}"
             return RedirectResponse(location, status_code=302)
         form = await request.form()
         username = form.get("username")
