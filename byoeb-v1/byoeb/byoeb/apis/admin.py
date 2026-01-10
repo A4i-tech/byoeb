@@ -26,20 +26,20 @@ templates = Jinja2Templates(directory=template_dir)
 
 @admin_public_router.get("/asha_logs", include_in_schema=False)
 async def asha_logs(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html")
 
 @admin_public_router.get("/login", include_in_schema=False)
 async def login(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html")
 
 @admin_public_router.get("/admin", include_in_schema=False)
 async def admin(request: Request) -> HTMLResponse:
     permissions = [perm.value for perm in AuthPermission]
-    return templates.TemplateResponse("admin.html", {"request": request, "permissions": permissions})
+    return templates.TemplateResponse(request, "admin.html", {"permissions": permissions})
 
 @admin_public_router.get("/experiment", include_in_schema=False)
 async def experiment(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("experiment.html", {"request": request})
+    return templates.TemplateResponse(request, "experiment.html")
 
 @admin_apis_router.post("/asha_logs")
 async def asha_logs_form(start: datetime = Form(...), end: datetime = Form(...)) -> StreamingResponse:
