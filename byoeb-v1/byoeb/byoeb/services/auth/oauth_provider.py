@@ -32,7 +32,6 @@ from byoeb.services.auth.security import TOKEN_SERVICE
 
 
 _AUTH_CODE_TTL_SECONDS = 5 * 60
-_MCP_ACCESS_SCOPE = AuthPermission.MCP_ACCESS.value
 
 
 class StarletteOAuth2Payload(OAuth2Payload):
@@ -175,10 +174,10 @@ class MCPAuthorizationServer(AuthorizationServer):
         self._provider = provider
 
     def query_client(self, client_id):
-        return self._provider._sync_get_client(client_id)
+        return self._provider._run_coroutine(self._provider._get_client(client_id))
 
     def save_token(self, token, request):
-        return self._provider._sync_save_token(token, request)
+        return self._provider._run_coroutine(self._provider._save_token(token, request))
 
     def send_signal(self, name, *args, **kwargs):
         # No signal system wired up; treat hooks as no-ops.
@@ -206,10 +205,10 @@ class MCPAuthorizationCodeGrant(AuthorizationCodeGrant):
         super().__init__(request, server)
         self._provider = server._provider
 
-    def save_authorization_code(self, code, request): return self._provider._sync_store_auth_code(code, request)
-    def query_authorization_code(self, code, client): return self._provider._sync_query_auth_code(code, client)
-    def delete_authorization_code(self, authorization_code): return self._provider._sync_delete_auth_code(authorization_code)
-    def authenticate_user(self, authorization_code): return self._provider._sync_authenticate_code_user(authorization_code)
+    def save_authorization_code(self, code, request): return self._provider._run_coroutine(self._provider._store_auth_code(code, request))
+    def query_authorization_code(self, code, client): return self._provider._run_coroutine(self._provider._query_auth_code(code, client))
+    def delete_authorization_code(self, authorization_code): return self._provider._run_coroutine(self._provider._delete_auth_code(authorization_code))
+    def authenticate_user(self, authorization_code): return self._provider._run_coroutine(self._provider._authenticate_code_user(authorization_code))
 
 
 class MCPRefreshTokenGrant(RefreshTokenGrant):
@@ -220,15 +219,16 @@ class MCPRefreshTokenGrant(RefreshTokenGrant):
         super().__init__(request, server)
         self._provider = server._provider
 
-    def authenticate_refresh_token(self, refresh_token): return self._provider._sync_authenticate_refresh_token(refresh_token)
-    def authenticate_user(self, refresh_token): return self._provider._sync_authenticate_refresh_user(refresh_token)
-    def revoke_old_credential(self, refresh_token): return self._provider._sync_revoke_refresh_token(refresh_token)
+    def authenticate_refresh_token(self, refresh_token): return self._provider._run_coroutine(self._provider._authenticate_refresh_token(refresh_token))
+    def authenticate_user(self, refresh_token): return self._provider._run_coroutine(self._provider._authenticate_refresh_user(refresh_token))
+    def revoke_old_credential(self, refresh_token): return self._provider._run_coroutine(self._provider._revoke_refresh_token(refresh_token))
 
 
 class MCPAuthProvider(AuthProvider):
-    def __init__(self, *, base_url: AnyHttpUrl | str, required_scopes: list[str] | None = None, client_registration_options: ClientRegistrationOptions | None = None, revocation_options: RevocationOptions | None = None):
-        super().__init__(base_url=base_url, required_scopes=required_scopes)
-        self._client_registration_options = client_registration_options or ClientRegistrationOptions()
+    def __init__(self, *, base_url: AnyHttpUrl | str, scopes: list[AuthPermission], revocation_options: RevocationOptions | None = None):
+        self._scopes = [s.value for s in scopes]
+        super().__init__(base_url=base_url, required_scopes=self._scopes)
+        self._client_registration_options = ClientRegistrationOptions(enabled=True, valid_scopes=self._scopes, default_scopes=self._scopes)
         self._revocation_options = revocation_options or RevocationOptions()
         self._server = MCPAuthorizationServer(self, self._client_registration_options.valid_scopes or self.required_scopes)
         self._server.register_grant(MCPAuthorizationCodeGrant, [CodeChallenge(required=True)])
@@ -244,7 +244,7 @@ class MCPAuthProvider(AuthProvider):
             permissions = await auth_service.get_permissions_for_roles(user.tenant_id, user.roles)
         except AuthError:
             return None
-        if user.phone_number_id is None and _MCP_ACCESS_SCOPE in permissions:
+        if user.phone_number_id is None and all(scope in permissions for scope in self._scopes):
             return None
         phone_number_id = str(user.phone_number_id) if user.phone_number_id is not None else None
         return AccessToken(
@@ -335,7 +335,7 @@ class MCPAuthProvider(AuthProvider):
             user = await auth_service.authenticate_user(username, password, UUID(str(tenant_id)))
             scope = form.get("scope") or ""
             scopes = set(scope.split())
-            if _MCP_ACCESS_SCOPE in scopes and user.phone_number_id is None:
+            if all(scope in scopes for scope in self._scopes) and user.phone_number_id is None:
                 raise MissingPhoneNumberIdError()
             oauth_request = StarletteOAuth2Request(request, form)
             return await asyncio.to_thread(self._server.create_authorization_response, oauth_request, grant_user=user)
@@ -347,18 +347,12 @@ class MCPAuthProvider(AuthProvider):
         oauth_request = StarletteOAuth2Request(request, await request.form())
         return await asyncio.to_thread(self._server.create_token_response, oauth_request)
 
-    def _sync_get_client(self, client_id: str) -> OAuthClient | None:
-        return self._run_coroutine(self._get_client(client_id))
-
     async def _get_client(self, client_id: str) -> OAuthClient | None:
         auth_service = await get_auth_service()
         client_info = await auth_service.find_oauth_client(client_id)
         if not client_info:
             return None
         return OAuthClient.from_info(client_info)
-
-    def _sync_save_token(self, token: dict[str, Any], request: OAuth2Request) -> None:
-        return self._run_coroutine(self._save_token(token, request))
 
     async def _save_token(self, token: dict[str, Any], request: OAuth2Request) -> None:
         user = request.user
@@ -370,9 +364,6 @@ class MCPAuthProvider(AuthProvider):
             scope = token.get("scope")
             auth_service = await get_auth_service()
             await auth_service.update_refresh_token(user.username, refresh_token, client_id, scope)
-
-    def _sync_store_auth_code(self, code: str, request: OAuth2Request) -> None:
-        return self._run_coroutine(self._store_auth_code(code, request))
 
     async def _store_auth_code(self, code: str, request: OAuth2Request) -> None:
         auth_service = await get_auth_service()
@@ -388,9 +379,6 @@ class MCPAuthProvider(AuthProvider):
             tenant_id=request.user.tenant_id,
             expires_at=expires_at,
         )
-
-    def _sync_query_auth_code(self, code: str, client: OAuthClient) -> OAuthAuthorizationCode | None:
-        return self._run_coroutine(self._query_auth_code(code, client))
 
     async def _query_auth_code(self, code: str, client: OAuthClient) -> OAuthAuthorizationCode | None:
         auth_service = await get_auth_service()
@@ -409,22 +397,13 @@ class MCPAuthProvider(AuthProvider):
             tenant_id=record["subject_tenant_id"],
         )
 
-    def _sync_delete_auth_code(self, authorization_code: OAuthAuthorizationCode) -> None:
-        return self._run_coroutine(self._delete_auth_code(authorization_code))
-
     async def _delete_auth_code(self, authorization_code: OAuthAuthorizationCode) -> None:
         auth_service = await get_auth_service()
         await auth_service.delete_auth_code(authorization_code.code)
 
-    def _sync_authenticate_code_user(self, authorization_code: OAuthAuthorizationCode):
-        return self._run_coroutine(self._authenticate_code_user(authorization_code))
-
     async def _authenticate_code_user(self, authorization_code: OAuthAuthorizationCode):
         auth_service = await get_auth_service()
         return await auth_service.get_user_by_username(authorization_code.username, authorization_code.tenant_id)
-
-    def _sync_authenticate_refresh_token(self, refresh_token: str) -> OAuthRefreshToken | None:
-        return self._run_coroutine(self._authenticate_refresh_token(refresh_token))
 
     async def _authenticate_refresh_token(self, refresh_token: str) -> OAuthRefreshToken | None:
         auth_service = await get_auth_service()
@@ -443,15 +422,9 @@ class MCPAuthProvider(AuthProvider):
             tenant_id=UUID(str(tenant_id)),
         )
 
-    def _sync_authenticate_refresh_user(self, refresh_token: OAuthRefreshToken):
-        return self._run_coroutine(self._authenticate_refresh_user(refresh_token))
-
     async def _authenticate_refresh_user(self, refresh_token: OAuthRefreshToken):
         auth_service = await get_auth_service()
         return await auth_service.get_user_by_username(refresh_token.username, refresh_token.tenant_id)
-
-    def _sync_revoke_refresh_token(self, refresh_token: OAuthRefreshToken) -> None:
-        return self._run_coroutine(self._revoke_refresh_token(refresh_token))
 
     async def _revoke_refresh_token(self, refresh_token: OAuthRefreshToken) -> None:
         auth_service = await get_auth_service()
