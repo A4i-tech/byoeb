@@ -1,24 +1,9 @@
 from typing import Any, AsyncIterator, List, Literal, Set
-from byoeb.constants.user_enums import LanguageCode
-from fastmcp import Client
-import os
+
 import pytest
-import requests
+from fastmcp import Client
 
-
-BASE_URL = os.getenv("RECIEVE_URL")
-PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
-USER_NAME = os.getenv("USER_NAME", "byoeb-user")
-if BASE_URL is None:
-    raise RuntimeError("Environment variable (BASE_URL) is missing")
-if PHONE_NUMBER_ID is None:
-    raise RuntimeError("Environment variable (PHONE_NUMBER_ID) is missing")
-
-BASE_URL = BASE_URL.replace("receive", "")
-MCP_URL = BASE_URL + "mcp?phone_number=" + PHONE_NUMBER_ID
-PURGE_URL = BASE_URL + "purge_request_cache"
-REGISTER_URL = BASE_URL + "register_users"
-DELETE_URL = BASE_URL + "delete_users"
+from byoeb.constants.user_enums import LanguageCode
 
 # Timeout for HTTP calls (integration server may be slow)
 HTTP_TIMEOUT_S = 60
@@ -29,18 +14,22 @@ def get_cache_hit(resp: Any) -> bool:
 def has_devanagari(text: str) -> bool:
     return any("\u0900" <= ch <= "\u097f" for ch in text)
 
-async def run_queries(queries: List[str], features: Set[Literal["audio", "history"]] = set()) -> AsyncIterator[Any]:
-    async with Client(MCP_URL) as client:
+async def run_queries(base_url: str, access_token: str, queries: List[str], features: Set[Literal["audio", "history"]] = set()) -> AsyncIterator[Any]:
+    async with Client(f"{base_url.rstrip('/')}/mcp", auth=access_token) as client:
         for q in queries:
             r = await client.call_tool("asha_chat", {"message": q, "features": features})
             yield r.data
 
 @pytest.mark.asyncio
-async def test_repeated_query_hits_cache():
-    requests.post(PURGE_URL, timeout=HTTP_TIMEOUT_S).raise_for_status()
+async def test_repeated_query_hits_cache(auth_env, auth_access_token, auth_session):
+    me = auth_session.get(f"{auth_env.base_url.rstrip('/')}/auth/me")
+    me.raise_for_status()
+    if not me.json().get("phone_number_id"):
+        pytest.skip("phone_number_id missing on /auth/me")
+    auth_session.post(f"{auth_env.base_url}/purge_request_cache").raise_for_status()
     queries = ["what is antara injection?"] * 2
 
-    responses = [resp async for resp in run_queries(queries)]
+    responses = [resp async for resp in run_queries(auth_env.base_url, auth_access_token, queries)]
     assert not get_cache_hit(responses[0])
     assert get_cache_hit(responses[1])
 
@@ -52,24 +41,29 @@ async def test_repeated_query_hits_cache():
     (LanguageCode.ENGLISH, "what is antara injection", ["hit"]),
     (LanguageCode.HINDI, "antara injection kya hai", ["devanagari", "hit"]),
 ])
-async def test_cached_response_respects_lang(lang: LanguageCode, query: str, features: set[str]):
+async def test_cached_response_respects_lang(lang: LanguageCode, query: str, features: set[str], auth_env, auth_access_token, auth_session):
+    me = auth_session.get(f"{auth_env.base_url.rstrip('/')}/auth/me")
+    me.raise_for_status()
+    phone_number_id = me.json().get("phone_number_id")
+    if not phone_number_id:
+        pytest.skip("phone_number_id missing on /auth/me")
     if "purge" in features:
-        requests.post(PURGE_URL, timeout=HTTP_TIMEOUT_S).raise_for_status()
+        auth_session.post(f"{auth_env.base_url}/purge_request_cache").raise_for_status()
 
-    requests.delete(DELETE_URL, json=[PHONE_NUMBER_ID], timeout=HTTP_TIMEOUT_S).raise_for_status()
+    auth_session.delete(f"{auth_env.base_url}/delete_users", json=[phone_number_id]).raise_for_status()
 
     user = {
-        "phone_number_id": PHONE_NUMBER_ID,
+        "phone_number_id": phone_number_id,
         "user_location": {"district": "Test District"},
         "user_type": "asha",
         "user_language": lang.value,
-        "user_name": USER_NAME,
+        "user_name": auth_env.username,
         "test_user": True,
     }
 
-    requests.post(REGISTER_URL, json=[user], timeout=HTTP_TIMEOUT_S).raise_for_status()
+    auth_session.post(f"{auth_env.base_url}/register_users", json=[user]).raise_for_status()
 
-    responses = [resp async for resp in run_queries([query])]
+    responses = [resp async for resp in run_queries(auth_env.base_url, auth_access_token, [query])]
     assert responses
     resp = responses[0]
 
