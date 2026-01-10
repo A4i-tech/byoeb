@@ -128,5 +128,5 @@ env_auth_token_issuer = os.getenv("AUTH_TOKEN_ISSUER")
 env_auth_token_audience = os.getenv("AUTH_TOKEN_AUDIENCE")
 env_auth_token_leeway_seconds = os.getenv("AUTH_TOKEN_LEEWAY_SECONDS")
 
-# MCP
-env_mcp_base_url = os.getenv("MCP_BASE_URL")
+# Public base URL
+env_public_base_url = os.getenv("PUBLIC_BASE_URL")
