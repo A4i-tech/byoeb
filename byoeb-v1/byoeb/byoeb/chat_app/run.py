@@ -14,11 +14,10 @@ import uvicorn
 import yaml
 from fastapi import Depends, FastAPI
 from fastmcp import FastMCP
-from mcp.server.auth.settings import ClientRegistrationOptions
 from contextlib import asynccontextmanager
 from byoeb.apis.auth import auth_apis_router, require_permissions, require_tenant
 from byoeb.services.auth.models import AuthPermission
-from byoeb.services.auth.mcp_oauth_provider import MCPAuthProvider
+from byoeb.services.auth.oauth_provider import MCPAuthProvider
 from byoeb.services.auth.handlers import AuthMcpErrorMiddleware, register_auth_exception_handlers
 from byoeb.apis.health import health_apis_router, health_mcps_router
 from byoeb.apis.channel_register import register_apis_router
@@ -93,18 +92,7 @@ def create_apps():
     app.include_router(health_apis_router)
 
     mcp_base_url = env_config.env_mcp_base_url or "http://127.0.0.1:8000"
-    mcp = FastMCP(
-        auth=MCPAuthProvider(
-            base_url=mcp_base_url,
-            required_scopes=[AuthPermission.MCP_ACCESS.value],
-            client_registration_options=ClientRegistrationOptions(
-                enabled=True,
-                valid_scopes=[AuthPermission.MCP_ACCESS.value],
-                default_scopes=[AuthPermission.MCP_ACCESS.value],
-            ),
-        ),
-        middleware=[AuthMcpErrorMiddleware()],
-    )
+    mcp = FastMCP(auth=MCPAuthProvider(base_url=mcp_base_url, scopes=[AuthPermission.MCP_ACCESS]), middleware=[AuthMcpErrorMiddleware()])
     health_mcps_router(mcp)
     chat_mcps_router(mcp)
     user_mcps_router(mcp)

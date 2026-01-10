@@ -78,8 +78,8 @@ async def require_tenant(tenant_id: TenantHeader, user: AuthUser = Depends(get_c
     return tenant_id
 
 
-def require_permissions(*required_permissions: AuthPermission | str):
-    required = {perm.value if isinstance(perm, AuthPermission) else perm for perm in required_permissions}
+def require_permissions(*required_permissions: AuthPermission):
+    required = {perm.value for perm in required_permissions}
     async def _require_permissions(auth_service: AuthServiceDep, user: AuthUser = Depends(get_current_user)) -> AuthUser:
         granted = set(await auth_service.get_permissions_for_roles(user.tenant_id, user.roles))
         if not granted.intersection(required):
