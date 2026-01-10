@@ -15,7 +15,8 @@ import yaml
 from fastapi import Depends, FastAPI
 from fastmcp import FastMCP
 from contextlib import asynccontextmanager
-from byoeb.apis.auth import auth_apis_router, require_permissions, require_tenant
+from byoeb.apis.auth import auth_apis_router
+from byoeb.services.auth.dependencies import require_permissions, require_tenant
 from byoeb.services.auth.models import AuthPermission
 from byoeb.services.auth.oauth_provider import MCPAuthProvider
 from byoeb.services.auth.handlers import AuthMcpErrorMiddleware, register_auth_exception_handlers
