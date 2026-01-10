@@ -1,179 +1,249 @@
+from __future__ import annotations
+
+import hmac
 import secrets
-import time
-from dataclasses import dataclass, field
-from typing import Optional
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from functools import cached_property
+from typing import Any
 from uuid import UUID
 
-from mcp.server.auth.settings import ClientRegistrationOptions, RevocationOptions
-from fastmcp.server.auth import OAuthProvider
-from fastmcp.server.auth.auth import AccessToken
-from mcp.server.auth.provider import (
-    AuthorizationCode,
-    AuthorizationParams,
-    RefreshToken,
-    TokenError,
-    construct_redirect_uri,
-)
-from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
+import asyncio
+from authlib.oauth2.rfc6749 import AuthorizationServer, ClientMixin, JsonRequest, OAuth2Payload, OAuth2Request, TokenMixin
+from authlib.oauth2.rfc6749.grants import AuthorizationCodeGrant, RefreshTokenGrant
+from authlib.oauth2.rfc7636 import CodeChallenge
 from pydantic import AnyHttpUrl
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse, RedirectResponse, Response
 from starlette.routing import Route
 
-from byoeb.services.auth.security import create_access_token
-from byoeb.services.auth.session import get_permissions_for_roles, resolve_user_from_token
+from fastmcp.server.auth.auth import AccessToken, AuthProvider
+from mcp.server.auth.handlers.metadata import MetadataHandler
+from mcp.server.auth.handlers.register import RegistrationHandler
+from mcp.server.auth.routes import build_metadata, create_protected_resource_routes, cors_middleware
+from mcp.server.auth.settings import ClientRegistrationOptions, RevocationOptions
+from mcp.shared.auth import OAuthClientInformationFull
+
+from byoeb.services.auth.auth_service import get_auth_service
+from byoeb.services.auth.exceptions import AuthError, MissingPhoneNumberIdError
+from byoeb.services.auth.models import AuthPermission
+from byoeb.services.auth.security import TOKEN_SERVICE
 
 
 _AUTH_CODE_TTL_SECONDS = 5 * 60
-_MCP_ACCESS_SCOPE = "mcp:access"
+_MCP_ACCESS_SCOPE = AuthPermission.MCP_ACCESS.value
+
+
+class StarletteOAuth2Payload(OAuth2Payload):
+    def __init__(self, data: Any):
+        self._data = data
+
+    @property
+    def data(self):
+        return self._data
+
+    @cached_property
+    def datalist(self):
+        values = defaultdict(list)
+        if hasattr(self._data, "multi_items"):
+            for key, value in self._data.multi_items():
+                values[key].append(value)
+            return values
+        if hasattr(self._data, "getlist"):
+            for key in self._data:
+                values[key].extend(self._data.getlist(key))
+            return values
+        for key, value in self._data.items():
+            if isinstance(value, list):
+                values[key].extend(value)
+            else:
+                values[key].append(value)
+        return values
+
+
+class StarletteOAuth2Request(OAuth2Request):
+    def __init__(self, request: Request, form_data: Any | None):
+        super().__init__(method=request.method, uri=str(request.url), headers=dict(request.headers))
+        self._request = request
+        self._form_data = form_data or {}
+        payload_data = self._form_data if self._form_data else request.query_params
+        self.payload = StarletteOAuth2Payload(payload_data)
+
+    @property
+    def args(self):
+        return self._request.query_params
+
+    @property
+    def form(self):
+        return self._form_data
 
 
 @dataclass
-class _OAuthTransaction:
+class OAuthClient(ClientMixin):
     client_id: str
-    redirect_uri: str
-    code_challenge: str
-    scopes: list[str]
-    state: str | None
-    resource: str | None
-    redirect_uri_provided_explicitly: bool
-    created_at: float = field(default_factory=time.time)
+    client_secret: str | None
+    redirect_uris: list[str]
+    grant_types: list[str]
+    response_types: list[str]
+    scope: str | None
+    token_endpoint_auth_method: str | None
 
-    def expired(self) -> bool:
-        return time.time() - self.created_at > _AUTH_CODE_TTL_SECONDS
-
-
-class MCPAuthProvider(OAuthProvider):
-    def __init__(
-        self,
-        *,
-        base_url: AnyHttpUrl | str,
-        required_scopes: list[str] | None = None,
-        client_registration_options: ClientRegistrationOptions | None = None,
-        revocation_options: RevocationOptions | None = None,
-    ):
-        super().__init__(
-            base_url=base_url,
-            required_scopes=required_scopes,
-            client_registration_options=client_registration_options,
-            revocation_options=revocation_options,
+    @classmethod
+    def from_info(cls, info: OAuthClientInformationFull) -> "OAuthClient":
+        return cls(
+            client_id=info.client_id or "",
+            client_secret=info.client_secret,
+            redirect_uris=[str(uri) for uri in (info.redirect_uris or [])],
+            grant_types=list(info.grant_types or []),
+            response_types=list(info.response_types or []),
+            scope=info.scope,
+            token_endpoint_auth_method=info.token_endpoint_auth_method,
         )
-        self._clients: dict[str, OAuthClientInformationFull] = {}
-        self._auth_codes: dict[str, AuthorizationCode] = {}
-        self._auth_code_subjects: dict[str, tuple[str, UUID]] = {}
-        self._refresh_tokens: dict[str, RefreshToken] = {}
-        self._refresh_token_subjects: dict[str, tuple[str, UUID]] = {}
-        self._transactions: dict[str, _OAuthTransaction] = {}
 
-    async def get_client(self, client_id: str) -> Optional[OAuthClientInformationFull]:
-        return self._clients.get(client_id)
+    def get_client_id(self):
+        return self.client_id
 
-    async def register_client(self, client_info: OAuthClientInformationFull) -> None:
-        if client_info.client_id is None:
-            raise ValueError("client_id is required for client registration")
-        self._clients[client_info.client_id] = client_info
+    def get_default_redirect_uri(self):
+        return self.redirect_uris[0] if self.redirect_uris else ""
 
-    async def authorize(
-        self, client: OAuthClientInformationFull, params: AuthorizationParams
-    ) -> str:
-        txn_id = secrets.token_urlsafe(32)
-        scopes = params.scopes or []
-        self._transactions[txn_id] = _OAuthTransaction(
-            client_id=client.client_id or "",
-            redirect_uri=str(params.redirect_uri),
-            code_challenge=params.code_challenge,
-            scopes=scopes,
-            state=params.state,
-            resource=params.resource,
-            redirect_uri_provided_explicitly=params.redirect_uri_provided_explicitly,
-        )
-        base = str(self.base_url).rstrip("/")
-        return f"{base}/login?txn={txn_id}"
+    def get_redirect_uris(self):
+        return self.redirect_uris
 
-    async def load_authorization_code(
-        self, client: OAuthClientInformationFull, authorization_code: str
-    ) -> AuthorizationCode | None:
-        code = self._auth_codes.get(authorization_code)
-        if not code:
+    def get_allowed_scope(self, scope):
+        if not self.scope:
+            return scope or ""
+        allowed = set(self.scope.split())
+        if not scope:
+            return " ".join(sorted(allowed))
+        return " ".join([entry for entry in scope.split() if entry in allowed])
+
+    def check_redirect_uri(self, redirect_uri):
+        return redirect_uri in self.redirect_uris
+
+    def check_client_secret(self, client_secret):
+        return hmac.compare_digest(client_secret or "", self.client_secret or "")
+
+    def check_endpoint_auth_method(self, method, endpoint):
+        if endpoint != "token":
+            return True
+        expected = self.token_endpoint_auth_method or ("none" if not self.client_secret else "client_secret_post")
+        return method == expected
+
+    def check_response_type(self, response_type):
+        return response_type in self.response_types
+
+    def check_grant_type(self, grant_type):
+        return grant_type in self.grant_types
+
+
+@dataclass
+class OAuthAuthorizationCode:
+    code: str
+    client_id: str
+    redirect_uri: str | None
+    scope: str | None
+    expires_at: datetime
+    code_challenge: str | None
+    code_challenge_method: str | None
+    username: str
+    tenant_id: UUID
+
+    def get_redirect_uri(self): return self.redirect_uri
+    def get_scope(self): return self.scope
+
+
+@dataclass
+class OAuthRefreshToken(TokenMixin):
+    token: str
+    client_id: str | None
+    scope: str | None
+    username: str
+    tenant_id: UUID
+
+    def check_client(self, client): return self.client_id is None or self.client_id == client.get_client_id()
+    def get_scope(self): return self.scope
+    def get_expires_in(self): return None
+    def is_expired(self): return False
+    def is_revoked(self): return False
+    def get_user(self): return {"username": self.username, "tenant_id": self.tenant_id}
+    def get_client(self): return None
+
+class MCPAuthorizationServer(AuthorizationServer):
+    def __init__(self, provider: "MCPAuthProvider", scopes_supported: list[str] | None):
+        super().__init__(scopes_supported=scopes_supported)
+        self._provider = provider
+
+    def query_client(self, client_id):
+        return self._provider._sync_get_client(client_id)
+
+    def save_token(self, token, request):
+        return self._provider._sync_save_token(token, request)
+
+    def send_signal(self, name, *args, **kwargs):
+        # No signal system wired up; treat hooks as no-ops.
+        return None
+
+    def create_oauth2_request(self, request):
+        if isinstance(request, OAuth2Request):
+            return request
+        return StarletteOAuth2Request(request, None)
+
+    def create_json_request(self, request):
+        return JsonRequest(request.method, str(request.url), headers=dict(request.headers))
+
+    def handle_response(self, status, body, headers):
+        header_map = dict(headers or [])
+        if isinstance(body, dict):
+            return JSONResponse(body, status_code=status, headers=header_map)
+        return Response(body, status_code=status, headers=header_map)
+
+
+class MCPAuthorizationCodeGrant(AuthorizationCodeGrant):
+    TOKEN_ENDPOINT_AUTH_METHODS = ["none", "client_secret_basic", "client_secret_post"]
+
+    def __init__(self, request, server):
+        super().__init__(request, server)
+        self._provider = server._provider
+
+    def save_authorization_code(self, code, request): return self._provider._sync_store_auth_code(code, request)
+    def query_authorization_code(self, code, client): return self._provider._sync_query_auth_code(code, client)
+    def delete_authorization_code(self, authorization_code): return self._provider._sync_delete_auth_code(authorization_code)
+    def authenticate_user(self, authorization_code): return self._provider._sync_authenticate_code_user(authorization_code)
+
+
+class MCPRefreshTokenGrant(RefreshTokenGrant):
+    INCLUDE_NEW_REFRESH_TOKEN = True
+    TOKEN_ENDPOINT_AUTH_METHODS = ["none", "client_secret_basic", "client_secret_post"]
+
+    def __init__(self, request, server):
+        super().__init__(request, server)
+        self._provider = server._provider
+
+    def authenticate_refresh_token(self, refresh_token): return self._provider._sync_authenticate_refresh_token(refresh_token)
+    def authenticate_user(self, refresh_token): return self._provider._sync_authenticate_refresh_user(refresh_token)
+    def revoke_old_credential(self, refresh_token): return self._provider._sync_revoke_refresh_token(refresh_token)
+
+
+class MCPAuthProvider(AuthProvider):
+    def __init__(self, *, base_url: AnyHttpUrl | str, required_scopes: list[str] | None = None, client_registration_options: ClientRegistrationOptions | None = None, revocation_options: RevocationOptions | None = None):
+        super().__init__(base_url=base_url, required_scopes=required_scopes)
+        self._client_registration_options = client_registration_options or ClientRegistrationOptions()
+        self._revocation_options = revocation_options or RevocationOptions()
+        self._server = MCPAuthorizationServer(self, self._client_registration_options.valid_scopes or self.required_scopes)
+        self._server.register_grant(MCPAuthorizationCodeGrant, [CodeChallenge(required=True)])
+        self._server.register_grant(MCPRefreshTokenGrant)
+        self._server.register_token_generator("default", self._token_generator)
+        self._loop: asyncio.AbstractEventLoop | None = None
+
+    async def verify_token(self, token: str) -> AccessToken | None:
+        self._ensure_loop()
+        auth_service = await get_auth_service()
+        try:
+            user, claims = await auth_service.resolve_user_from_token(token)
+            permissions = await auth_service.get_permissions_for_roles(user.tenant_id, user.roles)
+        except AuthError:
             return None
-        if code.client_id != client.client_id:
-            return None
-        if code.expires_at < time.time():
-            self._auth_codes.pop(authorization_code, None)
-            self._auth_code_subjects.pop(authorization_code, None)
-            return None
-        return code
-
-    async def exchange_authorization_code(
-        self, client: OAuthClientInformationFull, authorization_code: AuthorizationCode
-    ) -> OAuthToken:
-        subject = self._auth_code_subjects.pop(authorization_code.code, None)
-        self._auth_codes.pop(authorization_code.code, None)
-        if not subject:
-            raise TokenError("invalid_grant", "authorization code not found")
-        username, tenant_id = subject
-        access_token, ttl_seconds = create_access_token(username, tenant_id)
-        refresh_token = secrets.token_urlsafe(48)
-        self._refresh_tokens[refresh_token] = RefreshToken(
-            token=refresh_token,
-            client_id=client.client_id or "",
-            scopes=authorization_code.scopes,
-        )
-        self._refresh_token_subjects[refresh_token] = (username, tenant_id)
-        return OAuthToken(
-            access_token=access_token,
-            token_type="Bearer",
-            expires_in=ttl_seconds,
-            scope=" ".join(authorization_code.scopes),
-            refresh_token=refresh_token,
-        )
-
-    async def load_refresh_token(
-        self, client: OAuthClientInformationFull, refresh_token: str
-    ) -> RefreshToken | None:
-        token = self._refresh_tokens.get(refresh_token)
-        if not token or token.client_id != (client.client_id or ""):
-            return None
-        return token
-
-    async def exchange_refresh_token(
-        self,
-        client: OAuthClientInformationFull,
-        refresh_token: RefreshToken,
-        scopes: list[str],
-    ) -> OAuthToken:
-        subject = self._refresh_token_subjects.pop(refresh_token.token, None)
-        self._refresh_tokens.pop(refresh_token.token, None)
-        if not subject:
-            raise TokenError("invalid_grant", "refresh token not found")
-        username, tenant_id = subject
-        access_token, ttl_seconds = create_access_token(username, tenant_id)
-        new_refresh_token = secrets.token_urlsafe(48)
-        self._refresh_tokens[new_refresh_token] = RefreshToken(
-            token=new_refresh_token,
-            client_id=client.client_id or "",
-            scopes=scopes,
-        )
-        self._refresh_token_subjects[new_refresh_token] = (username, tenant_id)
-        return OAuthToken(
-            access_token=access_token,
-            token_type="Bearer",
-            expires_in=ttl_seconds,
-            scope=" ".join(scopes),
-            refresh_token=new_refresh_token,
-        )
-
-    async def revoke_token(self, token: AccessToken | RefreshToken) -> None:
-        if isinstance(token, RefreshToken):
-            self._refresh_tokens.pop(token.token, None)
-            self._refresh_token_subjects.pop(token.token, None)
-
-    async def load_access_token(self, token: str) -> AccessToken | None:
-        resolved = await resolve_user_from_token(token)
-        if not resolved:
-            return None
-        user, claims = resolved
-        permissions = await get_permissions_for_roles(user.tenant_id, user.roles)
         if user.phone_number_id is None and _MCP_ACCESS_SCOPE in permissions:
             return None
         phone_number_id = str(user.phone_number_id) if user.phone_number_id is not None else None
@@ -192,49 +262,206 @@ class MCPAuthProvider(OAuthProvider):
         )
 
     def get_routes(self, mcp_path: str | None = None) -> list[Route]:
-        routes = super().get_routes(mcp_path)
-        routes.append(Route("/oauth/complete", endpoint=self._complete_oauth, methods=["POST"]))
+        assert self.base_url is not None
+        metadata = build_metadata(
+            self.base_url,
+            None,
+            self._client_registration_options,
+            self._revocation_options,
+        )
+        metadata.token_endpoint_auth_methods_supported.append("none")
+        routes = [
+            Route(
+                "/.well-known/oauth-authorization-server",
+                endpoint=cors_middleware(MetadataHandler(metadata).handle, ["GET", "OPTIONS"]),
+                methods=["GET", "OPTIONS"],
+            ),
+            Route("/authorize", endpoint=self._authorize, methods=["GET", "POST"]),
+            Route(
+                "/token",
+                endpoint=cors_middleware(self._token, ["POST", "OPTIONS"]),
+                methods=["POST", "OPTIONS"],
+            ),
+        ]
+        if self._client_registration_options.enabled:
+            registration_handler = RegistrationHandler(self, options=self._client_registration_options)
+            routes.append(
+                Route(
+                    "/register",
+                    endpoint=cors_middleware(registration_handler.handle, ["POST", "OPTIONS"]),
+                    methods=["POST", "OPTIONS"],
+                )
+            )
+        resource_url = self._get_resource_url(mcp_path)
+        if resource_url:
+            scopes_supported = self._client_registration_options.valid_scopes or self.required_scopes
+            routes.extend(create_protected_resource_routes(resource_url=resource_url, authorization_servers=[self.base_url], scopes_supported=scopes_supported))
         return routes
 
-    async def _complete_oauth(self, request: Request) -> Response:
-        txn_id = request.query_params.get("txn")
-        auth_header = request.headers.get("authorization") or ""
-        if not auth_header.lower().startswith("bearer "):
-            return JSONResponse({"error": "missing_token"}, status_code=401)
-        token = auth_header.split(" ", 1)[1]
+    async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
+        auth_service = await get_auth_service()
+        return await auth_service.find_oauth_client(client_id)
 
-        resolved = await resolve_user_from_token(token)
-        if not resolved:
-            return JSONResponse({"error": "invalid_token"}, status_code=401)
-        user, claims = resolved
+    async def register_client(self, client_info: OAuthClientInformationFull) -> None:
+        self._ensure_loop()
+        auth_service = await get_auth_service()
+        await auth_service.register_oauth_client(client_info)
 
-        txn = self._transactions.get(str(txn_id))
-        if not txn or txn.expired():
-            return JSONResponse({"error": "invalid_transaction"}, status_code=400)
-        requires_phone = _MCP_ACCESS_SCOPE in (txn.scopes or [])
-        if not requires_phone and self.required_scopes:
-            requires_phone = _MCP_ACCESS_SCOPE in self.required_scopes
-        if requires_phone and user.phone_number_id is None:
-            return JSONResponse({
-                "error": "missing_phone_number",
-                "error_description": "Phone number ID is missing for this user.",
-            }, status_code=403)
+    def _token_generator(self, grant_type, client, user=None, scope=None, expires_in=None, include_refresh_token=True):
+        access_token, ttl_seconds = TOKEN_SERVICE.create_access_token(user.username, user.tenant_id)
+        token = {"access_token": access_token, "token_type": "Bearer", "expires_in": ttl_seconds}
+        if scope:
+            token["scope"] = scope
+        if include_refresh_token:
+            token["refresh_token"] = secrets.token_urlsafe(48)
+        return token
 
-        code = secrets.token_urlsafe(32)
-        expires_at = time.time() + _AUTH_CODE_TTL_SECONDS
-        auth_code = AuthorizationCode(
+    async def _authorize(self, request: Request) -> Response:
+        self._ensure_loop()
+        if request.method == "GET":
+            query = request.url.query
+            location = "/login"
+            if query:
+                location = f"{location}?{query}"
+            return RedirectResponse(location, status_code=302)
+        form = await request.form()
+        username = form.get("username")
+        password = form.get("password")
+        tenant_id = form.get("tenant_id")
+        if not username or not password or not tenant_id:
+            return JSONResponse({"error": "invalid_request", "error_description": "Missing credentials."}, status_code=400)
+        try:
+            auth_service = await get_auth_service()
+            user = await auth_service.authenticate_user(username, password, UUID(str(tenant_id)))
+            scope = form.get("scope") or ""
+            scopes = set(scope.split())
+            if _MCP_ACCESS_SCOPE in scopes and user.phone_number_id is None:
+                raise MissingPhoneNumberIdError()
+            oauth_request = StarletteOAuth2Request(request, form)
+            return await asyncio.to_thread(self._server.create_authorization_response, oauth_request, grant_user=user)
+        except AuthError as exc:
+            return JSONResponse(exc.payload(), status_code=exc.status_code, headers=dict(exc.headers or {}))
+
+    async def _token(self, request: Request) -> Response:
+        self._ensure_loop()
+        oauth_request = StarletteOAuth2Request(request, await request.form())
+        return await asyncio.to_thread(self._server.create_token_response, oauth_request)
+
+    def _sync_get_client(self, client_id: str) -> OAuthClient | None:
+        return self._run_coroutine(self._get_client(client_id))
+
+    async def _get_client(self, client_id: str) -> OAuthClient | None:
+        auth_service = await get_auth_service()
+        client_info = await auth_service.find_oauth_client(client_id)
+        if not client_info:
+            return None
+        return OAuthClient.from_info(client_info)
+
+    def _sync_save_token(self, token: dict[str, Any], request: OAuth2Request) -> None:
+        return self._run_coroutine(self._save_token(token, request))
+
+    async def _save_token(self, token: dict[str, Any], request: OAuth2Request) -> None:
+        user = request.user
+        if not user:
+            return
+        refresh_token = token.get("refresh_token")
+        if refresh_token:
+            client_id = request.client.get_client_id() if request.client else None
+            scope = token.get("scope")
+            auth_service = await get_auth_service()
+            await auth_service.update_refresh_token(user.username, refresh_token, client_id, scope)
+
+    def _sync_store_auth_code(self, code: str, request: OAuth2Request) -> None:
+        return self._run_coroutine(self._store_auth_code(code, request))
+
+    async def _store_auth_code(self, code: str, request: OAuth2Request) -> None:
+        auth_service = await get_auth_service()
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=_AUTH_CODE_TTL_SECONDS)
+        await auth_service.store_auth_code(
             code=code,
-            scopes=txn.scopes,
+            client_id=request.client.get_client_id(),
+            redirect_uri=request.payload.redirect_uri,
+            scope=request.payload.scope,
+            code_challenge=request.payload.data.get("code_challenge"),
+            code_challenge_method=request.payload.data.get("code_challenge_method"),
+            username=request.user.username,
+            tenant_id=request.user.tenant_id,
             expires_at=expires_at,
-            client_id=txn.client_id,
-            code_challenge=txn.code_challenge,
-            redirect_uri=txn.redirect_uri,
-            redirect_uri_provided_explicitly=txn.redirect_uri_provided_explicitly,
-            resource=txn.resource,
         )
-        self._auth_codes[code] = auth_code
-        self._auth_code_subjects[code] = (claims.username, claims.tenant_id)
-        self._transactions.pop(str(txn_id), None)
 
-        redirect_url = construct_redirect_uri(txn.redirect_uri, code=code, state=txn.state)
-        return JSONResponse({"redirect_url": redirect_url})
+    def _sync_query_auth_code(self, code: str, client: OAuthClient) -> OAuthAuthorizationCode | None:
+        return self._run_coroutine(self._query_auth_code(code, client))
+
+    async def _query_auth_code(self, code: str, client: OAuthClient) -> OAuthAuthorizationCode | None:
+        auth_service = await get_auth_service()
+        record = await auth_service.find_auth_code(code)
+        if not record or record.get("client_id") != client.get_client_id():
+            return None
+        return OAuthAuthorizationCode(
+            code=record["code"],
+            client_id=record["client_id"],
+            redirect_uri=record["redirect_uri"],
+            scope=record.get("scope"),
+            expires_at=record["expires_at"],
+            code_challenge=record.get("code_challenge"),
+            code_challenge_method=record.get("code_challenge_method"),
+            username=record["subject_username"],
+            tenant_id=record["subject_tenant_id"],
+        )
+
+    def _sync_delete_auth_code(self, authorization_code: OAuthAuthorizationCode) -> None:
+        return self._run_coroutine(self._delete_auth_code(authorization_code))
+
+    async def _delete_auth_code(self, authorization_code: OAuthAuthorizationCode) -> None:
+        auth_service = await get_auth_service()
+        await auth_service.delete_auth_code(authorization_code.code)
+
+    def _sync_authenticate_code_user(self, authorization_code: OAuthAuthorizationCode):
+        return self._run_coroutine(self._authenticate_code_user(authorization_code))
+
+    async def _authenticate_code_user(self, authorization_code: OAuthAuthorizationCode):
+        auth_service = await get_auth_service()
+        return await auth_service.get_user_by_username(authorization_code.username, authorization_code.tenant_id)
+
+    def _sync_authenticate_refresh_token(self, refresh_token: str) -> OAuthRefreshToken | None:
+        return self._run_coroutine(self._authenticate_refresh_token(refresh_token))
+
+    async def _authenticate_refresh_token(self, refresh_token: str) -> OAuthRefreshToken | None:
+        auth_service = await get_auth_service()
+        user_doc = await auth_service.find_user_doc_by_refresh_token(refresh_token)
+        if not user_doc:
+            return None
+        username = user_doc.get("username")
+        tenant_id = next((entry.get("tenant_id") for entry in user_doc.get("tenants", []) if entry.get("tenant_id")), None)
+        if not username or not tenant_id:
+            return None
+        return OAuthRefreshToken(
+            token=refresh_token,
+            client_id=user_doc.get("refresh_client_id"),
+            scope=user_doc.get("refresh_scopes"),
+            username=username,
+            tenant_id=UUID(str(tenant_id)),
+        )
+
+    def _sync_authenticate_refresh_user(self, refresh_token: OAuthRefreshToken):
+        return self._run_coroutine(self._authenticate_refresh_user(refresh_token))
+
+    async def _authenticate_refresh_user(self, refresh_token: OAuthRefreshToken):
+        auth_service = await get_auth_service()
+        return await auth_service.get_user_by_username(refresh_token.username, refresh_token.tenant_id)
+
+    def _sync_revoke_refresh_token(self, refresh_token: OAuthRefreshToken) -> None:
+        return self._run_coroutine(self._revoke_refresh_token(refresh_token))
+
+    async def _revoke_refresh_token(self, refresh_token: OAuthRefreshToken) -> None:
+        auth_service = await get_auth_service()
+        await auth_service.revoke_refresh_token(refresh_token.token)
+
+    def _ensure_loop(self) -> None:
+        if self._loop is None:
+            self._loop = asyncio.get_running_loop()
+
+    def _run_coroutine(self, coro):
+        if self._loop is None:
+            raise RuntimeError("OAuth provider event loop not initialized")
+        return asyncio.run_coroutine_threadsafe(coro, self._loop).result()

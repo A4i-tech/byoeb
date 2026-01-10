@@ -1,79 +1,97 @@
-import base64
-import hashlib
-import hmac
-import json
-import logging
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Tuple
 from uuid import UUID
 
-logger = logging.getLogger(__name__)
+from authlib.jose import JsonWebToken
+from authlib.jose.errors import ExpiredTokenError, JoseError
+from passlib.context import CryptContext
+from pydantic import BaseModel, ConfigDict, Field
+
+from byoeb.services.auth.exceptions import InvalidTokenError, TokenExpiredError
 
 from byoeb.chat_app.configuration import config as env_config
 
-_TOKEN_TTL_SECONDS = int(env_config.env_auth_token_ttl_seconds or "3600")
-_TOKEN_SECRET = env_config.env_auth_token_secret or ""
-if not _TOKEN_SECRET:
+_PASSWORD_CONTEXT = CryptContext(schemes=["argon2"], deprecated="auto")
+
+
+class TokenClaims(BaseModel):
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    username: str = Field(alias="sub")
+    tenant_id: UUID
+    expires_at: int = Field(alias="exp")
+    issued_at: int | None = Field(default=None, alias="iat")
+    issuer: str | None = Field(default=None, alias="iss")
+    audience: str | None = Field(default=None, alias="aud")
+
+
+class AuthTokenService:
+
+    def __init__(self, *, secret: str, algorithm: str, ttl_seconds: int, issuer: str | None, audience: str | None, leeway_seconds: int) -> None:
+        self._secret = secret
+        self._algorithm = algorithm
+        self._ttl_seconds = ttl_seconds
+        self._issuer = issuer
+        self._audience = audience
+        self._leeway_seconds = leeway_seconds
+        self._jwt = JsonWebToken([algorithm])
+
+    def create_access_token(self, subject: str, tenant_id: UUID) -> Tuple[str, int]:
+        now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(seconds=self._ttl_seconds)
+        payload: dict[str, Any] = {
+            "sub": subject,
+            "tenant_id": str(tenant_id),
+            "exp": int(expires_at.timestamp()),
+            "iat": int(now.timestamp()),
+        }
+        if self._issuer:
+            payload["iss"] = self._issuer
+        if self._audience:
+            payload["aud"] = self._audience
+        token = self._jwt.encode({"alg": self._algorithm}, payload, self._secret)
+        return token.decode("utf-8"), self._ttl_seconds
+
+    def parse_access_token(self, token: str) -> TokenClaims:
+        claims_options: dict[str, dict[str, object]] = {
+            "exp": {"essential": True},
+            "sub": {"essential": True},
+            "tenant_id": {"essential": True},
+        }
+        if self._issuer:
+            claims_options["iss"] = {"essential": True, "value": self._issuer}
+        if self._audience:
+            claims_options["aud"] = {"essential": True, "value": self._audience}
+        try:
+            claims = self._jwt.decode(token, self._secret, claims_options=claims_options)
+            claims.validate(leeway=self._leeway_seconds)
+        except ExpiredTokenError as exc:
+            raise TokenExpiredError() from exc
+        except JoseError as exc:
+            raise InvalidTokenError() from exc
+        return TokenClaims.model_validate(dict(claims))
+
+
+secret = env_config.env_auth_token_secret or ""
+if not secret:
     raise RuntimeError("AUTH_TOKEN_SECRET must be set for token signing.")
 
-_PBKDF2_ITERATIONS = int(env_config.env_auth_password_iterations or "200000")
+TOKEN_SERVICE = AuthTokenService(
+    secret=secret,
+    algorithm=env_config.env_auth_token_algorithm or "HS256",
+    ttl_seconds=int(env_config.env_auth_token_ttl_seconds or "3600"),
+    issuer=env_config.env_auth_token_issuer or None,
+    audience=env_config.env_auth_token_audience or None,
+    leeway_seconds=int(env_config.env_auth_token_leeway_seconds or "0"),
+)
 
 
-def hash_password(password: str, salt: bytes | None = None) -> Tuple[str, str]:
-    if salt is None:
-        salt = os.urandom(16)
-    hashed = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, _PBKDF2_ITERATIONS)
-    return salt.hex(), hashed.hex()
+def hash_password(password: str) -> str:
+    return _PASSWORD_CONTEXT.hash(password)
 
 
 def verify_password(password: str, user_doc: Dict[str, Any]) -> bool:
     password_hash = user_doc.get("password_hash")
-    password_salt = user_doc.get("password_salt")
-    if password_hash and password_salt:
-        try:
-            salt_bytes = bytes.fromhex(password_salt)
-        except ValueError:
-            return False
-        check = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt_bytes, _PBKDF2_ITERATIONS).hex()
-        return hmac.compare_digest(check, password_hash)
-
-    stored_password = user_doc.get("password")
-    if stored_password is not None:
-        return hmac.compare_digest(stored_password, password)
-
-    return False
-
-
-def create_access_token(subject: str, tenant_id: UUID) -> Tuple[str, int]:
-    expires_at = datetime.now(timezone.utc) + timedelta(seconds=_TOKEN_TTL_SECONDS)
-    payload = {"sub": subject, "tenant_id": str(tenant_id), "exp": int(expires_at.timestamp())}
-    payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    signature = hmac.new(_TOKEN_SECRET.encode("utf-8"), payload_bytes, hashlib.sha256).digest()
-    token = ".".join([
-        base64.urlsafe_b64encode(payload_bytes).rstrip(b"=").decode("ascii"),
-        base64.urlsafe_b64encode(signature).rstrip(b"=").decode("ascii"),
-    ])
-    return token, _TOKEN_TTL_SECONDS
-
-
-def decode_access_token(token: str) -> Dict[str, Any]:
-    try:
-        payload_b64, signature_b64 = token.split(".", 1)
-    except ValueError:
-        raise ValueError("Invalid token format")
-
-    payload_padding = "=" * (-len(payload_b64) % 4)
-    payload_bytes = base64.urlsafe_b64decode(payload_b64 + payload_padding)
-    expected_signature = hmac.new(_TOKEN_SECRET.encode("utf-8"), payload_bytes, hashlib.sha256).digest()
-    signature_padding = "=" * (-len(signature_b64) % 4)
-    if not hmac.compare_digest(expected_signature, base64.urlsafe_b64decode(signature_b64 + signature_padding)):
-        raise ValueError("Invalid token signature")
-
-    payload = json.loads(payload_bytes.decode("utf-8"))
-    exp = payload.get("exp")
-    if exp is None:
-        raise ValueError("Token missing exp claim")
-    if int(exp) < int(datetime.now(timezone.utc).timestamp()):
-        raise ValueError("Token expired")
-    return payload
+    if not password_hash:
+        return False
+    return _PASSWORD_CONTEXT.verify(password, password_hash)

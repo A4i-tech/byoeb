@@ -123,4 +123,10 @@ for entry in (env_ashabot_feature_flags or "").split(","):
 # Auth
 env_auth_token_secret = os.getenv("AUTH_TOKEN_SECRET")
 env_auth_token_ttl_seconds = os.getenv("AUTH_TOKEN_TTL_SECONDS")
-env_auth_password_iterations = os.getenv("AUTH_PASSWORD_ITERATIONS")
+env_auth_token_algorithm = os.getenv("AUTH_TOKEN_ALGORITHM")
+env_auth_token_issuer = os.getenv("AUTH_TOKEN_ISSUER")
+env_auth_token_audience = os.getenv("AUTH_TOKEN_AUDIENCE")
+env_auth_token_leeway_seconds = os.getenv("AUTH_TOKEN_LEEWAY_SECONDS")
+
+# MCP
+env_mcp_base_url = os.getenv("MCP_BASE_URL")

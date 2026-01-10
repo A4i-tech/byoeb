@@ -1,5 +1,6 @@
 import csv
 import io
+import logging
 import os
 import logging
 from typing import AsyncIterator
@@ -17,12 +18,11 @@ REGISTER_API_NAME = 'admin_apis'
 admin_apis_router = APIRouter(tags=["Administrative"])
 admin_public_router = APIRouter(tags=["Administrative"])
 
+logger = logging.getLogger(__name__)
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
-jobs_path = os.path.join(current_dir, '..', 'background_jobs')
-jobs_path = os.path.normpath(jobs_path)
 template_dir = os.path.join(current_dir, 'ui_templates')
 templates = Jinja2Templates(directory=template_dir)
-file_path = "asha_data.xlsx"
 
 @admin_public_router.get("/asha_logs", include_in_schema=False)
 async def asha_logs(request: Request) -> HTMLResponse:
