@@ -1,6 +1,4 @@
 import base64
-import hmac
-import hashlib
 import logging
 import json
 import time
@@ -16,14 +14,10 @@ from byoeb_core.models.byoeb.message_context import (
 )
 from byoeb.models.message_category import MessageCategory
 from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
-from typing import Annotated
-from fastapi import APIRouter, Query, Body, Depends, Request, HTTPException, status, Header
-from pydantic import StringConstraints
+from fastapi import APIRouter, Query, Body, Depends
 from fastapi.responses import JSONResponse
-from fastmcp.server.dependencies import get_access_token
-from byoeb.apis.auth import get_current_user, require_permissions, require_tenant, require_mcp_tenant_header
+from byoeb.apis.auth import verify_whatsapp_signature, get_active_phone_id, get_current_user, require_permissions, require_tenant
 from byoeb.services.auth.models import AuthPermission
-from byoeb.chat_app.configuration import config as env_config
 import byoeb.services.chat.constants as chat_constants
 import byoeb.utils.utils as utils
 
@@ -32,36 +26,19 @@ from byoeb_core.models.whatsapp.requests.media_request import MediaData
 # ---------------------------------------------------------
 # Setup
 # ---------------------------------------------------------
-
 CHAT_API_NAME = "chat_api"
 chat_apis_router = APIRouter(tags=["Chat"])
 _logger = logging.getLogger(CHAT_API_NAME)
 
-def _verify_whatsapp_signature(signature_header: str, body: bytes) -> None:
-    secret = env_config.env_whatsapp_app_secret
-    if not secret:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Webhook secret not configured")
-
-    signature = signature_header.split("=", 1)[1]
-    expected = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(signature, expected):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid signature")
-
 # ---------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------
-@chat_apis_router.post("/receive", summary="Handle incoming WhatsApp messages")
-async def receive(
-    request: Request,
-    signature_header: Annotated[str, Header(alias="X-Hub-Signature-256", description="Signature used to verify the sender. Refer https://developers.facebook.com/docs/graph-api/webhooks/getting-started#verification-requests."), StringConstraints(pattern=r"^sha256=.+")],
-    body: Dict[str, Any] = Body(..., description="Raw WhatsApp webhook payload"),
-) -> JSONResponse:
+@chat_apis_router.post("/receive", summary="Handle incoming WhatsApp messages", dependencies=[Depends(verify_whatsapp_signature)])
+async def receive(body: Dict[str, Any] = Body(..., description="Raw WhatsApp webhook payload")) -> JSONResponse:
     """
     Handles an incoming WhatsApp message from a user.
     The message is processed by the message_producer_handler.
     """
-    raw_body = await request.body()
-    _verify_whatsapp_signature(signature_header, raw_body)
     _logger.info(f"Received WhatsApp request: {json.dumps(body, ensure_ascii=False)}")
     response = await dependency_setup.message_producer_handler.handle(body)
     _logger.info(f"Handler response: {response}")
@@ -71,19 +48,12 @@ async def receive(
     )
 
 
-@chat_apis_router.get(
-    "/get_bot_messages",
-    summary="Fetch bot messages after a given timestamp",
-    dependencies=[
-        Depends(get_current_user),
-        Depends(require_tenant),
-        Depends(require_permissions(AuthPermission.MESSAGES_READ)),
-    ],
-)
-async def get_bot_messages(
-    timestamp: int = Query(..., description="Unix timestamp to fetch messages since"),
-    length: PositiveInt = 1000
-) -> List[ByoebMessageContext]:
+@chat_apis_router.get("/get_bot_messages", summary="Fetch bot messages after a given timestamp", dependencies=[
+    Depends(get_current_user),
+    Depends(require_tenant),
+    Depends(require_permissions(AuthPermission.MESSAGES_READ)),
+])
+async def get_bot_messages(timestamp: int = Query(..., description="Unix timestamp to fetch messages since"), length: PositiveInt = 1000) -> List[ByoebMessageContext]:
     """
     Retrieves all bot messages stored in the database
     after the specified timestamp.
@@ -149,11 +119,7 @@ def chat_mcps_router(mcp):
         """
         Ask any health-related query and get a response.
         """
-        require_mcp_tenant_header()
-        access_token = get_access_token()
-        if access_token is None:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
-        phone_number_id = (access_token.claims or {}).get("phone_number_id")
+        phone_number_id = get_active_phone_id()
         if not phone_number_id:
             return AshaChatResponse(category="unknown_user", text=(
                 "Before I can answer your question, you must register yourself as an ASHA user. "

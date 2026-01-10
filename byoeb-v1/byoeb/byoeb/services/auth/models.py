@@ -3,7 +3,7 @@ from uuid import UUID
 from typing import Optional
 
 from byoeb_core.models.byoeb.user import PhoneNumberId
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AuthPermission(str, Enum):
@@ -17,12 +17,16 @@ class AuthPermission(str, Enum):
 
 
 class AuthTenant(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     id: UUID
     name: str
     roles: dict[str, list[AuthPermission]] = Field(default_factory=dict)
 
 
 class AuthUser(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     id: UUID
     username: str
     tenant_id: UUID

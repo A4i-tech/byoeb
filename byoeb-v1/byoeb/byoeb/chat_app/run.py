@@ -16,15 +16,17 @@ from fastapi import Depends, FastAPI
 from fastmcp import FastMCP
 from mcp.server.auth.settings import ClientRegistrationOptions
 from contextlib import asynccontextmanager
-from byoeb.apis.auth import auth_apis_router, get_current_user, require_permissions, require_tenant
+from byoeb.apis.auth import auth_apis_router, require_permissions, require_tenant
 from byoeb.services.auth.models import AuthPermission
 from byoeb.services.auth.mcp_oauth_provider import MCPAuthProvider
+from byoeb.services.auth.handlers import AuthMcpErrorMiddleware, register_auth_exception_handlers
 from byoeb.apis.health import health_apis_router, health_mcps_router
 from byoeb.apis.channel_register import register_apis_router
 from byoeb.apis.chat import chat_apis_router, chat_mcps_router
 from byoeb.apis.user import user_apis_router, user_mcps_router
 from byoeb.apis.background_jobs import background_apis_router
 from byoeb.apis.admin import admin_apis_router, admin_public_router
+from byoeb.chat_app.configuration import config as env_config
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +81,8 @@ def create_apps():
     """
 
     app = FastAPI(lifespan=lifespan)
+
+    register_auth_exception_handlers(app)
     app.include_router(auth_apis_router)
     app.include_router(admin_public_router)
     app.include_router(admin_apis_router, dependencies=[Depends(require_permissions(AuthPermission.ADMIN_ACCESS)), Depends(require_tenant)])
@@ -88,15 +92,19 @@ def create_apps():
     app.include_router(register_apis_router)
     app.include_router(health_apis_router)
 
-    mcp = FastMCP(auth=MCPAuthProvider(
-        base_url="http://127.0.0.1:8000",
-        required_scopes=[AuthPermission.MCP_ACCESS.value],
-        client_registration_options=ClientRegistrationOptions(
-            enabled=True,
-            valid_scopes=[AuthPermission.MCP_ACCESS.value],
-            default_scopes=[AuthPermission.MCP_ACCESS.value],
+    mcp_base_url = env_config.env_mcp_base_url or "http://127.0.0.1:8000"
+    mcp = FastMCP(
+        auth=MCPAuthProvider(
+            base_url=mcp_base_url,
+            required_scopes=[AuthPermission.MCP_ACCESS.value],
+            client_registration_options=ClientRegistrationOptions(
+                enabled=True,
+                valid_scopes=[AuthPermission.MCP_ACCESS.value],
+                default_scopes=[AuthPermission.MCP_ACCESS.value],
+            ),
         ),
-    ))
+        middleware=[AuthMcpErrorMiddleware()],
+    )
     health_mcps_router(mcp)
     chat_mcps_router(mcp)
     user_mcps_router(mcp)

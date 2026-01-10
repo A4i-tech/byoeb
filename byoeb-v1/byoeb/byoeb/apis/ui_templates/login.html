@@ -161,6 +161,27 @@
         .tenant-section.active {
             display: block;
         }
+        .tenant-roles {
+            margin-top: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            font-size: 11px;
+            color: var(--muted);
+        }
+        .tenant-roles-label {
+            font-weight: 600;
+            color: var(--ink);
+        }
+        .tenant-role {
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            color: var(--ink);
+            font-size: 11px;
+        }
         .tenant-actions {
             margin-top: 8px;
         }
@@ -179,9 +200,9 @@
     <div class="page">
         <div class="card">
             <div class="brand">
-                <div class="brand-logo" role="img" aria-label="Khushi Baby AshaBot logo"></div>
+                <div class="brand-logo" role="img" aria-label="Khushi Baby ASHABot logo"></div>
                 <div>
-                    <h1>Khushi Baby AshaBot</h1>
+                    <h1>Khushi Baby ASHABot</h1>
                     <p>Sign in to continue.</p>
                 </div>
             </div>
@@ -191,14 +212,14 @@
                         <label for="username">Username</label>
                         <div class="input-wrapper">
                             <i class="fa-solid fa-user"></i>
-                            <input id="username" type="text" autocomplete="username" required>
+                            <input id="username" name="username" type="text" autocomplete="username" required>
                         </div>
                     </div>
                     <div class="field">
                         <label for="password">Password</label>
                         <div class="input-wrapper">
                             <i class="fa-solid fa-lock"></i>
-                            <input id="password" type="password" autocomplete="current-password" required>
+                            <input id="password" name="password" type="password" autocomplete="current-password" required>
                         </div>
                     </div>
                     <button id="login-btn" type="submit"><i class="fa-solid fa-right-to-bracket"></i> Sign In</button>
@@ -210,6 +231,7 @@
                             <i class="fa-solid fa-building"></i>
                             <select id="tenant-select"></select>
                         </div>
+                        <div id="tenant-roles" class="tenant-roles"></div>
                     </div>
                     <div class="tenant-actions">
                         <button id="tenant-btn" type="button"><i class="fa-solid fa-arrow-right"></i> Continue</button>
@@ -227,6 +249,7 @@
         const statusEl = document.getElementById('status');
         const tenantSection = document.getElementById('tenant-section');
         const tenantSelect = document.getElementById('tenant-select');
+        const tenantRoles = document.getElementById('tenant-roles');
         const tenantBtn = document.getElementById('tenant-btn');
         const loginBtn = document.getElementById('login-btn');
 
@@ -234,18 +257,35 @@
         let cachedPassword = '';
         let redirectTo = '/asha_logs';
         let initialToken = '';
-        let oauthTxn = '';
         let oauthMode = false;
+        let oauthParams = {};
+        let tenantRoleMap = {};
 
         function setStatus(message) {
             statusEl.textContent = message;
         }
 
+        function renderTenantRoles(tenantId) {
+            const roles = tenantRoleMap[tenantId] || [];
+            if (!roles.length) {
+                tenantRoles.innerHTML = '<span class="tenant-roles-label">Roles:</span><span>No roles assigned</span>';
+                return;
+            }
+            tenantRoles.innerHTML = `<span class="tenant-roles-label">Roles:</span>${roles.map(r => `<span class="tenant-role">${r}</span>`).join('')}`;
+        }
+
         function setRedirectTarget() {
             const params = new URLSearchParams(window.location.search);
             redirectTo = params.get('redirect') || '/asha_logs';
-            oauthTxn = params.get('txn') || '';
-            oauthMode = !!oauthTxn;
+            const paramKeys = ['response_type', 'client_id', 'redirect_uri', 'state', 'scope', 'code_challenge', 'code_challenge_method', 'resource'];
+            oauthParams = {};
+            paramKeys.forEach(key => {
+                const value = params.get(key);
+                if (value) {
+                    oauthParams[key] = value;
+                }
+            });
+            oauthMode = !!oauthParams.client_id;
         }
 
         function storeAuth(token, tenantId) {
@@ -263,7 +303,7 @@
             if (tenantId) {
                 headers["X-Tenant-ID"] = tenantId;
             }
-            const response = await fetch('/auth/token', { method: 'POST', headers, body });
+            const response = await fetch('/auth/token/issue', { method: 'POST', headers, body });
             if (!response.ok) {
                 return null;
             }
@@ -303,16 +343,19 @@
             }
             if (tenants.length === 1) {
                 if (oauthMode) {
-                    await finalizeOAuth(initialToken);
+                    await finalizeOAuth(tenants[0].tenant_id);
                 } else {
                     storeAuth(initialToken, tenants[0].tenant_id);
                     redirect();
                 }
                 return;
             }
-            tenantSelect.innerHTML = tenants.map(t => (
-                `<option value="${t.tenant_id}">${t.name || t.tenant_id}</option>`
-            )).join('');
+            tenantRoleMap = Object.fromEntries(tenants.map(t => [t.tenant_id, t.roles || []]));
+            tenantSelect.innerHTML = tenants.map(t => {
+                const label = t.name || t.tenant_id;
+                return `<option value="${t.tenant_id}">${label}</option>`;
+            }).join('');
+            renderTenantRoles(tenantSelect.value);
             tenantSection.classList.add('active');
             setStatus('Select a tenant to continue.');
         }
@@ -330,43 +373,36 @@
                 return;
             }
             if (oauthMode) {
-                await finalizeOAuth(tokenResponse.access_token);
+                await finalizeOAuth(tenantId);
             } else {
                 storeAuth(tokenResponse.access_token, tenantId);
                 redirect();
             }
         }
 
-        async function finalizeOAuth(token) {
-            const response = await fetch(`/oauth/complete?txn=${encodeURIComponent(oauthTxn)}`, {
-                method: 'POST',
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-            if (!response.ok) {
-                let message = 'OAuth login failed. Please try again.';
-                try {
-                    const data = await response.json();
-                    if (data && data.error_description) {
-                        message = data.error_description;
-                    }
-                } catch (error) {
-                    // fall back to generic message
-                }
-                setStatus(message);
-                loginBtn.disabled = false;
-                return;
+        function setHiddenField(name, value) {
+            let input = form.querySelector(`input[name=\"${name}\"]`);
+            if (!input) {
+                input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                form.appendChild(input);
             }
-            const data = await response.json();
-            if (!data.redirect_url) {
-                setStatus('OAuth login failed. Please try again.');
-                loginBtn.disabled = false;
-                return;
-            }
-            window.location.href = data.redirect_url;
+            input.value = value;
+        }
+
+        async function finalizeOAuth(tenantId) {
+            setStatus('Completing authorization...');
+            form.action = '/authorize';
+            form.method = 'POST';
+            setHiddenField('tenant_id', tenantId);
+            Object.entries(oauthParams).forEach(([key, value]) => setHiddenField(key, value));
+            form.submit();
         }
 
         form.addEventListener('submit', handleLogin);
         tenantBtn.addEventListener('click', handleTenantSelect);
+        tenantSelect.addEventListener('change', () => renderTenantRoles(tenantSelect.value));
         window.addEventListener('DOMContentLoaded', setRedirectTarget);
     </script>
 </body>

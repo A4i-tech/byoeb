@@ -76,12 +76,11 @@ def main() -> int:
         if not set(roles).issubset(tenant_roles):
             print("One or more roles are not defined for this tenant. No changes made.")
             return 1
-        password_salt, password_hash = hash_password(password)
+        password_hash = hash_password(password)
         user_collection.insert_one({
             "_id": uuid.uuid4(),
             "username": args.username,
             "tenants": [{"tenant_id": tenant_id, "roles": roles}],
-            "password_salt": password_salt,
             "password_hash": password_hash,
         })
         print("Auth user created.")

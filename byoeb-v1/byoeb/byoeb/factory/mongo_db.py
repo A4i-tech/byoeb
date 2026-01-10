@@ -1,5 +1,6 @@
 import logging
 import asyncio
+from datetime import timezone
 from enum import Enum
 from typing import Optional
 import certifi
@@ -48,9 +49,9 @@ class MongoDBFactory:
                 raise RuntimeError("Database name must be specified in the mongodb connection string")
             tls_enabled = _is_tls_enabled(connection_string)
             if tls_enabled:
-                self._client = AsyncMongoClient(connection_string, tlsCAFile=certifi.where(), uuidRepresentation="standard")
+                self._client = AsyncMongoClient(connection_string, tlsCAFile=certifi.where(), uuidRepresentation="standard", tz_aware=True, tzinfo=timezone.utc)
             else:
-                self._client = AsyncMongoClient(connection_string, uuidRepresentation="standard")
+                self._client = AsyncMongoClient(connection_string, uuidRepresentation="standard", tz_aware=True, tzinfo=timezone.utc)
             self._db = self._client[db_name]
             return self._db
     

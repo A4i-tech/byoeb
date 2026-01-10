@@ -58,7 +58,9 @@ class RepositoryFactory:
             auth_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["auth_user_collection"])
             tenant_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["auth_tenant_collection"])
             role_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["auth_tenant_roles_collection"])
-            self._auth_repository = MongoAuthRepository(auth_collection, tenant_collection, role_collection)
+            oauth_client_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["auth_oauth_client_collection"])
+            oauth_code_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["auth_oauth_code_collection"])
+            self._auth_repository = MongoAuthRepository(auth_collection, tenant_collection, role_collection, oauth_client_collection, oauth_code_collection)
         return self._auth_repository
 
     async def reset_repositories(self):

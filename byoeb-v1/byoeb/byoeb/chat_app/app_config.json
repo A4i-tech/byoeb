@@ -41,7 +41,9 @@
             "jobs_collection": "ashajobs",
             "auth_user_collection": "ashaauthusers",
             "auth_tenant_collection": "ashaauthtenants",
-            "auth_tenant_roles_collection": "ashaauthtenantroles"
+            "auth_tenant_roles_collection": "ashaauthtenantroles",
+            "auth_oauth_client_collection": "ashaoauthclients",
+            "auth_oauth_code_collection": "ashaoauthcodes"
         }
     },
     "embeddings": {
