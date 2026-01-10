@@ -1,6 +1,6 @@
 import logging
 from fastapi import APIRouter
-from byoeb.apis.auth import require_mcp_tenant_header
+from byoeb.services.auth.dependencies import require_mcp_tenant_header
 from fastapi.responses import JSONResponse
 
 HEALTH_API_NAME = 'health_api'

@@ -8,7 +8,7 @@ import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from byoeb.constants.user_enums import LanguageCode, UserType
 from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
 from fastmcp.server.dependencies import get_access_token
-from byoeb.apis.auth import require_mcp_tenant_header
+from byoeb.services.auth.dependencies import require_mcp_tenant_header
 
 USER_API_NAME = "user_api"
 user_apis_router = APIRouter(tags=["Users"])
