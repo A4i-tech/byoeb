@@ -1,8 +1,11 @@
+import secrets
 from typing import Annotated, Optional
 from uuid import UUID
 
 from byoeb.services.auth.exceptions import MissingTokenError
-from fastapi import APIRouter, Body, Depends, Header
+from byoeb.services.auth.dependencies import is_public_base_url_secure
+from fastapi import APIRouter, Body, Depends, Header, Request
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -13,6 +16,8 @@ from byoeb.services.auth.models import AuthPermission, AuthTenant, AuthUser
 
 
 auth_apis_router = APIRouter(tags=["Auth"])
+REFRESH_TOKEN_MAX_AGE = 60 * 60 * 24 * 30
+COOKIE_SECURE = is_public_base_url_secure()
 
 TUname = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=64)]
 TPass = Annotated[str, StringConstraints(min_length=8, max_length=128)]
@@ -39,13 +44,37 @@ class UpdateUserRequest(BaseModel):
 
 
 @auth_apis_router.post("/auth/token/issue")
-async def issue_token(auth_service: AuthServiceDep, tenant_id: Annotated[UUID | None, Header(alias="X-Tenant-ID")] = None, form_data: OAuth2PasswordRequestForm = Depends()) -> TokenDetails:
-    return await auth_service.issue_token(form_data.username, form_data.password, tenant_id)
+async def issue_token(auth_service: AuthServiceDep, tenant_id: Annotated[UUID | None, Header(alias="X-Tenant-ID")] = None, form_data: OAuth2PasswordRequestForm = Depends()) -> JSONResponse:
+    token_details = await auth_service.issue_token(form_data.username, form_data.password, tenant_id)
+    csrf_token = secrets.token_urlsafe(32)
+    response = JSONResponse(content={"status": "ok", "expires_in": token_details.expires_in})
+    response.set_cookie("asha_auth_token", token_details.access_token, httponly=True, secure=COOKIE_SECURE, samesite="strict", max_age=token_details.expires_in)
+    response.set_cookie("asha_refresh_token", token_details.refresh_token, httponly=True, secure=COOKIE_SECURE, samesite="strict", max_age=REFRESH_TOKEN_MAX_AGE)
+    response.set_cookie("csrf_token", csrf_token, httponly=False, secure=COOKIE_SECURE, samesite="strict", max_age=token_details.expires_in)
+    return response
 
 
 @auth_apis_router.post("/auth/token/refresh")
-async def refresh_token(auth_service: AuthServiceDep, refresh_token: Annotated[str, Body(..., embed=True)]) -> TokenDetails:
-    return await auth_service.refresh_token(refresh_token)
+async def refresh_token(auth_service: AuthServiceDep, request: Request) -> JSONResponse:
+    refresh_token = request.cookies.get("asha_refresh_token")
+    if not refresh_token:
+        raise MissingTokenError()
+    token_details = await auth_service.refresh_token(refresh_token)
+    csrf_token = secrets.token_urlsafe(32)
+    response = JSONResponse(content={"status": "ok", "expires_in": token_details.expires_in})
+    response.set_cookie("asha_auth_token", token_details.access_token, httponly=True, secure=COOKIE_SECURE, samesite="strict", max_age=token_details.expires_in)
+    response.set_cookie("asha_refresh_token", token_details.refresh_token, httponly=True, secure=COOKIE_SECURE, samesite="strict", max_age=REFRESH_TOKEN_MAX_AGE)
+    response.set_cookie("csrf_token", csrf_token, httponly=False, secure=COOKIE_SECURE, samesite="strict", max_age=token_details.expires_in)
+    return response
+
+
+@auth_apis_router.post("/auth/logout")
+async def logout() -> JSONResponse:
+    response = JSONResponse(content={"status": "logged_out"})
+    response.delete_cookie("asha_auth_token")
+    response.delete_cookie("asha_refresh_token")
+    response.delete_cookie("csrf_token")
+    return response
 
 
 @auth_apis_router.post("/auth/users", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])

@@ -16,7 +16,7 @@ from fastapi import Depends, FastAPI
 from fastmcp import FastMCP
 from contextlib import asynccontextmanager
 from byoeb.apis.auth import auth_apis_router
-from byoeb.services.auth.dependencies import require_permissions, require_tenant
+from byoeb.services.auth.dependencies import get_public_base_url, require_csrf_token, require_permissions, require_tenant
 from byoeb.services.auth.models import AuthPermission
 from byoeb.services.auth.oauth_provider import MCPAuthProvider
 from byoeb.services.auth.handlers import AuthMcpErrorMiddleware, register_auth_exception_handlers
@@ -26,7 +26,6 @@ from byoeb.apis.chat import chat_apis_router, chat_mcps_router
 from byoeb.apis.user import user_apis_router, user_mcps_router
 from byoeb.apis.background_jobs import background_apis_router
 from byoeb.apis.admin import admin_apis_router, admin_public_router
-from byoeb.chat_app.configuration import config as env_config
 
 logger = logging.getLogger(__name__)
 
@@ -85,15 +84,14 @@ def create_apps():
     register_auth_exception_handlers(app)
     app.include_router(auth_apis_router)
     app.include_router(admin_public_router)
-    app.include_router(admin_apis_router, dependencies=[Depends(require_permissions(AuthPermission.ADMIN_ACCESS)), Depends(require_tenant)])
-    app.include_router(background_apis_router, dependencies=[Depends(require_permissions(AuthPermission.JOBS_RUN)), Depends(require_tenant)])
+    app.include_router(admin_apis_router, dependencies=[Depends(require_permissions(AuthPermission.ADMIN_ACCESS)), Depends(require_tenant), Depends(require_csrf_token)])
+    app.include_router(background_apis_router, dependencies=[Depends(require_permissions(AuthPermission.JOBS_RUN)), Depends(require_tenant), Depends(require_csrf_token)])
     app.include_router(chat_apis_router)
-    app.include_router(user_apis_router, dependencies=[Depends(require_permissions(AuthPermission.USERS_MANAGE)), Depends(require_tenant)])
+    app.include_router(user_apis_router, dependencies=[Depends(require_permissions(AuthPermission.USERS_MANAGE)), Depends(require_tenant), Depends(require_csrf_token)])
     app.include_router(register_apis_router)
     app.include_router(health_apis_router)
 
-    base_root = env_config.env_public_base_url or "http://127.0.0.1:8000"
-    base_root = base_root.rstrip("/")
+    base_root = get_public_base_url()
     mcp = FastMCP(auth=MCPAuthProvider(base_url=base_root + "/mcp", scopes=[AuthPermission.MCP_ACCESS]), middleware=[AuthMcpErrorMiddleware()])
     health_mcps_router(mcp)
     chat_mcps_router(mcp)
