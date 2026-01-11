@@ -29,16 +29,22 @@ def auth_env() -> AuthEnv:
 
 @pytest.fixture(scope="session")
 def auth_access_token(auth_env):
-    token_url = f"{auth_env.base_url.rstrip('/')}/auth/token/issue"
     headers = {"Content-Type": "application/x-www-form-urlencoded", "X-Tenant-ID": auth_env.tenant_id}
-    response = requests.post(token_url, headers=headers, data={"username": auth_env.username, "password": auth_env.password})
+    response = requests.post(f"{auth_env.base_url.rstrip('/')}/auth/token/issue", headers=headers, data={"username": auth_env.username, "password": auth_env.password})
     response.raise_for_status()
-    return response.json()["access_token"]
+    token = response.cookies.get("asha_auth_token")
+    if not token: raise RuntimeError("Auth cookie not set by /auth/token/issue.")
+    return token
 
 
 @pytest.fixture
-def auth_session(auth_env, auth_access_token):
+def auth_session(auth_env):
     session = requests.Session()
-    session.headers.update({"Authorization": f"Bearer {auth_access_token}", "X-Tenant-ID": auth_env.tenant_id})
+    headers = {"Content-Type": "application/x-www-form-urlencoded", "X-Tenant-ID": auth_env.tenant_id}
+    response = session.post(f"{auth_env.base_url.rstrip('/')}/auth/token/issue", headers=headers, data={"username": auth_env.username, "password": auth_env.password})
+    response.raise_for_status()
+    csrf_token = session.cookies.get("csrf_token")
+    if not csrf_token: raise RuntimeError("CSRF cookie not set by /auth/token/issue.")
+    session.headers.update({"X-Tenant-ID": auth_env.tenant_id, "X-CSRF-Token": csrf_token})
     yield session
     session.close()
