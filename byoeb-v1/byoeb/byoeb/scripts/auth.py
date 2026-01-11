@@ -3,8 +3,10 @@ import getpass
 import uuid
 
 from pymongo import MongoClient
+from pydantic import TypeAdapter, ValidationError
 
 from byoeb.chat_app.configuration.config import app_config
+from byoeb_core.models.byoeb.user import PhoneNumberId
 from byoeb.services.auth.security import hash_password
 
 
@@ -21,6 +23,7 @@ def main() -> int:
     user_cmd.add_argument("--password", help="Auth password (prompted if omitted).")
     user_cmd.add_argument("--tenant-id", required=True, help="Tenant ID for the auth user.")
     user_cmd.add_argument("--roles", required=True, help="Comma-separated roles.")
+    user_cmd.add_argument("--phone", help="Phone number.")
 
     add_cmd = subparsers.add_parser("add-user-tenant", help="Add a user to another tenant.")
     add_cmd.add_argument("--username", required=True, help="Auth username.")
@@ -59,6 +62,12 @@ def main() -> int:
             tenant_id = uuid.UUID(args.tenant_id)
         except ValueError as exc:
             raise SystemExit(f"Invalid tenant-id (not a UUID): {args.tenant_id}") from exc
+        phone_number_id = None
+        if args.phone:
+            try:
+                phone_number_id = TypeAdapter(PhoneNumberId).validate_python(args.phone)
+            except ValidationError as exc:
+                raise SystemExit("Invalid phone number id (expected 11-13 digits).") from exc
         password = args.password or getpass.getpass("Password: ")
         if not password:
             raise SystemExit("Password is required.")
@@ -77,12 +86,15 @@ def main() -> int:
             print("One or more roles are not defined for this tenant. No changes made.")
             return 1
         password_hash = hash_password(password)
-        user_collection.insert_one({
+        user_doc = {
             "_id": uuid.uuid4(),
             "username": args.username,
             "tenants": [{"tenant_id": tenant_id, "roles": roles}],
             "password_hash": password_hash,
-        })
+        }
+        if phone_number_id:
+            user_doc["phone_number_id"] = phone_number_id
+        user_collection.insert_one(user_doc)
         print("Auth user created.")
         return 0
 
