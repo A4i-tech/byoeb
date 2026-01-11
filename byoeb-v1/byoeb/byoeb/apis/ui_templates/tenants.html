@@ -188,7 +188,6 @@
     </div>
 
     <script>
-        const TOKEN_KEY = 'asha_auth_token';
         const TENANT_KEY = 'asha_tenant_id';
         const rolesList = document.getElementById('roles-list');
         const tenantLabel = document.getElementById('tenantLabel');
@@ -197,13 +196,18 @@
         const refreshBtn = document.getElementById('refresh-btn');
         const logoutBtn = document.getElementById('logout-btn');
 
+        function getCookie(name) {
+            const entry = document.cookie.split('; ').find(row => row.startsWith(`${name}=`));
+            return entry ? decodeURIComponent(entry.split('=').slice(1).join('=')) : '';
+        }
+
         function getAuthHeaders() {
-            const token = localStorage.getItem(TOKEN_KEY);
             const tenantId = localStorage.getItem(TENANT_KEY);
-            if (!token || !tenantId) {
+            const csrfToken = getCookie('csrf_token');
+            if (!tenantId || !csrfToken) {
                 return null;
             }
-            return { "Authorization": `Bearer ${token}`, "X-Tenant-ID": tenantId };
+            return { "X-Tenant-ID": tenantId, "X-CSRF-Token": csrfToken };
         }
 
         function requireAuth() {
@@ -223,9 +227,8 @@
         async function loadRoles() {
             const headers = requireAuth();
             if (!headers) return;
-            const response = await fetch('/auth/tenants/roles', { headers });
+            const response = await fetch('/auth/tenants/roles', { headers, credentials: 'include' });
             if (!response.ok) {
-                localStorage.removeItem(TOKEN_KEY);
                 localStorage.removeItem(TENANT_KEY);
                 window.location.href = `/login?redirect=${encodeURIComponent('/tenant_roles')}`;
                 return;
@@ -276,7 +279,8 @@
             const response = await fetch('/auth/tenants/roles', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...headers },
-                body: JSON.stringify({ role, permissions })
+                body: JSON.stringify({ role, permissions }),
+                credentials: 'include'
             });
             if (!response.ok) {
                 statusEl.textContent = 'Failed to create role.';
@@ -296,7 +300,8 @@
             const response = await fetch(`/auth/tenants/roles/${encodeURIComponent(role)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', ...headers },
-                body: JSON.stringify(permissions)
+                body: JSON.stringify(permissions),
+                credentials: 'include'
             });
             if (!response.ok) {
                 statusEl.textContent = 'Failed to update role.';
@@ -311,7 +316,8 @@
             if (!headers) return;
             const response = await fetch(`/auth/tenants/roles/${encodeURIComponent(role)}`, {
                 method: 'DELETE',
-                headers
+                headers,
+                credentials: 'include'
             });
             await loadRoles();
         }
@@ -326,7 +332,8 @@
             const response = await fetch('/auth/users/roles', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', ...headers },
-                body: JSON.stringify({ username, roles })
+                body: JSON.stringify({ username, roles }),
+                credentials: 'include'
             });
             statusEl.textContent = response.ok ? 'User roles updated.' : 'Failed to update user roles.';
         }
@@ -341,7 +348,8 @@
             const response = await fetch('/auth/users/roles', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...headers },
-                body: JSON.stringify({ username, role })
+                body: JSON.stringify({ username, role }),
+                credentials: 'include'
             });
             statusEl.textContent = response.ok ? 'Role added.' : 'Failed to add role.';
         }
@@ -356,7 +364,8 @@
             const response = await fetch('/auth/users/roles', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json', ...headers },
-                body: JSON.stringify({ username, role })
+                body: JSON.stringify({ username, role }),
+                credentials: 'include'
             });
             statusEl.textContent = response.ok ? 'Role removed.' : 'Failed to remove role.';
         }
@@ -367,8 +376,9 @@
         document.getElementById('add-role-btn').addEventListener('click', addUserRole);
         document.getElementById('remove-role-btn').addEventListener('click', removeUserRole);
         refreshBtn.addEventListener('click', loadRoles);
-        logoutBtn.addEventListener('click', () => {
-            localStorage.removeItem(TOKEN_KEY);
+        logoutBtn.addEventListener('click', async () => {
+            const headers = getAuthHeaders();
+            if (headers) await fetch('/auth/logout', { method: 'POST', headers, credentials: 'include' });
             localStorage.removeItem(TENANT_KEY);
             window.location.href = `/login?redirect=${encodeURIComponent('/tenant_roles')}`;
         });

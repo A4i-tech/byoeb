@@ -6,9 +6,11 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, Header, HTTPException, Request, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import APIKeyCookie
 from fastmcp.server.dependencies import get_access_token, get_http_request
 from pydantic import StringConstraints
+
+from urllib.parse import urlparse
 
 from byoeb.chat_app.configuration import config as env_config
 from byoeb.services.auth.auth_service import AuthService, get_auth_service
@@ -22,11 +24,15 @@ from byoeb.services.auth.exceptions import (
 from byoeb.services.auth.models import AuthPermission, AuthUser
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token/issue", auto_error=False)
+cookie_scheme = APIKeyCookie(name="asha_auth_token", auto_error=False)
+def get_public_base_url() -> str: return (env_config.env_public_base_url or "http://127.0.0.1:8000").rstrip("/")
+def is_public_base_url_secure() -> bool: return urlparse(get_public_base_url()).scheme == "https"
+def get_access_token_cookie(request: Request, token: Annotated[str | None, Depends(cookie_scheme)] = None) -> str | None: return request.cookies.get("asha_auth_token")
+
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 TenantHeader = Annotated[UUID, Header(alias="X-Tenant-ID")]
-AccessTokenDep = Annotated[str | None, Depends(oauth2_scheme)]
+AccessTokenDep = Annotated[str | None, Depends(get_access_token_cookie)]
 
 
 async def get_current_user(auth_service: AuthServiceDep, tenant_id: TenantHeader, token: AccessTokenDep) -> AuthUser:
@@ -53,6 +59,14 @@ def require_permissions(*required_permissions: AuthPermission):
         return user
 
     return _require_permissions
+
+
+async def require_csrf_token(request: Request, csrf_header: Annotated[str | None, Header(alias="X-CSRF-Token")] = None) -> None:
+    if request.method not in {"POST", "PUT", "DELETE"}:
+        return
+    csrf_cookie = request.cookies.get("csrf_token")
+    if not csrf_cookie or not csrf_header or not hmac.compare_digest(csrf_cookie, csrf_header):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid CSRF token")
 
 
 def require_mcp_tenant_header() -> UUID:

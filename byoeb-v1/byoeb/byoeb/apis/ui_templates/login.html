@@ -243,7 +243,6 @@
     </div>
 
     <script>
-        const TOKEN_KEY = 'asha_auth_token';
         const TENANT_KEY = 'asha_tenant_id';
         const form = document.getElementById('login-form');
         const statusEl = document.getElementById('status');
@@ -256,7 +255,6 @@
         let cachedUsername = '';
         let cachedPassword = '';
         let redirectTo = '/asha_logs';
-        let initialToken = '';
         let oauthMode = false;
         let oauthParams = {};
         let tenantRoleMap = {};
@@ -288,8 +286,7 @@
             oauthMode = !!oauthParams.client_id;
         }
 
-        function storeAuth(token, tenantId) {
-            localStorage.setItem(TOKEN_KEY, token);
+        function storeTenant(tenantId) {
             localStorage.setItem(TENANT_KEY, tenantId);
         }
 
@@ -303,17 +300,12 @@
             if (tenantId) {
                 headers["X-Tenant-ID"] = tenantId;
             }
-            const response = await fetch('/auth/token/issue', { method: 'POST', headers, body });
-            if (!response.ok) {
-                return null;
-            }
-            return await response.json();
+            const response = await fetch('/auth/token/issue', { method: 'POST', headers, body, credentials: 'include' });
+            return response.ok;
         }
 
-        async function fetchTenants(token) {
-            const response = await fetch('/auth/tenants', {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
+        async function fetchTenants() {
+            const response = await fetch('/auth/tenants', { credentials: 'include' });
             if (!response.ok) {
                 return [];
             }
@@ -328,14 +320,13 @@
             cachedUsername = document.getElementById('username').value.trim();
             cachedPassword = document.getElementById('password').value;
 
-            const tokenResponse = await fetchToken(cachedUsername, cachedPassword, null);
-            if (!tokenResponse) {
+            const issued = await fetchToken(cachedUsername, cachedPassword, null);
+            if (!issued) {
                 setStatus('Login failed. Check username/password.');
                 loginBtn.disabled = false;
                 return;
             }
-            initialToken = tokenResponse.access_token;
-            const tenants = await fetchTenants(initialToken);
+            const tenants = await fetchTenants();
             if (!tenants.length) {
                 setStatus('No tenants found for this user.');
                 loginBtn.disabled = false;
@@ -345,7 +336,7 @@
                 if (oauthMode) {
                     await finalizeOAuth(tenants[0].tenant_id);
                 } else {
-                    storeAuth(initialToken, tenants[0].tenant_id);
+                    storeTenant(tenants[0].tenant_id);
                     redirect();
                 }
                 return;
@@ -367,15 +358,15 @@
                 return;
             }
             setStatus('Signing in...');
-            const tokenResponse = await fetchToken(cachedUsername, cachedPassword, tenantId);
-            if (!tokenResponse) {
+            const issued = await fetchToken(cachedUsername, cachedPassword, tenantId);
+            if (!issued) {
                 setStatus('Login failed. Check username/password.');
                 return;
             }
             if (oauthMode) {
                 await finalizeOAuth(tenantId);
             } else {
-                storeAuth(tokenResponse.access_token, tenantId);
+                storeTenant(tenantId);
                 redirect();
             }
         }
