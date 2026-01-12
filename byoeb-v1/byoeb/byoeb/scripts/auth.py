@@ -7,7 +7,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from byoeb.chat_app.configuration.config import app_config
 from byoeb_core.models.byoeb.user import PhoneNumberId
-from byoeb.services.auth.security import hash_password
+from byoeb.services.auth.security import PASSWORD_CTX
 
 
 def main() -> int:
@@ -85,7 +85,7 @@ def main() -> int:
         if not set(roles).issubset(tenant_roles):
             print("One or more roles are not defined for this tenant. No changes made.")
             return 1
-        password_hash = hash_password(password)
+        password_hash = PASSWORD_CTX.hash(password)
         user_doc = {
             "_id": uuid.uuid4(),
             "username": args.username,

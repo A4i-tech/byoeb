@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Tuple
+from typing import Any, Tuple
 from uuid import UUID
 
 from authlib.jose import JsonWebToken
@@ -8,10 +8,7 @@ from passlib.context import CryptContext
 from pydantic import BaseModel, ConfigDict, Field
 
 from byoeb.services.auth.exceptions import InvalidTokenError, TokenExpiredError
-
 from byoeb.chat_app.configuration import config as env_config
-
-_PASSWORD_CONTEXT = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
 class TokenClaims(BaseModel):
@@ -76,6 +73,7 @@ secret = env_config.env_auth_token_secret or ""
 if not secret:
     raise RuntimeError("AUTH_TOKEN_SECRET must be set for token signing.")
 
+PASSWORD_CTX = CryptContext(schemes=["argon2"], deprecated="auto")
 TOKEN_SERVICE = AuthTokenService(
     secret=secret,
     algorithm=env_config.env_auth_token_algorithm or "HS256",
@@ -84,14 +82,3 @@ TOKEN_SERVICE = AuthTokenService(
     audience=env_config.env_auth_token_audience or None,
     leeway_seconds=int(env_config.env_auth_token_leeway_seconds or "0"),
 )
-
-
-def hash_password(password: str) -> str:
-    return _PASSWORD_CONTEXT.hash(password)
-
-
-def verify_password(password: str, user_doc: Dict[str, Any]) -> bool:
-    password_hash = user_doc.get("password_hash")
-    if not password_hash:
-        return False
-    return _PASSWORD_CONTEXT.verify(password, password_hash)
