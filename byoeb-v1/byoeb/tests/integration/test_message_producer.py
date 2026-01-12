@@ -1,26 +1,18 @@
-import os
-import sys
 import time
 import uuid
+
+import pytest
 import requests
 
 
-BASE_URL = os.getenv("RECIEVE_URL")
-PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
-USER_NAME = os.getenv("USER_NAME", "byoeb-user")
-if BASE_URL is None or PHONE_NUMBER_ID is None or USER_NAME is None:
-    print("Environment variables are missing")
-    sys.exit(1)
-
-username_slug = USER_NAME.lower().replace(" ", "-")
-
-def _build_status_payload(errors=None):
+def _build_status_payload(*, username: str, phone_number_id: str, errors=None):
+    username_slug = username.lower().replace(" ", "-")
     current_timestamp = str(int(time.time()))
     status = {
         "id": f"wamid.{username_slug}.{uuid.uuid4().hex}",
         "status": "sent",
         "timestamp": current_timestamp,
-        "recipient_id": PHONE_NUMBER_ID,
+        "recipient_id": phone_number_id,
         "conversation": {
             "id": f"{username_slug}-conversation",
             "expiration_timestamp": current_timestamp,
@@ -46,8 +38,8 @@ def _build_status_payload(errors=None):
                         "value": {
                             "messaging_product": "whatsapp",
                             "metadata": {
-                                "display_phone_number": PHONE_NUMBER_ID,
-                                "phone_number_id": PHONE_NUMBER_ID,
+                                "display_phone_number": phone_number_id,
+                                "phone_number_id": phone_number_id,
                             },
                             "statuses": [status],
                         },
@@ -59,13 +51,17 @@ def _build_status_payload(errors=None):
     }
 
 
-def test_status_payload_without_errors_returns_success():
-    payload = _build_status_payload()
-    response = requests.post(BASE_URL, json=payload, timeout=15)
+def test_status_payload_without_errors_returns_success(envs, auth_me, auth_session):
+    if not auth_me.phone_number_id:
+        pytest.skip("phone_number_id missing on /auth/me")
+    payload = _build_status_payload(username=auth_me.username, phone_number_id=str(auth_me.phone_number_id))
+    response = auth_session.post(f"{envs.base_url}/receive", json=payload, timeout=15)
     assert response.status_code == 200
 
 
-def test_status_payload_with_errors_returns_success():
+def test_status_payload_with_errors_returns_success(envs, auth_me, auth_session):
+    if not auth_me.phone_number_id:
+        pytest.skip("phone_number_id missing on /auth/me")
     errors = [
         {
             "code": 131000,
@@ -73,6 +69,6 @@ def test_status_payload_with_errors_returns_success():
             "message": "Upstream provider was not reachable",
         }
     ]
-    payload = _build_status_payload(errors=errors)
-    response = requests.post(BASE_URL, json=payload, timeout=15)
+    payload = _build_status_payload(username=auth_me.username, phone_number_id=str(auth_me.phone_number_id), errors=errors)
+    response = auth_session.post(f"{envs.base_url}/receive", json=payload, timeout=15)
     assert response.status_code == 200

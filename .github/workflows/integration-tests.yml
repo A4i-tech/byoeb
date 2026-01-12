@@ -36,19 +36,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Determine receive endpoint
-        id: receive-endpoint
-        env:
-          SERVICE_URL: ${{ inputs.service-url }}
-        run: |
-          set -euo pipefail
-          if [ -z "$SERVICE_URL" ]; then
-            echo "service-url input must be provided." >&2
-            exit 1
-          fi
-          SERVICE_URL="${SERVICE_URL%/}"
-          printf 'url=%s/receive\n' "$SERVICE_URL" >> "$GITHUB_OUTPUT"
-
       - name: Wait for staging readiness
         env:
           HEALTHCHECK_URL: ${{ inputs.service-url }}
@@ -76,16 +63,18 @@ jobs:
         id: run-tests
         continue-on-error: true
         env:
-          RECIEVE_URL: ${{ steps.receive-endpoint.outputs.url }}
-          USER_NAME: ${{ secrets.USERNAME }}
-          PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER }}
+          INTEGRATION_BASE_URL: ${{ inputs.service-url }}
+          INTEGRATION_AUTH_TENANT_ID: ${{ vars.INTEGRATION_AUTH_TENANT_ID }}
+          INTEGRATION_AUTH_USERNAME: ${{ vars.INTEGRATION_AUTH_USERNAME }}
+          INTEGRATION_AUTH_PASSWORD: ${{ secrets.INTEGRATION_AUTH_PASSWORD }}
           MONGO_DB_CONNECTION_STRING: ${{ secrets.MONGO_DB_CONNECTION_STRING }}
         run: |
           set -o pipefail
           docker run --rm \
-            -e RECIEVE_URL="$RECIEVE_URL" \
-            -e USER_NAME="$USER_NAME" \
-            -e PHONE_NUMBER_ID="$PHONE_NUMBER_ID" \
+            -e INTEGRATION_BASE_URL="$INTEGRATION_BASE_URL" \
+            -e INTEGRATION_AUTH_TENANT_ID="$INTEGRATION_AUTH_TENANT_ID" \
+            -e INTEGRATION_AUTH_USERNAME="$INTEGRATION_AUTH_USERNAME" \
+            -e INTEGRATION_AUTH_PASSWORD="$INTEGRATION_AUTH_PASSWORD" \
             -e MONGO_DB_CONNECTION_STRING="$MONGO_DB_CONNECTION_STRING" \
             "${{ inputs.image-ref }}" \
             poetry run pytest tests/integration
