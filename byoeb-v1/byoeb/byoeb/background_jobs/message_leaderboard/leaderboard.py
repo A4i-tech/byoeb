@@ -46,53 +46,19 @@ def validate_and_format_phone_number(phone: str) -> Optional[str]:
     
     # Check length (WhatsApp requires 11-13 digits with country code)
     if len(digits_only) < 11 or len(digits_only) > 13:
-        print(f"⚠️  Invalid phone number length: {phone} -> {digits_only} ({len(digits_only)} digits)")
-        print(f"   Expected: 11-13 digits (country code + number)")
         return None
     
     # Common validation: India numbers should start with 91
     if digits_only.startswith('91') and len(digits_only) == 12:
         return digits_only
     elif len(digits_only) == 10:
-        # Missing country code for India
-        print(f"⚠️  Phone number missing country code: {phone}")
-        print(f"   Adding India country code (91)...")
+        # Missing country code for India - add it
         return "91" + digits_only
     elif len(digits_only) >= 11:
         return digits_only
     
     return None
 
-def print_delivery_troubleshooting(phone: str, message_id: str, status: str):
-    """
-    Print troubleshooting information for message delivery issues.
-    """
-    phone_digits = re.sub(r'\D', '', phone)
-    phone_length = len(phone_digits)
-    
-    print(f"\n🔍 TROUBLESHOOTING for {phone}:")
-    print(f"   Message ID: {message_id}")
-    print(f"   API Status: {status}")
-    print(f"\n   Common reasons messages aren't delivered:")
-    print(f"   1. Phone number not registered with WhatsApp")
-    print(f"      → Verify {phone} has WhatsApp installed and active")
-    print(f"   2. Phone number format issue")
-    print(f"      → Current format: {phone} ({phone_length} digits)")
-    print(f"      → Should be: country code + number (11-13 digits, no + or spaces)")
-    print(f"   3. Template not fully approved")
-    print(f"      → Check WhatsApp Business Manager for template status")
-    print(f"   4. Delivery delay")
-    print(f"      → Template messages can take 1-5 minutes to deliver")
-    print(f"   5. Number not in business contact list")
-    print(f"      → Some accounts require numbers to be added first")
-    print(f"   6. Check WhatsApp Business Manager")
-    print(f"      → Go to Message Templates → View delivery reports")
-    print(f"      → Look for message ID: {message_id}")
-    print(f"\n   Next steps:")
-    print(f"   - Wait 5-10 minutes and check WhatsApp again")
-    print(f"   - Verify phone number format is correct")
-    print(f"   - Check if template is fully approved (not just 'Active')")
-    print(f"   - Try sending to a number that previously received messages")
 
 def get_user_district(user) -> Optional[str]:
     """
@@ -491,7 +457,7 @@ async def send_leaderboard_template_messages(
             if district:
                 unique_districts.add(district.strip().lower())
     
-    print(f"\n📊 Pre-calculating block leaderboards for {len(unique_districts)} unique districts...")
+    print(f"\n📊 Pre-calculating block leaderboards for {len(unique_districts)} districts...")
     run_logger.info("Pre-calculating block leaderboards", extra={AppInsightsLogHandler.DETAILS: {
         "context": "pre_calculate_block_leaderboards",
         "unique_districts_count": len(unique_districts),
@@ -501,21 +467,18 @@ async def send_leaderboard_template_messages(
     block_leaderboard_cache = {}
     for district in unique_districts:
         try:
-            print(f"   Calculating block leaderboard for district: {district}")
             block_df = await build_block_leaderboard_for_district(
                 district=district,
                 message_categories=None,
                 processing_batch_size=1000
             )
             block_leaderboard_cache[district] = block_df
-            print(f"   ✅ Found {len(block_df)} blocks for {district}")
             run_logger.info(f"Block leaderboard calculated for district", extra={AppInsightsLogHandler.DETAILS: {
                 "context": "build_block_leaderboard",
                 "district": district,
                 "blocks_found": len(block_df)
             }})
         except Exception as e:
-            print(f"   ⚠️  Error building block leaderboard for {district}: {e}")
             block_leaderboard_cache[district] = None  # Cache None to avoid retrying
             run_logger.error(f"Error building block leaderboard for district", extra={AppInsightsLogHandler.DETAILS: {
                 "context": "build_block_leaderboard_error",
@@ -524,7 +487,7 @@ async def send_leaderboard_template_messages(
             }})
     
     successful_districts = len([v for v in block_leaderboard_cache.values() if v is not None])
-    print(f"✅ Block leaderboard cache ready with {successful_districts} districts\n")
+    print(f"   ✅ Calculated {successful_districts}/{len(unique_districts)} district block leaderboards")
     run_logger.info("Block leaderboard cache ready", extra={AppInsightsLogHandler.DETAILS: {
         "context": "block_leaderboard_cache_ready",
         "successful_districts": successful_districts,
@@ -532,12 +495,15 @@ async def send_leaderboard_template_messages(
     }})
     
     results = []
+    sent_count = 0
+    error_count = 0
+    
     for phone in phone_numbers:
         try:
             # Validate and format phone number
             formatted_phone = validate_and_format_phone_number(phone)
             if not formatted_phone:
-                print(f"❌ Invalid phone number format: {phone}")
+                error_count += 1
                 send_logger.warning("Invalid phone number format", extra={AppInsightsLogHandler.DETAILS: {
                     "context": "validate_phone_number",
                     "phone": phone,
@@ -551,7 +517,6 @@ async def send_leaderboard_template_messages(
                 continue
             
             if formatted_phone != phone:
-                print(f"📞 Phone number formatted: {phone} → {formatted_phone}")
                 phone = formatted_phone  # Use formatted version
             
             # Get user language, default to 'en' if user not found
@@ -575,7 +540,6 @@ async def send_leaderboard_template_messages(
                         if cached_block_df is not None and len(cached_block_df) > 0:
                             user_leaderboard_df = cached_block_df
                             is_block_leaderboard = True
-                            print(f"📍 User {phone} → Using cached block leaderboard for district {user_district} ({len(cached_block_df)} blocks)")
                             send_logger.debug("Using block leaderboard for user", extra={AppInsightsLogHandler.DETAILS: {
                                 "context": "user_block_leaderboard",
                                 "phone": phone,
@@ -584,7 +548,6 @@ async def send_leaderboard_template_messages(
                                 "blocks_count": len(cached_block_df)
                             }})
                         else:
-                            print(f"📍 User {phone} → No blocks found for district {user_district}, using global leaderboard")
                             send_logger.debug("No blocks found, using global leaderboard", extra={AppInsightsLogHandler.DETAILS: {
                                 "context": "user_fallback_global",
                                 "phone": phone,
@@ -593,7 +556,6 @@ async def send_leaderboard_template_messages(
                                 "reason": "no_blocks_found"
                             }})
                     else:
-                        print(f"📍 User {phone} → District {user_district} not in cache, using global leaderboard")
                         send_logger.debug("District not in cache, using global leaderboard", extra={AppInsightsLogHandler.DETAILS: {
                             "context": "user_fallback_global",
                             "phone": phone,
@@ -602,7 +564,6 @@ async def send_leaderboard_template_messages(
                             "reason": "not_in_cache"
                         }})
                 else:
-                    print(f"📍 User {phone} → Has location info but no district, using global leaderboard")
                     send_logger.debug("User has location but no district", extra={AppInsightsLogHandler.DETAILS: {
                         "context": "user_fallback_global",
                         "phone": phone,
@@ -610,7 +571,6 @@ async def send_leaderboard_template_messages(
                         "reason": "no_district"
                     }})
             else:
-                print(f"📍 User {phone} → No location info, using global district leaderboard")
                 send_logger.debug("User has no location info", extra={AppInsightsLogHandler.DETAILS: {
                     "context": "user_fallback_global",
                     "phone": phone,
@@ -627,21 +587,24 @@ async def send_leaderboard_template_messages(
             
             # Validate template parameters before sending (always expect 10 parameters)
             if not template_parameters or len(template_parameters) != 10:
-                print(f"❌ ERROR: Invalid template parameters for {phone}")
-                print(f"   Expected 10 parameters, got: {len(template_parameters) if template_parameters else 0}")
-                print(f"   Parameters: {template_parameters}")
+                error_count += 1
+                send_logger.error("Invalid template parameters", extra={AppInsightsLogHandler.DETAILS: {
+                    "context": "invalid_template_params",
+                    "phone": phone,
+                    "user_id": user.user_id if user else None,
+                    "expected": 10,
+                    "got": len(template_parameters) if template_parameters else 0
+                }})
                 continue
             
             # Ensure all parameters are non-empty strings (no None or empty values)
             validated_parameters = []
             for i, param in enumerate(template_parameters):
                 if param is None:
-                    print(f"⚠️  WARNING: Parameter {i+1} is None, replacing with 'N/A'")
                     validated_parameters.append("N/A")
                 elif not isinstance(param, str):
                     validated_parameters.append(str(param) if param else "N/A")
                 elif len(param.strip()) == 0:
-                    print(f"⚠️  WARNING: Parameter {i+1} is empty, replacing with 'N/A'")
                     validated_parameters.append("N/A")
                 else:
                     validated_parameters.append(param.strip())
@@ -699,15 +662,6 @@ async def send_leaderboard_template_messages(
             # Prepare requests - this will create both text and template requests (like consensus does)
             requests = whatsapp_service.prepare_requests(byoeb_message)
             
-            # Debug: Show what requests were generated
-            print(f"\n🔍 DEBUG: Generated {len(requests)} request(s) for {phone}")
-            for i, req in enumerate(requests):
-                req_type = req.get("type", "unknown")
-                print(f"   Request {i}: type={req_type}")
-                if req_type == "template":
-                    print(f"      Template name: {req.get('template', {}).get('name', 'N/A')}")
-                    print(f"      Template language: {req.get('template', {}).get('language', {}).get('code', 'N/A')}")
-            
             # Select only the template request
             # prepare_requests returns: [text_message, template_message] when both are present
             # But we should find it by type, not by index, to be more robust
@@ -718,26 +672,20 @@ async def send_leaderboard_template_messages(
                     break
             
             if not template_request:
-                print(f"❌ ERROR: No template request found in {len(requests)} request(s) for {phone}")
-                print(f"   Request types: {[req.get('type', 'unknown') for req in requests]}")
+                error_count += 1
+                send_logger.error("No template request found", extra={AppInsightsLogHandler.DETAILS: {
+                    "context": "no_template_request",
+                    "phone": phone,
+                    "user_id": user.user_id if user else None,
+                    "request_types": [req.get('type', 'unknown') for req in requests]
+                }})
                 continue
             
             # Change message type to TEMPLATE_TEXT (like consensus does for inactive users)
             byoeb_message.message_context.message_type = MessageTypes.TEMPLATE_TEXT.value
             
-            # Verify template request is correct
+            # Send only the template request (like consensus does for inactive users)
             if template_request:
-                print(f"\n📤 Preparing to send template to {phone} (lang: {user_language})")
-                print(f"   Template: {constants.TEMPLATE_NAME}={byoeb_message.message_context.additional_info[constants.TEMPLATE_NAME]}")
-                print(f"   Parameters ({len(template_parameters)}): {template_parameters}")
-                print(f"   Parameter validation: All parameters are non-empty strings: {all(isinstance(p, str) and len(p) > 0 for p in template_parameters)}")
-                print(f"   Using 10 parameters: 3 items × (name, count, users) + type indicator")
-                
-                # Log the exact payload being sent (for debugging)
-                print(f"\n   📋 WhatsApp API Payload:")
-                print(f"      {json.dumps(template_request, indent=6)}")
-                
-                # Send only the template request (like consensus does for inactive users)
                 responses, message_ids = await whatsapp_service.send_requests([template_request])
                 
                 # Check response status
@@ -747,24 +695,16 @@ async def send_leaderboard_template_messages(
                     error = response.response_status.error if hasattr(response, 'response_status') and hasattr(response.response_status, 'error') else None
                     message_id = message_ids[0] if message_ids else None
                     
-                    print(f"   Response Status: {status}")
-                    if error and error != 'None':
-                        print(f"   ⚠️  Error: {error}")
-                    if message_id:
-                        print(f"   Message ID: {message_id}")
-                    
                     # Check message status
+                    msg_status = 'unknown'
                     if hasattr(response, 'messages') and response.messages:
                         msg_status = response.messages[0].message_status if hasattr(response.messages[0], 'message_status') else 'unknown'
-                        print(f"   Message Status: {msg_status}")
                         
-                        # Check if message was actually accepted
-                        if msg_status == 'accepted':
-                            print(f"✅ Template message accepted by WhatsApp API for {phone}")
-                            print(f"   ⏳ Delivery may take 1-5 minutes")
-                            print(f"   📱 Please check your WhatsApp after a few minutes")
-                            send_logger.info("Leaderboard message accepted by WhatsApp API", extra={AppInsightsLogHandler.DETAILS: {
-                                "context": "message_accepted",
+                        # Log based on message status
+                        if msg_status in ['accepted', 'sent', 'delivered', 'read']:
+                            sent_count += 1
+                            send_logger.info(f"Leaderboard message {msg_status}", extra={AppInsightsLogHandler.DETAILS: {
+                                "context": f"message_{msg_status}",
                                 "phone": phone,
                                 "user_id": user.user_id if user else None,
                                 "message_id": message_id,
@@ -772,38 +712,8 @@ async def send_leaderboard_template_messages(
                                 "is_block_leaderboard": is_block_leaderboard,
                                 "whatsapp_status": status
                             }})
-                            # Print troubleshooting info
-                            if message_id:
-                                print_delivery_troubleshooting(phone, message_id, status)
-                        elif msg_status == 'sent':
-                            print(f"✅ Template message sent to {phone}")
-                            send_logger.info("Leaderboard message sent", extra={AppInsightsLogHandler.DETAILS: {
-                                "context": "message_sent",
-                                "phone": phone,
-                                "user_id": user.user_id if user else None,
-                                "message_id": message_id,
-                                "language": user_language
-                            }})
-                        elif msg_status == 'delivered':
-                            print(f"✅✅ Message delivered to {phone}!")
-                            send_logger.info("Leaderboard message delivered", extra={AppInsightsLogHandler.DETAILS: {
-                                "context": "message_delivered",
-                                "phone": phone,
-                                "user_id": user.user_id if user else None,
-                                "message_id": message_id,
-                                "language": user_language
-                            }})
-                        elif msg_status == 'read':
-                            print(f"✅✅✅ Message read by {phone}!")
-                            send_logger.info("Leaderboard message read", extra={AppInsightsLogHandler.DETAILS: {
-                                "context": "message_read",
-                                "phone": phone,
-                                "user_id": user.user_id if user else None,
-                                "message_id": message_id,
-                                "language": user_language
-                            }})
                         else:
-                            print(f"⚠️  Message status: {msg_status} (may indicate delivery issue)")
+                            error_count += 1
                             send_logger.warning("Leaderboard message status issue", extra={AppInsightsLogHandler.DETAILS: {
                                 "context": "message_status_warning",
                                 "phone": phone,
@@ -813,8 +723,6 @@ async def send_leaderboard_template_messages(
                                 "whatsapp_status": status,
                                 "error": error
                             }})
-                            if message_id:
-                                print_delivery_troubleshooting(phone, message_id, status)
                     
                     results.append({
                         "phone": phone,
@@ -825,8 +733,12 @@ async def send_leaderboard_template_messages(
                         "message_status": msg_status if 'msg_status' in locals() else None,
                         "error": error if error and error != 'None' else None
                     })
+                    
+                    # Show progress every 10 messages
+                    if len(results) % 10 == 0:
+                        print(f"   Progress: {sent_count} sent, {error_count} errors ({len(results)}/{len(phone_numbers)})")
                 else:
-                    print(f"❌ No response received from WhatsApp API for {phone}")
+                    error_count += 1
                     send_logger.error("No response from WhatsApp API", extra={AppInsightsLogHandler.DETAILS: {
                         "context": "no_whatsapp_response",
                         "phone": phone,
@@ -839,7 +751,7 @@ async def send_leaderboard_template_messages(
                         "message": "No response from WhatsApp API"
                     })
             else:
-                print(f"❌ Failed to prepare template request for {phone}")
+                error_count += 1
                 send_logger.error("Failed to prepare template request", extra={AppInsightsLogHandler.DETAILS: {
                     "context": "prepare_request_failed",
                     "phone": phone,
@@ -852,7 +764,7 @@ async def send_leaderboard_template_messages(
                     "message": "Failed to prepare request"
                 })
         except Exception as e:
-            print(f"❌ Error sending to {phone}: {str(e)}")
+            error_count += 1
             send_logger.error("Error sending leaderboard message", extra={AppInsightsLogHandler.DETAILS: {
                 "context": "send_error",
                 "phone": phone,
@@ -866,9 +778,18 @@ async def send_leaderboard_template_messages(
                 "message": str(e)
             })
     
+    # Print final summary
+    print(f"\n📊 Sending Summary:")
+    print(f"   ✅ Successfully sent: {sent_count}/{len(phone_numbers)}")
+    print(f"   ❌ Errors: {error_count}/{len(phone_numbers)}")
+    
     return results
 
 async def main():
+    print("\n" + "="*70)
+    print("🏆 LEADERBOARD MESSAGE SENDER".center(70))
+    print("="*70)
+    
     run_logger.info("Starting leaderboard job", extra={AppInsightsLogHandler.DETAILS: {
         "context": "leaderboard_job_start",
         "test_mode": TEST_MODE_SEND_TO_ME_ONLY,
@@ -876,9 +797,13 @@ async def main():
     }})
     
     # Build global district leaderboard (used as fallback for users without location info)
+    print("\n📊 Building global district leaderboard...")
     leaderboard_df = await build_district_leaderboard_last_week_ist()
     top3_df = leaderboard_df.head(3)
-    print("\nTop 3 Districts (Global - used for users without location info):\n", top3_df.to_string(index=False))
+    print(f"   ✅ Found {len(leaderboard_df)} districts with activity")
+    print(f"\n   Top 3 Districts (Global):")
+    for idx, row in top3_df.iterrows():
+        print(f"      {idx+1}. {row['district']}: {row['message_count']} messages, {row['unique_users']} users")
     
     run_logger.info("Global district leaderboard built", extra={AppInsightsLogHandler.DETAILS: {
         "context": "build_global_leaderboard",
@@ -886,39 +811,36 @@ async def main():
         "top3_districts": top3_df.to_dict('records') if len(top3_df) > 0 else []
     }})
 
-    # Display what will be sent (sample for global leaderboard)
-    # Note: In actual sending, each user gets their own language-specific translation
-    template_params = await format_leaderboard_as_template_parameters(top3_df, user_language="en")
-    print(f"\nSample Template Parameters (Global Districts, English): {template_params}")
-    print(f"   Note: 10th parameter will be translated based on each user's language")
-    print(f"Template Name: leaderboardv2")
-    print(f"\n📌 PERSONALIZATION LOGIC:")
-    print(f"   - Users WITH district & block info → Top 3 blocks in their district")
-    print(f"   - Users WITHOUT location info → Top 3 districts (global)")
-    print(f"📊 Using 10 parameters: 3 items × (name, count, users) + type indicator")
+    print(f"\n📝 Message Configuration:")
+    print(f"   Template: leaderboardv2")
+    print(f"   Parameters: 10 (3 items × 3 fields + type indicator)")
+    print(f"   Languages: Translated per user (en, hi, mr, te)")
+    print(f"\n📍 Personalization:")
+    print(f"   • Users WITH district & block → Top 3 blocks in their district")
+    print(f"   • Users WITHOUT location → Top 3 districts (global)")
     
     # Collect phone numbers based on mode
+    print("\n" + "="*70)
     if TEST_MODE_SEND_TO_ME_ONLY:
         if not TEST_PHONE_NUMBER:
-            print(f"\n❌ ERROR: TEST_MODE_SEND_TO_ME_ONLY is True but PHONE_NUMBER_ID is not set in keys.env")
-            print(f"   Please add PHONE_NUMBER_ID=your_phone_number to your keys.env file")
+            print(f"❌ ERROR: TEST_MODE_SEND_TO_ME_ONLY is True but PHONE_NUMBER_ID not set")
+            print(f"   Please add PHONE_NUMBER_ID=your_phone_number to keys.env")
             return
         
-        print(f"\n🧪 TEST MODE: Sending template message only to {TEST_PHONE_NUMBER}")
-        print(f"   ✅ SAFETY CHECK: TEST_MODE_SEND_TO_ME_ONLY = True")
-        print(f"   ✅ Only 1 recipient will receive the message")
+        print(f"🧪 TEST MODE ENABLED")
+        print(f"   Recipient: {TEST_PHONE_NUMBER}")
+        print(f"   Count: 1 user (test only)")
         phone_numbers = [TEST_PHONE_NUMBER]
         mode = "test"
     else:
-        print(f"\n⚠️  WARNING: PRODUCTION MODE ACTIVE!")
-        print(f"   TEST_MODE_SEND_TO_ME_ONLY = False")
-        print(f"   Messages will be sent to ALL users")
+        print(f"🚀 PRODUCTION MODE ENABLED")
         phone_numbers = await fetch_phone_numbers_for_asha_and_test_users()
-        print(f"Total recipients found: {len(phone_numbers)}")
+        print(f"   Recipients: {len(phone_numbers)} users")
         mode = "production"
     
+    print("="*70)
+    
     # Send messages to collected phone numbers
-    print(f"\n🚀 Sending template messages to {len(phone_numbers)} users")
     results = await send_leaderboard_template_messages(
         phone_numbers, 
         top3_df, 
@@ -929,11 +851,17 @@ async def main():
     # Calculate and report results
     success_count = sum(1 for r in results if r.get("status") == "success")
     failure_count = len(results) - success_count
-    print(f"\n✅ Successfully sent {success_count} out of {len(results)} messages")
     
+    print("\n" + "="*70)
+    print("📈 FINAL RESULTS".center(70))
+    print("="*70)
+    print(f"   Total: {len(results)} messages")
+    print(f"   ✅ Success: {success_count}")
+    print(f"   ❌ Failed: {failure_count}")
+    print(f"   Mode: {mode.upper()}")
     if TEST_MODE_SEND_TO_ME_ONLY:
-        print(f"\n⚠️  TEST MODE ACTIVE: Only sent to test phone number")
-        print(f"   To enable production mode, set TEST_MODE_SEND_TO_ME_ONLY = False")
+        print(f"\n   💡 Tip: Set TEST_MODE_SEND_TO_ME_ONLY = False for production")
+    print("="*70 + "\n")
     
     # Log completion
     log_details = {
