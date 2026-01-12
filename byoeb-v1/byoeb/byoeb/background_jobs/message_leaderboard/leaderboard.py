@@ -114,7 +114,7 @@ def get_user_district(user) -> Optional[str]:
     if dist:
         dist_str = str(dist).strip()
         if dist_str.lower() not in ["unknown", "none", ""]:
-            return dist_str
+            return dist_str.title()
     return None
 
 def get_user_block(user) -> Optional[str]:
@@ -137,7 +137,7 @@ def get_user_block(user) -> Optional[str]:
     if block:
         block_str = str(block).strip()
         if block_str.lower() not in ["unknown", "none", ""]:
-            return block_str
+            return block_str.title()
     return None
 
 def has_location_info(user) -> bool:
@@ -154,84 +154,52 @@ def has_location_info(user) -> bool:
     block = get_user_block(user)
     return district is not None and block is not None
 
-def get_type_indicator_translation(is_block_leaderboard: bool, user_language: str = "en") -> str:
-    """
-    Get translated type indicator ("Blocks" or "Districts") based on user language.
-    
-    Args:
-        is_block_leaderboard: If True, returns "Blocks" translation, otherwise "Districts" translation
-        user_language: User's language code (en, hi, mr, te)
-        
-    Returns:
-        Translated string for "Blocks" or "Districts"
-    """
-    # Translation dictionary for "Blocks" and "Districts"
-    translations = {
-        "en": {
-            "blocks": "Blocks",
-            "districts": "Districts"
-        },
-        "hi": {
-            "blocks": "ब्लॉक",
-            "districts": "जिले"
-        },
-        "mr": {
-            "blocks": "ब्लॉक",
-            "districts": "जिल्हे"
-        },
-        "te": {
-            "blocks": "బ్లాక్‌లు",
-            "districts": "జిల్లాలు"
-        }
+# Unified translation dictionary for leaderboard text
+LEADERBOARD_TRANSLATIONS = {
+    "en": {
+        "block_singular": "Block ",      # With trailing space for prefixing
+        "district_singular": "District ",
+        "blocks_plural": "Blocks",
+        "districts_plural": "Districts"
+    },
+    "hi": {
+        "block_singular": "ब्लॉक ",
+        "district_singular": "जिला ",
+        "blocks_plural": "ब्लॉक",
+        "districts_plural": "जिले"
+    },
+    "mr": {
+        "block_singular": "ब्लॉक ",
+        "district_singular": "जिल्हा ",
+        "blocks_plural": "ब्लॉक",
+        "districts_plural": "जिल्हे"
+    },
+    "te": {
+        "block_singular": "బ్లాక్ ",
+        "district_singular": "జిల్లా ",
+        "blocks_plural": "బ్లాక్‌లు",
+        "districts_plural": "జిల్లాలు"
     }
-    
-    # Default to English if language not found
-    lang_dict = translations.get(user_language, translations["en"])
-    
-    if is_block_leaderboard:
-        return lang_dict["blocks"]
-    else:
-        return lang_dict["districts"]
+}
 
-def get_prefix_translation(is_block_leaderboard: bool, user_language: str = "en") -> str:
+def get_leaderboard_translation(is_block_leaderboard: bool, user_language: str = "en", plural: bool = False) -> str:
     """
-    Get translated prefix ("Block " or "District " with space) based on user language.
-    Used for prefixing names in parameters 1, 4, 7.
+    Get translated text for block/district leaderboard labels.
     
     Args:
-        is_block_leaderboard: If True, returns "Block " translation, otherwise "District " translation
+        is_block_leaderboard: If True, returns block translation, otherwise district translation
         user_language: User's language code (en, hi, mr, te)
+        plural: If True, returns plural form (Blocks/Districts), otherwise singular with space (Block /District )
         
     Returns:
-        Translated string for "Block " or "District " (with trailing space)
+        Translated string
     """
-    # Translation dictionary for "Block " and "District " (singular with space)
-    translations = {
-        "en": {
-            "block": "Block ",
-            "district": "District "
-        },
-        "hi": {
-            "block": "ब्लॉक ",
-            "district": "जिला "
-        },
-        "mr": {
-            "block": "ब्लॉक ",
-            "district": "जिल्हा "
-        },
-        "te": {
-            "block": "బ్లాక్ ",
-            "district": "జిల్లా "
-        }
-    }
+    lang_dict = LEADERBOARD_TRANSLATIONS.get(user_language, LEADERBOARD_TRANSLATIONS["en"])
     
-    # Default to English if language not found
-    lang_dict = translations.get(user_language, translations["en"])
-    
-    if is_block_leaderboard:
-        return lang_dict["block"]
+    if plural:
+        return lang_dict["blocks_plural"] if is_block_leaderboard else lang_dict["districts_plural"]
     else:
-        return lang_dict["district"]
+        return lang_dict["block_singular"] if is_block_leaderboard else lang_dict["district_singular"]
 
 async def fetch_phone_numbers_for_asha_and_test_users() -> List[str]:
     """
@@ -440,11 +408,9 @@ async def format_leaderboard_as_template_parameters(
     Returns:
         List of parameters for the template (includes translated type as last parameter: "Blocks" or "Districts")
     """
-    # Determine the type indicator (plural, translated based on user language)
-    type_indicator = get_type_indicator_translation(is_block_leaderboard, user_language)
-    
-    # Get translated prefix for names
-    prefix = get_prefix_translation(is_block_leaderboard, user_language)
+    # Get translated type indicator (plural) and prefix (singular with space)
+    type_indicator = get_leaderboard_translation(is_block_leaderboard, user_language, plural=True)
+    prefix = get_leaderboard_translation(is_block_leaderboard, user_language, plural=False)
     
     # Always return 10 parameters (3 items * 3 fields + 1 type indicator)
     parameters = []
@@ -684,7 +650,7 @@ async def send_leaderboard_template_messages(
             
             # Build a text representation of the leaderboard (for logging/fallback)
             # Last parameter is the translated type indicator ("Blocks" or "Districts")
-            type_indicator = template_parameters[-1] if len(template_parameters) > 0 else get_type_indicator_translation(is_block_leaderboard, user_language)
+            type_indicator = template_parameters[-1] if len(template_parameters) > 0 else get_leaderboard_translation(is_block_leaderboard, user_language, plural=True)
             
             # Build leaderboard text: 10 parameters (9 data + 1 type)
             if type_indicator in ["Block", "ब्लॉक", "బ్లాక్"]:  # Block indicators
@@ -931,7 +897,7 @@ async def main():
     print(f"   - Users WITHOUT location info → Top 3 districts (global)")
     print(f"📊 Using 10 parameters: 3 items × (name, count, users) + type indicator")
     
-    # TEST MODE: Send only to your test phone number
+    # Collect phone numbers based on mode
     if TEST_MODE_SEND_TO_ME_ONLY:
         if not TEST_PHONE_NUMBER:
             print(f"\n❌ ERROR: TEST_MODE_SEND_TO_ME_ONLY is True but PHONE_NUMBER_ID is not set in keys.env")
@@ -941,52 +907,46 @@ async def main():
         print(f"\n🧪 TEST MODE: Sending template message only to {TEST_PHONE_NUMBER}")
         print(f"   ✅ SAFETY CHECK: TEST_MODE_SEND_TO_ME_ONLY = True")
         print(f"   ✅ Only 1 recipient will receive the message")
-        test_phone_numbers = [TEST_PHONE_NUMBER]
-        results = await send_leaderboard_template_messages(
-            test_phone_numbers, 
-            top3_df, 
-            user_db_service, 
-            message_db_service
-        )
-        success_count = sum(1 for r in results if r.get("status") == "success")
-        failure_count = len(results) - success_count
-        print(f"\n✅ Successfully sent {success_count} out of {len(results)} messages")
-        print(f"\n⚠️  TEST MODE ACTIVE: Only sent to test phone number")
-        print(f"   To enable production mode, set TEST_MODE_SEND_TO_ME_ONLY = False")
-        
-        run_logger.info("Leaderboard job completed (test mode)", extra={AppInsightsLogHandler.DETAILS: {
-            "context": "leaderboard_job_complete",
-            "mode": "test",
-            "total_recipients": len(results),
-            "success_count": success_count,
-            "failure_count": failure_count,
-            "test_phone": TEST_PHONE_NUMBER
-        }})
+        phone_numbers = [TEST_PHONE_NUMBER]
+        mode = "test"
     else:
-        # PRODUCTION MODE: Send to all users (actual sending)
         print(f"\n⚠️  WARNING: PRODUCTION MODE ACTIVE!")
         print(f"   TEST_MODE_SEND_TO_ME_ONLY = False")
         print(f"   Messages will be sent to ALL users")
         phone_numbers = await fetch_phone_numbers_for_asha_and_test_users()
         print(f"Total recipients found: {len(phone_numbers)}")
-        print(f"\n🚀 PRODUCTION MODE: Sending template messages to {len(phone_numbers)} users")
-        results = await send_leaderboard_template_messages(
-            phone_numbers, 
-            top3_df, 
-            user_db_service, 
-            message_db_service
-        )
-        success_count = sum(1 for r in results if r.get("status") == "success")
-        failure_count = len(results) - success_count
-        print(f"\n✅ Successfully sent {success_count} out of {len(results)} messages")
-        
-        run_logger.info("Leaderboard job completed (production mode)", extra={AppInsightsLogHandler.DETAILS: {
-            "context": "leaderboard_job_complete",
-            "mode": "production",
-            "total_recipients": len(results),
-            "success_count": success_count,
-            "failure_count": failure_count
-        }})
+        mode = "production"
+    
+    # Send messages to collected phone numbers
+    print(f"\n🚀 Sending template messages to {len(phone_numbers)} users")
+    results = await send_leaderboard_template_messages(
+        phone_numbers, 
+        top3_df, 
+        user_db_service, 
+        message_db_service
+    )
+    
+    # Calculate and report results
+    success_count = sum(1 for r in results if r.get("status") == "success")
+    failure_count = len(results) - success_count
+    print(f"\n✅ Successfully sent {success_count} out of {len(results)} messages")
+    
+    if TEST_MODE_SEND_TO_ME_ONLY:
+        print(f"\n⚠️  TEST MODE ACTIVE: Only sent to test phone number")
+        print(f"   To enable production mode, set TEST_MODE_SEND_TO_ME_ONLY = False")
+    
+    # Log completion
+    log_details = {
+        "context": "leaderboard_job_complete",
+        "mode": mode,
+        "total_recipients": len(results),
+        "success_count": success_count,
+        "failure_count": failure_count
+    }
+    if TEST_MODE_SEND_TO_ME_ONLY:
+        log_details["test_phone"] = TEST_PHONE_NUMBER
+    
+    run_logger.info(f"Leaderboard job completed ({mode} mode)", extra={AppInsightsLogHandler.DETAILS: log_details})
 
 if __name__ == "__main__":
     asyncio.run(main())
