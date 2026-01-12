@@ -133,11 +133,10 @@
         function getAuthHeaders() {
             const tenantId = localStorage.getItem(TENANT_KEY);
             const csrfToken = getCookie('csrf_token');
-            if (!tenantId || !csrfToken) {
+            if (!csrfToken) {
                 return null;
             }
             return {
-                "X-Tenant-ID": tenantId,
                 "X-CSRF-Token": csrfToken
             };
         }
