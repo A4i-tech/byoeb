@@ -27,7 +27,7 @@ from byoeb.services.auth.exceptions import (
     UserTenantConflictError,
 )
 from byoeb.services.auth.models import AuthPermission, AuthTenant, AuthUser
-from byoeb.services.auth.security import AuthTokenService, TOKEN_SERVICE, TokenClaims, hash_password, verify_password
+from byoeb.services.auth.security import AuthTokenService, TOKEN_SERVICE, TokenClaims, PASSWORD_CTX
 
 
 class TokenDetails(BaseModel):
@@ -49,7 +49,7 @@ class AuthService:
 
     async def authenticate_user(self, username: str, password: str, tenant_id: UUID) -> AuthUser:
         user_doc = await self._repo.find_user_by_username(username)
-        if not user_doc or not verify_password(password, user_doc):
+        if not user_doc or not PASSWORD_CTX.verify(password, user_doc.get("password_hash")):
             raise InvalidCredentialsError()
         try:
             return await self._build_auth_user(user_doc, tenant_id)
@@ -119,7 +119,7 @@ class AuthService:
             raise UserAlreadyExistsError()
         roles = [role.strip() for role in payload.roles]
         await self._ensure_roles_defined(payload.tenant_id, roles)
-        password_hash = hash_password(payload.password)
+        password_hash = PASSWORD_CTX.hash(payload.password)
         user_id = uuid.uuid4()
         await self._repo.insert_one({
             "_id": user_id,
@@ -155,7 +155,7 @@ class AuthService:
             await self._repo.update_user_roles_for_tenant(username, tenant_id, cleaned_roles)
             tenant_entry["roles"] = cleaned_roles
         if password is not None:
-            password_hash = hash_password(password)
+            password_hash = PASSWORD_CTX.hash(password)
             updates["password_hash"] = password_hash
         if phone_number_id is not None:
             updates["phone_number_id"] = phone_number_id
