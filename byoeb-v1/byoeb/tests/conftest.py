@@ -38,3 +38,5 @@ if "MONGO_DB_CONNECTION_STRING" not in os.environ:
 # RECIEVE_URL for integration tests (intentionally misspelled as per codebase convention)
 if "RECIEVE_URL" not in os.environ:
     os.environ["RECIEVE_URL"] = "http://localhost:8000/receive"
+
+os.environ["AUTH_TOKEN_SECRET"] = "x" * 36
