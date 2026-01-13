@@ -44,8 +44,6 @@ class QueueProducerFactory:
             if not env_azure_storage_queue_account_url:
                 raise ValueError(
                     "AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable must be set. "
-                    "This prevents accidental access to production resources. "
-                    "Set it in keys.env (staging or production section)."
                 )
             
             default_credential = DefaultAzureCredential()

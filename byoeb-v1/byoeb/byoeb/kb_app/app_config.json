@@ -1,5 +1,4 @@
 {
-    "_comment": "This file contains non-sensitive configuration defaults. Production-specific resource URLs and credentials should be set via environment variables in keys.env. See keys.env for production configuration.",
     "app":{
         "batch_size": 5,
         "azure_cognitive_endpoint": "https://cognitiveservices.azure.com/.default",
@@ -9,27 +8,19 @@
     "embeddings": {
         "azure": {
             "model": "text-embedding-3-large",
-            "endpoint": "https://your-openai-resource.openai.azure.com/",
             "deployment_name": "text-embedding-3-large",
-            "api_version": "2023-03-15-preview",
-            "_comment": "Override AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_DEPLOYMENT_NAME via environment variables for production"
+            "api_version": "2023-03-15-preview"
         }
     },
     "llms": {
         "azure": {
             "model": "gpt-4o",
-            "endpoint": "https://your-openai-resource.openai.azure.com/",
             "deployment_name": "gpt-4o",
-            "api_version": "2023-03-15-preview",
-            "_comment": "Override AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_DEPLOYMENT_NAME via environment variables for production"
+            "api_version": "2023-03-15-preview"
         },
         "openai": {
             "model": "gpt-4o-2024-08-06",
             "api_version": "2023-03-15-preview"
-        }
-    },
-    "media_storage": {
-        "azure": {
         }
     },
     "vector_store": {
@@ -42,9 +33,6 @@
             "doc_index_name": "vector_collection"
         },
         "azure_vector_search": {
-            "service_name": "your-search-service",
-            "doc_index_name": "your-doc-index",
-            "_comment": "Override AZURE_SEARCH_SERVICE_NAME and AZURE_SEARCH_INDEX_NAME via environment variables for production"
         }
     }
 }

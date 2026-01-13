@@ -39,8 +39,6 @@ class MongoDBFactory:
             if not env_config.env_mongo_db_database_name:
                 raise ValueError(
                     "MONGO_DB_DATABASE_NAME environment variable must be set. "
-                    "This prevents accidental access to production resources. "
-                    "Set it in keys.env (staging or production section)."
                 )
             db_name = env_config.env_mongo_db_database_name
             tls_enabled = _is_tls_enabled(connection_string)

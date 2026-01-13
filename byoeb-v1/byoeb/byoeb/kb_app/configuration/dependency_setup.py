@@ -17,26 +17,18 @@ amedia_storage_analysis: BaseMediaStorage = None
 if not env_config.env_azure_storage_blob_account_url:
     raise ValueError(
         "AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set. "
-        "This prevents accidental access to production resources. "
-        "Set it in keys.env (staging or production section)."
     )
 if not env_config.env_azure_storage_container_name:
     raise ValueError(
         "AZURE_STORAGE_CONTAINER_NAME environment variable must be set. "
-        "This prevents accidental access to production resources. "
-        "Set it in keys.env (staging or production section)."
     )
 if not env_config.env_azure_openai_endpoint:
     raise ValueError(
         "AZURE_OPENAI_ENDPOINT environment variable must be set. "
-        "This prevents accidental access to production resources. "
-        "Set it in keys.env (staging or production section)."
     )
 if not env_config.env_azure_openai_deployment_name:
     raise ValueError(
         "AZURE_OPENAI_DEPLOYMENT_NAME environment variable must be set. "
-        "This prevents accidental access to production resources. "
-        "Set it in keys.env (staging or production section)."
     )
 
 account_url = env_config.env_azure_storage_blob_account_url
@@ -132,14 +124,10 @@ if vector_store_type == "azure_vector_search":
     if not env_config.env_azure_search_service_name:
         raise ValueError(
             "AZURE_SEARCH_SERVICE_NAME environment variable must be set. "
-            "This prevents accidental access to production resources. "
-            "Set it in keys.env (staging or production section)."
         )
     if not env_config.env_azure_search_index_name:
         raise ValueError(
             "AZURE_SEARCH_INDEX_NAME environment variable must be set. "
-            "This prevents accidental access to production resources. "
-            "Set it in keys.env (staging or production section)."
         )
     azure_search_service_name = env_config.env_azure_search_service_name
     azure_search_doc_index_name = env_config.env_azure_search_index_name

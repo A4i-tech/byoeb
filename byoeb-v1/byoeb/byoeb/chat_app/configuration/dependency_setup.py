@@ -130,8 +130,6 @@ from byoeb.listener.message_consumer import QueueConsumer
 if not env_config.env_azure_storage_queue_account_url:
     raise ValueError(
         "AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable must be set. "
-        "This prevents accidental access to production resources. "
-        "Set it in keys.env (staging or production section)."
     )
 # Environment variable is required (validated at startup in config.py)
 queue_name = env_config.env_azure_queue_bot
@@ -187,14 +185,10 @@ from byoeb_core.vector_stores.base import BaseVectorStore
 if not env_config.env_azure_openai_endpoint:
     raise ValueError(
         "AZURE_OPENAI_ENDPOINT environment variable must be set. "
-        "This prevents accidental access to production resources. "
-        "Set it in keys.env (staging or production section)."
     )
 if not env_config.env_azure_openai_deployment_name:
     raise ValueError(
         "AZURE_OPENAI_DEPLOYMENT_NAME environment variable must be set. "
-        "This prevents accidental access to production resources. "
-        "Set it in keys.env (staging or production section)."
     )
 azure_openai_endpoint = env_config.env_azure_openai_endpoint
 azure_openai_deployment_name = env_config.env_azure_openai_deployment_name
@@ -236,14 +230,10 @@ if vector_store_type == "azure_vector_search":
     if not env_config.env_azure_search_service_name:
         raise ValueError(
             "AZURE_SEARCH_SERVICE_NAME environment variable must be set. "
-            "This prevents accidental access to production resources. "
-            "Set it in keys.env (staging or production section)."
         )
     if not env_config.env_azure_search_index_name:
         raise ValueError(
             "AZURE_SEARCH_INDEX_NAME environment variable must be set. "
-            "This prevents accidental access to production resources. "
-            "Set it in keys.env (staging or production section)."
         )
     azure_search_service_name = env_config.env_azure_search_service_name
     azure_search_doc_index_name = env_config.env_azure_search_index_name
@@ -387,14 +377,10 @@ from azure.identity import DefaultAzureCredential
 if not env_config.env_azure_storage_blob_account_url:
     raise ValueError(
         "AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set. "
-        "This prevents accidental access to production resources. "
-        "Set it in keys.env (staging or production section)."
     )
 if not env_config.env_azure_storage_container_name:
     raise ValueError(
         "AZURE_STORAGE_CONTAINER_NAME environment variable must be set. "
-        "This prevents accidental access to production resources. "
-        "Set it in keys.env (staging or production section)."
     )
 
 container_name = env_config.env_azure_storage_container_name
@@ -431,8 +417,6 @@ MONGODB_URL = env_mongo_db_connection_string
 if not env_config.env_mongo_db_database_name:
     raise ValueError(
         "MONGO_DB_DATABASE_NAME environment variable must be set. "
-        "This prevents accidental access to production resources. "
-        "Set it in keys.env (staging or production section)."
     )
 MONGODB_DATABASE = env_config.env_mongo_db_database_name
 MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]

@@ -58,8 +58,6 @@ class QueueConsumer:
             if not self._account_url:
                 raise ValueError(
                     "Queue account URL must be set from AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable. "
-                    "This prevents accidental access to production resources. "
-                    "Set it in keys.env (staging or production section)."
                 )
             default_credential = DefaultAzureCredential()
             return await AsyncAzureStorageQueue.aget_or_create(

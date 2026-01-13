@@ -16,8 +16,6 @@ async def use_mongomock(monkeypatch, docs_by_collection):
     if not env_mongo_db_database_name:
         raise ValueError(
             "MONGO_DB_DATABASE_NAME environment variable must be set. "
-            "This prevents accidental access to production resources. "
-            "Set it in keys.env (staging or production section)."
         )
     db_name = env_mongo_db_database_name
     db = client[db_name]

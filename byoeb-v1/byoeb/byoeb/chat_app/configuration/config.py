@@ -64,17 +64,14 @@ env_azure_queue_dead_letter = os.getenv("AZURE_QUEUE_DEAD_LETTER")
 if not env_azure_queue_status:
     raise ValueError(
         "AZURE_QUEUE_STATUS environment variable must be set in keys.env. "
-        "This prevents accidental access to production resources."
     )
 if not env_azure_queue_bot:
     raise ValueError(
         "AZURE_QUEUE_BOT environment variable must be set in keys.env. "
-        "This prevents accidental access to production resources."
     )
 if not env_azure_queue_dead_letter:
     raise ValueError(
         "AZURE_QUEUE_DEAD_LETTER environment variable must be set in keys.env. "
-        "This prevents accidental access to production resources."
     )
 
 # Azure Cognitive Services
