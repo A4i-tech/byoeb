@@ -94,22 +94,18 @@ def is_onboard(
         print(f"[is_onboard] Non-English text normalized: '{text}' -> '{text_normalized}'")
     
     # Check if any phrase exists in text (case-insensitive for English, exact match for others)
+    is_english = lang == LanguageCode.ENGLISH.value
     for phrase in ONBOARD_WELCOME_MESSAGE_DICT[lang]:
-        if lang == LanguageCode.ENGLISH.value:
-            # For English, normalize phrase and compare case-insensitively
-            phrase_normalized = normalize_whitespace(phrase.lower().replace("-", " "))
-            print(f"[is_onboard] Comparing English phrase '{phrase}' (normalized: '{phrase_normalized}') in text '{text_normalized}' -> {phrase_normalized in text_normalized}")
-            if phrase_normalized in text_normalized:
-                print(f"[is_onboard] ✓ Matched English phrase '{phrase}' in text '{original_text}'")
-                return True
-        else:
-            # For other languages, check if phrase exists in text (substring match)
-            # Also normalize the phrase for comparison (replace hyphens and whitespace)
-            normalized_phrase = normalize_whitespace(phrase.replace("-", " "))
-            print(f"[is_onboard] Comparing {lang} phrase '{phrase}' (normalized: '{normalized_phrase}') in text '{text_normalized}' -> {normalized_phrase in text_normalized}")
-            if normalized_phrase in text_normalized:
-                print(f"[is_onboard] ✓ Matched {lang} phrase '{phrase}' in text '{original_text}'")
-                return True
+        # Normalize phrase: replace hyphens with spaces, normalize whitespace
+        # For English, also convert to lowercase
+        phrase_normalized = normalize_whitespace(phrase.replace("-", " "))
+        if is_english:
+            phrase_normalized = phrase_normalized.lower()
+        
+        print(f"[is_onboard] Comparing {lang} phrase '{phrase}' (normalized: '{phrase_normalized}') in text '{text_normalized}' -> {phrase_normalized in text_normalized}")
+        if phrase_normalized in text_normalized:
+            print(f"[is_onboard] ✓ Matched {lang} phrase '{phrase}' in text '{original_text}'")
+            return True
     
     print(f"[is_onboard] ✗ No match found. lang={lang}, original_text='{original_text}', normalized_text='{text_normalized}', phrases={ONBOARD_WELCOME_MESSAGE_DICT[lang]}")
     return False
