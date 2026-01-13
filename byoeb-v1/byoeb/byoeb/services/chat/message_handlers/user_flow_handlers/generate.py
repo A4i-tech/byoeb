@@ -865,7 +865,13 @@ class ByoebUserGenerateResponse(Handler):
             print(f"  Retrieved already_registered_msg: '{already_registered_msg[:50]}...'")
             
             # Get the thank you message from THANK_YOU_DICT
-            thank_you_msg = THANK_YOU_DICT.get(user_type, {}).get(user_language, THANK_YOU_DICT.get(UserType.ASHA.value, {}).get(LanguageCode.ENGLISH.value, ""))
+            # Fallback: OTHERS -> ASHA -> English
+            if user_type in THANK_YOU_DICT:
+                thank_you_msg = THANK_YOU_DICT[user_type].get(user_language, THANK_YOU_DICT[user_type].get(LanguageCode.ENGLISH.value, ""))
+            else:
+                # For user types not in dict (like OTHERS), use ASHA messages
+                print(f"  User type '{user_type}' not in THANK_YOU_DICT, falling back to ASHA messages")
+                thank_you_msg = THANK_YOU_DICT[UserType.ASHA.value].get(user_language, THANK_YOU_DICT[UserType.ASHA.value].get(LanguageCode.ENGLISH.value, ""))
             print(f"  Retrieved thank_you_msg: '{thank_you_msg[:50]}...'")
             
             # Combine messages
@@ -878,13 +884,20 @@ class ByoebUserGenerateResponse(Handler):
             print(f"  Using static related_questions: {related_questions}")
             
             # Translate response to English for response_en (needed for internal processing)
-            from byoeb.chat_app.configuration.dependency_setup import text_translator
-            response_en = await text_translator.atranslate_text(
-                input_text=response_text,
-                source_language=user_language,
-                target_language="en"
-            )
-            print(f"  Translated response_en: '{response_en[:100]}...'")
+            # If translation fails, use a simple fallback
+            try:
+                from byoeb.chat_app.configuration.dependency_setup import text_translator
+                response_en = await text_translator.atranslate_text(
+                    input_text=response_text,
+                    source_language=user_language,
+                    target_language="en"
+                )
+                print(f"  Translated response_en: '{response_en[:100]}...'")
+            except Exception as translation_error:
+                print(f"  Translation failed: {translation_error}")
+                # Fallback: Use English version of already_registered message
+                response_en = ALREADY_REGISTERED_DICT.get(LanguageCode.ENGLISH.value, "You are already registered with the system.")
+                print(f"  Using fallback response_en: '{response_en}'")
             
             query_type = "asha_work_related"
             print(f"  Calling __create_user_message with response_source='{response_text[:50]}...'")

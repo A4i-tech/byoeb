@@ -100,6 +100,7 @@ THANK_YOU_DICT = {
         LanguageCode.MARATHI.value: "या कार्यक्रमाबद्दल अधिक माहितीसाठी कृपया आमच्या हेल्पडेस्क नंबर +91 77270 79678 वर कॉल करा. तुमच्या समर्थनाबद्दल धन्यवाद 😊",
         LanguageCode.TELUGU.value: "ఈ ప్రోగ్రాం గురించి మరిన్ని సమాచారం కోసం దయచేసి మా హెల్ప్‌డెస్క్ నంబర్ +91 77270 79678 కి కాల్ చేయండి. మీ మద్దతుకు ధన్యవాదాలు 😊",
     },
+    # Note: OTHERS user type uses ASHA messages (fallback handled in code)
 }
 
 ONBOARD_WELCOME_MESSAGE_DICT = {

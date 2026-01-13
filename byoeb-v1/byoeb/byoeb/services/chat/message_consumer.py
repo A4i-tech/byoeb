@@ -4,6 +4,7 @@ import hashlib
 import traceback
 import logging
 import byoeb.services.chat.constants as constants
+import byoeb.utils.utils as utils
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from typing import Optional, List
@@ -139,9 +140,19 @@ class MessageConsmerService:
             }})
 
             if bot_message is None:
+                # Check if this is an onboarding message from an already-registered user
+                # If so, route to regular flow to return "already registered" response
+                is_onboarding_msg = utils.is_onboard(m.message_context.message_source_text, user.user_language)
+                
                 if user.user_type is None or user.user_language is None:
-                    print(f"[__create_conversations] no_bot_msg + needs_onboarding -> onboard (msg_id={m.message_context.message_id})")
-                    onboard_convs.append(m)
+                    if is_onboarding_msg and user.user_id is not None:
+                        # User is already registered but sending onboarding message
+                        print(f"[__create_conversations] registered_user_onboard_msg -> conversations (msg_id={m.message_context.message_id})")
+                        conversations.append(conversation)
+                    else:
+                        # New user needs onboarding
+                        print(f"[__create_conversations] no_bot_msg + needs_onboarding -> onboard (msg_id={m.message_context.message_id})")
+                        onboard_convs.append(m)
                 else:
                     print(f"[__create_conversations] no_bot_msg -> conversations (msg_id={m.message_context.message_id})")
                     conversations.append(conversation)
@@ -172,8 +183,17 @@ class MessageConsmerService:
                 print(f"[__create_conversations] onboarding_flow msg_id={m.message_context.message_id} bot_cat={bot_message.message_category} -> onboard")
                 onboard_convs.append(conversation)
             elif user.user_type is None or user.user_language is None:
-                print(f"[__create_conversations] missing_user_fields -> onboard (msg_id={m.message_context.message_id})")
-                onboard_convs.append(m)
+                # Check if this is an onboarding message from an already-registered user
+                is_onboarding_msg = utils.is_onboard(m.message_context.message_source_text, user.user_language)
+                
+                if is_onboarding_msg and user.user_id is not None:
+                    # User is already registered but sending onboarding message
+                    print(f"[__create_conversations] registered_user_onboard_msg_with_reply -> conversations (msg_id={m.message_context.message_id})")
+                    conversations.append(conversation)
+                else:
+                    # Missing user fields, needs onboarding
+                    print(f"[__create_conversations] missing_user_fields -> onboard (msg_id={m.message_context.message_id})")
+                    onboard_convs.append(m)
             else:
                 print(f"[__create_conversations] regular_flow -> conversations (msg_id={m.message_context.message_id})")
                 conversations.append(conversation)

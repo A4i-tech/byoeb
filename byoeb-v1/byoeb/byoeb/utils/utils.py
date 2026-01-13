@@ -67,12 +67,6 @@ def is_onboard(
         print(f"[is_onboard] Invalid text input: {text} (type: {type(text)})")
         return False
     
-    if lang not in ONBOARD_WELCOME_MESSAGE_DICT:
-        # TODO: we should probably raise a ValueError than returning False for
-        # unexpected languages.
-        print(f"[is_onboard] Language '{lang}' not in ONBOARD_WELCOME_MESSAGE_DICT")
-        return False
-    
     original_text = text
     text = unquote(text)  # "%20%" -> " "
     
@@ -82,32 +76,65 @@ def is_onboard(
             return ""
         return re.sub(r'\s+', ' ', s).strip()
     
-    # For English, normalize to lowercase and replace hyphens
-    # For other languages (Hindi, Marathi, Telugu), don't use .lower() as it may not work correctly
-    if lang == LanguageCode.ENGLISH.value:
-        # Normalize text: lowercase, replace hyphens with spaces, normalize whitespace
-        text_normalized = normalize_whitespace(text.lower().replace("-", " "))
-        print(f"[is_onboard] English text normalized: '{text}' -> '{text_normalized}'")
-    else:
-        # For non-English, just replace hyphens and normalize whitespace, keep original case
-        text_normalized = normalize_whitespace(text.replace("-", " "))
-        print(f"[is_onboard] Non-English text normalized: '{text}' -> '{text_normalized}'")
-    
-    # Check if any phrase exists in text (case-insensitive for English, exact match for others)
-    is_english = lang == LanguageCode.ENGLISH.value
-    for phrase in ONBOARD_WELCOME_MESSAGE_DICT[lang]:
-        # Normalize phrase: replace hyphens with spaces, normalize whitespace
-        # For English, also convert to lowercase
-        phrase_normalized = normalize_whitespace(phrase.replace("-", " "))
-        if is_english:
-            phrase_normalized = phrase_normalized.lower()
+    # Helper function to check onboarding in a specific language
+    def check_language(check_lang: str) -> bool:
+        if check_lang not in ONBOARD_WELCOME_MESSAGE_DICT:
+            return False
         
-        print(f"[is_onboard] Comparing {lang} phrase '{phrase}' (normalized: '{phrase_normalized}') in text '{text_normalized}' -> {phrase_normalized in text_normalized}")
-        if phrase_normalized in text_normalized:
-            print(f"[is_onboard] ✓ Matched {lang} phrase '{phrase}' in text '{original_text}'")
-            return True
+        # For English, normalize to lowercase and replace hyphens
+        # For other languages (Hindi, Marathi, Telugu), don't use .lower() as it may not work correctly
+        if check_lang == LanguageCode.ENGLISH.value:
+            # Normalize text: lowercase, replace hyphens with spaces, normalize whitespace
+            text_normalized = normalize_whitespace(text.lower().replace("-", " "))
+            print(f"[is_onboard] English text normalized: '{text}' -> '{text_normalized}'")
+        else:
+            # For non-English, just replace hyphens and normalize whitespace, keep original case
+            text_normalized = normalize_whitespace(text.replace("-", " "))
+            print(f"[is_onboard] Non-English text normalized: '{text}' -> '{text_normalized}'")
+        
+        # Check if any phrase exists in text (case-insensitive for English, exact match for others)
+        is_english = check_lang == LanguageCode.ENGLISH.value
+        for phrase in ONBOARD_WELCOME_MESSAGE_DICT[check_lang]:
+            # Normalize phrase: replace hyphens with spaces, normalize whitespace
+            # For English, also convert to lowercase
+            phrase_normalized = normalize_whitespace(phrase.replace("-", " "))
+            if is_english:
+                phrase_normalized = phrase_normalized.lower()
+            
+            print(f"[is_onboard] Comparing {check_lang} phrase '{phrase}' (normalized: '{phrase_normalized}') in text '{text_normalized}' -> {phrase_normalized in text_normalized}")
+            if phrase_normalized in text_normalized:
+                print(f"[is_onboard] ✓ Matched {check_lang} phrase '{phrase}' in text '{original_text}'")
+                return True
+        
+        return False
     
-    print(f"[is_onboard] ✗ No match found. lang={lang}, original_text='{original_text}', normalized_text='{text_normalized}', phrases={ONBOARD_WELCOME_MESSAGE_DICT[lang]}")
+    # If lang is None, try all languages (handles cases where user_language is not set)
+    if lang is None:
+        print(f"[is_onboard] Language is None, trying all languages")
+        for available_lang in ONBOARD_WELCOME_MESSAGE_DICT.keys():
+            if check_language(available_lang):
+                return True
+        print(f"[is_onboard] ✗ No match found in any language. original_text='{original_text}'")
+        return False
+    
+    # If lang is explicitly set but not supported, return False
+    if lang not in ONBOARD_WELCOME_MESSAGE_DICT:
+        print(f"[is_onboard] Language '{lang}' not in ONBOARD_WELCOME_MESSAGE_DICT")
+        return False
+    
+    # Check the specified language first
+    if check_language(lang):
+        return True
+    
+    # If no match in the specified language, try all other languages as a fallback
+    # This handles cases where user_language is set incorrectly
+    print(f"[is_onboard] No match in {lang}, trying other languages as fallback")
+    for available_lang in ONBOARD_WELCOME_MESSAGE_DICT.keys():
+        if available_lang != lang:  # Don't recheck the same language
+            if check_language(available_lang):
+                return True
+    
+    print(f"[is_onboard] ✗ No match found in any language. lang={lang}, original_text='{original_text}'")
     return False
 
 T = TypeVar("T")
