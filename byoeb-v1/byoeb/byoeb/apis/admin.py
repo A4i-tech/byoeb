@@ -11,7 +11,6 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
 from byoeb.services.admin.message_process import process_message, clear_history as clear_user_history
-from byoeb.services.auth.models import AuthPermission
 
 REGISTER_API_NAME = 'admin_apis'
 
@@ -31,11 +30,6 @@ async def asha_logs(request: Request) -> HTMLResponse:
 @admin_public_router.get("/login", include_in_schema=False)
 async def login(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "login.html")
-
-@admin_public_router.get("/admin", include_in_schema=False)
-async def admin(request: Request) -> HTMLResponse:
-    permissions = [perm.value for perm in AuthPermission]
-    return templates.TemplateResponse(request, "admin.html", {"permissions": permissions})
 
 @admin_public_router.get("/experiment", include_in_schema=False)
 async def experiment(request: Request) -> HTMLResponse:
