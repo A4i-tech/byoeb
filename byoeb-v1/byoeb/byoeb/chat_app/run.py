@@ -92,16 +92,16 @@ def create_apps():
     app.include_router(register_apis_router)
     app.include_router(health_apis_router)
 
-    base_url = get_public_base_url()
-    auth = OAuthProvider(base_url=base_url, scopes=[AuthPermission.MCP_ACCESS])
+    auth = OAuthProvider(base_url=get_public_base_url(), scopes_required=[], scopes_default=[])
+    app.router.routes.extend(auth.get_well_known_routes())
+    app.router.routes.extend(auth.create_resource_routes("/mcp", [AuthPermission.MCP_ACCESS]))
+
     mcp = FastMCP(auth=auth, middleware=[AuthMcpErrorMiddleware()])
     health_mcps_router(mcp)
     chat_mcps_router(mcp)
     user_mcps_router(mcp)
     mcp_app = mcp.http_app(path="/mcp", stateless_http=True)
     app.mount("/", mcp_app)
-    for route in auth.get_well_known_routes(mcp_path="/mcp"):
-        app.router.routes.append(route)
     return app, mcp_app
 
 @asynccontextmanager
