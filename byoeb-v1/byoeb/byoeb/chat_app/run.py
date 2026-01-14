@@ -26,6 +26,7 @@ from byoeb.apis.chat import chat_apis_router, chat_mcps_router
 from byoeb.apis.user import user_apis_router, user_mcps_router
 from byoeb.apis.background_jobs import background_apis_router, background_apis_router_deprecated
 from byoeb.apis.admin import admin_apis_router, admin_public_router
+from byoeb.chat_app.configuration.config import env_app
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,7 @@ def _setup_logging():
 _setup_logging()
 
 asyncio.get_event_loop().set_debug(True)
-def create_apps():
+def create_apps(is_prod: bool):
     """
     Creates and configures a FastAPI application.
 
@@ -79,7 +80,11 @@ def create_apps():
         Flask: A configured FastAPI application instance.
     """
 
-    app = FastAPI(lifespan=lifespan)
+    kwargs = {}
+    if is_prod:
+        kwargs["docs_url"] = None
+        kwargs["redoc_url"] = None
+    app = FastAPI(lifespan=lifespan, **kwargs)
 
     register_auth_exception_handlers(app)
     app.include_router(auth_apis_router)
@@ -147,7 +152,7 @@ async def lifespan(app: FastAPI):
         await text_translator._close()
         logger.info("FastAPI app is shutting down. Closing all clients")
 
-app, mcp_app = create_apps()
+app, mcp_app = create_apps(env_app == "PROD")
 
 # Issue with multiple workers in FastAPI
 # https://github.com/encode/uvicorn/discussions/2450
