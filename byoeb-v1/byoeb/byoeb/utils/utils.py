@@ -194,8 +194,8 @@ def ensure_utc_dates(obj: Any) -> Any:
         return [ensure_utc_dates(v) for v in obj]
     return obj
 
-def auth_session(base_url: AnyHttpUrl, scope: AuthPermission = AuthPermission.MCP_ACCESS, callback_port: int = 37815) -> requests.Session:
-    base_url_oauth = str(base_url) + "/mcp"
+def auth_session(base_url: AnyHttpUrl, scopes: list[AuthPermission] = [], callback_port: int = 37815) -> requests.Session:
+    base_url_oauth = str(base_url) + "/oauth"
     redirect_uri = f"http://localhost:{callback_port}/callback"
 
     reg_resp = requests.post(f"{base_url_oauth}/register", json={
@@ -203,7 +203,7 @@ def auth_session(base_url: AnyHttpUrl, scope: AuthPermission = AuthPermission.MC
         "grant_types": ["authorization_code", "refresh_token"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none",
-        "scope": scope.value
+        "scope": ",".join(scope.value for scope in scopes)
     })
     reg_resp.raise_for_status()
     reg = reg_resp.json()
@@ -225,7 +225,7 @@ def auth_session(base_url: AnyHttpUrl, scope: AuthPermission = AuthPermission.MC
     server = HTTPServer(('localhost', callback_port), Handler)
     threading.Thread(target=server.handle_request).start()
 
-    client = OAuth2Session(reg['client_id'], scope=scope.value, redirect_uri=redirect_uri, 
+    client = OAuth2Session(reg['client_id'], scope=",".join(scope.value for scope in scopes), redirect_uri=redirect_uri,
                           code_challenge_method='S256', token_endpoint_auth_method='none')
     code_verifier = generate_token(48)
     uri, _ = client.create_authorization_url(f"{base_url_oauth}/authorize", resource=base_url_oauth, code_verifier=code_verifier)

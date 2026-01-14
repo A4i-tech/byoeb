@@ -3,6 +3,8 @@ import ast
 import asyncio
 import logging
 import re
+
+from byoeb.services.auth.models import AuthPermission
 from byoeb.utils.utils import auth_session
 import pandas as pd
 import requests
@@ -271,7 +273,7 @@ def main(session: Optional[requests.Session] = None):
 
     args = parser.parse_args()
     if session is None:
-        session = auth_session(args.url)
+        session = auth_session(args.url, scopes=[AuthPermission.USERS_MANAGE])
 
     file_path = args.file
     df = pd.read_excel(file_path, header=0)
