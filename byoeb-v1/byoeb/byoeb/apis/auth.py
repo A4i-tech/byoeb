@@ -10,7 +10,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field, StringConstraints
 
 from byoeb_core.models.byoeb.user import PhoneNumberId
-from byoeb.services.auth.dependencies import AccessTokenDep, AuthServiceDep, get_current_user, require_permissions, require_tenant
+from byoeb.services.auth.dependencies import AccessTokenDep, AuthServiceDep, get_current_user, require_permissions
 from byoeb.services.auth.models import AuthPermission, AuthTenant, AuthUser
 
 
@@ -77,13 +77,13 @@ async def logout() -> JSONResponse:
 
 
 @auth_apis_router.post("/users", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])
-async def register_user(auth_service: AuthServiceDep, payload: RegisterUserRequest, tenant_id: UUID = Depends(require_tenant)) -> AuthUser:
-    return await auth_service.register_user(tenant_id, payload)
+async def register_user(auth_service: AuthServiceDep, payload: RegisterUserRequest, user: AuthUser = Depends(get_current_user)) -> AuthUser:
+    return await auth_service.register_user(user.tenant_id, payload)
 
 
 @auth_apis_router.put("/users", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])
-async def update_user(auth_service: AuthServiceDep, payload: UpdateUserRequest, tenant_id: UUID = Depends(require_tenant)) -> AuthUser:
-    return await auth_service.update_user(tenant_id=tenant_id, username=payload.username, roles=payload.roles, password=payload.password, phone_number_id=payload.phone_number_id)
+async def update_user(auth_service: AuthServiceDep, payload: UpdateUserRequest, user: AuthUser = Depends(get_current_user)) -> AuthUser:
+    return await auth_service.update_user(tenant_id=user.tenant_id, username=payload.username, roles=payload.roles, password=payload.password, phone_number_id=payload.phone_number_id)
 
 
 @auth_apis_router.post("/tenants", dependencies=[Depends(require_permissions(AuthPermission.AUTH_TENANTS_WRITE))])
@@ -92,53 +92,53 @@ async def create_tenant(auth_service: AuthServiceDep, name: Annotated[str, Strin
 
 
 @auth_apis_router.put("/tenants", dependencies=[Depends(require_permissions(AuthPermission.AUTH_TENANTS_WRITE))])
-async def update_tenant_roles(auth_service: AuthServiceDep, roles: dict[str, list[AuthPermission]] = Body(..., min_length=1), tenant_id: UUID = Depends(require_tenant)) -> AuthTenant:
-    return await auth_service.update_tenant_roles(tenant_id, roles)
+async def update_tenant_roles(auth_service: AuthServiceDep, roles: dict[str, list[AuthPermission]] = Body(..., min_length=1), user: AuthUser = Depends(get_current_user)) -> AuthTenant:
+    return await auth_service.update_tenant_roles(user.tenant_id, roles)
 
 
 @auth_apis_router.get("/tenants/roles")
-async def list_tenant_roles(auth_service: AuthServiceDep, tenant_id: UUID = Depends(require_tenant)) -> dict[str, list[str]]:
-    return await auth_service.list_tenant_roles(tenant_id)
+async def list_tenant_roles(auth_service: AuthServiceDep, user: AuthUser = Depends(get_current_user)) -> dict[str, list[str]]:
+    return await auth_service.list_tenant_roles(user.tenant_id)
 
 
 @auth_apis_router.post("/tenants/roles", dependencies=[Depends(require_permissions(AuthPermission.AUTH_TENANTS_WRITE))])
-async def create_tenant_role(auth_service: AuthServiceDep, tenant_id: UUID = Depends(require_tenant), role: TRole = Body(...), permissions: list[AuthPermission] = Body(..., min_length=1)) -> dict[str, list[str]]:
-    return await auth_service.add_tenant_role(tenant_id, role, permissions)
+async def create_tenant_role(auth_service: AuthServiceDep, user: AuthUser = Depends(get_current_user), role: TRole = Body(...), permissions: list[AuthPermission] = Body(..., min_length=1)) -> dict[str, list[str]]:
+    return await auth_service.add_tenant_role(user.tenant_id, role, permissions)
 
 
 @auth_apis_router.put("/tenants/roles/{role}", dependencies=[Depends(require_permissions(AuthPermission.AUTH_TENANTS_WRITE))])
-async def update_tenant_role_permissions(auth_service: AuthServiceDep, role: TRole, permissions: list[AuthPermission] = Body(..., min_length=1), tenant_id: UUID = Depends(require_tenant)) -> dict[str, list[str]]:
-    return await auth_service.set_tenant_role_permissions(tenant_id, role, permissions)
+async def update_tenant_role_permissions(auth_service: AuthServiceDep, role: TRole, permissions: list[AuthPermission] = Body(..., min_length=1), user: AuthUser = Depends(get_current_user)) -> dict[str, list[str]]:
+    return await auth_service.set_tenant_role_permissions(user.tenant_id, role, permissions)
 
 
 @auth_apis_router.delete("/tenants/roles/{role}", dependencies=[Depends(require_permissions(AuthPermission.AUTH_TENANTS_WRITE))])
-async def delete_tenant_role_permissions(auth_service: AuthServiceDep, role: TRole, tenant_id: UUID = Depends(require_tenant)) -> dict[str, list[str]]:
-    return await auth_service.delete_tenant_role(tenant_id, role)
+async def delete_tenant_role_permissions(auth_service: AuthServiceDep, role: TRole, user: AuthUser = Depends(get_current_user)) -> dict[str, list[str]]:
+    return await auth_service.delete_tenant_role(user.tenant_id, role)
 
 
 @auth_apis_router.put("/users/roles", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])
-async def set_user_roles(auth_service: AuthServiceDep, tenant_id: UUID = Depends(require_tenant), username: TUname = Body(...), roles: list[TRole] = Body(..., min_length=1)) -> AuthUser:
-    return await auth_service.set_user_roles(tenant_id, username, roles)
+async def set_user_roles(auth_service: AuthServiceDep, user: AuthUser = Depends(get_current_user), username: TUname = Body(...), roles: list[TRole] = Body(..., min_length=1)) -> AuthUser:
+    return await auth_service.set_user_roles(user.tenant_id, username, roles)
 
 
 @auth_apis_router.post("/users/roles", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])
-async def add_user_role_api(auth_service: AuthServiceDep, tenant_id: UUID = Depends(require_tenant), username: TUname = Body(...), role: TRole = Body(...)) -> AuthUser:
-    return await auth_service.add_user_role(tenant_id, username, role)
+async def add_user_role_api(auth_service: AuthServiceDep, user: AuthUser = Depends(get_current_user), username: TUname = Body(...), role: TRole = Body(...)) -> AuthUser:
+    return await auth_service.add_user_role(user.tenant_id, username, role)
 
 
 @auth_apis_router.delete("/users/roles", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])
-async def remove_user_role_api(auth_service: AuthServiceDep, tenant_id: UUID = Depends(require_tenant), username: TUname = Body(...), role: TRole = Body(...)) -> AuthUser:
-    return await auth_service.remove_user_role(tenant_id, username, role)
+async def remove_user_role_api(auth_service: AuthServiceDep, user: AuthUser = Depends(get_current_user), username: TUname = Body(...), role: TRole = Body(...)) -> AuthUser:
+    return await auth_service.remove_user_role(user.tenant_id, username, role)
 
 
 @auth_apis_router.post("/users/tenants", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])
-async def add_user_tenant_api(auth_service: AuthServiceDep, tenant_id: UUID = Depends(require_tenant), username: TUname = Body(...), roles: list[TRole] = Body(..., min_length=1)) -> AuthUser:
-    return await auth_service.add_user_tenant(tenant_id, username, roles)
+async def add_user_tenant_api(auth_service: AuthServiceDep, user: AuthUser = Depends(get_current_user), username: TUname = Body(...), roles: list[TRole] = Body(..., min_length=1)) -> AuthUser:
+    return await auth_service.add_user_tenant(user.tenant_id, username, roles)
 
 
 @auth_apis_router.delete("/users/tenants", dependencies=[Depends(require_permissions(AuthPermission.AUTH_USERS_WRITE))])
-async def remove_user_tenant_api(auth_service: AuthServiceDep, tenant_id: UUID = Depends(require_tenant), username: TUname = Body(...)) -> dict[str, str]:
-    await auth_service.remove_user_tenant(tenant_id, username)
+async def remove_user_tenant_api(auth_service: AuthServiceDep, user: AuthUser = Depends(get_current_user), username: TUname = Body(...)) -> dict[str, str]:
+    await auth_service.remove_user_tenant(user.tenant_id, username)
     return {"status": "removed"}
 
 
