@@ -26,6 +26,7 @@ cookie_scheme = APIKeyCookie(name="asha_auth_token", auto_error=False)
 bearer_scheme = HTTPBearer(auto_error=False)
 def get_public_base_url() -> str: return (env_config.env_public_base_url or "http://127.0.0.1:8000").rstrip("/")
 def is_public_base_url_secure() -> bool: return urlparse(get_public_base_url()).scheme == "https"
+
 def get_access_token_cookie(token: Annotated[str | None, Depends(cookie_scheme)] = None, bearer: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None) -> str | None:
     if token:
         return token
@@ -43,10 +44,6 @@ async def get_current_user(auth_service: AuthServiceDep, token: AccessTokenDep) 
         raise MissingTokenError()
     user, claims = await auth_service.resolve_user_from_token(token)
     return user
-
-
-async def require_tenant(user: AuthUser = Depends(get_current_user)) -> UUID:
-    return user.tenant_id
 
 
 def require_permissions(*required_permissions: AuthPermission):

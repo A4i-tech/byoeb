@@ -15,7 +15,7 @@ from byoeb.models.message_category import MessageCategory
 from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
 from fastapi import APIRouter, Query, Body, Depends
 from fastapi.responses import JSONResponse
-from byoeb.services.auth.dependencies import get_active_phone_id, get_current_user, require_permissions, require_tenant, verify_whatsapp_signature
+from byoeb.services.auth.dependencies import get_active_phone_id, get_current_user, require_permissions, verify_whatsapp_signature
 from byoeb.services.auth.models import AuthPermission
 import byoeb.services.chat.constants as chat_constants
 import byoeb.utils.utils as utils
@@ -49,7 +49,6 @@ async def receive(body: Dict[str, Any] = Body(..., description="Raw WhatsApp web
 
 @chat_apis_router.get("/get_bot_messages", summary="Fetch bot messages after a given timestamp", dependencies=[
     Depends(get_current_user),
-    Depends(require_tenant),
     Depends(require_permissions(AuthPermission.MESSAGES_READ)),
 ])
 async def get_bot_messages(timestamp: int = Query(..., description="Unix timestamp to fetch messages since"), length: PositiveInt = 1000) -> List[ByoebMessageContext]:

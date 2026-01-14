@@ -16,7 +16,7 @@ from fastapi import Depends, FastAPI
 from fastmcp import FastMCP
 from contextlib import asynccontextmanager
 from byoeb.apis.auth import auth_apis_router
-from byoeb.services.auth.dependencies import get_public_base_url, require_csrf_token, require_permissions, require_tenant
+from byoeb.services.auth.dependencies import get_public_base_url, require_csrf_token, require_permissions
 from byoeb.services.auth.models import AuthPermission
 from byoeb.services.auth.oauth_provider import MCPAuthProvider
 from byoeb.services.auth.handlers import AuthMcpErrorMiddleware, register_auth_exception_handlers
@@ -84,11 +84,11 @@ def create_apps():
     register_auth_exception_handlers(app)
     app.include_router(auth_apis_router)
     app.include_router(admin_public_router)
-    app.include_router(admin_apis_router, dependencies=[Depends(require_permissions(AuthPermission.ADMIN_ACCESS)), Depends(require_tenant), Depends(require_csrf_token)])
-    app.include_router(background_apis_router, dependencies=[Depends(require_permissions(AuthPermission.JOBS_RUN)), Depends(require_tenant), Depends(require_csrf_token)])
+    app.include_router(admin_apis_router, dependencies=[Depends(require_permissions(AuthPermission.ADMIN_ACCESS)), Depends(require_csrf_token)])
+    app.include_router(background_apis_router, dependencies=[Depends(require_permissions(AuthPermission.JOBS_RUN)), Depends(require_csrf_token)])
     app.include_router(background_apis_router_deprecated)
     app.include_router(chat_apis_router)
-    app.include_router(user_apis_router, dependencies=[Depends(require_permissions(AuthPermission.USERS_MANAGE)), Depends(require_tenant), Depends(require_csrf_token)])
+    app.include_router(user_apis_router, dependencies=[Depends(require_permissions(AuthPermission.USERS_MANAGE)), Depends(require_csrf_token)])
     app.include_router(register_apis_router)
     app.include_router(health_apis_router)
 
