@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 from byoeb.apis.auth import auth_apis_router
 from byoeb.services.auth.dependencies import get_public_base_url, require_csrf_token, require_permissions
 from byoeb.services.auth.models import AuthPermission
-from byoeb.services.auth.oauth_provider import MCPAuthProvider
+from byoeb.services.auth.oauth_provider import OAuthProvider
 from byoeb.services.auth.handlers import AuthMcpErrorMiddleware, register_auth_exception_handlers
 from byoeb.apis.health import health_apis_router, health_mcps_router
 from byoeb.apis.channel_register import register_apis_router
@@ -92,14 +92,15 @@ def create_apps():
     app.include_router(register_apis_router)
     app.include_router(health_apis_router)
 
-    base_root = get_public_base_url()
-    mcp = FastMCP(auth=MCPAuthProvider(base_url=base_root + "/mcp", scopes=[AuthPermission.MCP_ACCESS]), middleware=[AuthMcpErrorMiddleware()])
+    base_url = get_public_base_url()
+    auth = OAuthProvider(base_url=base_url, scopes=[AuthPermission.MCP_ACCESS])
+    mcp = FastMCP(auth=auth, middleware=[AuthMcpErrorMiddleware()])
     health_mcps_router(mcp)
     chat_mcps_router(mcp)
     user_mcps_router(mcp)
     mcp_app = mcp.http_app(path="/mcp", stateless_http=True)
     app.mount("/", mcp_app)
-    for route in mcp.auth.get_well_known_routes(mcp_path="/mcp"):
+    for route in auth.get_well_known_routes(mcp_path="/mcp"):
         app.router.routes.append(route)
     return app, mcp_app
 

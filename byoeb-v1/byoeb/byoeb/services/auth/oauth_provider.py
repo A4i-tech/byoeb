@@ -168,8 +168,8 @@ class OAuthRefreshToken(TokenMixin):
     def get_user(self): return {"username": self.username, "tenant_id": self.tenant_id}
     def get_client(self): return None
 
-class MCPAuthorizationServer(AuthorizationServer):
-    def __init__(self, provider: "MCPAuthProvider", scopes_supported: list[str] | None):
+class OAuth2AuthorizationServer(AuthorizationServer):
+    def __init__(self, provider: "OAuthProvider", scopes_supported: list[str] | None):
         super().__init__(scopes_supported=scopes_supported)
         self._provider = provider
 
@@ -198,7 +198,7 @@ class MCPAuthorizationServer(AuthorizationServer):
         return Response(body, status_code=status, headers=header_map)
 
 
-class MCPAuthorizationCodeGrant(AuthorizationCodeGrant):
+class OAuth2AuthorizationCodeGrant(AuthorizationCodeGrant):
     TOKEN_ENDPOINT_AUTH_METHODS = ["none", "client_secret_basic", "client_secret_post"]
 
     def __init__(self, request, server):
@@ -211,7 +211,7 @@ class MCPAuthorizationCodeGrant(AuthorizationCodeGrant):
     def authenticate_user(self, authorization_code): return self._provider._run_coroutine(self._provider._authenticate_code_user(authorization_code))
 
 
-class MCPRefreshTokenGrant(RefreshTokenGrant):
+class OAuth2RefreshTokenGrant(RefreshTokenGrant):
     INCLUDE_NEW_REFRESH_TOKEN = True
     TOKEN_ENDPOINT_AUTH_METHODS = ["none", "client_secret_basic", "client_secret_post"]
 
@@ -224,15 +224,15 @@ class MCPRefreshTokenGrant(RefreshTokenGrant):
     def revoke_old_credential(self, refresh_token): return self._provider._run_coroutine(self._provider._revoke_refresh_token(refresh_token))
 
 
-class MCPAuthProvider(AuthProvider):
+class OAuthProvider(AuthProvider):
     def __init__(self, *, base_url: AnyHttpUrl | str, scopes: list[AuthPermission], revocation_options: RevocationOptions | None = None):
         self._scopes = [s.value for s in scopes]
         super().__init__(base_url=base_url, required_scopes=self._scopes)
         self._client_registration_options = ClientRegistrationOptions(enabled=True, valid_scopes=self._scopes, default_scopes=self._scopes)
         self._revocation_options = revocation_options or RevocationOptions()
-        self._server = MCPAuthorizationServer(self, self._client_registration_options.valid_scopes or self.required_scopes)
-        self._server.register_grant(MCPAuthorizationCodeGrant, [CodeChallenge(required=True)])
-        self._server.register_grant(MCPRefreshTokenGrant)
+        self._server = OAuth2AuthorizationServer(self, self._client_registration_options.valid_scopes or self.required_scopes)
+        self._server.register_grant(OAuth2AuthorizationCodeGrant, [CodeChallenge(required=True)])
+        self._server.register_grant(OAuth2RefreshTokenGrant)
         self._server.register_token_generator("default", self._token_generator)
         self._loop: asyncio.AbstractEventLoop | None = None
 
@@ -263,7 +263,7 @@ class MCPAuthProvider(AuthProvider):
 
     def get_routes(self, mcp_path: str | None = None) -> list[Route]:
         assert self.base_url is not None
-        metadata = build_metadata(self.base_url, None, self._client_registration_options, self._revocation_options)
+        metadata = build_metadata(AnyHttpUrl(str(self.base_url).rstrip("/") + "/oauth"), None, self._client_registration_options, self._revocation_options)
         metadata.token_endpoint_auth_methods_supported.append("none")
         scoped_metadata_path = None
         if mcp_path:
@@ -274,12 +274,12 @@ class MCPAuthProvider(AuthProvider):
         routes = [
             Route("/.well-known/oauth-authorization-server", endpoint=cors_middleware(MetadataHandler(metadata).handle, ["GET", "OPTIONS"]), methods=["GET", "OPTIONS"]),
             *([Route(scoped_metadata_path, endpoint=cors_middleware(MetadataHandler(metadata).handle, ["GET", "OPTIONS"]), methods=["GET", "OPTIONS"])] if scoped_metadata_path else []),
-            Route((mcp_path or "") + "/authorize", endpoint=self._authorize, methods=["GET", "POST"]),
-            Route((mcp_path or "") + "/token", endpoint=cors_middleware(self._token, ["POST", "OPTIONS"]), methods=["POST", "OPTIONS"]),
+            Route("/oauth/authorize", endpoint=self._authorize, methods=["GET", "POST"]),
+            Route("/oauth/token", endpoint=cors_middleware(self._token, ["POST", "OPTIONS"]), methods=["POST", "OPTIONS"]),
         ]
         if self._client_registration_options.enabled:
             registration_handler = RegistrationHandler(self, options=self._client_registration_options)
-            routes.append(Route((mcp_path or "") + "/register", endpoint=cors_middleware(registration_handler.handle, ["POST", "OPTIONS"]), methods=["POST", "OPTIONS"]))
+            routes.append(Route("/oauth/register", endpoint=cors_middleware(registration_handler.handle, ["POST", "OPTIONS"]), methods=["POST", "OPTIONS"]))
         resource_url = self._get_resource_url(mcp_path)
         if resource_url:
             scopes_supported = self._client_registration_options.valid_scopes or self.required_scopes
@@ -294,9 +294,6 @@ class MCPAuthProvider(AuthProvider):
         self._ensure_loop()
         auth_service = await get_auth_service()
         await auth_service.register_oauth_client(client_info)
-
-    def _get_resource_url(self, path: str | None = None) -> AnyHttpUrl | None:
-        return super()._get_resource_url()
 
     def _token_generator(self, grant_type, client, user=None, scope=None, expires_in=None, include_refresh_token=True):
         access_token, ttl_seconds = TOKEN_SERVICE.create_access_token(user.username, user.tenant_id)
