@@ -16,7 +16,9 @@ from byoeb.repositories.repository_factory import get_repository_factory
 from byoeb.services.auth.exceptions import (
     InvalidCredentialsError,
     InvalidRoleAssignmentError,
+    InvalidScopeError,
     InvalidTokenError,
+    MissingPhoneNumberIdError,
     RoleAlreadyExistsError,
     RoleNotFoundError,
     TenantAccessForbiddenError,
@@ -42,10 +44,11 @@ class AuthService:
         self._repo = repo
         self._token_service = token_service
 
-    async def issue_token(self, username: str, password: str, tenant_id: UUID | None) -> TokenDetails:
+    async def issue_token(self, username: str, password: str, tenant_id: UUID | None, scopes: Iterable[str] | None = None) -> TokenDetails:
         resolved_tenant = tenant_id or await self._resolve_default_tenant(username)
         user = await self.authenticate_user(username, password, resolved_tenant)
-        return await self.issue_token_for_user(user.username, user.tenant_id)
+        scope = await self.validate_requested_scopes(user, scopes)
+        return await self.issue_token_for_user(user.username, user.tenant_id, scope=scope)
 
     async def authenticate_user(self, username: str, password: str, tenant_id: UUID) -> AuthUser:
         user_doc = await self._repo.find_user_by_username(username)
@@ -294,6 +297,22 @@ class AuthService:
         role_map = roles_doc.get("roles") or {}
         permissions = {perm for role in roles for perm in role_map.get(role, [])}
         return list(permissions)
+
+    async def validate_requested_scopes(self, user: AuthUser, scopes: Iterable[str] | None) -> str | None:
+        if not scopes:
+            return None
+        requested = {scope for scope in scopes if scope}
+        if not requested:
+            return None
+        valid_scopes = {perm.value for perm in AuthPermission}
+        if requested - valid_scopes:
+            raise InvalidScopeError()
+        granted = set(await self.get_permissions_for_roles(user.tenant_id, user.roles))
+        if requested - granted:
+            raise InvalidScopeError("One or more requested scopes are not granted for this user.")
+        if AuthPermission.MCP_ACCESS.value in requested and user.phone_number_id is None:
+            raise MissingPhoneNumberIdError()
+        return " ".join(sorted(requested))
 
     async def _resolve_default_tenant(self, username: str) -> UUID:
         user_doc = await self._repo.find_user_by_username(username)

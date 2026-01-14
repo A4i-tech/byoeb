@@ -44,7 +44,7 @@ class UpdateUserRequest(BaseModel):
 
 @auth_apis_router.post("/token/issue")
 async def issue_token(auth_service: AuthServiceDep, tenant_id: Annotated[UUID | None, Header(alias="X-Tenant-ID")] = None, form_data: OAuth2PasswordRequestForm = Depends()) -> JSONResponse:
-    token_details = await auth_service.issue_token(form_data.username, form_data.password, tenant_id)
+    token_details = await auth_service.issue_token(form_data.username, form_data.password, tenant_id, form_data.scopes)
     csrf_token = secrets.token_urlsafe(32)
     response = JSONResponse(content={"status": "ok", "expires_in": token_details.expires_in})
     response.set_cookie("asha_auth_token", token_details.access_token, httponly=True, secure=COOKIE_SECURE, samesite="strict", max_age=token_details.expires_in)

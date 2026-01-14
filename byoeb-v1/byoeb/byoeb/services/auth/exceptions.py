@@ -103,3 +103,8 @@ class InvalidTenantClaimError(AuthError):
 class MissingPhoneNumberIdError(AuthError):
     def __init__(self, detail: str | None = None) -> None:
         super().__init__(status_code=HTTPStatus.FORBIDDEN, error_code="missing_phone_number", detail=detail or "Phone number ID is missing for this user.")
+
+
+class InvalidScopeError(AuthError):
+    def __init__(self, detail: str | None = None) -> None:
+        super().__init__(status_code=HTTPStatus.BAD_REQUEST, error_code="invalid_scope", detail=detail or "One or more requested scopes are not supported.")

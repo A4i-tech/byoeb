@@ -26,7 +26,7 @@ from mcp.server.auth.settings import ClientRegistrationOptions, RevocationOption
 from mcp.shared.auth import OAuthClientInformationFull
 
 from byoeb.services.auth.auth_service import get_auth_service
-from byoeb.services.auth.exceptions import AuthError, MissingPhoneNumberIdError
+from byoeb.services.auth.exceptions import AuthError
 from byoeb.services.auth.models import AuthPermission
 from byoeb.services.auth.security import TOKEN_SERVICE
 
@@ -407,8 +407,7 @@ class OAuthProvider(AuthProvider):
             user = await auth_service.authenticate_user(username, password, UUID(str(tenant_id)))
             scope = form.get("scope") or ""
             scopes = set(scope.split())
-            if AuthPermission.MCP_ACCESS.value in scopes and user.phone_number_id is None:
-                raise MissingPhoneNumberIdError()
+            await auth_service.validate_requested_scopes(user, scopes)
             oauth_request = StarletteOAuth2Request(request, form)
             return await asyncio.to_thread(self._server.create_authorization_response, oauth_request, grant_user=user)
         except AuthError as exc:
