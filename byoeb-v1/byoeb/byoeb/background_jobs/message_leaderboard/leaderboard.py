@@ -22,7 +22,7 @@ send_logger = AppInsightsLogHandler.getLogger("leaderboard_send")
 
 # TEST MODE: Set to True to send only to your test phone number
 # Set to False to send to all users (production mode)
-TEST_MODE_SEND_TO_ME_ONLY = False  # Set to True for testing, False for production
+TEST_MODE_SEND_TO_ME_ONLY = True  # Set to True for testing, False for production
 
 # Your test phone number (read from keys.env using PHONE_NUMBER_ID)
 TEST_PHONE_NUMBER = os.getenv("PHONE_NUMBER_ID") if TEST_MODE_SEND_TO_ME_ONLY else None
@@ -196,6 +196,124 @@ async def build_custom_leaderboard(days_back: int, message_categories: Optional[
     """
     return await build_district_leaderboard_with_strategy('custom', message_categories, processing_batch_size, days_back=days_back)
 
+async def build_all_block_leaderboards(
+    message_categories: Optional[List[str]] = None,
+    processing_batch_size: int = 1000
+) -> Dict[str, pd.DataFrame]:
+    """
+    Builds block leaderboards for ALL districts in a single pass for optimal performance.
+    
+    This function fetches messages and hydrates users once, then computes block leaderboards
+    for all districts in a single pass, avoiding redundant database queries.
+    
+    Args:
+        message_categories: Optional list of message categories to filter by
+        processing_batch_size: Number of documents to process in each batch
+        
+    Returns:
+        Dict[str, pd.DataFrame]: Dictionary mapping district (normalized, lowercase) to block leaderboard DataFrame
+    """
+    week_strategy = TimeWindowFactory.create_strategy('week')
+    start_timestamp, end_timestamp = week_strategy.calculate_window()
+    
+    # Get repository instances from message_db_service
+    repository_factory = await message_db_service._get_repository_factory()
+    message_repository = await repository_factory.get_message_repository()
+    
+    # Define projection for required fields only
+    required_fields_only = {"_id": 0, "message_data.user.user_id": 1, "message_data.incoming_timestamp": 1}
+    
+    # Sort by timestamp descending in database for better performance
+    sort_by_timestamp = [("message_data.incoming_timestamp", -1)]
+    
+    # Get messages using repository with database-level sorting - FETCH ONCE
+    message_iterator = await message_repository.find_messages_by_time_range(
+        start_timestamp=start_timestamp,
+        end_timestamp=end_timestamp,
+        message_categories=message_categories,
+        projection=required_fields_only,
+        sort=sort_by_timestamp
+    )
+    message_documents = [doc async for doc in message_iterator]
+    
+    if not user_db_service:
+        raise ValueError("user_db_service must be provided for leaderboard functionality")
+    
+    # HYDRATE USERS ONCE for all messages
+    user_objects_cache = {}
+    if message_documents:
+        await user_db_service.hydrate_users(message_documents, user_objects_cache)
+    
+    # Initialize counters for all districts: district -> block -> stats
+    # Structure: {district: {block: {message_count, unique_users, first_seen, last_seen}}}
+    district_block_stats = defaultdict(lambda: defaultdict(lambda: {
+        "message_count": 0,
+        "unique_users": set(),
+        "first_seen": None,
+        "last_seen": None
+    }))
+    
+    # Process all messages in a single pass
+    for message_document in message_documents:
+        message_data = message_document.get("message_data", {})
+        user_id = message_data.get("user", {}).get("user_id")
+        message_timestamp = message_data.get("incoming_timestamp")
+        
+        if not isinstance(message_timestamp, int) or message_timestamp < start_timestamp or message_timestamp > end_timestamp:
+            continue
+        
+        user_object = user_objects_cache.get(user_id)
+        user_district = get_user_district(user_object)
+        user_block = get_user_block(user_object)
+        
+        # Only process if user has both district and block info
+        if not user_district or not user_block:
+            continue
+        
+        # Normalize district name for comparison (case-insensitive)
+        district_normalized = user_district.strip().lower()
+        block_normalized = user_block.strip()
+        
+        # Update stats for this district-block combination
+        stats = district_block_stats[district_normalized][block_normalized]
+        stats["message_count"] += 1
+        if user_id:
+            stats["unique_users"].add(user_id)
+        
+        if stats["first_seen"] is None or message_timestamp < stats["first_seen"]:
+            stats["first_seen"] = message_timestamp
+        if stats["last_seen"] is None or message_timestamp > stats["last_seen"]:
+            stats["last_seen"] = message_timestamp
+    
+    # Convert aggregated stats to DataFrames for each district
+    district_block_leaderboards = {}
+    for district, block_stats in district_block_stats.items():
+        leaderboard_rows = [
+            {
+                "block": block_name,
+                "message_count": stats["message_count"],
+                "unique_users": len(stats["unique_users"]),
+                "first_seen": datetime.fromtimestamp(stats["first_seen"]).strftime("%d-%m-%Y %H:%M:%S") if stats["first_seen"] else None,
+                "last_seen": datetime.fromtimestamp(stats["last_seen"]).strftime("%d-%m-%Y %H:%M:%S") if stats["last_seen"] else None
+            }
+            for block_name, stats in block_stats.items()
+        ]
+        
+        if not leaderboard_rows:
+            district_block_leaderboards[district] = pd.DataFrame(
+                columns=["block", "message_count", "unique_users", "first_seen", "last_seen"]
+            )
+        else:
+            # Sort by message_count and unique_users, then take top 3
+            df = pd.DataFrame(leaderboard_rows).sort_values(
+                by=["message_count", "unique_users"], 
+                ascending=False, 
+                ignore_index=True
+            )
+            district_block_leaderboards[district] = df.head(3)
+    
+    return district_block_leaderboards
+
 async def build_block_leaderboard_for_district(
     district: str,
     message_categories: Optional[List[str]] = None,
@@ -222,17 +340,18 @@ async def build_block_leaderboard_for_district(
     # Define projection for required fields only
     required_fields_only = {"_id": 0, "message_data.user.user_id": 1, "message_data.incoming_timestamp": 1}
     
-    # Get messages using repository
+    # Sort by timestamp descending in database for better performance
+    sort_by_timestamp = [("message_data.incoming_timestamp", -1)]
+    
+    # Get messages using repository with database-level sorting
     message_iterator = await message_repository.find_messages_by_time_range(
         start_timestamp=start_timestamp,
         end_timestamp=end_timestamp,
         message_categories=message_categories,
-        projection=required_fields_only
+        projection=required_fields_only,
+        sort=sort_by_timestamp
     )
     message_documents = [doc async for doc in message_iterator]
-    
-    # Sort messages by timestamp (descending)
-    message_documents.sort(key=lambda x: x.get("message_data", {}).get("incoming_timestamp", 0), reverse=True)
     
     if not user_db_service:
         raise ValueError("user_db_service must be provided for leaderboard functionality")
@@ -388,51 +507,58 @@ async def send_leaderboard_template_messages(
     users = await user_db_service.get_users(user_ids)
     user_map = {user.phone_number_id: user for user in users if user}
     
-    # Pre-calculate block leaderboards for all unique districts to avoid recalculating
-    # This is much more efficient than calculating for each user individually
-    unique_districts = set()
-    for user in users:
-        if user and has_location_info(user):
-            district = get_user_district(user)
-            if district:
-                unique_districts.add(district.strip().lower())
-    
-    print(f"\n📊 Pre-calculating block leaderboards for {len(unique_districts)} districts...")
+    # Pre-calculate block leaderboards for all districts in a single optimized pass
+    # This fetches messages and hydrates users once, then computes all district block leaderboards
+    print(f"\n📊 Pre-calculating block leaderboards for all districts in a single pass...")
     run_logger.info("Pre-calculating block leaderboards", extra={AppInsightsLogHandler.DETAILS: {
-        "context": "pre_calculate_block_leaderboards",
-        "unique_districts_count": len(unique_districts),
-        "districts": list(unique_districts)
+        "context": "pre_calculate_block_leaderboards_optimized"
     }})
     
-    block_leaderboard_cache = {}
-    for district in unique_districts:
-        try:
-            block_df = await build_block_leaderboard_for_district(
-                district=district,
-                message_categories=None,
-                processing_batch_size=1000
-            )
-            block_leaderboard_cache[district] = block_df
-            run_logger.info(f"Block leaderboard calculated for district", extra={AppInsightsLogHandler.DETAILS: {
-                "context": "build_block_leaderboard",
-                "district": district,
-                "blocks_found": len(block_df)
-            }})
-        except Exception as e:
-            block_leaderboard_cache[district] = None  # Cache None to avoid retrying
-            run_logger.error(f"Error building block leaderboard for district", extra={AppInsightsLogHandler.DETAILS: {
-                "context": "build_block_leaderboard_error",
-                "district": district,
-                "error": str(e)
-            }})
-    
-    successful_districts = len([v for v in block_leaderboard_cache.values() if v is not None])
-    print(f"   ✅ Calculated {successful_districts}/{len(unique_districts)} district block leaderboards")
-    run_logger.info("Block leaderboard cache ready", extra={AppInsightsLogHandler.DETAILS: {
-        "context": "block_leaderboard_cache_ready",
-        "successful_districts": successful_districts,
-        "total_districts": len(unique_districts)
-    }})
+    try:
+        # Build all block leaderboards in a single pass - much more efficient!
+        all_block_leaderboards = await build_all_block_leaderboards(
+            message_categories=None,
+            processing_batch_size=1000
+        )
+        
+        # Extract unique districts from users for logging
+        unique_districts = set()
+        for user in users:
+            if user and has_location_info(user):
+                district = get_user_district(user)
+                if district:
+                    unique_districts.add(district.strip().lower())
+        
+        # Create cache from the optimized results
+        block_leaderboard_cache = {}
+        for district in unique_districts:
+            block_df = all_block_leaderboards.get(district)
+            if block_df is not None and len(block_df) > 0:
+                block_leaderboard_cache[district] = block_df
+                run_logger.info(f"Block leaderboard calculated for district", extra={AppInsightsLogHandler.DETAILS: {
+                    "context": "build_block_leaderboard",
+                    "district": district,
+                    "blocks_found": len(block_df)
+                }})
+            else:
+                block_leaderboard_cache[district] = None
+        
+        successful_districts = len([v for v in block_leaderboard_cache.values() if v is not None])
+        print(f"   ✅ Calculated {successful_districts}/{len(unique_districts)} district block leaderboards (optimized single-pass)")
+        run_logger.info("Block leaderboard cache ready", extra={AppInsightsLogHandler.DETAILS: {
+            "context": "block_leaderboard_cache_ready",
+            "successful_districts": successful_districts,
+            "total_districts": len(unique_districts),
+            "optimization": "single_pass"
+        }})
+    except Exception as e:
+        # Fallback: if optimized version fails, log error and continue without block leaderboards
+        run_logger.error(f"Error building block leaderboards (optimized)", extra={AppInsightsLogHandler.DETAILS: {
+            "context": "build_block_leaderboard_error",
+            "error": str(e)
+        }})
+        block_leaderboard_cache = {}  # Empty cache, will fall back to global leaderboard
+        print(f"   ⚠️  Error building block leaderboards: {str(e)}")
     
     results = []
     sent_count = 0
