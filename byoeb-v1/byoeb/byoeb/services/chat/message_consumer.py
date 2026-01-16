@@ -287,7 +287,7 @@ class MessageConsmerService:
         # build tasks
         tasks = []
         for conv in conversations:
-            conv.user.activity_timestamp = str(int(datetime.now(timezone.utc).timestamp()))
+            conv.user.activity_timestamp = datetime.now(timezone.utc)
             if conv.user.user_type in self._regular_user_type:
                 self._logger.debug("[consume] queue user_flow msg_id=%s", conv.message_context.message_id)
                 tasks.append(self.__process_byoebuser_conversation(conv))

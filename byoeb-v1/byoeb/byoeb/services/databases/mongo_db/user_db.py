@@ -131,7 +131,7 @@ class UserMongoDBService(BaseMongoDBService):
         """Generate update query for user activity."""
         update_data = {"$set": {}}
         if not skip_timestamp:
-            latest_timestamp = str(int(datetime.now(timezone.utc).timestamp()))
+            latest_timestamp = datetime.now(timezone.utc)
             update_data = {"$set": {"User.activity_timestamp": latest_timestamp}}
 
         if qa is None:
@@ -150,7 +150,7 @@ class UserMongoDBService(BaseMongoDBService):
         return ({
             "_id": user.user_id,
             "User": user.model_dump(),
-            "timestamp": str(int(datetime.now(timezone.utc).timestamp()))
+            "timestamp": datetime.now(timezone.utc)
         })
     
     def user_update_query(self, user: User):

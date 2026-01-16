@@ -47,7 +47,13 @@ class ByoebUserProcess(Handler):
         curr_time = datetime.now(timezone.utc).timestamp()
         i = 1
         for conversation in last_conversations:
-            timestamp = int(conversation.get(constants.TIMESTAMP, 0))
+            timestamp_value = conversation.get(constants.TIMESTAMP, 0)
+            # Handle datetime objects (new format after migration)
+            if isinstance(timestamp_value, datetime):
+                timestamp = timestamp_value.timestamp()
+            else:
+                # Handle int/string timestamps (legacy format)
+                timestamp = int(timestamp_value) if timestamp_value else 0
             if curr_time - timestamp > 1800:
                 continue  # Skip conversations older than 30 min
             

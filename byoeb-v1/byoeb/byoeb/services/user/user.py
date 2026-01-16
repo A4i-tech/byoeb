@@ -26,7 +26,7 @@ class UserService(BaseUserService):
             json_data_users.append({
                 "_id": user.user_id,
                 "User": user.model_dump(),
-                "timestamp": str(int(datetime.now(timezone.utc).timestamp()))
+                "timestamp": datetime.now(timezone.utc)
             })
         return json_data_users
     
@@ -245,7 +245,7 @@ class UserService(BaseUserService):
                 test_user=user.test_user,
                 experts=user.experts,
                 audience=user.audience,
-                created_timestamp = str(int(datetime.now(timezone.utc).timestamp())),
+                created_timestamp=datetime.now(timezone.utc),
                 additional_info=user.additional_info,
             )
             byoeb_users.append(new_user)

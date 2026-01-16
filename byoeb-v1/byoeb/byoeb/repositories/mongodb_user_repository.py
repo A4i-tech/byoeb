@@ -1,4 +1,5 @@
-from typing import AsyncIterator, Dict, Any, Optional, List
+from typing import AsyncIterator, Dict, Any, Optional, List, Union
+from datetime import datetime
 from byoeb.repositories.mongodb_base_repository import MongoBaseRepository
 from byoeb.repositories.user_repository import UserRepository
 import os
@@ -72,8 +73,14 @@ class MongoUserRepository(UserRepository, MongoBaseRepository):
         return _empty()
 
     def find_active_users_in_timeframe(self, 
-                                       start_timestamp: int, 
-                                       end_timestamp: int) -> AsyncIterator[Dict[str, Any]]:
+                                       start_timestamp: Union[int, datetime], 
+                                       end_timestamp: Union[int, datetime]) -> AsyncIterator[Dict[str, Any]]:
+        # Convert int timestamps to datetime if needed (for backward compatibility)
+        if isinstance(start_timestamp, int):
+            start_timestamp = datetime.fromtimestamp(start_timestamp, tz=datetime.timezone.utc)
+        if isinstance(end_timestamp, int):
+            end_timestamp = datetime.fromtimestamp(end_timestamp, tz=datetime.timezone.utc)
+        
         filter_dict = {
             "User.activity_timestamp": {
                 "$gte": start_timestamp, 
@@ -82,7 +89,11 @@ class MongoUserRepository(UserRepository, MongoBaseRepository):
         }
         return self.find_all(filter_dict)
 
-    async def update_user_activity_timestamp(self, user_id: str, timestamp: int) -> bool:
+    async def update_user_activity_timestamp(self, user_id: str, timestamp: Union[int, datetime]) -> bool:
+        # Convert int timestamp to datetime if needed (for backward compatibility)
+        if isinstance(timestamp, int):
+            timestamp = datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
+        
         filter_dict = {"_id": user_id}
         update_dict = {"$set": {"User.activity_timestamp": timestamp}}
         return await self.update_one(filter_dict, update_dict)

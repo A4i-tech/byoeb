@@ -57,7 +57,7 @@ async def create_user_db_queries(
     answer = consensus_en_response
     qa = {
             constants.TEXT_MESSAGE_ID: message_id,
-            constants.TIMESTAMP: str(int(datetime.datetime.now(datetime.timezone.utc).timestamp())),
+            constants.TIMESTAMP: datetime.datetime.now(datetime.timezone.utc),
             constants.QUESTION: question,
             constants.ANSWER: answer
         }
