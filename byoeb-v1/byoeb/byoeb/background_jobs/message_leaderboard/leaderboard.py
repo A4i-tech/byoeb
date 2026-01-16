@@ -3,6 +3,7 @@ import json
 import os
 import logging
 import sys
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Dict, Any, List, Optional
@@ -74,33 +75,46 @@ def validate_and_format_phone_number(phone: str) -> Optional[str]:
     
     return None
 
+# Load translations from JSON file
+def _load_leaderboard_translations() -> Dict[str, Dict[str, str]]:
+    """
+    Load leaderboard translations from translate.json file in utils folder.
+    
+    Returns:
+        Dictionary with language codes as keys and translation dictionaries as values
+    """
+    # Get the path to translate.json relative to this file (similar to bot_config.json pattern)
+    current_dir = Path(__file__).resolve().parent
+    translate_file_path = current_dir / ".." / ".." / "utils" / "translate.json"
+    translate_file_path = translate_file_path.resolve()
+    
+    try:
+        translations = json.loads(translate_file_path.read_text(encoding="utf-8"))
+        return translations
+    except FileNotFoundError:
+        console_logger.error(f"Translation file not found at {translate_file_path}. Using default English translations.")
+        # Return default English translations as fallback
+        return {
+            "en": {
+                "block_singular": "Block ",
+                "district_singular": "District ",
+                "blocks_plural": "Blocks",
+                "districts_plural": "Districts"
+            }
+        }
+    except json.JSONDecodeError as e:
+        console_logger.error(f"Error parsing translation file: {e}. Using default English translations.")
+        return {
+            "en": {
+                "block_singular": "Block ",
+                "district_singular": "District ",
+                "blocks_plural": "Blocks",
+                "districts_plural": "Districts"
+            }
+        }
+
 # Unified translation dictionary for leaderboard text
-LEADERBOARD_TRANSLATIONS = {
-    "en": {
-        "block_singular": "Block ",      # With trailing space for prefixing
-        "district_singular": "District ",
-        "blocks_plural": "Blocks",
-        "districts_plural": "Districts"
-    },
-    "hi": {
-        "block_singular": "ब्लॉक ",
-        "district_singular": "जिला ",
-        "blocks_plural": "ब्लॉक",
-        "districts_plural": "जिले"
-    },
-    "mr": {
-        "block_singular": "ब्लॉक ",
-        "district_singular": "जिल्हा ",
-        "blocks_plural": "ब्लॉक",
-        "districts_plural": "जिल्हे"
-    },
-    "te": {
-        "block_singular": "బ్లాక్ ",
-        "district_singular": "జిల్లా ",
-        "blocks_plural": "బ్లాక్‌లు",
-        "districts_plural": "జిల్లాలు"
-    }
-}
+LEADERBOARD_TRANSLATIONS = _load_leaderboard_translations()
 
 def get_leaderboard_translation(is_block_leaderboard: bool, user_language: str = "en", plural: bool = False) -> str:
     """
