@@ -12,6 +12,7 @@ from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from byoeb.chat_app.configuration.config import app_config
 from byoeb.chat_app.configuration.dependency_setup import get_leaderboard_service, user_db_service, message_db_service
 from byoeb.services.leaderboard.time_window_strategies import TimeWindowFactory
+from byoeb.services.user.utils import get_user_district, get_user_block, has_location_info
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -58,67 +59,6 @@ def validate_and_format_phone_number(phone: str) -> Optional[str]:
         return digits_only
     
     return None
-
-
-def get_user_district(user) -> Optional[str]:
-    """
-    Extract district from user object.
-    
-    Args:
-        user: User object (can be None, dict, or object with user_location attribute)
-        
-    Returns:
-        Optional[str]: District name or None if not found/unknown
-    """
-    if not user:
-        return None
-    loc = getattr(user, "user_location", None) or {}
-    if isinstance(loc, dict):
-        dist = loc.get("district") or loc.get("District")
-    else:
-        dist = getattr(loc, "district", None) or getattr(loc, "District", None)
-    if dist:
-        dist_str = str(dist).strip()
-        if dist_str.lower() not in ["unknown", "none", ""]:
-            return dist_str.title()
-    return None
-
-def get_user_block(user) -> Optional[str]:
-    """
-    Extract block from user object.
-    
-    Args:
-        user: User object (can be None, dict, or object with user_location attribute)
-        
-    Returns:
-        Optional[str]: Block name or None if not found/unknown
-    """
-    if not user:
-        return None
-    loc = getattr(user, "user_location", None) or {}
-    if isinstance(loc, dict):
-        block = loc.get("block") or loc.get("Block")
-    else:
-        block = getattr(loc, "block", None) or getattr(loc, "Block", None)
-    if block:
-        block_str = str(block).strip()
-        if block_str.lower() not in ["unknown", "none", ""]:
-            return block_str.title()
-    return None
-
-def has_location_info(user) -> bool:
-    """
-    Check if user has valid district and block information.
-    
-    Args:
-        user: User object
-        
-    Returns:
-        bool: True if user has both district and block, False otherwise
-    """
-    district = get_user_district(user)
-    block = get_user_block(user)
-    return district is not None and block is not None
 
 # Unified translation dictionary for leaderboard text
 LEADERBOARD_TRANSLATIONS = {
