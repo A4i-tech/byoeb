@@ -414,15 +414,23 @@ from byoeb.chat_app.configuration.config import env_mongo_db_connection_string
 
 # MongoDB connection configuration for scheduler job store
 MONGODB_URL = env_mongo_db_connection_string
-if not env_config.env_mongo_db_database_name:
-    raise ValueError(
-        "MONGO_DB_DATABASE_NAME environment variable must be set. "
-    )
-MONGODB_DATABASE = env_config.env_mongo_db_database_name
 MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
 
 # Initialize MongoDB client and job store
 mongodb_client = pymongo.MongoClient(MONGODB_URL)
+
+# Try to get database name from connection string, fallback to env variable
+try:
+    MONGODB_DATABASE = mongodb_client.get_database().name
+except pymongo.errors.ConfigurationError:
+    # Connection string doesn't include database name, use env variable as fallback
+    if not env_config.env_mongo_db_database_name:
+        raise ValueError(
+            "MONGO_DB_DATABASE_NAME environment variable must be set when "
+            "database name is not in the MongoDB connection string."
+        )
+    MONGODB_DATABASE = env_config.env_mongo_db_database_name
+
 mongodb_jobstore = MongoDBJobStore(
     database=MONGODB_DATABASE,
     collection=MONGODB_COLLECTION,
