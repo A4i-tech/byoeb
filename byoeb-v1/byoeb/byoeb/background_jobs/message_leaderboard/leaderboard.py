@@ -1,6 +1,8 @@
 import asyncio
 import json
 import os
+import logging
+import sys
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Dict, Any, List, Optional
@@ -20,9 +22,21 @@ IST = ZoneInfo("Asia/Kolkata")
 run_logger = AppInsightsLogHandler.getLogger("leaderboard_run")
 send_logger = AppInsightsLogHandler.getLogger("leaderboard_send")
 
+# Console Logger for local development and production console output
+console_logger = logging.getLogger("leaderboard_console")
+console_logger.setLevel(logging.INFO)
+# Only add handler if it doesn't already exist
+if not console_logger.handlers:
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    console_handler.setFormatter(formatter)
+    console_logger.addHandler(console_handler)
+    console_logger.propagate = False
+
 # TEST MODE: Set to True to send only to your test phone number
 # Set to False to send to all users (production mode)
-TEST_MODE_SEND_TO_ME_ONLY = True  # Set to True for testing, False for production
+TEST_MODE_SEND_TO_ME_ONLY = False  # Set to True for testing, False for production
 
 # Your test phone number (read from keys.env using PHONE_NUMBER_ID)
 TEST_PHONE_NUMBER = os.getenv("PHONE_NUMBER_ID") if TEST_MODE_SEND_TO_ME_ONLY else None
@@ -509,7 +523,7 @@ async def send_leaderboard_template_messages(
     
     # Pre-calculate block leaderboards for all districts in a single optimized pass
     # This fetches messages and hydrates users once, then computes all district block leaderboards
-    print(f"\n📊 Pre-calculating block leaderboards for all districts in a single pass...")
+    console_logger.info("📊 Pre-calculating block leaderboards for all districts in a single pass...")
     run_logger.info("Pre-calculating block leaderboards", extra={AppInsightsLogHandler.DETAILS: {
         "context": "pre_calculate_block_leaderboards_optimized"
     }})
@@ -544,7 +558,7 @@ async def send_leaderboard_template_messages(
                 block_leaderboard_cache[district] = None
         
         successful_districts = len([v for v in block_leaderboard_cache.values() if v is not None])
-        print(f"   ✅ Calculated {successful_districts}/{len(unique_districts)} district block leaderboards (optimized single-pass)")
+        console_logger.info(f"✅ Calculated {successful_districts}/{len(unique_districts)} district block leaderboards (optimized single-pass)")
         run_logger.info("Block leaderboard cache ready", extra={AppInsightsLogHandler.DETAILS: {
             "context": "block_leaderboard_cache_ready",
             "successful_districts": successful_districts,
@@ -558,7 +572,7 @@ async def send_leaderboard_template_messages(
             "error": str(e)
         }})
         block_leaderboard_cache = {}  # Empty cache, will fall back to global leaderboard
-        print(f"   ⚠️  Error building block leaderboards: {str(e)}")
+        console_logger.warning(f"⚠️  Error building block leaderboards: {str(e)}")
     
     results = []
     sent_count = 0
@@ -802,7 +816,7 @@ async def send_leaderboard_template_messages(
                     
                     # Show progress every 10 messages
                     if len(results) % 10 == 0:
-                        print(f"   Progress: {sent_count} sent, {error_count} errors ({len(results)}/{len(phone_numbers)})")
+                        console_logger.info(f"Progress: {sent_count} sent, {error_count} errors ({len(results)}/{len(phone_numbers)})")
                 else:
                     error_count += 1
                     send_logger.error("No response from WhatsApp API", extra={AppInsightsLogHandler.DETAILS: {
@@ -844,17 +858,17 @@ async def send_leaderboard_template_messages(
                 "message": str(e)
             })
     
-    # Print final summary
-    print(f"\n📊 Sending Summary:")
-    print(f"   ✅ Successfully sent: {sent_count}/{len(phone_numbers)}")
-    print(f"   ❌ Errors: {error_count}/{len(phone_numbers)}")
+    # Log final summary
+    console_logger.info("📊 Sending Summary:")
+    console_logger.info(f"✅ Successfully sent: {sent_count}/{len(phone_numbers)}")
+    console_logger.info(f"❌ Errors: {error_count}/{len(phone_numbers)}")
     
     return results
 
 async def main():
-    print("\n" + "="*70)
-    print("🏆 LEADERBOARD MESSAGE SENDER".center(70))
-    print("="*70)
+    console_logger.info("="*70)
+    console_logger.info("🏆 LEADERBOARD MESSAGE SENDER".center(70))
+    console_logger.info("="*70)
     
     run_logger.info("Starting leaderboard job", extra={AppInsightsLogHandler.DETAILS: {
         "context": "leaderboard_job_start",
@@ -863,13 +877,13 @@ async def main():
     }})
     
     # Build global district leaderboard (used as fallback for users without location info)
-    print("\n📊 Building global district leaderboard...")
+    console_logger.info("📊 Building global district leaderboard...")
     leaderboard_df = await build_district_leaderboard_last_week_ist()
     top3_df = leaderboard_df.head(3)
-    print(f"   ✅ Found {len(leaderboard_df)} districts with activity")
-    print(f"\n   Top 3 Districts (Global):")
+    console_logger.info(f"✅ Found {len(leaderboard_df)} districts with activity")
+    console_logger.info("Top 3 Districts (Global):")
     for idx, row in top3_df.iterrows():
-        print(f"      {idx+1}. {row['district']}: {row['message_count']} messages, {row['unique_users']} users")
+        console_logger.info(f"   {idx+1}. {row['district']}: {row['message_count']} messages, {row['unique_users']} users")
     
     run_logger.info("Global district leaderboard built", extra={AppInsightsLogHandler.DETAILS: {
         "context": "build_global_leaderboard",
@@ -877,34 +891,34 @@ async def main():
         "top3_districts": top3_df.to_dict('records') if len(top3_df) > 0 else []
     }})
 
-    print(f"\n📝 Message Configuration:")
-    print(f"   Template: leaderboardv2")
-    print(f"   Parameters: 10 (3 items × 3 fields + type indicator)")
-    print(f"   Languages: Translated per user (en, hi, mr, te)")
-    print(f"\n📍 Personalization:")
-    print(f"   • Users WITH district & block → Top 3 blocks in their district")
-    print(f"   • Users WITHOUT location → Top 3 districts (global)")
+    console_logger.info("📝 Message Configuration:")
+    console_logger.info("   Template: leaderboardv2")
+    console_logger.info("   Parameters: 10 (3 items × 3 fields + type indicator)")
+    console_logger.info("   Languages: Translated per user (en, hi, mr, te)")
+    console_logger.info("📍 Personalization:")
+    console_logger.info("   • Users WITH district & block → Top 3 blocks in their district")
+    console_logger.info("   • Users WITHOUT location → Top 3 districts (global)")
     
     # Collect phone numbers based on mode
-    print("\n" + "="*70)
+    console_logger.info("="*70)
     if TEST_MODE_SEND_TO_ME_ONLY:
         if not TEST_PHONE_NUMBER:
-            print(f"❌ ERROR: TEST_MODE_SEND_TO_ME_ONLY is True but PHONE_NUMBER_ID not set")
-            print(f"   Please add PHONE_NUMBER_ID=your_phone_number to keys.env")
+            console_logger.error("❌ ERROR: TEST_MODE_SEND_TO_ME_ONLY is True but PHONE_NUMBER_ID not set")
+            console_logger.error("   Please add PHONE_NUMBER_ID=your_phone_number to keys.env")
             return
         
-        print(f"🧪 TEST MODE ENABLED")
-        print(f"   Recipient: {TEST_PHONE_NUMBER}")
-        print(f"   Count: 1 user (test only)")
+        console_logger.info("🧪 TEST MODE ENABLED")
+        console_logger.info(f"   Recipient: {TEST_PHONE_NUMBER}")
+        console_logger.info("   Count: 1 user (test only)")
         phone_numbers = [TEST_PHONE_NUMBER]
         mode = "test"
     else:
-        print(f"🚀 PRODUCTION MODE ENABLED")
+        console_logger.info("🚀 PRODUCTION MODE ENABLED")
         phone_numbers = await fetch_phone_numbers_for_asha_and_test_users()
-        print(f"   Recipients: {len(phone_numbers)} users")
+        console_logger.info(f"   Recipients: {len(phone_numbers)} users")
         mode = "production"
     
-    print("="*70)
+    console_logger.info("="*70)
     
     # Send messages to collected phone numbers
     results = await send_leaderboard_template_messages(
@@ -918,16 +932,16 @@ async def main():
     success_count = sum(1 for r in results if r.get("status") == "success")
     failure_count = len(results) - success_count
     
-    print("\n" + "="*70)
-    print("📈 FINAL RESULTS".center(70))
-    print("="*70)
-    print(f"   Total: {len(results)} messages")
-    print(f"   ✅ Success: {success_count}")
-    print(f"   ❌ Failed: {failure_count}")
-    print(f"   Mode: {mode.upper()}")
+    console_logger.info("="*70)
+    console_logger.info("📈 FINAL RESULTS".center(70))
+    console_logger.info("="*70)
+    console_logger.info(f"   Total: {len(results)} messages")
+    console_logger.info(f"   ✅ Success: {success_count}")
+    console_logger.info(f"   ❌ Failed: {failure_count}")
+    console_logger.info(f"   Mode: {mode.upper()}")
     if TEST_MODE_SEND_TO_ME_ONLY:
-        print(f"\n   💡 Tip: Set TEST_MODE_SEND_TO_ME_ONLY = False for production")
-    print("="*70 + "\n")
+        console_logger.info("   💡 Tip: Set TEST_MODE_SEND_TO_ME_ONLY = False for production")
+    console_logger.info("="*70)
     
     # Log completion
     log_details = {
