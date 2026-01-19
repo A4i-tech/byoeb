@@ -1,0 +1,27 @@
+{
+  "en": {
+    "block_singular": "Block ",
+    "district_singular": "District ",
+    "blocks_plural": "Blocks",
+    "districts_plural": "Districts"
+  },
+  "hi": {
+    "block_singular": "ब्लॉक ",
+    "district_singular": "जिला ",
+    "blocks_plural": "ब्लॉक",
+    "districts_plural": "जिले"
+  },
+  "mr": {
+    "block_singular": "ब्लॉक ",
+    "district_singular": "जिल्हा ",
+    "blocks_plural": "ब्लॉक",
+    "districts_plural": "जिल्हे"
+  },
+  "te": {
+    "block_singular": "బ్లాక్ ",
+    "district_singular": "జిల్లా ",
+    "blocks_plural": "బ్లాక్‌లు",
+    "districts_plural": "జిల్లాలు"
+  }
+}
+
