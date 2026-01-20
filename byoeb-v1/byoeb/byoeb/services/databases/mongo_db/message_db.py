@@ -1,4 +1,5 @@
 from byoeb.models.consensus import Consensus
+import logging
 import byoeb.services.chat.constants as constants
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, TYPE_CHECKING, AsyncIterator
@@ -323,11 +324,12 @@ class MessageMongoDBService(BaseMongoDBService):
             }
 
             if debug_mode:
-                # DEMO MODE: Print payload instead of sending
-                print("\n--- WhatsApp Message Payload ---")
-                print(f"To: {phone}")
-                print("Payload:", message_payload)
-                print("--- End Payload ---\n")
+                # DEMO MODE: Log payload instead of sending
+                logging.getLogger(__name__).debug(
+                    "WhatsApp Message Payload\nTo: %s\nPayload: %s\n--- End Payload ---",
+                    phone,
+                    message_payload,
+                )
 
                 results.append({
                     "phone": phone,
@@ -384,7 +386,11 @@ class MessageMongoDBService(BaseMongoDBService):
 
                     if requests:
                         responses, message_ids = await whatsapp_service.send_requests(requests)
-                        print(f"✅ Sent to {phone} - Message ID: {message_ids[0] if message_ids else 'Unknown'}")
+                        logging.getLogger(__name__).info(
+                            "Sent to %s - Message ID: %s",
+                            phone,
+                            message_ids[0] if message_ids else "Unknown",
+                        )
                         results.append({
                             "phone": phone,
                             "status": "success",
@@ -393,7 +399,7 @@ class MessageMongoDBService(BaseMongoDBService):
                             "response": str(responses[0]) if responses else None
                         })
                     else:
-                        print(f"❌ No requests generated for {phone}")
+                        logging.getLogger(__name__).warning("No requests generated for %s", phone)
                         results.append({
                             "phone": phone,
                             "status": "error",
@@ -401,9 +407,7 @@ class MessageMongoDBService(BaseMongoDBService):
                         })
 
                 except Exception as e:
-                    print(f"❌ Error sending to {phone}: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
+                    logging.getLogger(__name__).error("Error sending to %s: %s", phone, str(e), exc_info=True)
                     results.append({
                         "phone": phone,
                         "status": "error",
@@ -494,9 +498,8 @@ class MessageMongoDBService(BaseMongoDBService):
         byoeb_user_message: ByoebMessageContext,
     ):
         message_id = byoeb_user_message.reply_context.additional_info.get(constants.BOT_AUDIO_IDK_MESSAGE_ID)
-        print("message_id", message_id)
         status = byoeb_user_message.reply_context.additional_info.get(constants.STATUS, None)
-        print("status", status)
+        logging.getLogger(__name__).debug("audio_idk_status_update_query message_id=%s status=%s", message_id, status)
         if status is None:
             return []
         update_data = {

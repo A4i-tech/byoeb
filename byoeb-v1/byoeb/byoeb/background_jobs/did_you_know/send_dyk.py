@@ -88,7 +88,7 @@ async def queue(dyk_repo: DykRepository, sheet: DykFactSheet, candidates: DykBat
         }
 
         batch_id, queued, exhausted = await queue(records, [])
-        print("Queued %d ops, exhausted %d ops", queued, exhausted)
+        # Logging handled by send_logger; keep docstring example concise
     """
 
     batch_id = uuid.uuid4().hex

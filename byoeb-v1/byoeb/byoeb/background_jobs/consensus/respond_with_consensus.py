@@ -4,6 +4,7 @@ import os
 import sys
 import threading
 import datetime
+import logging
 from zoneinfo import ZoneInfo
 from byoeb.services.chat import constants
 from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
@@ -21,6 +22,8 @@ from byoeb.chat_app.configuration.config import app_config
 from byoeb.models.message_category import MessageCategory
 from byoeb.models.consensus import Consensus
 from byoeb.background_jobs.consensus.consensus_prompt import consensus_prompt
+
+logger = logging.getLogger(__name__)
 
 # curr_dir = os.path.dirname(os.path.abspath(__file__))
 # consensus_prompt_path = os.path.join(curr_dir, "consensus_prompt.txt")
@@ -141,8 +144,8 @@ async def agenerate_consensus_response(
         matches = re.findall(pattern, text, re.DOTALL)
         return {key: value.strip() for key, value in matches}
     from byoeb.chat_app.configuration.dependency_setup import text_translator, llm_client
-    print("Query", query)
-    print("Responses", responses)
+    logger.debug("Query=%s", query)
+    logger.debug("Responses=%s", responses)
     prompt = [
         {"role": "system", "content": str(consensus_prompt)},
     ]
@@ -164,7 +167,7 @@ async def agenerate_consensus_response(
     prompt.append({"role": "user", "content": str(query_prompt)})
     resp, text = await llm_client.generate_response(prompt)
     parsed_response = parse_struct(text)
-    print("Parsed response", parsed_response)
+    logger.debug("Parsed response=%s", parsed_response)
     consensus_answer = parsed_response.get("consensus_answer")
     consensus_answer_source = parsed_response.get("consensus_answer_source")
     if consensus_not_found in consensus_answer:
@@ -269,14 +272,13 @@ async def main():
         message_db_service,
         user_db_service
     )
-    print(threading.get_ident())
-    print("PID:", os.getpid())
+    logger.info("main started thread_id=%s pid=%s", threading.get_ident(), os.getpid())
     whatsapp_service = WhatsAppService(channel_client_factory)
     await process_queries_consensus(message_db_service, user_db_service, whatsapp_service)
     await channel_client_factory.close()
 
 if __name__ == "__main__":
-    print("start")
+    logger.info("start thread_id=%s pid=%s", threading.get_ident(), os.getpid())
     asyncio.run(main())
-    print("end")
+    logger.info("end thread_id=%s pid=%s", threading.get_ident(), os.getpid())
     sys.exit(0)

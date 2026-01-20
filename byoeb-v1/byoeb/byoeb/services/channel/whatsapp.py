@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import byoeb.services.chat.constants as constants
 import byoeb.services.chat.utils as utils 
 import byoeb_integrations.channel.whatsapp.request_payload as wa_req_payload
@@ -70,7 +71,7 @@ class WhatsAppService(BaseChannelService):
             print("[whatsapp.prepare_requests] WARNING: No text, button, or interactive list message prepared!")
         if utils.has_template_additional_info(byoeb_message):
             wa_template_message = wa_req_payload.get_whatsapp_template_request_from_byoeb_message(byoeb_message)
-            # print("Whatsapp template message", json.dumps(wa_template_message))
+            logging.getLogger(__name__).debug("Whatsapp template message %s", json.dumps(wa_template_message))
             wa_requests.append(wa_template_message)
         if utils.has_audio_additional_info(byoeb_message):
             wa_audio_message = wa_req_payload.get_whatsapp_audio_request_from_byoeb_message(byoeb_message)
@@ -105,7 +106,7 @@ class WhatsAppService(BaseChannelService):
             tasks.append(client.asend_batch_messages([request], message_type))
         results = await asyncio.gather(*tasks)
         responses = [response for result in results for response in result]
-        print("WhatsApp responses", responses)
+        logging.getLogger(__name__).debug("WhatsApp responses %s", responses)
         message_ids = [response.messages[0].id if response.messages else None for response in responses]
         return responses, message_ids
     

@@ -2,6 +2,7 @@ import asyncio
 import os
 import sys
 import threading
+import logging
 from byoeb.services.chat import constants
 from byoeb.services.chat import utils as chat_utils
 from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
@@ -22,6 +23,8 @@ from byoeb.background_jobs.consensus.config import bot_config
 from byoeb.chat_app.configuration.config import app_config
 from byoeb.models.message_category import MessageCategory
 from byoeb.models.consensus import Consensus
+
+logger = logging.getLogger(__name__)
 
 EXPERT_TYPE = "anm"
 CONSENSUS = "consensus"
@@ -93,14 +96,14 @@ def create_message_db_queries(
 async def is_active_user(user_db_service: UserMongoDBService, user_id: str):
     user_timestamp, cached = await user_db_service.get_user_activity_timestamp(user_id)
     last_active_duration_seconds = chat_utils.get_last_active_duration_seconds(user_timestamp)
-    print("Cached", cached)
+    logger.debug("Cached=%s", cached)
     if last_active_duration_seconds >= max_last_active_duration_seconds and cached:
-        print("Invalidating cache")
+        logger.info("Invalidating cache for user_id=%s", user_id)
         await user_db_service.invalidate_user_cache(user_id)
         user_timestamp, cached = await user_db_service.get_user_activity_timestamp(user_id)
-        print("Cached", cached)
+        logger.debug("Cached after invalidate=%s", cached)
         last_active_duration_seconds = chat_utils.get_last_active_duration_seconds(user_timestamp)
-        print("Last active duration", last_active_duration_seconds)
+        logger.debug("Last active duration=%s", last_active_duration_seconds)
     if last_active_duration_seconds >= max_last_active_duration_seconds:
         return False
     return True
@@ -122,13 +125,13 @@ async def send_pending_query_to_expert(
     consensus_user_ids = {consensus.user_id for consensus in consensus_list}
     filtered_experts = [expert for expert in experts if expert.user_id not in consensus_user_ids]
     selected_experts = filtered_experts[:10]
-    print("Selected experts", selected_experts)
+    logger.debug("Selected experts=%s", selected_experts)
     cross_convs = []
     for expert in selected_experts:
         expert_message = create_expert_consensus_message(message, expert)
         # expert_messages.append(expert_message)
         active_user = await is_active_user(user_db_service, expert_message.user.user_id)
-        print("Active user", active_user)
+        logger.debug("Active user=%s", active_user)
         expert_requests = whatsapp_service.prepare_requests(expert_message)
         text_message = expert_requests[0]
         template_verification_message = expert_requests[1]
@@ -190,7 +193,7 @@ async def main():
     await channel_client_factory.close()
 
 if __name__ == "__main__":
-    print("start")
+    logger.info("start thread_id=%s pid=%s", threading.get_ident(), os.getpid())
     asyncio.run(main())
-    print("end")
+    logger.info("end thread_id=%s pid=%s", threading.get_ident(), os.getpid())
     sys.exit(0)

@@ -172,7 +172,7 @@ class UsersHandler:
         	phone_number_ids.append(i["phone_number_id"])
         results = await user_svc.aget(
             phone_number_ids=phone_number_ids)
-        print("start",results, "end")
+        logging.getLogger(__name__).debug("start %s end", results)
         response={}
         for x in results:
         	response[x["phone_number_id"]]=x

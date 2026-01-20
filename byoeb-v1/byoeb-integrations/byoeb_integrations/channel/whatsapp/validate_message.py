@@ -1,5 +1,8 @@
 import json
+import logging
 import byoeb_core.models.whatsapp.incoming as incoming_message
+
+logger = logging.getLogger(__name__)
 
 def validate_regular_message(original_message):
     if isinstance(original_message, str):
@@ -50,15 +53,15 @@ def validate_status_message(original_message):
 
 def validate_whatsapp_message(original_message):
     if validate_regular_message(original_message):
-        print("regular")
+        logger.debug("Validated WhatsApp message type: regular")
         return True, "regular"
     if validate_template_message(original_message):
-        print("template")
+        logger.debug("Validated WhatsApp message type: template")
         return True, "template"
     if validate_interactive_message(original_message):
-        print("interactive")
+        logger.debug("Validated WhatsApp message type: interactive")
         return True, "interactive"
     if validate_status_message(original_message):
-        print("status")
+        logger.debug("Validated WhatsApp message type: status")
         return True, "status"
     return False, None

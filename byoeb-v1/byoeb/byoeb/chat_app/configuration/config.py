@@ -1,8 +1,11 @@
 import asyncio
 import os
 import json
+import logging
 from byoeb.constants.feature_enums import FeatureFlag
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 # Get the directory of the current script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,7 +29,7 @@ if os.path.exists(environment_path):
     # Use override=True to allow .env file values to override system environment variables
     load_dotenv(environment_path, override=True)
 else:
-    print(f"Warning: Environment file not found at {environment_path}")
+    logger.warning("Environment file not found at %s", environment_path)
 
 # Environment variables
 # Whatsapp
@@ -80,7 +83,7 @@ env_ashabot_message_cache_capacity = os.getenv("ASHABOT_MESSAGE_CACHE_CAPACITY")
 env_ashabot_feature_flags = os.getenv("ASHABOT_FEATURE_FLAGS")
 feature_flags: set[FeatureFlag] = set()
 for entry in (env_ashabot_feature_flags or "").split(","):
-    print(entry)
+    logger.debug("Feature flag entry: %s", entry)
     entry = entry.strip()
     if not entry:
         continue

@@ -1,5 +1,6 @@
 import re
 import hashlib
+import logging
 import httpx
 from typing import List, Dict, Any
 from datetime import datetime, timezone
@@ -20,6 +21,7 @@ ANSWER = "answer"
 TIMESTAMP = "timestamp"
 
 conversations: Dict[str, List[Dict[str, str]]] = {}
+logger = logging.getLogger(__name__)
 
 def update_conversations(user_id, question, answer, history_length):
     """
@@ -101,14 +103,20 @@ async def get_embedding(text):
             result = response.json()
             return result
         except httpx.RequestError as e:
-            print(f"An error occurred: {e}")
+            logger.error("Embedding request error: %s", e, exc_info=True)
             return None
         except httpx.HTTPStatusError as e:
-            print(f"Bad status code: {e.response.status_code} - {e.response.text}")
+            logger.error("Bad status code: %s - %s", e.response.status_code, e.response.text)
             return None
         
 async def retrieve_top_k_chunks(query_text, k, search_type, embedding_type = "text-embedding-3-large", select=None):
-    print(f"Retrieving top {k} chunks for query: {query_text} with search type: {search_type} and embedding type: {embedding_type}")
+    logger.debug(
+        "Retrieving top %s chunks for query=%s search_type=%s embedding_type=%s",
+        k,
+        query_text,
+        search_type,
+        embedding_type,
+    )
     if embedding_type == "text-embedding-3-large":
         retrieved_chunks = await vector_store.retrieve_top_k_chunks(
             query_text,
@@ -221,7 +229,7 @@ async def process_message(input: QueryInput) -> QueryOutput:
 
     user_id = hashlib.md5(phone_number_id.encode()).hexdigest()
     conversation_history = get_conversation_history(user_id, history_length)
-    print(conversation_history)
+    logger.debug("conversation_history=%s", conversation_history)
     query_en, query_en_addcontext, query_type, tokens = await llm_translation_and_query_rewritting(translation_and_rewritting_prompt, question, conversation_history)
     retrieved_chunks = await retrieve_top_k_chunks(query_en_addcontext, top_k, search_type, embedding_type)
     response_en, response_source, tokens = await generate_answer(answer_prompt, query_en_addcontext, query_type, retrieved_chunks)
@@ -248,7 +256,7 @@ def clear_history(phone_number_id):
     """
     Clear the conversation history for a user.
     """
-    print(f"Clearing history for phone number ID: {phone_number_id}")
+    logger.info("Clearing history for phone number ID: %s", phone_number_id)
     user_id = hashlib.md5(phone_number_id.encode()).hexdigest()
     if user_id in conversations:
         del conversations[user_id]

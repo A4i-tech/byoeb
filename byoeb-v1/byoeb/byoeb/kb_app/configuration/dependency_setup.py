@@ -1,4 +1,5 @@
 import os
+import logging
 import byoeb.kb_app.configuration.config as env_config
 from byoeb.kb_app.configuration.config import app_config
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
@@ -9,6 +10,8 @@ from byoeb_integrations.llms.llama_index.llama_index_openai import AsyncLLamaInd
 from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
 from byoeb_core.media_storage.base import BaseMediaStorage
 from byoeb_core.vector_stores.base import BaseVectorStore
+
+logger = logging.getLogger(__name__)
 
 # Optional secondary storage for monthly analysis
 amedia_storage_analysis: BaseMediaStorage = None
@@ -66,7 +69,7 @@ if env_config.env_azure_storage_connection_string:
         credentials=None,
         connection_string=env_config.env_azure_storage_connection_string
     )
-    print("✅ Azure Storage API key set. Enabling Azure Blob Storage.")
+    logger.info("Azure Storage API key set. Enabling Azure Blob Storage.")
 else:
     amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
         container_name=container_name,
@@ -90,7 +93,7 @@ if analysis_container:
             account_url=account_url,
             credentials=DefaultAzureCredential()
         )
-    print(f"✅ Azure Blob Storage (analysis) enabled for container: {analysis_container}")
+    logger.info("Azure Blob Storage (analysis) enabled for container: %s", analysis_container)
 
 # Vector Store Type Configuration - use environment variable if set, otherwise fallback to app_config.json
 # Default to "azure_vector_search" if not specified (for backward compatibility)
@@ -106,11 +109,11 @@ if vector_store_type == "azure_vector_search":
     azure_search_doc_index_name = env_config.env_azure_search_index_name or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
     if env_config.env_azure_search_api_key:
         from azure.core.credentials import AzureKeyCredential
-        print("✅ Azure Search API key set. Enabling Azure vector store.")
+        logger.info("Azure Search API key set. Enabling Azure vector store.")
         credential = AzureKeyCredential(env_config.env_azure_search_api_key)
     else:
         credential = DefaultAzureCredential()   
-        print("⚠️ Azure Search API key not set. Defaulting to DefaultAzureCredential")
+        logger.warning("Azure Search API key not set. Defaulting to DefaultAzureCredential")
     
     # Azure Vector Store uses LlamaIndex embedding function
     embedding_function = azure_openai_embed.get_embedding_function()
@@ -128,7 +131,11 @@ if vector_store_type == "azure_vector_search":
             api_key=env_config.env_azure_search_vectorizer_model_api_key
         )
     )
-    print(f"✅ Initialized Azure Vector Store: {azure_search_service_name}/{azure_search_doc_index_name}")
+    logger.info(
+        "Initialized Azure Vector Store: %s/%s",
+        azure_search_service_name,
+        azure_search_doc_index_name,
+    )
 
 elif vector_store_type == "chroma":
     # ChromaDB Vector Store - needs ChromaDB-compatible embedding function
@@ -153,7 +160,11 @@ elif vector_store_type == "chroma":
         collection_name=collection_name,
         embedding_function=chroma_embedding_function
     )
-    print(f"✅ Initialized ChromaDB Vector Store: {persist_directory}/{collection_name}")
+    logger.info(
+        "Initialized ChromaDB Vector Store: %s/%s",
+        persist_directory,
+        collection_name,
+    )
 
 elif vector_store_type == "llama_index_chroma":
     # LlamaIndex ChromaDB Vector Store - uses LlamaIndex embedding function
@@ -172,7 +183,11 @@ elif vector_store_type == "llama_index_chroma":
         collection_name=collection_name,
         embedding_function=embedding_function
     )
-    print(f"✅ Initialized LlamaIndex ChromaDB Vector Store: {persist_directory}/{collection_name}")
+    logger.info(
+        "Initialized LlamaIndex ChromaDB Vector Store: %s/%s",
+        persist_directory,
+        collection_name,
+    )
 
 else:
     raise ValueError(

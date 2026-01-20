@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import byoeb.services.chat.constants as constants
 import byoeb.utils.utils as utils
 from byoeb.models.message_category import MessageCategory
@@ -22,6 +23,7 @@ class ByoebUserSendResponse(Handler):
         user_db_service: UserMongoDBService,
         message_db_service: MessageMongoDBService,
     ):
+        self._logger = logging.getLogger(self.__class__.__name__)
         self._user_db_service = user_db_service
         self._message_db_service = message_db_service
 
@@ -42,7 +44,7 @@ class ByoebUserSendResponse(Handler):
     ):
         # Safety check for None user message
         if byoeb_user_message is None:
-            print("[send] __prepare_db_queries: byoeb_user_message is None, returning empty queries")
+            self._logger.warning("[send] __prepare_db_queries: byoeb_user_message is None, returning empty queries")
             return {}
         if byoeb_user_message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
             message_db_queries = {
@@ -80,15 +82,15 @@ class ByoebUserSendResponse(Handler):
     async def is_active_user(self, user_id: str):
         user_timestamp, cached = await self._user_db_service.get_user_activity_timestamp(user_id)
         last_active_duration_seconds = chat_utils.get_last_active_duration_seconds(user_timestamp)
-        print("Last active duration", last_active_duration_seconds)
-        print("Cached", cached)
+        self._logger.debug("Last active duration=%s", last_active_duration_seconds)
+        self._logger.debug("Cached=%s", cached)
         if last_active_duration_seconds >= self.__max_last_active_duration_seconds and cached:
-            print("Invalidating cache")
+            self._logger.info("Invalidating cache for user_id=%s", user_id)
             await self._user_db_service.invalidate_user_cache(user_id)
             user_timestamp, cached = await self._user_db_service.get_user_activity_timestamp(user_id)
-            print("Cached", cached)
+            self._logger.debug("Cached after invalidate=%s", cached)
             last_active_duration_seconds = chat_utils.get_last_active_duration_seconds(user_timestamp)
-            print("Last active duration", last_active_duration_seconds)
+            self._logger.debug("Last active duration after refresh=%s", last_active_duration_seconds)
         if last_active_duration_seconds >= self.__max_last_active_duration_seconds:
             return False
         return True
@@ -114,7 +116,7 @@ class ByoebUserSendResponse(Handler):
             responses, message_ids = await channel_service.send_requests([template_verification_message])
         else:
             responses, message_ids = await channel_service.send_requests([interactive_button_message])
-        print("responses", responses)
+        self._logger.info("Expert responses=%s", responses)
         pending_emoji = expert_message_context.message_context.additional_info.get(constants.EMOJI)
         message_reactions = [
             MessageReaction(
@@ -183,7 +185,7 @@ class ByoebUserSendResponse(Handler):
             responses = response
             message_ids = message_id
         
-        print("user responses", responses)
+        self._logger.info("User responses=%s", responses)
         if self.__reaction_enabled:
             pending_emoji = user_message_context.message_context.additional_info.get(constants.EMOJI)
             message_reactions = [
@@ -203,69 +205,73 @@ class ByoebUserSendResponse(Handler):
         messages: List[ByoebMessageContext]
     ):
         # verification_status = constants.VERIFICATION_STATUS
-        print("[send] __handle_message_send_workflow: start messages_count=", len(messages) if messages else 0)
+        self._logger.info("[send] __handle_message_send_workflow: start messages_count=%s", len(messages) if messages else 0)
         read_receipt_messages = chat_utils.get_read_receipt_byoeb_messages(messages)
-        print("[send] read_receipt_messages_count=", len(read_receipt_messages) if read_receipt_messages else 0)
+        self._logger.debug("[send] read_receipt_messages_count=%s", len(read_receipt_messages) if read_receipt_messages else 0)
         byoeb_user_messages = chat_utils.get_user_byoeb_messages(messages)
         # print("byoeb_user_messages", byoeb_user_messages)
-        print("[send] byoeb_user_messages_count=", len(byoeb_user_messages) if byoeb_user_messages else 0)
+        self._logger.debug("[send] byoeb_user_messages_count=%s", len(byoeb_user_messages) if byoeb_user_messages else 0)
 
         # Debug: Print user types for all messages
-        print("[send] DEBUG: All message user types:")
+        self._logger.debug("[send] DEBUG: All message user types:")
         for i, msg in enumerate(messages):
             if msg.user is not None:
-                print(f"[send] Message {i}: user_type={msg.user.user_type}, user_id={msg.user.user_id}")
+                self._logger.debug("[send] Message %s: user_type=%s, user_id=%s", i, msg.user.user_type, msg.user.user_id)
             else:
-                print(f"[send] Message {i}: user is None")
+                self._logger.debug("[send] Message %s: user is None", i)
 
         if not byoeb_user_messages:
-            print("[send] ERROR: No user messages found, cannot proceed")
+            self._logger.error("[send] No user messages found, cannot proceed")
             return [], None
         byoeb_user_message = byoeb_user_messages[0]
-        print("[send] byoeb_user_message_type=", type(byoeb_user_message).__name__)
-        print("[send] about to access reply_context on byoeb_user_message")
+        self._logger.debug("[send] byoeb_user_message_type=%s", type(byoeb_user_message).__name__)
+        self._logger.debug("[send] about to access reply_context on byoeb_user_message")
 
         track_message_id = byoeb_user_message.reply_context.reply_id
-        print("[send] track_message_id(initial)=", track_message_id)
+        self._logger.debug("[send] track_message_id(initial)=%s", track_message_id)
         if byoeb_user_message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
-            print("[send] AUDIO_IDK detected; using TRACK_MESSAGE_ID from additional_info")
+            self._logger.info("[send] AUDIO_IDK detected; using TRACK_MESSAGE_ID from additional_info")
             track_message_id = byoeb_user_message.message_context.additional_info.get(constants.TRACK_MESSAGE_ID)
-        print("[send] track_message_id(final)=", track_message_id)
+        self._logger.debug("[send] track_message_id(final)=%s", track_message_id)
 
         start_time = datetime.now(timezone.utc).timestamp()
-        print("[send] start_time=", start_time)
-        print("[send] channel_type=", getattr(byoeb_user_message, "channel_type", None))
+        self._logger.debug("[send] start_time=%s", start_time)
+        self._logger.debug("[send] channel_type=%s", getattr(byoeb_user_message, "channel_type", None))
         channel_service = self.get_channel_service(byoeb_user_message.channel_type)
-        print("[send] channel_service_resolved=", type(channel_service).__name__ if channel_service else None)
-        print("[send] scheduling amark_read for", len(read_receipt_messages) if read_receipt_messages else 0, "messages")
+        self._logger.debug("[send] channel_service_resolved=%s", type(channel_service).__name__ if channel_service else None)
+        self._logger.debug("[send] scheduling amark_read for %s messages", len(read_receipt_messages) if read_receipt_messages else 0)
         mark_read_task = channel_service.amark_read(read_receipt_messages)
-        print("[send] scheduling user_task")
+        self._logger.debug("[send] scheduling user_task")
         user_task = self.__handle_user(channel_service, byoeb_user_message)
 
         byoeb_expert_messages = chat_utils.get_expert_byoeb_messages(messages)
-        print("[send] byoeb_expert_messages_count=", len(byoeb_expert_messages) if byoeb_expert_messages else 0)
+        self._logger.debug("[send] byoeb_expert_messages_count=%s", len(byoeb_expert_messages) if byoeb_expert_messages else 0)
         if byoeb_expert_messages is None or len(byoeb_expert_messages) == 0:
             byoeb_expert_message = None
-            print("[send] byoeb_expert_message=None")
+            self._logger.debug("[send] byoeb_expert_message=None")
         else:
             byoeb_expert_message = byoeb_expert_messages[0]
-            print("[send] byoeb_expert_message set (index 0)")
+            self._logger.debug("[send] byoeb_expert_message set (index 0)")
 
-        print("[send] scheduling expert_task")
+        self._logger.debug("[send] scheduling expert_task")
         expert_task = self.__handle_expert(channel_service, byoeb_expert_message)
 
-        print("[send] awaiting asyncio.gather for mark_read_task, user_task, expert_task")
+        self._logger.debug("[send] awaiting asyncio.gather for mark_read_task, user_task, expert_task")
         _, user_responses, expert_responses = await asyncio.gather(mark_read_task, user_task, expert_task)
-        print("[send] gather done; user_responses_len=", len(user_responses) if user_responses else 0, "expert_responses_len=", len(expert_responses) if expert_responses else 0)
+        self._logger.info(
+            "[send] gather done; user_responses_len=%s expert_responses_len=%s",
+            len(user_responses) if user_responses else 0,
+            len(expert_responses) if expert_responses else 0,
+        )
 
         # byoeb_user_verification_status = byoeb_expert_message.message_context.additional_info.get(verification_status)
-        print("[send] extracting additional_info fields (ROW_TEXTS, QUERY_TYPE, STATUS)")
+        self._logger.debug("[send] extracting additional_info fields (ROW_TEXTS, QUERY_TYPE, STATUS)")
         related_questions = byoeb_user_message.message_context.additional_info.get(constants.ROW_TEXTS)
         query_type = byoeb_user_message.message_context.additional_info.get(constants.QUERY_TYPE)
         status = byoeb_user_message.message_context.additional_info.get(constants.STATUS)
-        print("[send] related_questions=", related_questions)
-        print("[send] query_type=", query_type)
-        print("[send] status=", status)
+        self._logger.debug("[send] related_questions=%s", related_questions)
+        self._logger.debug("[send] query_type=%s", query_type)
+        self._logger.debug("[send] status=%s", status)
 
         byoeb_user_message.message_context.additional_info = {
             # verification_status: byoeb_user_verification_status,
@@ -273,12 +279,12 @@ class ByoebUserSendResponse(Handler):
             constants.QUERY_TYPE: query_type,
             constants.STATUS: status
         }
-        print("[send] creating bot_to_user_convs via channel_service.create_conv")
+        self._logger.debug("[send] creating bot_to_user_convs via channel_service.create_conv")
         bot_to_user_convs = channel_service.create_conv(
             byoeb_user_message,
             user_responses
         )
-        print("[send] bot_to_user_convs_count=", len(bot_to_user_convs) if bot_to_user_convs else 0)
+        self._logger.info("[send] bot_to_user_convs_count=%s", len(bot_to_user_convs) if bot_to_user_convs else 0)
 
         end_time = datetime.now(timezone.utc).timestamp()
         AppInsightsLogHandler.getLogger("message_send_workflow").info(f"end_time={end_time} duration={end_time - start_time}", extra={AppInsightsLogHandler.DETAILS: {
@@ -297,7 +303,7 @@ class ByoebUserSendResponse(Handler):
         #     expert_responses
         # )
         # return bot_to_user_convs + bot_to_expert_cross_convs, byoeb_user_message
-        print("[send] returning from __handle_message_send_workflow")
+        self._logger.info("[send] returning from __handle_message_send_workflow")
         return bot_to_user_convs, byoeb_user_message
     
     async def handle(
@@ -311,7 +317,7 @@ class ByoebUserSendResponse(Handler):
             convs, byoeb_user_message = await self.__handle_message_send_workflow(messages)
             # Check if we have a valid user message to process
             if byoeb_user_message is None:
-                print("[send] No user message to process, returning empty queries")
+                self._logger.error("[send] No user message to process, returning empty queries")
                 return {}
             db_queries = self.__prepare_db_queries(convs, byoeb_user_message)
             end_time = datetime.now(timezone.utc).timestamp()
