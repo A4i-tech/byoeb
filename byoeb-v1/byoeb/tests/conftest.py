@@ -27,6 +27,7 @@ os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"] = "test-deployment"
 os.environ["AZURE_SEARCH_SERVICE_NAME"] = "test-search-service"
 os.environ["AZURE_SEARCH_INDEX_NAME"] = "test-index"
 os.environ["APP_LOGGER_NAME"] = "test-logger"
-# Set MONGO_DB_DATABASE_NAME only if not already set (allows CI/CD secrets to override)
-if "MONGO_DB_DATABASE_NAME" not in os.environ:
-    os.environ["MONGO_DB_DATABASE_NAME"] = "test-db"
+# MongoDB connection string must include database name
+# Set a test connection string with database name if not already set
+if "MONGO_DB_CONNECTION_STRING" not in os.environ:
+    os.environ["MONGO_DB_CONNECTION_STRING"] = "mongodb://localhost:27017/test-db"

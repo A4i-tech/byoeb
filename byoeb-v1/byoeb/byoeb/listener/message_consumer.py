@@ -53,11 +53,14 @@ class QueueConsumer:
                 queue_name=queue_name
             )
         else:
-            # Use managed identity - account_url should be set from environment variable
+            # Fallback to managed identity (for backward compatibility)
+            # Use DefaultAzureCredential - requires service account to be added in the cloud
+            # or explicit access via AZ CLI, so is very safe
             from azure.identity import DefaultAzureCredential
             if not self._account_url:
                 raise ValueError(
-                    "Queue account URL must be set from AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable. "
+                    "Queue account URL must be set from AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable "
+                    "when connection string is not available. "
                 )
             default_credential = DefaultAzureCredential()
             return await AsyncAzureStorageQueue.aget_or_create(

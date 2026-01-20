@@ -419,17 +419,9 @@ MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
 # Initialize MongoDB client and job store
 mongodb_client = pymongo.MongoClient(MONGODB_URL)
 
-# Try to get database name from connection string, fallback to env variable
-try:
-    MONGODB_DATABASE = mongodb_client.get_database().name
-except pymongo.errors.ConfigurationError:
-    # Connection string doesn't include database name, use env variable as fallback
-    if not env_config.env_mongo_db_database_name:
-        raise ValueError(
-            "MONGO_DB_DATABASE_NAME environment variable must be set when "
-            "database name is not in the MongoDB connection string."
-        )
-    MONGODB_DATABASE = env_config.env_mongo_db_database_name
+# Extract database name from connection string
+from byoeb.factory.mongo_db import extract_database_name_from_connection_string
+MONGODB_DATABASE = extract_database_name_from_connection_string(MONGODB_URL)
 
 mongodb_jobstore = MongoDBJobStore(
     database=MONGODB_DATABASE,

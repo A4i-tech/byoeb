@@ -3,6 +3,7 @@ import asyncio
 from enum import Enum
 from typing import Optional
 import certifi
+import urllib.parse
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
 
@@ -36,11 +37,12 @@ class MongoDBFactory:
                 return self._db
 
             connection_string = env_config.env_mongo_db_connection_string
-            if not env_config.env_mongo_db_database_name:
+            if not connection_string:
                 raise ValueError(
-                    "MONGO_DB_DATABASE_NAME environment variable must be set. "
+                    "MONGO_DB_CONNECTION_STRING environment variable must be set. "
                 )
-            db_name = env_config.env_mongo_db_database_name
+            # Extract database name from connection string
+            db_name = extract_database_name_from_connection_string(connection_string)
             tls_enabled = _is_tls_enabled(connection_string)
             if tls_enabled:
                 self._client = AsyncMongoClient(connection_string, tlsCAFile=certifi.where())
@@ -54,8 +56,39 @@ class MongoDBFactory:
             await self._client.close()
 
 
+def extract_database_name_from_connection_string(connection_string: str) -> str:
+    """Extract database name from MongoDB connection string.
+    
+    Args:
+        connection_string: MongoDB connection string (mongodb:// or mongodb+srv:// format)
+    
+    Returns:
+        Database name extracted from the connection string
+    
+    Raises:
+        ValueError: If connection string is empty or database name is not present
+    """
+    if not connection_string:
+        raise ValueError("MongoDB connection string is required.")
+    
+    parsed = urllib.parse.urlparse(connection_string)
+    # Database name is the path component (without leading slash)
+    db_name = parsed.path.lstrip('/')
+    
+    # Remove query parameters if they're part of the path
+    if '?' in db_name:
+        db_name = db_name.split('?')[0]
+    
+    if not db_name:
+        raise ValueError(
+            "Database name must be present in MongoDB connection string. "
+            "Format: mongodb://host/database_name or mongodb+srv://host/database_name"
+        )
+    
+    return db_name
+
+
 def _is_tls_enabled(connection_string: str) -> bool:
-    import urllib.parse
     parsed = urllib.parse.urlparse(connection_string)
     query = urllib.parse.parse_qs(parsed.query)
     for key in ['tls', 'ssl']:
