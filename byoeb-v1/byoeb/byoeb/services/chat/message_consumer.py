@@ -147,14 +147,14 @@ class MessageConsmerService:
                 if user.user_type is None or user.user_language is None:
                     if is_onboarding_msg and user.user_id is not None:
                         # User is already registered but sending onboarding message
-                        print(f"[__create_conversations] registered_user_onboard_msg -> conversations (msg_id={m.message_context.message_id})")
+                        self._logger.info("[__create_conversations] registered_user_onboard_msg -> conversations (msg_id=%s)", m.message_context.message_id)
                         conversations.append(conversation)
                     else:
                         # New user needs onboarding
-                        print(f"[__create_conversations] no_bot_msg + needs_onboarding -> onboard (msg_id={m.message_context.message_id})")
+                        self._logger.info("[__create_conversations] no_bot_msg + needs_onboarding -> onboard (msg_id=%s)", m.message_context.message_id)
                         onboard_convs.append(m)
                 else:
-                    print(f"[__create_conversations] no_bot_msg -> conversations (msg_id={m.message_context.message_id})")
+                    self._logger.info("[__create_conversations] no_bot_msg -> conversations (msg_id=%s)", m.message_context.message_id)
                     conversations.append(conversation)
                 continue
 
@@ -188,14 +188,14 @@ class MessageConsmerService:
                 
                 if is_onboarding_msg and user.user_id is not None:
                     # User is already registered but sending onboarding message
-                    print(f"[__create_conversations] registered_user_onboard_msg_with_reply -> conversations (msg_id={m.message_context.message_id})")
+                    self._logger.info("[__create_conversations] registered_user_onboard_msg_with_reply -> conversations (msg_id=%s)", m.message_context.message_id)
                     conversations.append(conversation)
                 else:
                     # Missing user fields, needs onboarding
-                    print(f"[__create_conversations] missing_user_fields -> onboard (msg_id={m.message_context.message_id})")
+                    self._logger.info("[__create_conversations] missing_user_fields -> onboard (msg_id=%s)", m.message_context.message_id)
                     onboard_convs.append(m)
             else:
-                print(f"[__create_conversations] regular_flow -> conversations (msg_id={m.message_context.message_id})")
+                self._logger.info("[__create_conversations] regular_flow -> conversations (msg_id=%s)", m.message_context.message_id)
                 conversations.append(conversation)
 
         print(f"[__create_conversations] ◀ end conversations={len(conversations)} onboard={len(onboard_convs)} took={end_time - start_time:.3f}s")

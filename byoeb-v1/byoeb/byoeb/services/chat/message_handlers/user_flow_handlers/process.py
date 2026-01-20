@@ -1,3 +1,4 @@
+import logging
 import re
 import byoeb.utils.utils as utils
 import byoeb.services.chat.constants as constants
@@ -11,6 +12,9 @@ from byoeb.models.message_category import MessageCategory
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 
 from byoeb_core.models.whatsapp.requests.media_request import MediaData
+
+logger = logging.getLogger(__name__)
+
 
 class ByoebUserProcess(Handler):
 
@@ -144,14 +148,14 @@ class ByoebUserProcess(Handler):
             pass
         elif is_onboarding_message:
             # For onboarding messages, set default values to prevent LLM processing
-            print(f"[process] Detected onboarding message: '{message.message_context.message_source_text[:50]}...'")
+            logger.info("[process] Detected onboarding message: '%s...'", (message.message_context.message_source_text or "")[:50])
             source_text = message.message_context.message_source_text
             query_en = source_text
             query_en_addcontext = source_text
-            query_type = "asha_work_related"
+            query_type = "small_talk"
         else:
             # Normal messages: call LLM for translation and rewriting
-            print(f"[process] Processing normal message (not onboarding): '{message.message_context.message_source_text[:50]}...'")
+            logger.info("[process] Processing normal message (not onboarding): '%s...'", (message.message_context.message_source_text or "")[:50])
             start_time = datetime.now(timezone.utc).timestamp()
             query_en, query_en_addcontext, query_type, tokens = await self.llm_translation_and_query_rewritting(message)
             end_time = datetime.now(timezone.utc).timestamp()

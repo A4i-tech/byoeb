@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import logging
 from byoeb.constants.feature_enums import FeatureFlag
 from byoeb.services.chat.utils import clean_message_for_console
 import byoeb.services.chat.constants as constants
@@ -28,6 +29,8 @@ from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.chat_app.configuration.dependency_setup import llm_client
 from byoeb.chat_app.configuration.config import env_ashabot_message_cache_capacity, feature_flags
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
+
+logger = logging.getLogger(__name__)
 
 embedding_cap = int(env_ashabot_message_cache_capacity or 64)
 embedding_fn = (
@@ -300,96 +303,6 @@ class ByoebUserGenerateResponse(Handler):
             constants.DATA: translated_audio_message,
             constants.MIME_TYPE: "audio/ogg",
         }
-         
-    def __detect_script(self, text: str) -> str:
-        """Detect the script used in the text."""
-        if not text:
-            return "unknown"
-        
-        # Telugu script range: 0C00-0C7F
-        if any('\u0C00' <= char <= '\u0C7F' for char in text):
-            return "te"
-        # Devanagari script (Hindi/Marathi): 0900-097F
-        elif any('\u0900' <= char <= '\u097F' for char in text):
-            return "devanagari"
-        # Latin script
-        elif any(char.isascii() and char.isalpha() for char in text):
-            return "latin"
-        else:
-            return "unknown"
-    
-    def __is_response_in_correct_language(self, response_source: str, user_language: str) -> bool:
-        """Check if response_source is in the correct language for the user."""
-        if not response_source or not response_source.strip():
-            return False
-        
-        detected_script = self.__detect_script(response_source)
-        
-        # For Telugu, must be in Telugu script
-        if user_language == "te":
-            if detected_script != "te":
-                print(f"[__is_response_in_correct_language] Telugu user but response is in {detected_script} script (expected Telugu)")
-                return False
-            # Check for Telugu-specific words
-            telugu_indicators = ["ఏమిటి", "ఎప్పుడు", "ఎందుకు", "ఉపయోగిస్తారు", "అంటే", "ఇవ్వాలి"]
-            has_telugu_indicators = any(ind in response_source for ind in telugu_indicators)
-            if not has_telugu_indicators:
-                print(f"[__is_response_in_correct_language] Telugu response doesn't contain Telugu indicators")
-                return False
-            return True
-        
-        # For Marathi, must be in Devanagari script
-        elif user_language == "mr":
-            if detected_script != "devanagari":
-                print(f"[__is_response_in_correct_language] Marathi user but response is in {detected_script} script (expected Devanagari)")
-                return False
-            # Check for Marathi-specific words (distinguish from Hindi)
-            # Marathi uses "आहे" (ahe) while Hindi uses "है" (hai)
-            # Marathi uses "आणि" (ani) while Hindi uses "और" (aur)
-            # Marathi uses "म्हणजे" (mhanje) while Hindi uses "मतलब" (matlab)
-            marathi_indicators = ["आहे", "आणि", "म्हणजे", "काय", "कधी", "वापरतात", "द्यावे", "जातात", "टीके", "गर्भावस्थेत"]
-            hindi_indicators = ["है", "और", "कहा", "जाता", "दिया", "किया", "के", "को", "में", "से"]
-            
-            has_marathi_indicators = any(ind in response_source for ind in marathi_indicators)
-            has_hindi_indicators = any(ind in response_source for ind in hindi_indicators)
-            
-            # Count occurrences for better detection
-            marathi_count = sum(response_source.count(ind) for ind in marathi_indicators)
-            hindi_count = sum(response_source.count(ind) for ind in hindi_indicators)
-            
-            # If it has more Hindi indicators than Marathi, it's likely Hindi
-            if hindi_count > marathi_count and hindi_count > 2:
-                print(f"[__is_response_in_correct_language] Marathi user but response has more Hindi indicators ({hindi_count}) than Marathi ({marathi_count})")
-                return False
-            
-            # If it has Hindi indicators but no Marathi indicators, it's likely Hindi
-            if has_hindi_indicators and not has_marathi_indicators and hindi_count > 1:
-                print(f"[__is_response_in_correct_language] Marathi user but response has Hindi indicators ({hindi_count}) without Marathi indicators")
-                return False
-            
-            # If it has Marathi indicators, it's likely correct
-            if has_marathi_indicators:
-                return True
-            
-            # If no clear indicators but it's in Devanagari, be lenient (might be correct but generic)
-            # Only reject if we're very confident it's Hindi
-            if hindi_count > 3:
-                print(f"[__is_response_in_correct_language] Marathi response has many Hindi indicators ({hindi_count}) but no Marathi indicators")
-                return False
-            
-            # Default to accepting if in Devanagari (might be correct Marathi)
-            return True
-        
-        # For Hindi, must be in Devanagari script
-        elif user_language == "hi":
-            return detected_script == "devanagari"
-        
-        # For English, must be in Latin script
-        elif user_language == "en":
-            return detected_script == "latin" or detected_script == "unknown"
-        
-        # Unknown language, accept it
-        return True
     
     async def __create_source_text(
         self,
@@ -428,41 +341,30 @@ class ByoebUserGenerateResponse(Handler):
         start_time = datetime.now(timezone.utc).timestamp()
         user_language = message.user.user_language
         
-        # If response_source is None or empty, translate from English
-        # This ensures we always have a response in the correct language
-        if response_source is None or (isinstance(response_source, str) and not response_source.strip()):
-            print(f"[__create_user_message] response_source is None or empty, translating from English to {user_language}")
-            message_source_text, options, send_related_questions = await self.__create_source_text(
-                message=message,
-                response_text=response_en,
-                query_type=query_type,
-            )
-        elif utils.is_idk(response_en):
+        # Use canned responses with user.language - no need to detect script/language
+        # If response_source is provided, use it directly (it's from canned templates)
+        # If response_source is None or empty, translate from response_en to user's language
+        if utils.is_idk(response_en):
             message_source_text, options, send_related_questions = self.__get_idk_response(
                 message=message,
                 response_text=response_en,
                 query_type=query_type,
             )
+        elif response_source is None or (isinstance(response_source, str) and not response_source.strip()):
+            # If no response_source, translate from response_en to user's language
+            logger.debug("[__create_user_message] response_source is None or empty, translating from response_en to %s", user_language)
+            message_source_text, options, send_related_questions = await self.__create_source_text(
+                message=message,
+                response_text=response_en,
+                query_type=query_type,
+            )
         else:
-            # Validate that response_source is in the correct language
-            is_correct_language = self.__is_response_in_correct_language(response_source, user_language)
-            
-            if not is_correct_language:
-                print(f"[__create_user_message] response_source is in WRONG language for user_language {user_language}, falling back to translation")
-                print(f"[__create_user_message] response_source preview: '{response_source[:150]}...'")
-                # Fall back to translation from English
-                message_source_text, options, send_related_questions = await self.__create_source_text(
-                    message=message,
-                    response_text=response_en,
-                    query_type=query_type,
-                )
-            else:
-                # Use provided response_source - it's in the correct language
-                message_source_text = response_source
-                options = None
-                send_related_questions = True
-                print(f"[__create_user_message] Using provided response_source directly for language {user_language}: '{message_source_text[:100] if message_source_text else 'None'}...'")
-        print("Options: ", options)
+            # Use provided response_source - it's from canned templates in the correct language
+            message_source_text = response_source
+            options = None
+            send_related_questions = True
+            logger.debug("[__create_user_message] Using provided response_source from canned templates for language %s: '%s...'", user_language, (message_source_text or "")[:100])
+        logger.debug("Options: %s", options)
         end_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Translated response message in {end_time - start_time} seconds")
 
@@ -496,21 +398,21 @@ class ByoebUserGenerateResponse(Handler):
                 try:
                     self.embedding_cache.update(cache_id, cache)
                 except Exception as e:
-                    print(f"Warning: Embedding cache update failed: {e}. Continuing without cache update.")
+                    logger.warning("Embedding cache update failed: %s. Continuing without cache update.", e)
 
         utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
         description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
         message_type = None
         message_category = (default_message_category or MessageCategory.BOT_TO_USER_RESPONSE).value
-        print(f"[__create_user_message] Determining message_type. Incoming message_type: '{message.message_context.message_type}'")
+        logger.debug("[__create_user_message] Determining message_type. Incoming message_type: '%s'", message.message_context.message_type)
         if (message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value):
             message_type = MessageTypes.REGULAR_AUDIO.value
-            print(f"[__create_user_message] Set message_type to REGULAR_AUDIO (incoming was audio)")
+            logger.debug("[__create_user_message] Set message_type to REGULAR_AUDIO (incoming was audio)")
         elif (message.message_context.message_type == MessageTypes.REGULAR_TEXT.value
               or message.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value
               or message.message_context.message_type == MessageTypes.INTERACTIVE_BUTTON.value):
             message_type = MessageTypes.INTERACTIVE_LIST.value
-            print(f"[__create_user_message] Set message_type to INTERACTIVE_LIST (incoming was text/interactive)")
+            logger.debug("[__create_user_message] Set message_type to INTERACTIVE_LIST (incoming was text/interactive)")
         button_reply_additional_info = {}
         interactive_list_additional_info = {}
         text_additional_info = {}
@@ -560,19 +462,18 @@ class ByoebUserGenerateResponse(Handler):
                 # This ensures text responses are sent as text with interactive list (related questions)
                 if message.message_context.message_type != MessageTypes.REGULAR_AUDIO.value:
                     message_type = MessageTypes.INTERACTIVE_LIST.value
-                    print(f"[__create_user_message] Set message_type to INTERACTIVE_LIST (default for non-audio)")
+                    logger.debug("[__create_user_message] Set message_type to INTERACTIVE_LIST (default for non-audio)")
                 else:
                     # If it was an audio message, keep it as audio
                     message_type = MessageTypes.REGULAR_AUDIO.value
-                    print(f"[__create_user_message] Set message_type to REGULAR_AUDIO (default for audio)")
+                    logger.debug("[__create_user_message] Set message_type to REGULAR_AUDIO (default for audio)")
             interactive_list_additional_info = {
                 constants.DESCRIPTION: description,
                 constants.ROW_TEXTS: related_questions,
                 constants.QUERY_TYPE: query_type
             }
         
-        print(f"[__create_user_message] Final message_type: '{message_type}', message_category: '{message_category}'")
-        print(f"[__create_user_message] related_questions count: {len(related_questions) if related_questions else 0}")
+        logger.debug("[__create_user_message] Final message_type: '%s', message_category: '%s'; related_questions count: %s", message_type, message_category, len(related_questions) if related_questions else 0)
         reply_context= self.__create_reply_context(message)
         user_message = ByoebMessageContext(
             channel_type=message.channel_type,
@@ -600,9 +501,7 @@ class ByoebUserGenerateResponse(Handler):
             reply_context=reply_context,
             incoming_timestamp=message.incoming_timestamp,
         )
-        print(f"[__create_user_message] Final message - category: {user_message.message_category}")
-        print(f"  source_text (user language): '{user_message.message_context.message_source_text[:100] if user_message.message_context.message_source_text else 'None'}...'")
-        print(f"  english_text (internal): '{user_message.message_context.message_english_text[:100] if user_message.message_context.message_english_text else 'None'}...'")
+        logger.debug("[__create_user_message] Final message - category: %s; source_text: '%s...'; english_text: '%s...'", user_message.message_category, (user_message.message_context.message_source_text or "")[:100], (user_message.message_context.message_english_text or "")[:100])
         return user_message
     
     def __create_expert_verification_message(
@@ -845,10 +744,8 @@ class ByoebUserGenerateResponse(Handler):
             )
         elif (utils.is_onboard(message.message_context.message_source_text, message.user.user_language) or
               utils.is_onboard(message.message_context.message_english_text or "", message.user.user_language)):
-            print(f"Is onboard message - returning already registered response")
-            print(f"  message_source_text: '{message.message_context.message_source_text}'")
-            print(f"  message_english_text: '{message.message_context.message_english_text}'")
-            print(f"  user_language: '{message.user.user_language}'")
+            logger.info("Is onboard message - returning already registered response (user_language=%s)", message.user.user_language)
+            logger.debug("  message_source_text: '%s'; message_english_text: '%s'", message.message_context.message_source_text, message.message_context.message_english_text)
             # Import constants for onboarding messages
             from byoeb.constants.onboarding_text import ALREADY_REGISTERED_DICT, THANK_YOU_DICT, RELATED_QUESTIONS
             from byoeb.constants.user_enums import UserType, LanguageCode
@@ -856,13 +753,11 @@ class ByoebUserGenerateResponse(Handler):
             user_language = message.user.user_language
             user_type = message.user.user_type or UserType.ASHA.value
             
-            print(f"  user_language: '{user_language}', user_type: '{user_type}'")
-            print(f"  Available languages in ALREADY_REGISTERED_DICT: {list(ALREADY_REGISTERED_DICT.keys())}")
-            print(f"  Available languages in THANK_YOU_DICT[{user_type}]: {list(THANK_YOU_DICT.get(user_type, {}).keys())}")
+            logger.debug("  user_language: %s, user_type: %s; ALREADY_REGISTERED_DICT keys: %s; THANK_YOU_DICT[%s] keys: %s", user_language, user_type, list(ALREADY_REGISTERED_DICT.keys()), user_type, list(THANK_YOU_DICT.get(user_type, {}).keys()))
             
             # Get the "already registered" message in user's language
             already_registered_msg = ALREADY_REGISTERED_DICT.get(user_language, ALREADY_REGISTERED_DICT[LanguageCode.ENGLISH.value])
-            print(f"  Retrieved already_registered_msg: '{already_registered_msg[:50]}...'")
+            logger.debug("  Retrieved already_registered_msg: '%s...'", (already_registered_msg or "")[:50])
             
             # Get the thank you message from THANK_YOU_DICT
             # Fallback: OTHERS -> ASHA -> English
@@ -870,18 +765,18 @@ class ByoebUserGenerateResponse(Handler):
                 thank_you_msg = THANK_YOU_DICT[user_type].get(user_language, THANK_YOU_DICT[user_type].get(LanguageCode.ENGLISH.value, ""))
             else:
                 # For user types not in dict (like OTHERS), use ASHA messages
-                print(f"  User type '{user_type}' not in THANK_YOU_DICT, falling back to ASHA messages")
+                logger.debug("  User type '%s' not in THANK_YOU_DICT, falling back to ASHA messages", user_type)
                 thank_you_msg = THANK_YOU_DICT[UserType.ASHA.value].get(user_language, THANK_YOU_DICT[UserType.ASHA.value].get(LanguageCode.ENGLISH.value, ""))
-            print(f"  Retrieved thank_you_msg: '{thank_you_msg[:50]}...'")
+            logger.debug("  Retrieved thank_you_msg: '%s...'", (thank_you_msg or "")[:50])
             
             # Combine messages
             response_text = f"{already_registered_msg} {thank_you_msg}"
             
-            print(f"  Constructed response_text in {user_language}: '{response_text[:100]}...'")
+            logger.debug("  Constructed response_text in %s: '%s...'", user_language, (response_text or "")[:100])
             
             # Use static RELATED_QUESTIONS instead of dynamic fetching
             related_questions = RELATED_QUESTIONS["questions"].get(user_language, RELATED_QUESTIONS["questions"][LanguageCode.ENGLISH.value])
-            print(f"  Using static related_questions: {related_questions}")
+            logger.debug("  Using static related_questions: %s", related_questions)
             
             # Translate response to English for response_en (needed for internal processing)
             # If translation fails, use a simple fallback
@@ -908,17 +803,15 @@ class ByoebUserGenerateResponse(Handler):
                 query_type=query_type,
                 related_questions=related_questions
             )
-            print(f"  Created user message with source_text: '{byoeb_user_message.message_context.message_source_text[:100] if byoeb_user_message.message_context.message_source_text else 'None'}...'")
+            logger.debug("  Created user message with source_text: '%s...'", (byoeb_user_message.message_context.message_source_text or "")[:100])
         else:
             # Normal message flow - not AUDIO_IDK and not onboarding
-            print(f"[generate] Processing normal message")
-            print(f"  message_source_text: '{message.message_context.message_source_text[:100] if message.message_context.message_source_text else 'None'}...'")
-            print(f"  message_english_text: '{message.message_context.message_english_text[:100] if message.message_context.message_english_text else 'None'}...'")
-            print(f"  user_language: '{message.user.user_language}'")
+            logger.info("[generate] Processing normal message (user_language=%s)", message.user.user_language)
+            logger.debug("  message_source_text: '%s...'; message_english_text: '%s...'", (message.message_context.message_source_text or "")[:100], (message.message_context.message_english_text or "")[:100])
             
             message_english = message.message_context.message_english_text
             if not message_english:
-                print(f"[generate] WARNING: message_english_text is None or empty, using message_source_text as fallback")
+                logger.warning("[generate] message_english_text is None or empty, using message_source_text as fallback")
                 message_english = message.message_context.message_source_text
             
             user_language = message.user.user_language
@@ -954,7 +847,7 @@ class ByoebUserGenerateResponse(Handler):
                 else:
                     query_expansions_queries = await self.agenerate_expansion_queries(message_english, retrieved_chunks)
                     query_expansion_search_ops = [(None, AzureVectorSearchType.HYBRID.value, 3), (None, AzureVectorSearchType.DENSE.value, 3)]
-                    print("Response is IDK, attempting query expansion:", query_expansions_queries)
+                    logger.debug("Response is IDK, attempting query expansion: %s", query_expansions_queries)
                     for q in query_expansions_queries:
                         try:
                             response_en2, response_source2, tokens2, retrieved_chunks2 = await self.agenerate_answer(user_language, q, self._asha_work_related, query_expansion_search_ops)
@@ -985,7 +878,7 @@ class ByoebUserGenerateResponse(Handler):
                         cache_result = self.embedding_cache.store(embedding, cache_val)
                         cache_result = miss_thresh, *cache_result[1:]
                     except Exception as e:
-                        print(f"Warning: Embedding cache store failed: {e}. Continuing without cache.")
+                        logger.warning("Embedding cache store failed: %s. Continuing without cache.", e)
                         cache_result = None, None, None
                 else:
                     cache_result = None, None, None
@@ -1020,21 +913,21 @@ class ByoebUserGenerateResponse(Handler):
         # print("Created expert message")
 
         # Aggregate all messages
-        print(f"[GENERATE] byoeb_user_message: {clean_message_for_console(byoeb_user_message)}")
-        print(f"[GENERATE] byoeb_expert_message: {clean_message_for_console(byoeb_expert_message) if byoeb_expert_message else byoeb_expert_message}")
-        print(f"[GENERATE] read_reciept_message: {clean_message_for_console(read_reciept_message)}")
+        logger.debug("[GENERATE] byoeb_user_message: %s", clean_message_for_console(byoeb_user_message))
+        logger.debug("[GENERATE] byoeb_expert_message: %s", clean_message_for_console(byoeb_expert_message) if byoeb_expert_message else byoeb_expert_message)
+        logger.debug("[GENERATE] read_reciept_message: %s", clean_message_for_console(read_reciept_message))
         
         if byoeb_user_message is not None:
             byoeb_messages.append(byoeb_user_message)
-            print(f"[GENERATE] Added user message to list")
+            logger.debug("[GENERATE] Added user message to list")
         if byoeb_expert_message is not None:
             byoeb_messages.append(byoeb_expert_message)
-            print(f"[GENERATE] Added expert message to list")
+            logger.debug("[GENERATE] Added expert message to list")
         if read_reciept_message is not None:
             byoeb_messages.append(read_reciept_message)
-            print(f"[GENERATE] Added read receipt message to list")
+            logger.debug("[GENERATE] Added read receipt message to list")
             
-        print(f"[GENERATE] Final byoeb_messages count: {len(byoeb_messages)}")
+        logger.info("[GENERATE] Final byoeb_messages count: %s", len(byoeb_messages))
         return byoeb_messages
     
     async def handle(

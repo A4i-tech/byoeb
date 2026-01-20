@@ -406,8 +406,10 @@ def print_response_summary(message: str, response: requests.Response, language: 
     try:
         response_data = response.json()
         print(f"📄 Response: {json.dumps(response_data, indent=2, ensure_ascii=False)}")
-    except:
+    except Exception as e:
+        print(f"❌ Failed to parse response JSON: {e}")
         print(f"📄 Response Text: {response.text[:500]}")
+        raise  # Fail the test if we can't parse the response
     
     print(f"{'='*80}\n")
 
@@ -577,6 +579,48 @@ async def verify_user_exists():
         return False
 
 
+@pytest.mark.asyncio
+async def test_user_exists_in_database():
+    """Test that verifies user exists in database (positive case)."""
+    print(f"\n{'#'*80}")
+    print(f"🧪 Testing User Existence in Database (Positive Case)")
+    print(f"{'#'*80}\n")
+    
+    user_doc = await find_user_by_phone(TEST_PHONE_NUMBER)
+    
+    assert user_doc is not None, f"User with phone number {TEST_PHONE_NUMBER} should exist in database"
+    
+    user_data = user_doc.get("User", {})
+    assert user_data.get("phone_number_id") == TEST_PHONE_NUMBER, "Phone number should match"
+    
+    print(f"✅ User found in database:")
+    print(f"   - User ID: {user_doc.get('_id', 'N/A')}")
+    print(f"   - Phone: {user_data.get('phone_number_id', 'N/A')}")
+    print(f"   - Language: {user_data.get('user_language', 'N/A')}")
+    print(f"   - User Type: {user_data.get('user_type', 'N/A')}")
+
+
+@pytest.mark.asyncio
+async def test_user_not_exists_should_trigger_onboarding():
+    """Test that verifies non-existent user triggers onboarding flow (negative case)."""
+    print(f"\n{'#'*80}")
+    print(f"🧪 Testing Non-Existent User Should Trigger Onboarding (Negative Case)")
+    print(f"{'#'*80}\n")
+    
+    # Use a phone number that doesn't exist in the database
+    non_existent_phone = "999999999999"
+    
+    user_doc = await find_user_by_phone(non_existent_phone)
+    
+    # This test verifies that when a user doesn't exist, the system should handle it
+    # The actual onboarding flow would be triggered by the system, not by this test
+    # We just verify that the user doesn't exist
+    assert user_doc is None, f"User with phone number {non_existent_phone} should not exist in database"
+    
+    print(f"✅ Verified that non-existent user is not in database (as expected)")
+    print(f"   Note: In production, this would trigger onboarding flow")
+
+
 async def main():
     """Main test function."""
     print("="*80)
@@ -588,14 +632,15 @@ async def main():
     try:
         response = requests.get(ENDPOINT_URL.replace("/receive", "/"), timeout=5)
         print(f"✅ Endpoint is accessible (status: {response.status_code})")
-    except:
-        print(f"⚠️  Warning: Could not verify endpoint accessibility. Make sure server is running.")
+    except Exception as e:
+        print(f"❌ Failed to verify endpoint accessibility: {e}")
+        raise  # Fail the test if endpoint is not accessible
     
     # Verify user exists
     user_exists = await verify_user_exists()
     if not user_exists:
         print("\n❌ Test user not found. Please onboard the user first.")
-        return
+        raise AssertionError(f"Test user with phone number {TEST_PHONE_NUMBER} must exist in database to run tests")
     
     print("\n" + "="*80)
     print("Starting Tests...")

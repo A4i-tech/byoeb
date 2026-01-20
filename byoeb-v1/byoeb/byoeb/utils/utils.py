@@ -1,11 +1,14 @@
 import hashlib
 import json
+import logging
 import os
 import re
 from typing import Iterable, List, TypeVar
 from urllib.parse import unquote
 
 from byoeb.constants.onboarding_text import ONBOARD_WELCOME_MESSAGE_DICT
+
+logger = logging.getLogger(__name__)
 from byoeb.constants.user_enums import LanguageCode
 from byoeb_core.models.byoeb.user import PhoneNumberId
 from fastmcp.server.dependencies import get_http_request
@@ -64,7 +67,7 @@ def is_onboard(
 ):
     # Safety check: if text is None or empty, return False
     if not text or not isinstance(text, str):
-        print(f"[is_onboard] Invalid text input: {text} (type: {type(text)})")
+        logger.debug("[is_onboard] Invalid text input: %s (type: %s)", text, type(text).__name__)
         return False
     
     original_text = text
@@ -86,11 +89,11 @@ def is_onboard(
         if check_lang == LanguageCode.ENGLISH.value:
             # Normalize text: lowercase, replace hyphens with spaces, normalize whitespace
             text_normalized = normalize_whitespace(text.lower().replace("-", " "))
-            print(f"[is_onboard] English text normalized: '{text}' -> '{text_normalized}'")
+            logger.debug("[is_onboard] English text normalized: '%s' -> '%s'", text, text_normalized)
         else:
             # For non-English, just replace hyphens and normalize whitespace, keep original case
             text_normalized = normalize_whitespace(text.replace("-", " "))
-            print(f"[is_onboard] Non-English text normalized: '{text}' -> '{text_normalized}'")
+            logger.debug("[is_onboard] Non-English text normalized: '%s' -> '%s'", text, text_normalized)
         
         # Check if any phrase exists in text (case-insensitive for English, exact match for others)
         is_english = check_lang == LanguageCode.ENGLISH.value
@@ -101,25 +104,25 @@ def is_onboard(
             if is_english:
                 phrase_normalized = phrase_normalized.lower()
             
-            print(f"[is_onboard] Comparing {check_lang} phrase '{phrase}' (normalized: '{phrase_normalized}') in text '{text_normalized}' -> {phrase_normalized in text_normalized}")
+            logger.debug("[is_onboard] Comparing %s phrase '%s' in text '%s' -> %s", check_lang, phrase, text_normalized, phrase_normalized in text_normalized)
             if phrase_normalized in text_normalized:
-                print(f"[is_onboard] ✓ Matched {check_lang} phrase '{phrase}' in text '{original_text}'")
+                logger.debug("[is_onboard] ✓ Matched %s phrase '%s' in text '%s'", check_lang, phrase, original_text)
                 return True
         
         return False
     
     # If lang is None, try all languages (handles cases where user_language is not set)
     if lang is None:
-        print(f"[is_onboard] Language is None, trying all languages")
+        logger.debug("[is_onboard] Language is None, trying all languages")
         for available_lang in ONBOARD_WELCOME_MESSAGE_DICT.keys():
             if check_language(available_lang):
                 return True
-        print(f"[is_onboard] ✗ No match found in any language. original_text='{original_text}'")
+        logger.debug("[is_onboard] ✗ No match found in any language. original_text='%s'", original_text)
         return False
-    
+
     # If lang is explicitly set but not supported, return False
     if lang not in ONBOARD_WELCOME_MESSAGE_DICT:
-        print(f"[is_onboard] Language '{lang}' not in ONBOARD_WELCOME_MESSAGE_DICT")
+        logger.debug("[is_onboard] Language '%s' not in ONBOARD_WELCOME_MESSAGE_DICT", lang)
         return False
     
     # Check the specified language first
@@ -128,13 +131,13 @@ def is_onboard(
     
     # If no match in the specified language, try all other languages as a fallback
     # This handles cases where user_language is set incorrectly
-    print(f"[is_onboard] No match in {lang}, trying other languages as fallback")
+    logger.debug("[is_onboard] No match in %s, trying other languages as fallback", lang)
     for available_lang in ONBOARD_WELCOME_MESSAGE_DICT.keys():
         if available_lang != lang:  # Don't recheck the same language
             if check_language(available_lang):
                 return True
-    
-    print(f"[is_onboard] ✗ No match found in any language. lang={lang}, original_text='{original_text}'")
+
+    logger.debug("[is_onboard] ✗ No match found in any language. lang=%s, original_text='%s'", lang, original_text)
     return False
 
 T = TypeVar("T")
