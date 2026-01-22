@@ -80,7 +80,7 @@ class UserRepository(BaseRepository, ABC):
         pass
 
     @abstractmethod
-    async def update_user_activity_timestamp(self, user_id: str, timestamp: Union[int, datetime]) -> bool:
+    async def update_user_activity_timestamp(self, user_id: str, timestamp: datetime) -> bool:
         """Update user's activity timestamp."""
         pass
 

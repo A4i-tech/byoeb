@@ -89,11 +89,7 @@ class MongoUserRepository(UserRepository, MongoBaseRepository):
         }
         return self.find_all(filter_dict)
 
-    async def update_user_activity_timestamp(self, user_id: str, timestamp: Union[int, datetime]) -> bool:
-        # Convert int timestamp to datetime if needed (for backward compatibility)
-        if isinstance(timestamp, int):
-            timestamp = datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
-        
+    async def update_user_activity_timestamp(self, user_id: str, timestamp: datetime) -> bool:
         filter_dict = {"_id": user_id}
         update_dict = {"$set": {"User.activity_timestamp": timestamp}}
         return await self.update_one(filter_dict, update_dict)

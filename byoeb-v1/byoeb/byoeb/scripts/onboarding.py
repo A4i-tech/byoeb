@@ -5,7 +5,7 @@ import logging
 import re
 import pandas as pd
 import requests
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import List, Optional
 
 from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
@@ -239,6 +239,34 @@ async def send_welcome_messages_to_users(
     logger.info("Welcome message summary: Success=%s Failed=%s Total=%s", success_count, failure_count, len(registered_users))
 
 
+def _convert_to_date(timestamp_value) -> Optional[date]:
+    """
+    Convert created_timestamp to date, handling both datetime and int types.
+    
+    Args:
+        timestamp_value: Can be a datetime object, int (epoch timestamp), or None
+        
+    Returns:
+        date object or None
+    """
+    if timestamp_value is None:
+        return None
+    
+    if isinstance(timestamp_value, datetime):
+        return timestamp_value.date()
+    elif isinstance(timestamp_value, int):
+        return datetime.fromtimestamp(timestamp_value, tz=timezone.utc).date()
+    elif isinstance(timestamp_value, str):
+        # Handle string timestamps for backward compatibility
+        try:
+            int_value = int(timestamp_value)
+            return datetime.fromtimestamp(int_value, tz=timezone.utc).date()
+        except (ValueError, TypeError):
+            return None
+    else:
+        return None
+
+
 def main():
     parser = argparse.ArgumentParser(description="Upload users from Excel files.")
     parser.add_argument("--file", required=True, help="Input Excel file path.")
@@ -344,7 +372,7 @@ def main():
         	"location": user_data.get("user_location"),
         	"user_type": user_data.get("user_type"),
         	"test_user": str(user_data.get("test_user")),
-        	"onboarding_date": datetime.fromtimestamp(int(user_data.get("created_timestamp", 0))).date() if user_data.get("created_timestamp") else None,
+        	"onboarding_date": _convert_to_date(user_data.get("created_timestamp")),
 		    "language":user_data.get("user_language")
         } for user_data in users])
         df.to_excel(args.sheet, index=False)
