@@ -410,6 +410,7 @@ from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 import pymongo
+from pymongo.uri_parser import parse_uri
 from byoeb.chat_app.configuration.config import env_mongo_db_connection_string
 
 # MongoDB connection configuration for scheduler job store
@@ -420,8 +421,10 @@ MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
 mongodb_client = pymongo.MongoClient(MONGODB_URL)
 
 # Extract database name from connection string
-from byoeb.factory.mongo_db import extract_database_name_from_connection_string
-MONGODB_DATABASE = extract_database_name_from_connection_string(MONGODB_URL)
+db_name = parse_uri(MONGODB_URL)["database"]
+if db_name is None:
+    raise RuntimeError("Database name must be specified in the mongodb connection string")
+MONGODB_DATABASE = db_name
 
 mongodb_jobstore = MongoDBJobStore(
     database=MONGODB_DATABASE,
