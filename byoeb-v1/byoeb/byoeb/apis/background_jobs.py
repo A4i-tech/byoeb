@@ -50,7 +50,7 @@ JOB_CONFIGURATIONS = [
     JobInfo(
         id="consensus_responder",
         name="Respond with Consensus",
-        trigger=CronTrigger.from_crontab("*/30 * * * *", timezone=TIMEZONE),  # Every 30 minutes
+        trigger=CronTrigger.from_crontab("*/30 8-20 * * *", timezone=TIMEZONE),  # Every 30 minutes, 8 AM - 8 PM IST
         function=respond_with_consensus,
         enabled=True
     ),
