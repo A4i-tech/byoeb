@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional, AsyncIterator
+from typing import Dict, Any, Optional, AsyncIterator, List, Tuple
 from byoeb.repositories.message_repository import MessageRepository
 from byoeb.repositories.mongodb_base_repository import MongoBaseRepository
 
@@ -8,7 +8,8 @@ class MongoMessageRepository(MessageRepository, MongoBaseRepository):
                                         start_timestamp: int, 
                                         end_timestamp: int,
                                         message_categories: Optional[list[str]] = None,
-                                        projection: Optional[Dict[str, Any]] = None) -> AsyncIterator[Dict[str, Any]]:
+                                        projection: Optional[Dict[str, Any]] = None,
+                                        sort: Optional[List[Tuple[str, int]]] = None) -> AsyncIterator[Dict[str, Any]]:
         filter_dict = {
             "message_data.incoming_timestamp": {
                 "$gte": start_timestamp, 
@@ -19,7 +20,7 @@ class MongoMessageRepository(MessageRepository, MongoBaseRepository):
         if message_categories:
             filter_dict["message_data.message_category"] = {"$in": message_categories}
 
-        return self.find_all(filter_dict, projection)
+        return self.find_all(filter_dict, projection, sort=sort)
 
     async def find_messages_by_user_ids(self, 
                                       user_ids: list[str],

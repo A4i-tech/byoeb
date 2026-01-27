@@ -41,7 +41,7 @@ class MessageMongoDBService(BaseMongoDBService):
             return None
         loc = getattr(user_obj, "user_location", None) or {}
         dist = loc.get("district") if hasattr(loc, "get") else getattr(loc, "district", None)
-        return str(dist).strip() if dist and str(dist).strip().lower() != "unknown" else None
+        return str(dist).strip().title() if dist and str(dist).strip().lower() != "unknown" else None
 
     async def build_district_leaderboard(
         self, 

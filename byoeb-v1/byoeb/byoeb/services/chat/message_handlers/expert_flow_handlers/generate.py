@@ -343,7 +343,7 @@ class ByoebExpertGenerateResponse(Handler):
         #         correction
         #     )
         #     augmented_prompts = self.__augment(user_prompt)
-        #     llm_response, response_text = await llm_client.agenerate_response(augmented_prompts)
+        #     llm_response, response_text = await llm_client.generate_response(augmented_prompts)
         #     print("Corrected answer: ", response_text)
         #     byoeb_expert_messages = self.__create_expert_message(
         #         self.EXPERT_THANK_YOU_MESSAGE,

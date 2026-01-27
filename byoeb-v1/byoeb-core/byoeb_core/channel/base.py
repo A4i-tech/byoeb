@@ -13,7 +13,7 @@ class BaseChannelRegister(ABC):
 
 class BaseChannel(ABC):
     @abstractmethod
-    def send_message(
+    async def send_message(
         self,
         message: Any,
         **kwargs
@@ -21,7 +21,14 @@ class BaseChannel(ABC):
         pass
 
     @abstractmethod
-    async def asend_message(
+    async def receive_message(
+        self,
+        **kwargs
+    ) -> Any:
+        pass
+
+    @abstractmethod
+    async def reply_to_message(
         self,
         message: Any,
         **kwargs
@@ -29,29 +36,7 @@ class BaseChannel(ABC):
         pass
 
     @abstractmethod
-    def recieve_message(
-        self,
-        **kwargs
-    ) -> Any:
-        pass
-
-    @abstractmethod
-    async def arecieve_message(
-        self,
-        **kwargs
-    ) -> Any:
-        pass
-
-    @abstractmethod
-    async def areply_to_message(
-        self,
-        message: Any,
-        **kwargs
-    ) -> Any:
-        pass
-
-    @abstractmethod
-    async def asend_reaction(
+    async def send_reaction(
         self,
         reactions,
         **kwargs
@@ -59,7 +44,7 @@ class BaseChannel(ABC):
         pass
 
     @abstractmethod
-    async def asend_template(
+    async def send_template(
         self,
         template: Any,
         **kwargs
@@ -67,14 +52,14 @@ class BaseChannel(ABC):
         pass
 
     @abstractmethod
-    async def asend_poll(
+    async def send_poll(
         self,
         poll: Any,
         **kwargs
     ) -> Any:
         pass
 
-    async def asend_interactive_message(
+    async def send_interactive_message(
         self,
         message: Any,
         **kwargs

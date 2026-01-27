@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, Dict, Any, Optional
+from typing import AsyncIterator, Dict, Any, Optional, List, Tuple
 
 from byoeb.repositories.base_repository import BaseRepository
 
@@ -11,8 +11,9 @@ class MessageRepository(BaseRepository, ABC):
                                         start_timestamp: int, 
                                         end_timestamp: int,
                                         message_categories: Optional[list[str]] = None,
-                                        projection: Optional[Dict[str, Any]] = None) -> AsyncIterator[Dict[str, Any]]:
-        """Stream messages within a specific time range with optional category filtering."""
+                                        projection: Optional[Dict[str, Any]] = None,
+                                        sort: Optional[List[Tuple[str, int]]] = None) -> AsyncIterator[Dict[str, Any]]:
+        """Stream messages within a specific time range with optional category filtering and sorting."""
         pass
 
     @abstractmethod

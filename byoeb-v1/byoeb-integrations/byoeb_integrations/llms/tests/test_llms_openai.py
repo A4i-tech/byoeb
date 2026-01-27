@@ -44,7 +44,7 @@ async def test_llama_index_openai(llm_llama):
     msg = "Hello, how are you?"
     prompt = [{"role": "system", "content": "You are a helpful assistant."}]
     prompt.append({"role": "user", "content": msg})
-    llm_resp, response = await llm_llama.agenerate_response(
+    llm_resp, response = await llm_llama.generate_response(
         prompts=prompt
     )
     print (response)
