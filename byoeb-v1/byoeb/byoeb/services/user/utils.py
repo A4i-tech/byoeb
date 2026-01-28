@@ -1,6 +1,6 @@
 import hashlib
 from byoeb_core.models.byoeb.user import User
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 def get_experts_numbers(
     experts: Dict[str, List[str]]
@@ -82,3 +82,63 @@ def get_delete_messages(
                 "message": "Deleted successfully"
             })
     return messages
+
+def get_user_district(user) -> Optional[str]:
+    """
+    Extract district from user object.
+    
+    Args:
+        user: User object (can be None, dict, or object with user_location attribute)
+        
+    Returns:
+        Optional[str]: District name or None if not found/unknown
+    """
+    if not user:
+        return None
+    loc = getattr(user, "user_location", None) or {}
+    if isinstance(loc, dict):
+        dist = loc.get("district") or loc.get("District")
+    else:
+        dist = getattr(loc, "district", None) or getattr(loc, "District", None)
+    if dist:
+        dist_str = str(dist).strip()
+        if dist_str.lower() not in ["unknown", "none", ""]:
+            return dist_str.title()
+    return None
+
+def get_user_block(user) -> Optional[str]:
+    """
+    Extract block from user object.
+    
+    Args:
+        user: User object (can be None, dict, or object with user_location attribute)
+        
+    Returns:
+        Optional[str]: Block name or None if not found/unknown
+    """
+    if not user:
+        return None
+    loc = getattr(user, "user_location", None) or {}
+    if isinstance(loc, dict):
+        block = loc.get("block") or loc.get("Block")
+    else:
+        block = getattr(loc, "block", None) or getattr(loc, "Block", None)
+    if block:
+        block_str = str(block).strip()
+        if block_str.lower() not in ["unknown", "none", ""]:
+            return block_str.title()
+    return None
+
+def has_location_info(user) -> bool:
+    """
+    Check if user has valid district and block information.
+    
+    Args:
+        user: User object
+        
+    Returns:
+        bool: True if user has both district and block, False otherwise
+    """
+    district = get_user_district(user)
+    block = get_user_block(user)
+    return district is not None and block is not None

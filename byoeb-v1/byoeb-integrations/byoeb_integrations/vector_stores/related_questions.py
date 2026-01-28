@@ -13,7 +13,7 @@ async def aget_related_questions(
 
     prompt = [{"role": "system", "content": system_prompt}]
     prompt.append({"role": "user", "content": text})
-    llm_response, resp = await llm_client.agenerate_response(prompt)
+    llm_response, resp = await llm_client.generate_response(prompt)
     related_questions = re.findall(r"<q_\d+>(.*?)</q_\d+>", resp)
     related_questions_dict["en"] = related_questions
 
@@ -29,7 +29,7 @@ async def aget_related_questions(
         """
         prompt = [{"role": "system", "content": translation_prompt}]
         prompt.append({"role": "user", "content": user_prompt})
-        llm_response, resp = await llm_client.agenerate_response(prompt)
+        llm_response, resp = await llm_client.generate_response(prompt)
         related_questions = re.findall(r"<q_\d+>(.*?)</q_\d+>", resp)
         related_questions_dict[lang] = related_questions
     

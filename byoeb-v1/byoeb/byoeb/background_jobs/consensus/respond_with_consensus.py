@@ -4,6 +4,7 @@ import os
 import sys
 import threading
 import datetime
+from zoneinfo import ZoneInfo
 from byoeb.services.chat import constants
 from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
 from byoeb.services.databases.mongo_db.user_db import UserMongoDBService
@@ -29,6 +30,7 @@ from byoeb.background_jobs.consensus.consensus_prompt import consensus_prompt
 EXPERT_TYPE = "anm"
 CONSENSUS = "consensus"
 CONSENSUS_THRESHOLD = 1
+TIMEZONE = ZoneInfo("Asia/Kolkata")
 max_last_active_duration_seconds: int = app_config["app"]["max_last_active_duration_seconds"]
 
 def consensus_timeout(
@@ -160,7 +162,7 @@ async def agenerate_consensus_response(
     <END_STRUCT>, do not include anything else.
     '''
     prompt.append({"role": "user", "content": str(query_prompt)})
-    resp, text = await llm_client.agenerate_response(prompt)
+    resp, text = await llm_client.generate_response(prompt)
     parsed_response = parse_struct(text)
     print("Parsed response", parsed_response)
     consensus_answer = parsed_response.get("consensus_answer")
@@ -174,10 +176,14 @@ async def process_consensus_responses(
     message_db_service: MessageMongoDBService,
     user_db_service: UserMongoDBService,
     whatsapp_service: WhatsAppService
-):
+) -> bool:
+    """
+    Process consensus responses for a message.
+    Returns True if consensus was found and sent to user, False otherwise.
+    """
     consensus_info_list = message.message_context.additional_info.get(constants.CONSENSUS, None)
     if not consensus_info_list:
-        return
+        return False
     expert_consensus_message_ids = []
     for consensus_info in consensus_info_list:
         consensus = Consensus(**consensus_info)
@@ -190,25 +196,27 @@ async def process_consensus_responses(
         if not isinstance(expert_consensus_message, ByoebMessageContext):
             continue
         response = expert_consensus_message.message_context.additional_info.get(constants.CORRECTION_SOURCE)
-        response_messages.append(response)
+        if response:  # Only add non-empty responses
+            response_messages.append(response)
         consensus.status = constants.RESOLVED
         updated_consensus_list.append(consensus.model_dump())
     message.message_context.additional_info[constants.CONSENSUS] = updated_consensus_list
     if len(response_messages) < CONSENSUS_THRESHOLD:
-        return
+        return False
     consensus_en_response, consensus_response, has_consensus = await agenerate_consensus_response(
         message.reply_context.reply_english_text,
         response_messages,
         message.user.user_language
     )
     if not has_consensus:
-        return
+        return False
     user_message = await create_user_message(message, consensus_response)
     message_ids = await send_consensus_response(whatsapp_service, user_message)
     user_db_queries = await create_user_db_queries(message, user_db_service, user_message.user.user_id, consensus_en_response)
     message_db_queries = create_message_db_queries(has_consensus, message, message_db_service, consensus_response)
     await user_db_service.execute_queries(user_db_queries)
     await message_db_service.execute_queries(message_db_queries)
+    return True
     
 
 async def process_queries_consensus(
@@ -216,16 +224,44 @@ async def process_queries_consensus(
     user_db_service: UserMongoDBService,
     whatsapp_service: WhatsAppService
 ):
+    """
+    Process queries waiting for consensus responses.
+    Only sends messages during business hours (8 AM - 8 PM IST).
+    Only sends timeout messages if no consensus answer was found.
+    """
     waiting_status = constants.WAITING
+    current_time = datetime.datetime.now(TIMEZONE)
+    current_hour = current_time.hour
+    
+    # Only process during business hours (8 AM - 8 PM IST)
+    if current_hour < 8 or current_hour >= 20:
+        return
+    
     async for message in message_db_service.get_bot_messages_by_status(waiting_status):
-        if consensus_timeout(message.outgoing_timestamp):
-            timeout_message = bot_config["template_messages"]["user"]["consensus"]["timeout"][message.user.user_language]
-            user_message = await create_user_message(message, timeout_message)
-            await send_consensus_response(whatsapp_service, user_message)
-            message_db_queries = create_message_db_queries(False, message, message_db_service)
-            await message_db_service.execute_queries(message_db_queries)
-        else:
-            await process_consensus_responses(message, message_db_service, user_db_service, whatsapp_service)
+        # Check current status to avoid processing messages that are already resolved or timed out
+        current_status = message.message_context.additional_info.get(constants.STATUS)
+        if current_status in [constants.RESOLVED, constants.TIMEOUT]:
+            # Skip messages that are already resolved or timed out
+            continue
+        
+        # First, try to process consensus responses
+        # This will return True if consensus was found and sent
+        consensus_found = await process_consensus_responses(
+            message, message_db_service, user_db_service, whatsapp_service
+        )
+        # Only send timeout message if:
+        # 1. Message has timed out (>4.5 hours)
+        # 2. No consensus answer was found
+        # If no consensus was found and message has timed out, mark it as TIMEOUT
+        # but do NOT send another message to the user (they already received IDK message initially)
+        if consensus_timeout(message.outgoing_timestamp) and not consensus_found:
+            # Double-check status hasn't changed (race condition protection)
+            current_status = message.message_context.additional_info.get(constants.STATUS)
+            if current_status == constants.WAITING:
+                # Just update the status to TIMEOUT without sending any message to user
+                # The user already received the initial IDK message, no need to send timeout message
+                message_db_queries = create_message_db_queries(False, message, message_db_service)
+                await message_db_service.execute_queries(message_db_queries)
 
 async def main():
     from byoeb.chat_app.configuration.dependency_setup import (

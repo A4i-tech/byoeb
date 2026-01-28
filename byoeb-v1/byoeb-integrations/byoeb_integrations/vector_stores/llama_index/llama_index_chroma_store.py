@@ -51,7 +51,7 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         vector_store_index = self.__get_or_create_store()
         vector_store_index.delete_nodes(ids)
 
-    def add_chunks(
+    def _add_chunks_sync(
         self,
         data_chunks: list, 
         metadata: list,
@@ -68,7 +68,7 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         vector_store_index.insert_nodes(nodes)
         return [c.node_id for c in nodes]
 
-    async def aadd_chunks(
+    async def add_chunks(
         self,
         data_chunks,
         metadata,
@@ -76,7 +76,7 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         batch_size: int = 100,
         **kwargs
     ):
-        """Async wrapper for add_chunks to avoid blocking the event loop."""
+        """Async implementation using run_in_executor to avoid blocking the event loop."""
         import asyncio
         from functools import partial
         try:
@@ -84,11 +84,11 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         except RuntimeError:
             loop = None
 
-        # Use functools.partial to pass keyword arguments to add_chunks when
+        # Use functools.partial to pass keyword arguments to _add_chunks_sync when
         # running in an executor. Passing batch_size as a positional arg caused
-        # a TypeError in callers because add_chunks does not accept extra
+        # a TypeError in callers because _add_chunks_sync does not accept extra
         # positional params.
-        func = partial(self.add_chunks, data_chunks=data_chunks, metadata=metadata, ids=ids, batch_size=batch_size, **kwargs)
+        func = partial(self._add_chunks_sync, data_chunks=data_chunks, metadata=metadata, ids=ids, batch_size=batch_size, **kwargs)
 
         if loop is None:
             result = func()
@@ -97,30 +97,31 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         for id in result:
             yield id
 
-    def update_chunks(
+    async def update_chunks(
         self,
         data_chunks: list,
         metadata: list,
         ids: list,
         **kwargs
     ):
-        self.collection.update(documents=data_chunks, metadatas=metadata, ids=ids)
+        import asyncio
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: self.collection.update(documents=data_chunks, metadatas=metadata, ids=ids)
+        )
     
-    def delete_chunks(
+    async def delete_chunks(
         self,
         ids: list,
         **kwargs
-    ):
-        self.delete_nodes(ids)
-    
-    async def adelete_chunks(
-        self,
-        ids: list,
-        **kwargs
-    ):
-        self.delete_nodes(ids)
+    ) -> int:
+        import asyncio
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, lambda: self.delete_nodes(ids))
+        return len(ids)
 
-    def retrieve_top_k_chunks(
+    def _retrieve_top_k_chunks_sync(
         self,
         text: str,
         k: int,
@@ -140,7 +141,7 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
             chunk_list.append(chunk)
         return chunk_list
     
-    async def aretrieve_top_k_chunks(
+    async def retrieve_top_k_chunks(
         self,
         text: str,
         k: int,
@@ -160,8 +161,8 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
             chunk_list.append(chunk)
         return chunk_list
 
-    async def aretrieve_similar_chunks(self, text: str) -> List[Chunk]:
-        return await self.aretrieve_top_k_chunks(text=text, k=1)
+    async def retrieve_similar_chunks(self, text: str) -> List[Chunk]:
+        return await self.retrieve_top_k_chunks(text=text, k=1)
 
     async def get_count(self) -> int:
         return self.collection.count()
