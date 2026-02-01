@@ -1,5 +1,5 @@
+from typing import Any
 import logging
-import traceback
 import byoeb.utils.utils as utils
 from byoeb.services.chat import constants
 from datetime import datetime, timezone
@@ -33,10 +33,7 @@ class MessageProducerService:
         self._message_pub_logger = AppInsightsLogHandler.getLogger("message_published")
         self._tracer = get_conversation_tracer()
 
-    def __convert_whatsapp_to_byoeb_message(
-        self,
-        message
-    ) -> ByoebMessageContext:
+    def __convert_whatsapp_to_byoeb_message(self, message: dict[str, Any]) -> ByoebMessageContext:
         import byoeb_integrations.channel.whatsapp.validate_message as wa_validator
         import byoeb_integrations.channel.whatsapp.convert_message as wa_converter
         _, message_type = wa_validator.validate_whatsapp_message(message)
@@ -76,17 +73,9 @@ class MessageProducerService:
         if current_time - unix_timestamp > seconds:
             return True
         return False
-        
 
-    async def apublish_message(
-        self,
-        message,
-        channel
-    ):
-        self._logger.info("[apublish_message] ▶ start")
-        self._logger.info("[apublish_message]   in  channel=%s", channel)
-
-        byoeb_message: ByoebMessageContext = None
+    async def apublish_message(self, message: dict[str, Any], channel: str, integration_id: str) -> str:
+        byoeb_message = None
         n = 5
 
         with self._tracer.start_as_current_span(SPAN_APUBLISH_MESSAGE) as apub_span:
@@ -94,78 +83,48 @@ class MessageProducerService:
 
             if channel == "whatsapp":
                 with self._tracer.start_as_current_span(SPAN_CONVERT_WHATSAPP) as conv_span:
-                    self._logger.debug("[apublish_message] → __convert_whatsapp_to_byoeb_message")
                     byoeb_message = self.__convert_whatsapp_to_byoeb_message(message)
-                    mid_conv = getattr(getattr(byoeb_message, "message_context", None), "message_id", None)
-                    if mid_conv:
-                        conv_span.set_attribute("message_id", mid_conv)
-                    self._logger.debug(
-                        "[apublish_message] ← converted message_id=%s incoming_ts=%s byoeb_message=%s",
-                        mid_conv,
-                        getattr(byoeb_message, "incoming_timestamp", None),
-                        byoeb_message,
-                    )
+                    conv_span.set_attribute("message_id", byoeb_message.message_context.message_id or "" if byoeb_message.message_context is not None else "")
 
             if byoeb_message is None or byoeb_message is False:
-                self._logger.warning("[apublish_message] ↳ invalid byoeb_message → return (None, 'Invalid message')")
-                return None, "Invalid message"
+                raise ValueError("Invalid message")
 
-            mid = getattr(byoeb_message.message_context, "message_id", None)
-            apub_span.set_attribute("message_id", mid or "")
+            byoeb_message.message_context.additional_info = byoeb_message.message_context.additional_info or {}
+            byoeb_message.message_context.additional_info[constants.INTEGRATION_ID] = integration_id
 
-            # older-than check
-            self._logger.debug("[apublish_message] → is_older_than_n_minutes(n=%s, incoming_ts=%s)", n, byoeb_message.incoming_timestamp)
+            mid = byoeb_message.message_context.message_id if byoeb_message.message_context is not None else None
+            mid = mid or ""
+            apub_span.set_attribute("message_id", mid)
+
             if self.is_older_than_n_minutes(n, byoeb_message.incoming_timestamp):
-                self._logger.info("[apublish_message] ↳ older than %s minutes → return ('Skipped...', None)", n)
-                return f"Skipped. Older than {n} minutes", None
+                return f"Skipped. Older than {n} minutes"
 
-            # duplicate check
             with self._tracer.start_as_current_span(SPAN_DUPLICATE_CHECK) as dup_span:
-                dup_span.set_attribute("message_id", mid or "")
-                self._logger.debug("[apublish_message] → get_bot_messages_by_ids([%s])", mid)
+                dup_span.set_attribute("message_id", mid)
                 res = await self.__message_db_service.get_bot_messages_by_ids([mid])
                 dup_span.set_attribute("duplicate", len(res) > 0)
-                self._logger.debug("[apublish_message] ← duplicates count=%s", len(res))
             if len(res) > 0:
-                self._logger.info("[apublish_message] ↳ already processed → return ('Already processed', None)")
-                return "Already processed", None
+                return "Already processed"
 
-            try:
-                # queue publish (inject trace context into payload when available)
-                payload_to_send = inject_trace_context_into_payload(byoeb_message)
-                with self._tracer.start_as_current_span(SPAN_QUEUE_SEND) as send_span:
-                    send_span.set_attribute("message_id", mid or "")
-                    self._logger.debug("[apublish_message] → queue.send_message(...)")
-                    result = await self.__queue_client.send_message(
-                        payload_to_send,
-                        time_to_live=self._config["message_queue"]["azure"]["time_to_live"]
-                    )
-                    self._logger.info("[apublish_message] ← queue result id=%s", getattr(result, "id", None))
+            # queue publish (inject trace context into payload when available)
+            payload_to_send = inject_trace_context_into_payload(byoeb_message)
+            with self._tracer.start_as_current_span(SPAN_QUEUE_SEND) as send_span:
+                send_span.set_attribute("message_id", mid)
+                result = await self.__queue_client.send_message(payload_to_send, time_to_live=self._config["message_queue"]["azure"]["time_to_live"])
+                self._logger.info("[apublish_message] ← queue result id=%s", getattr(result, "id", None))
 
-                # app insights log (no print needed, but keep one-liner)
-                self._message_pub_logger.info(f"Published message_id={mid} phone_number_id={getattr(byoeb_message.user, 'phone_number_id', None)}", extra={AppInsightsLogHandler.DETAILS: {
-                    "message_id": mid,
-                    "phone_number_id": getattr(byoeb_message.user, "phone_number_id", None)
-                }})
+            phone_number_id = byoeb_message.user.phone_number_id if byoeb_message.user is not None else None
+            self._message_pub_logger.info(f"Published message_id={mid} phone_number_id={phone_number_id}", extra={AppInsightsLogHandler.DETAILS: {
+                "message_id": mid,
+                "phone_number_id": phone_number_id
+            }})
 
-                # db write
-                with self._tracer.start_as_current_span(SPAN_DB_WRITE) as db_span:
-                    db_span.set_attribute("message_id", mid or "")
-                    self._logger.debug("[apublish_message] → message_db_service.execute_queries(CREATE)")
-                    message_db_queries = {
-                        constants.CREATE: self.__message_db_service.message_create_queries(byoeb_messages=[byoeb_message]),
-                    }
-                    await self.__message_db_service.execute_queries(message_db_queries)
-                    self._logger.info("[apublish_message] ← db write done")
+            # db write
+            with self._tracer.start_as_current_span(SPAN_DB_WRITE) as db_span:
+                db_span.set_attribute("message_id", mid)
+                message_db_queries = {
+                    constants.CREATE: self.__message_db_service.message_create_queries(byoeb_messages=[byoeb_message]),
+                }
+                await self.__message_db_service.execute_queries(message_db_queries)
 
-                # success
-                self._logger.info(f"Message sent: {result}")
-                self._logger.info("[apublish_message] ◀ success Published successfully %s", getattr(result, "id", None))
-                apub_span.set_status(Status(StatusCode.OK))
-                return f"Published successfully {getattr(result, 'id', None)}", None
-
-            except Exception as e:
-                self._logger.exception("[apublish_message] ✖ exception: %s", e)
-                apub_span.record_exception(e)
-                apub_span.set_status(Status(StatusCode.ERROR, str(e)))
-                return None, e
+            return f"Published successfully {getattr(result, 'id', None)}"

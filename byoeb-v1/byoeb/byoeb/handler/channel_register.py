@@ -15,6 +15,6 @@ class ChannelRegisterHandler:
         self,
         request: Request
     ):
-        return await self.__registrer_factory.get(
-            channel_type="whatsapp"
-        ).register(request.query_params._dict)
+        verify_token = request.query_params.get("hub.verify_token")
+        register = await self.__registrer_factory.get(channel_type="whatsapp", verify_token=verify_token)
+        return await register.register(request.query_params._dict)

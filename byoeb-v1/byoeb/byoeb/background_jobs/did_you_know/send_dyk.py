@@ -274,7 +274,7 @@ async def main(sheet: DykFactSheet, user_types: List[str], batch_size: int) -> N
             run_logger.info("[batch-%s] Exhausted jobs: %d", batch_id, exhausted, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # users who could not be sent a DYK message (because they have received every DYK message)
 
         # dispatch (...to whatsapp. pick a batch of candidates and send them their assigned dyks)
-        whatsapp_service = WhatsAppService(channel_client_factory)
+        from byoeb.chat_app.configuration.dependency_setup import whatsapp_service
         batch_ids = [b async for b in dyk_repo.find_pending_batch_ids()]
         retries = 0
         while True:

@@ -1,6 +1,6 @@
+import uuid
+from byoeb.services.channel.base import BaseChannelService
 import pytest
-import types
-from unittest.mock import MagicMock
 
 import byoeb.services.user.onboarding as mod
 
@@ -28,6 +28,7 @@ def make_user(phone="919000000000", lang="en", utype=None):
         additional_info={},
         created_timestamp=0,
         activity_timestamp=0,
+        tenant_id=uuid.uuid4()
     )
 
 def make_msg(user, category=None, text="", message_id="m1"):
@@ -46,27 +47,33 @@ def make_msg(user, category=None, text="", message_id="m1"):
         reply_context=reply_ctx,
     )
 
-class FakeWhatsAppService:
-    def __init__(self, channel_client_factory=None):
+class DummyChannelService(BaseChannelService):
+    def __init__(self):
         self._prepared = None
         self._sent = None
 
     def prepare_requests(self, byoeb_message):
-        self._prepared = byoeb_message
-        return ["REQ"]
+        return [{}]
+
+    def prepare_reaction_requests(self, message_reactions):
+        return []
 
     async def send_requests(self, requests):
-        self._sent = requests
-        return (["RESP"], ["MSG-ID-1"])
+        return ["RESP"], ["MSG-ID-1"]
 
-    def create_conv(self, byoeb_message, responses):
-        return [{"message_id": "conv-1"}]
+    def create_conv(self, byoeb_user_message, responses):
+        return [ByoebMessageContext(channel_type="whatsapp")]
+
+    def create_cross_conv(self, byoeb_user_message, byoeb_expert_message, user_responses, expert_responses):
+        return []
+
+    async def amark_read(self, messages):
+        return []
 
 
 @pytest.fixture
 def mock_services(monkeypatch):
     """Monkeypatch external services used by handle_unknown_user."""
-    monkeypatch.setattr(mod, "WhatsAppService", FakeWhatsAppService)
 
     class MsgDB:
         def __init__(self):
@@ -95,11 +102,9 @@ def mock_services(monkeypatch):
     msg_db = MsgDB()
     user_db = UserDB()
 
-    channel_factory = MagicMock()
-
     monkeypatch.setattr(mod, "create_audio", lambda lang, utype: (b"ogg", "audio/ogg"))
 
-    return msg_db, user_db, channel_factory
+    return msg_db, user_db
 
 def test_get_language_code():
     assert mod.get_language_code("English") == "en"
@@ -122,12 +127,12 @@ def test_get_user_type():
 
 @pytest.mark.asyncio
 async def test_first_message_triggers_language_selection(mock_services):
-    msg_db, user_db, channel_factory = mock_services
+    msg_db, user_db = mock_services
 
     user = make_user(phone="919111111111")
     msg = make_msg(user, category=None, text="hi")
 
-    await mod.handle_unknown_user([msg], msg_db, user_db, channel_factory)
+    await mod.handle_unknown_user([msg], msg_db, user_db, DummyChannelService())
 
     assert len(user_db.created) == 1
     assert len(msg_db.created) == 1
@@ -135,7 +140,7 @@ async def test_first_message_triggers_language_selection(mock_services):
 
 @pytest.mark.asyncio
 async def test_language_selection_sends_user_type_buttons_and_updates_user_lang(mock_services):
-    msg_db, user_db, channel_factory = mock_services
+    msg_db, user_db = mock_services
 
     user = make_user(phone="919222222222")
     msg = make_msg(
@@ -144,7 +149,7 @@ async def test_language_selection_sends_user_type_buttons_and_updates_user_lang(
         text="English"
     )
 
-    await mod.handle_unknown_user([msg], msg_db, user_db, channel_factory)
+    await mod.handle_unknown_user([msg], msg_db, user_db, DummyChannelService())
 
     assert len(user_db.updated) == 1
     assert user_db.updated[0].user_language == "en"
@@ -155,7 +160,7 @@ async def test_language_selection_sends_user_type_buttons_and_updates_user_lang(
 
 @pytest.mark.asyncio
 async def test_user_type_selection_sends_consent_and_updates_user_type(mock_services):
-    msg_db, user_db, channel_factory = mock_services
+    msg_db, user_db = mock_services
 
     user = make_user(phone="919333333333", lang="en")
     msg = make_msg(
@@ -164,7 +169,7 @@ async def test_user_type_selection_sends_consent_and_updates_user_type(mock_serv
         text="Others"
     )
 
-    await mod.handle_unknown_user([msg], msg_db, user_db, channel_factory)
+    await mod.handle_unknown_user([msg], msg_db, user_db, DummyChannelService())
 
     assert len(user_db.updated) == 1
     assert user_db.updated[0].user_type == "others"
@@ -174,7 +179,7 @@ async def test_user_type_selection_sends_consent_and_updates_user_type(mock_serv
 
 @pytest.mark.asyncio
 async def test_consent_yes_sends_initial_message_and_updates_user(mock_services, monkeypatch):
-    msg_db, user_db, channel_factory = mock_services
+    msg_db, user_db = mock_services
 
     user = make_user(phone="919444444444", lang="en", utype="others")
     msg = make_msg(
@@ -185,7 +190,7 @@ async def test_consent_yes_sends_initial_message_and_updates_user(mock_services,
 
     monkeypatch.setattr(mod, "create_audio", lambda lang, utype: (b"ogg", "audio/ogg"))
 
-    await mod.handle_unknown_user([msg], msg_db, user_db, channel_factory)
+    await mod.handle_unknown_user([msg], msg_db, user_db, DummyChannelService())
 
     assert len(user_db.updated) == 1
     assert user_db.updated[0].additional_info.get(user_const.CONSENT) is True

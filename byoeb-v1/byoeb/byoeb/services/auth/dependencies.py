@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 import hashlib
 import hmac
+import json
 from typing import Annotated
 from uuid import UUID
 
@@ -19,7 +18,7 @@ from byoeb.services.auth.exceptions import (
     MissingTokenError,
     PermissionDeniedError,
 )
-from byoeb.services.auth.models import AuthPermission, AuthUser
+from byoeb.services.auth.models import AuthPermission, AuthUser, AshaTenantIntegration
 
 
 cookie_scheme = APIKeyCookie(name="asha_auth_token", auto_error=False)
@@ -81,15 +80,29 @@ def require_mcp_tenant_header() -> UUID:
         raise InvalidTenantClaimError()
 
 
-async def verify_whatsapp_signature(request: Request, signature_header: Annotated[str, Header(alias="X-Hub-Signature-256", description="Signature used to verify the sender. Refer [Facebook GraphAPI Webhook documentation](https://developers.facebook.com/docs/graph-api/webhooks/getting-started#verification-requests)."), StringConstraints(pattern=r"^sha256=.+")]) -> None:
-    secret = env_config.env_whatsapp_app_secret
-    if not secret:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Webhook secret not configured")
+async def verify_whatsapp_signature(request: Request, signature_header: Annotated[str, Header(alias="X-Hub-Signature-256", description="Signature used to verify the sender. Refer [Facebook GraphAPI Webhook documentation](https://developers.facebook.com/docs/graph-api/webhooks/getting-started#verification-requests)."), StringConstraints(pattern=r"^sha256=.+")] ) -> AshaTenantIntegration:
     raw_body = await request.body()
+    try:
+        body = json.loads(raw_body)
+        # Extract phone_number_id from the first entry's metadata
+        phone_number_id = body.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {}).get("metadata", {}).get("phone_number_id")
+    except (json.JSONDecodeError, IndexError, KeyError):
+        phone_number_id = None
+
+    if not phone_number_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid WhatsApp payload: phone_number_id not found")
+
+    auth_service = await get_auth_service()
+    integration = await auth_service.resolve_integration("whatsapp", phone_number_id)
+    if not integration or "app_secret" not in integration.credentials:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Integration not configured for phone_number_id: {phone_number_id}")
+
+    secret = integration.credentials["app_secret"]
     signature = signature_header.split("=", 1)[1]
     expected = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(signature, expected):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid signature")
+    return integration
 
 
 def get_active_phone_id() -> str | None:

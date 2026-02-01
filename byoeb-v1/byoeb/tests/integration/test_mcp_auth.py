@@ -3,7 +3,7 @@ from fastmcp import Client
 from mcp.types import TextContent
 
 @pytest.mark.asyncio
-async def test_mcp_oauth_health_and_chat(envs, auth_access_token, auth_session, auth_me):
+async def test_mcp_oauth_health_and_chat(envs, auth_access_token, auth_me):
     if not auth_me.phone_number_id:
         pytest.skip("phone_number_id missing on /auth/me")
 

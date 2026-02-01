@@ -1,5 +1,6 @@
 import asyncio
 import time
+import base64
 import hashlib
 import logging
 from byoeb.constants.feature_enums import FeatureFlag
@@ -337,7 +338,7 @@ class ByoebUserGenerateResponse(Handler):
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 raise
         return {
-            constants.DATA: translated_audio_message,
+            constants.DATA: base64.b64encode(translated_audio_message).decode("utf-8"),
             constants.MIME_TYPE: "audio/ogg",
         }
     

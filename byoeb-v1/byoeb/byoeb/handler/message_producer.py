@@ -49,7 +49,7 @@ class QueueProducerHandler:
         return False, None
             
         
-    async def handle(self, message):
+    async def handle(self, message, integration_id: str):
         self._logger.info("[handle] ▶ start")
         self._logger.debug("[handle]   in message=%s", message)
 
@@ -73,43 +73,18 @@ class QueueProducerHandler:
                 "timestamp": str(status["timestamp"]),
                 "errors": json.dumps(status["errors"] if "errors" in status else [])
             }})
-            return ByoebResponseModel(
-                status_code=ByoebStatusCodes.OK,
-                message={"id": status["id"], "status": status["status"]}
-            )
+            return ByoebResponseModel(status_code=ByoebStatusCodes.OK, message={"id": status["id"], "status": status["status"]})
 
         if not channel:
             self._logger.warning("[handle] ↳ branch: invalid channel → return BAD_REQUEST('Invalid channel')")
-            return ByoebResponseModel(
-                status_code=ByoebStatusCodes.BAD_REQUEST,
-                message="Invalid channel"
-            )
+            return ByoebResponseModel(status_code=ByoebStatusCodes.BAD_REQUEST, message="Invalid channel")
 
-        try:
-            with self._tracer.start_as_current_span(SPAN_GET_PRODUCER):
-                self._logger.debug("[handle] → __get_or_create_message_producer(message_type=%s)", message_type)
-                message_producer_service = await self.__get_or_create_message_producer(message_type)
-                self._logger.debug("[handle] ← __get_or_create... out producer=%s", type(message_producer_service).__name__)
-        except Exception as e:
-            self._logger.exception("[handle] ✖ producer init failed: %s", e)
-            return ByoebResponseModel(
-                status_code=ByoebStatusCodes.INTERNAL_SERVER_ERROR,
-                message=f"Invalid producer type: {str(e)}"
-            )
+        with self._tracer.start_as_current_span(SPAN_GET_PRODUCER):
+            self._logger.debug("[handle] → __get_or_create_message_producer(message_type=%s)", message_type)
+            message_producer_service = await self.__get_or_create_message_producer(message_type)
+            self._logger.debug("[handle] ← __get_or_create... out producer=%s", type(message_producer_service).__name__)
 
         self._logger.info("[handle] → apublish_message(message, channel)")
-        response, err = await message_producer_service.apublish_message(message, channel)
-        self._logger.info("[handle] ← apublish_message out response=%s err=%s", response, err)
-
-        if err is not None:
-            self._logger.error("[handle] ↳ branch: publish error → return 500")
-            return ByoebResponseModel(
-                status_code=ByoebStatusCodes.INTERNAL_SERVER_ERROR,
-                message=err
-            )
-
-        self._logger.info("[handle] ◀ return OK(response)")
-        return ByoebResponseModel(
-            status_code=ByoebStatusCodes.OK,
-            message=response
-        )
+        response = await message_producer_service.apublish_message(message, channel, integration_id)
+        self._logger.info("[handle] ← apublish_message out response=%s err=%s", response)
+        return ByoebResponseModel(status_code=ByoebStatusCodes.OK, message=response)

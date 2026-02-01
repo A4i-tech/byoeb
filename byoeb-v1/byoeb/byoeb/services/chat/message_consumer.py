@@ -1,8 +1,8 @@
 import asyncio
-import json
 import hashlib
-import traceback
+import json
 import logging
+from byoeb.services.channel.base import BaseChannelService
 import byoeb.services.chat.constants as constants
 import byoeb.utils.utils as utils
 from datetime import datetime, timezone
@@ -12,7 +12,6 @@ from opentelemetry import context as otel_context
 from opentelemetry.trace import Status, StatusCode
 
 from byoeb.models.message_category import MessageCategory
-from byoeb.factory import ChannelClientFactory
 from byoeb.chat_app.configuration.config import bot_config
 from byoeb_core.models.byoeb.user import User
 from byoeb_core.models.byoeb.message_context import ReplyContext
@@ -40,7 +39,7 @@ class MessageConsmerService:
         config,
         user_db_service: UserMongoDBService,
         message_db_service: MessageMongoDBService,
-        channel_client_factory: ChannelClientFactory
+        channel_service: BaseChannelService
     ):
         self._config = config
         # Use module path for logger to ensure proper configuration
@@ -48,7 +47,7 @@ class MessageConsmerService:
         self._logger.setLevel(logging.INFO)  # Ensure INFO level
         self._user_db_service = user_db_service
         self._message_db_service = message_db_service
-        self._channel_client_factory = channel_client_factory
+        self._channel_service = channel_service
         self._regular_user_type = bot_config["regular"]["user_type"]
         self._expert_user_types = bot_config["expert"]
         self._tracer = get_conversation_tracer()
@@ -301,7 +300,7 @@ class MessageConsmerService:
                 messages=onboard_convs,
                 message_db_service=self._message_db_service,
                 user_db_service=self._user_db_service,
-                channel_factory=self._channel_client_factory
+                channel_service=self._channel_service
             )
             self._logger.info("[consume] ← handle_unknown_user done")
 

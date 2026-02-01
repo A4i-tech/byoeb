@@ -28,7 +28,7 @@ from byoeb.services.auth.exceptions import (
     UserNotFoundError,
     UserTenantConflictError,
 )
-from byoeb.services.auth.models import AuthPermission, AuthTenant, AuthUser
+from byoeb.services.auth.models import AuthPermission, AuthTenant, AuthUser, AshaTenantIntegration
 from byoeb.services.auth.security import AuthTokenService, TOKEN_SERVICE, TokenClaims, PASSWORD_CTX
 
 
@@ -371,6 +371,24 @@ class AuthService:
                     continue
             result[role] = role_perms
         return result
+
+    async def resolve_integration(self, platform: str, identifier: str) -> Optional[AshaTenantIntegration]:
+        doc = await self._repo.find_integration_by_identifier(platform, identifier)
+        if not doc:
+            return None
+        return AshaTenantIntegration(**doc)
+
+    async def verify_integration_token(self, platform: str, token: str) -> bool:
+        doc = await self._repo.find_integration_by_token(platform, token)
+        return doc is not None
+
+    async def fetch_integrations(self, integration_ids: list[str]) -> list[AshaTenantIntegration]:
+        docs = await self._repo.find_integrations_by_ids(integration_ids)
+        return [AshaTenantIntegration(**doc) for doc in docs]
+
+    async def fetch_integrations_by_tenants(self, platform: str, tenant_ids: list[UUID]) -> list[AshaTenantIntegration]:
+        docs = await self._repo.find_integrations_by_tenants(platform, tenant_ids)
+        return [AshaTenantIntegration(**doc) for doc in docs]
 
 
 async def get_auth_service() -> AuthService:
