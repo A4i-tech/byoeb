@@ -160,8 +160,7 @@ async def send_welcome_message(
 
 async def send_welcome_messages_to_users(
     registered_users: List[dict],
-    original_users_data: List[dict],
-    url: str
+    original_users_data: List[dict]
 ) -> None:
     """
     Send welcome template messages to all registered users.
@@ -183,7 +182,7 @@ async def send_welcome_messages_to_users(
             original_data_map[phone] = orig_user
     
     # Initialize WhatsApp service
-    whatsapp_service = WhatsAppService(channel_client_factory)
+    from byoeb.chat_app.configuration.dependency_setup import whatsapp_service
     
     success_count = 0
     failure_count = 0
@@ -348,7 +347,7 @@ def main(session: Optional[requests.Session] = None):
     if not args.skip_welcome and registered_users:
         try:
             # Pass original users_onboarded data to preserve language/type from Excel
-            asyncio.run(send_welcome_messages_to_users(registered_users, users_onboarded, args.url))
+            asyncio.run(send_welcome_messages_to_users(registered_users, users_onboarded))
         except Exception as e:
             logger.warning("Error sending welcome messages: %s. Continuing with other operations...", e)
 

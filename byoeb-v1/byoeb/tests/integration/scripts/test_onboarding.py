@@ -59,7 +59,7 @@ def cleanup_dummy_users(envs, auth_session):
 
 def test_onboarding_registers_and_exports_users(monkeypatch, onboarding_excel, cleanup_dummy_users, tmp_path, envs, auth_session):
     output_sheet = tmp_path / "output.xlsx"
-    monkeypatch.setattr(sys, "argv", ["onboarding.py", "--file", onboarding_excel, "--url", envs.base_url, "--sheet", str(output_sheet)])
+    monkeypatch.setattr(sys, "argv", ["onboarding.py", "--file", onboarding_excel, "--url", str(envs.base_url), "--sheet", str(output_sheet)])
     onboarding.main(session=auth_session)
 
     get_response = auth_session.post(f"{envs.base_url}/get_users", json=cleanup_dummy_users)
@@ -85,7 +85,7 @@ def test_onboarding_registers_and_exports_users(monkeypatch, onboarding_excel, c
 
 
 def test_onboarding_updates_users(monkeypatch, onboarding_excel, cleanup_dummy_users, envs, auth_session):
-    monkeypatch.setattr(sys, "argv", ["onboarding.py", "--file", onboarding_excel, "--url", envs.base_url, "--update"])
+    monkeypatch.setattr(sys, "argv", ["onboarding.py", "--file", onboarding_excel, "--url", str(envs.base_url), "--update"])
     onboarding.main(session=auth_session)
 
     get_response = auth_session.post(f"{envs.base_url}/get_users", json=cleanup_dummy_users)

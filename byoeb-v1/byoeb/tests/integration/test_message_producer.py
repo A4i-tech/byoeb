@@ -1,11 +1,8 @@
 import time
 import uuid
 
-import pytest
-import requests
 
-
-def _build_status_payload(*, username: str, phone_number_id: str, errors=None):
+def _build_status_payload(*, bot_phone_number_id: str, username: str, phone_number_id: str, errors=None):
     username_slug = username.lower().replace(" ", "-")
     current_timestamp = str(int(time.time()))
     status = {
@@ -37,11 +34,11 @@ def _build_status_payload(*, username: str, phone_number_id: str, errors=None):
                     {
                         "value": {
                             "messaging_product": "whatsapp",
-                            "metadata": {
-                                "display_phone_number": phone_number_id,
-                                "phone_number_id": phone_number_id,
-                            },
                             "statuses": [status],
+                            "metadata": {
+                                "display_phone_number": bot_phone_number_id,
+                                "phone_number_id": bot_phone_number_id,
+                            },
                         },
                         "field": "messages",
                     }
@@ -51,24 +48,19 @@ def _build_status_payload(*, username: str, phone_number_id: str, errors=None):
     }
 
 
-def test_status_payload_without_errors_returns_success(envs, auth_me, auth_session):
-    if not auth_me.phone_number_id:
-        pytest.skip("phone_number_id missing on /auth/me")
-    payload = _build_status_payload(username=auth_me.username, phone_number_id=str(auth_me.phone_number_id))
-    response = auth_session.post(f"{envs.base_url}/receive", json=payload, timeout=15)
+async def test_status_payload_without_errors_returns_success(envs, temp_user, whatsapp_webhook):
+    with temp_user() as user:
+        payload = _build_status_payload(bot_phone_number_id=envs.whatsapp_phone_number_id, username=user.user_name, phone_number_id=user.phone_number_id)
+        response = whatsapp_webhook(payload)
     assert response.status_code == 200
 
 
-def test_status_payload_with_errors_returns_success(envs, auth_me, auth_session):
-    if not auth_me.phone_number_id:
-        pytest.skip("phone_number_id missing on /auth/me")
-    errors = [
-        {
+def test_status_payload_with_errors_returns_success(envs, temp_user, whatsapp_webhook):
+    with temp_user() as user:
+        payload = _build_status_payload(bot_phone_number_id=envs.whatsapp_phone_number_id, username=user.user_name, phone_number_id=user.phone_number_id, errors=[{
             "code": 131000,
             "title": "Temporarily Unavailable",
             "message": "Upstream provider was not reachable",
-        }
-    ]
-    payload = _build_status_payload(username=auth_me.username, phone_number_id=str(auth_me.phone_number_id), errors=errors)
-    response = auth_session.post(f"{envs.base_url}/receive", json=payload, timeout=15)
+        }])
+        response = whatsapp_webhook(payload)
     assert response.status_code == 200

@@ -1,4 +1,5 @@
 from typing import Any, List, Optional, Dict
+from uuid import UUID
 from byoeb_core.models.byoeb.user import PhoneNumberId, User
 from fastapi import APIRouter, Body, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -32,6 +33,7 @@ class UserRegister(BaseModel):
     user_language: LanguageCode = Field(..., description="Language code (hi, en, te, etc.)")
     user_name: Optional[str] = Field(default=None, description="Name of the user", examples=["Sita Devi"])
     test_user: Optional[bool] = Field(default=False, description="Flag to mark test users")
+    tenant_id: Optional[UUID] = Field(default=None, description="Tenant ID that the user belongs to", examples=[None])
 
 
 class UserUpdate(BaseModel):
@@ -42,6 +44,7 @@ class UserUpdate(BaseModel):
     user_type: Optional[UserType] = Field(default=None, description="Updated type of user")
     user_name: Optional[str] = Field(default=None, description="Name of the user", examples=["Sita Devi"])
     test_user: Optional[bool] = Field(default=None, description="Flag to mark test users")
+    tenant_id: Optional[UUID] = Field(default=None, description="Tenant ID that the user belongs to", examples=[None])
 
 
 # -----------------------------
@@ -50,7 +53,7 @@ class UserUpdate(BaseModel):
 
 @user_apis_router.post("/register_users", summary="Register one or more users")
 async def register_users(
-    users: List[UserRegister] = Body(..., description="List of users to register. Mandatory fields: `user_type`, `user_location` and `phone_number_id`. `district` inside `user_location` is mandatory.")
+    users: List[UserRegister] = Body(..., description="List of users to register.")
 ) -> List[User]:
     """
     Registers one or more users.

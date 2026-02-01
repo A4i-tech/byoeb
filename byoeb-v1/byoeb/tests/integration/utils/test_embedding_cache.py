@@ -1,9 +1,10 @@
+from pydantic import AnyHttpUrl
 from typing import Any, AsyncIterator, List, Literal, Set
 
 import pytest
 from fastmcp import Client
 
-from byoeb.constants.user_enums import LanguageCode
+from byoeb.constants.user_enums import LanguageCode, UserType
 
 # Timeout for HTTP calls (integration server may be slow)
 HTTP_TIMEOUT_S = 60
@@ -14,20 +15,20 @@ def get_cache_hit(resp: Any) -> bool:
 def has_devanagari(text: str) -> bool:
     return any("\u0900" <= ch <= "\u097f" for ch in text)
 
-async def run_queries(base_url: str, access_token: str, queries: List[str], features: Set[Literal["audio", "history"]] = set()) -> AsyncIterator[Any]:
+async def run_queries(base_url: AnyHttpUrl, access_token: str, queries: List[str], features: Set[Literal["audio", "history"]] = set()) -> AsyncIterator[Any]:
     async with Client(f"{base_url}/mcp", auth=access_token) as client:
         for q in queries:
             r = await client.call_tool("asha_chat", {"message": q, "features": features})
             yield r.data
 
 @pytest.mark.asyncio
-async def test_repeated_query_hits_cache(envs, auth_access_token, auth_session, auth_me):
-    if not auth_me.phone_number_id:
-        pytest.skip("phone_number_id missing on /auth/me")
+async def test_repeated_query_hits_cache(envs, auth_access_token, auth_session, temp_user):
     auth_session.post(f"{envs.base_url}/purge_request_cache").raise_for_status()
-    queries = ["what is antara injection?"] * 2
 
-    responses = [resp async for resp in run_queries(envs.base_url, auth_access_token, queries)]
+    queries = ["what is antara injection?"] * 2
+    with temp_user(user_type=UserType.ASHA, lang=LanguageCode.ENGLISH, test_user=True):
+        responses = [resp async for resp in run_queries(envs.base_url, auth_access_token, queries)]
+
     assert not get_cache_hit(responses[0])
     assert get_cache_hit(responses[1])
 
@@ -39,29 +40,14 @@ async def test_repeated_query_hits_cache(envs, auth_access_token, auth_session, 
     (LanguageCode.ENGLISH, "what is antara injection", ["hit"]),
     (LanguageCode.HINDI, "antara injection kya hai", ["devanagari", "hit"]),
 ])
-async def test_cached_response_respects_lang(lang: LanguageCode, query: str, features: set[str], envs, auth_access_token, auth_session, auth_me):
-    phone_number_id = auth_me.phone_number_id
-    if not phone_number_id:
-        pytest.skip("phone_number_id missing on /auth/me")
+async def test_cached_response_respects_lang(lang: LanguageCode, query: str, features: set[str], envs, auth_access_token, auth_session, temp_user):
     if "purge" in features:
         auth_session.post(f"{envs.base_url}/purge_request_cache").raise_for_status()
 
-    auth_session.delete(f"{envs.base_url}/delete_users", json=[phone_number_id]).raise_for_status()
+    with temp_user(user_type=UserType.ASHA, lang=lang, test_user=True):
+        responses = [resp async for resp in run_queries(envs.base_url, auth_access_token, [query])]
 
-    user = {
-        "phone_number_id": phone_number_id,
-        "user_location": {"district": "Test District"},
-        "user_type": "asha",
-        "user_language": lang.value,
-        "user_name": envs.username,
-        "test_user": True,
-    }
-
-    auth_session.post(f"{envs.base_url}/register_users", json=[user]).raise_for_status()
-
-    responses = [resp async for resp in run_queries(envs.base_url, auth_access_token, [query])]
     assert responses
     resp = responses[0]
-
     assert get_cache_hit(resp) == ("hit" in features)
     assert has_devanagari(resp.text) == ("devanagari" in features)

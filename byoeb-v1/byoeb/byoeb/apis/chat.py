@@ -16,7 +16,7 @@ from byoeb.services.user.utils import get_user_ids_from_phone_number_ids
 from fastapi import APIRouter, Query, Body, Depends
 from fastapi.responses import JSONResponse
 from byoeb.services.auth.dependencies import get_active_phone_id, require_permissions, verify_whatsapp_signature
-from byoeb.services.auth.models import AuthPermission
+from byoeb.services.auth.models import AuthPermission, AshaTenantIntegration
 import byoeb.services.chat.constants as chat_constants
 import byoeb.utils.utils as utils
 
@@ -32,14 +32,18 @@ _logger = logging.getLogger(CHAT_API_NAME)
 # ---------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------
-@chat_apis_router.post("/receive", summary="Handle incoming WhatsApp messages", dependencies=[Depends(verify_whatsapp_signature)])
-async def receive(body: Dict[str, Any] = Body(..., description="Raw WhatsApp webhook payload")) -> JSONResponse:
+
+@chat_apis_router.post("/receive", summary="Handle incoming WhatsApp messages")
+async def receive(
+    body: Dict[str, Any] = Body(..., description="Raw WhatsApp webhook payload"),
+    integration: AshaTenantIntegration = Depends(verify_whatsapp_signature)
+) -> JSONResponse:
     """
     Handles an incoming WhatsApp message from a user.
     The message is processed by the message_producer_handler.
     """
     _logger.info(f"Received WhatsApp request: {json.dumps(body, ensure_ascii=False)}")
-    response = await dependency_setup.message_producer_handler.handle(body)
+    response = await dependency_setup.message_producer_handler.handle(body, str(integration.id))
     _logger.info(f"Handler response: {response}")
     return JSONResponse(
         status_code=response.status_code,

@@ -56,12 +56,14 @@ class RepositoryFactory:
         """Get or create auth repository instance."""
         if self._auth_repository is None:
             mongo_db = await self._mongo_factory.get(app_config["app"]["db_provider"])
-            auth_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["auth_user_collection"])
-            tenant_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["auth_tenant_collection"])
-            role_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["auth_tenant_roles_collection"])
-            oauth_client_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["auth_oauth_client_collection"])
-            oauth_code_collection = mongo_db.get_collection(app_config["databases"]["mongo_db"]["auth_oauth_code_collection"])
-            self._auth_repository = MongoAuthRepository(auth_collection, tenant_collection, role_collection, oauth_client_collection, oauth_code_collection)
+            config = app_config["databases"]["mongo_db"]
+            auth_collection = mongo_db.get_collection(config["auth_user_collection"])
+            tenant_collection = mongo_db.get_collection(config["auth_tenant_collection"])
+            role_collection = mongo_db.get_collection(config["auth_tenant_roles_collection"])
+            oauth_client_collection = mongo_db.get_collection(config["auth_oauth_client_collection"])
+            oauth_code_collection = mongo_db.get_collection(config["auth_oauth_code_collection"])
+            integration_collection = mongo_db.get_collection(config["auth_tenant_integrations_collection"])
+            self._auth_repository = MongoAuthRepository(auth_collection, tenant_collection, role_collection, oauth_client_collection, oauth_code_collection, integration_collection)
         return self._auth_repository
 
     async def reset_repositories(self):

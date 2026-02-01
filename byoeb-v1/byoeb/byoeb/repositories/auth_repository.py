@@ -83,3 +83,19 @@ class AuthRepository(BaseRepository, ABC):
     @abstractmethod
     async def find_tenant_roles_by_id(self, tenant_id: UUID) -> Optional[Dict[str, Any]]:
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_integration_by_identifier(self, platform: str, identifier: str) -> Optional[Dict[str, Any]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_integration_by_token(self, platform: str, token: str) -> Optional[Dict[str, Any]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_integrations_by_ids(self, integration_ids: list[str]) -> list[Dict[str, Any]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_integrations_by_tenants(self, platform: str, tenant_ids: list[UUID]) -> list[Dict[str, Any]]:
+        raise NotImplementedError
