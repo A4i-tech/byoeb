@@ -34,12 +34,6 @@ else:
 # Environment variables
 env_app = os.getenv("APP_ENV")  # "PROD" in production
 
-# Whatsapp
-env_whatsapp_token = os.getenv("WHATSAPP_VERIFICATION_TOKEN")
-env_whatsapp_auth_token = os.getenv("WHATSAPP_AUTH_TOKEN")
-env_whatsapp_phone_number_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
-env_whatsapp_app_secret = os.getenv("WHATSAPP_APP_SECRET")
-
 # OpenAI
 env_openai_api_key = os.getenv("OPENAI_API_KEY")
 env_openai_org_id = os.getenv("OPENAI_ORG_ID")
