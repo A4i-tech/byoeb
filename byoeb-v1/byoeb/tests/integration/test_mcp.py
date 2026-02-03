@@ -1,4 +1,4 @@
-from byoeb.constants.user_enums import LanguageCode, UserType
+from byoeb.constants.user_enums import LanguageCode
 from byoeb.models.message_category import MessageCategory
 
 import pytest
