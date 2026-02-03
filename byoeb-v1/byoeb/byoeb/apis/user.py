@@ -137,13 +137,14 @@ def user_mcps_router(mcp):
                 "Missing phone_number_id for MCP request",
             )
         response = await dependency_setup.users_handler.aregister([
-            dict(
+            User(
                 user_id=get_user_ids_from_phone_number_ids([phone_number_id])[0],
                 user_name=data.name,
                 user_location=dict(country="IN", region=data.state),
                 user_language=data.language.value,
                 user_type=UserType.ASHA.value,
                 phone_number_id=phone_number_id,
-            )
+                tenant_id=UUID(access_token.claims.get("tenant_id"))
+            ).model_dump()
         ])
         return response
