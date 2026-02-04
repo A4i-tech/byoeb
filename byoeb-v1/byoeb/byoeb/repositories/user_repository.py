@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, Dict, Any, Optional, List, Union
+from typing import AsyncIterator, Dict, Any, Optional, List
 from datetime import datetime
 
 from byoeb.repositories.base_repository import BaseRepository
@@ -74,8 +74,8 @@ class UserRepository(BaseRepository, ABC):
 
     @abstractmethod
     def find_active_users_in_timeframe(self, 
-                                       start_timestamp: Union[int, datetime], 
-                                       end_timestamp: Union[int, datetime]) -> AsyncIterator[Dict[str, Any]]:
+                                       start_timestamp: datetime, 
+                                       end_timestamp: datetime) -> AsyncIterator[Dict[str, Any]]:
         """Find users who were active within a specific timeframe."""
         pass
 

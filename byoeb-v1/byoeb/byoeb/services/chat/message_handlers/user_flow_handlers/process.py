@@ -4,7 +4,7 @@ import byoeb.utils.utils as utils
 import byoeb.services.chat.constants as constants
 from tenacity import retry, stop_after_attempt, wait_exponential
 from byoeb.chat_app.configuration.config import bot_config
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageTypes
 from byoeb.services.chat.message_handlers.base import Handler
@@ -47,30 +47,13 @@ class ByoebUserProcess(Handler):
         curr_time = datetime.now(timezone.utc)
         i = 1
         for conversation in last_conversations:
-            timestamp_value = conversation.get(constants.TIMESTAMP, None)
-            
-            # Handle datetime objects (new format after migration)
-            if isinstance(timestamp_value, datetime):
-                conversation_time = timestamp_value
-                # If timezone-naive, assume it's UTC
-                if conversation_time.tzinfo is None:
-                    conversation_time = conversation_time.replace(tzinfo=timezone.utc)
-            elif timestamp_value is None:
-                continue  # Skip conversations without timestamp
-            else:
-                # Handle int/string timestamps (legacy format) - convert to datetime
-                # This is a one-way transformation from legacy format
-                try:
-                    if isinstance(timestamp_value, str):
-                        timestamp_value = int(timestamp_value)
-                    conversation_time = datetime.fromtimestamp(timestamp_value, tz=timezone.utc)
-                except (ValueError, TypeError):
-                    continue  # Skip invalid timestamps
-
-            # Compare datetime objects directly using timedelta
-            time_diff = (curr_time - conversation_time).total_seconds()
-            if time_diff > 1800:
-                continue  # Skip conversations older than 30 min
+            conversation_time = conversation.get(constants.TIMESTAMP, None)
+            if conversation_time is None or not isinstance(conversation_time, datetime):
+                continue
+            if conversation_time.tzinfo is None:
+                conversation_time = conversation_time.replace(tzinfo=timezone.utc)
+            if (curr_time - conversation_time) > timedelta(minutes=30):
+                continue
             
             question = conversation.get(constants.QUESTION, None)
             answer = conversation.get(constants.ANSWER, None)

@@ -53,21 +53,11 @@ def has_text(
         byoeb_message.message_context.message_source_text is not None
     )
 
-def get_last_active_duration_seconds(timestamp):
-    from datetime import datetime, timezone
-    
-    # Handle datetime objects (new format after migration)
-    if isinstance(timestamp, datetime):
-        last_active_time = timestamp
-        # If timezone-naive, assume it's UTC (MongoDB stores as UTC but may return naive)
-        if last_active_time.tzinfo is None:
-            last_active_time = last_active_time.replace(tzinfo=timezone.utc)
-    else:
-        # Handle int/string timestamps (legacy format)
-        # Convert Unix timestamp string/int to a datetime object
-        last_active_time = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
-    
-    # Calculate the duration since last active
+def get_last_active_duration_seconds(timestamp: datetime) -> float:
+    """Seconds since timestamp (UTC). By design, timestamp is always a datetime."""
+    last_active_time = timestamp
+    if last_active_time.tzinfo is None:
+        last_active_time = last_active_time.replace(tzinfo=timezone.utc)
     return (datetime.now(timezone.utc) - last_active_time).total_seconds()
 
 def get_expert_byoeb_messages(byoeb_messages: List[ByoebMessageContext]):

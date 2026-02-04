@@ -1,6 +1,6 @@
 from typing import Annotated, List, Optional, Dict, Any
 from pydantic import BaseModel, Field, StringConstraints
-from datetime import datetime
+from datetime import datetime, timezone
 
 PhoneNumberId = Annotated[str, StringConstraints(pattern=r"^\d{11,13}$")]
 
@@ -14,7 +14,15 @@ class User(BaseModel):
     test_user: Optional[bool] = Field(default=False, description="Indicates if the user is a test user")
     experts: Optional[Dict[str, List[Any]]] = Field(default_factory=dict, description="List of expert phone numbers associated with the user")
     audience: Optional[List[str]] = Field(default_factory=list, description="List of users associated with this user")
-    created_timestamp: Optional[datetime] = Field(default=None, description="Timestamp when the user was created")
-    activity_timestamp: Optional[datetime] = Field(default=None, description="Timestamp of the user's last activity")
+    created_timestamp: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when the user was created",
+        examples=[datetime(2021, 10, 1, 0, 0, 0, tzinfo=timezone.utc)],
+    )
+    activity_timestamp: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp of the user's last activity",
+        examples=[datetime(2021, 10, 1, 0, 0, 0, tzinfo=timezone.utc)],
+    )
     last_conversations: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="List of the user's last conversations")
     additional_info: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Any additional information related to the user")

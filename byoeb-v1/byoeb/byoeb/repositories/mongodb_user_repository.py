@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Dict, Any, Optional, List, Union
+from typing import AsyncIterator, Dict, Any, Optional, List
 from datetime import datetime
 from byoeb.repositories.mongodb_base_repository import MongoBaseRepository
 from byoeb.repositories.user_repository import UserRepository
@@ -73,14 +73,8 @@ class MongoUserRepository(UserRepository, MongoBaseRepository):
         return _empty()
 
     def find_active_users_in_timeframe(self, 
-                                       start_timestamp: Union[int, datetime], 
-                                       end_timestamp: Union[int, datetime]) -> AsyncIterator[Dict[str, Any]]:
-        # Convert int timestamps to datetime if needed (for backward compatibility)
-        if isinstance(start_timestamp, int):
-            start_timestamp = datetime.fromtimestamp(start_timestamp, tz=datetime.timezone.utc)
-        if isinstance(end_timestamp, int):
-            end_timestamp = datetime.fromtimestamp(end_timestamp, tz=datetime.timezone.utc)
-        
+                                       start_timestamp: datetime, 
+                                       end_timestamp: datetime) -> AsyncIterator[Dict[str, Any]]:
         filter_dict = {
             "User.activity_timestamp": {
                 "$gte": start_timestamp, 
