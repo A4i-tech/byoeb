@@ -10,7 +10,7 @@ import random
 from rapidfuzz.fuzz import ratio
 from datetime import datetime, timezone
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
-from typing import List, Dict, Any, Optional
+from typing import Iterable, List, Dict, Any, Optional
 from byoeb.chat_app.configuration.config import bot_config, app_config
 import byoeb.chat_app.configuration.config as env_config
 from byoeb.models.message_category import MessageCategory
@@ -522,6 +522,12 @@ class ByoebUserGenerateResponse(Handler):
             incoming_timestamp=message.incoming_timestamp,
         )
         return new_expert_verification_message
+
+    def _chunks_to_kb_topics(self, chunks: Iterable[Chunk]) -> str:
+        return "\n".join(
+            f"<chunk_{i}>\n<score>{chunk.similarity:.2f}</score>\n<text>{chunk.text}</text>\n</chunk_{i}>"
+            for i, chunk in enumerate(chunks)
+        )
     
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
     async def agenerate_answer(
@@ -550,8 +556,8 @@ class ByoebUserGenerateResponse(Handler):
         for chunks in await asyncio.gather(*(self.__aretrieve_chunks(q or query, k=k, search_type=t) for q, t, k in vector_search_queries)):
             for chunk in chunks:
                 retrieved_chunks[chunk.chunk_id] = chunk
-        update_kb_list = ", ".join(str(chunk.text) for chunk in retrieved_chunks.values() if "KB Updated" in chunk.metadata.source)
-        raw_kb_list = ", ".join(str(chunk.text) for chunk in retrieved_chunks.values() if "KB Updated" not in chunk.metadata.source)
+        update_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks.values() if "KB Updated" in chunk.metadata.source)
+        raw_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks.values() if "KB Updated" not in chunk.metadata.source)
 
         system_prompt = self._get_system_prompt(user_language)
         template_user_prompt = bot_config["llm_response"]["answer_prompts"]["user_prompt"]
@@ -573,7 +579,7 @@ class ByoebUserGenerateResponse(Handler):
         return response_en, response_source, tokens, list(retrieved_chunks.values())
 
     async def needs_clarification(self, query: str, query_type: str, user_language: str, retrieved_chunks: list[Chunk]) -> Optional[tuple[str, str, dict[str, int]]]:
-        kb_topics = ", ".join(str(c.text) for c in retrieved_chunks)
+        kb_topics = self._chunks_to_kb_topics(retrieved_chunks)
         task_description = bot_config["llm_response"]["clarification_prompts"]["system_prompt"]
         response_translate = bot_config["llm_response"]["clarification_prompts"]["response_translate"][user_language]
         output_format = bot_config["llm_response"]["clarification_prompts"]["output"]
