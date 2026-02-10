@@ -768,7 +768,7 @@ class ByoebUserGenerateResponse(Handler):
                             response_en, response_source, tokens = response_en2, response_source2, tokens2
                             break
 
-                if utils.is_idk(response_en):
+                if utils.is_idk(response_en) and (FeatureFlag.QUERY_DISAMBIGUATION in feature_flags or message.user.test_user):
                     print("Query expansion was unsuccessful, assessing whether clarification is required...")
                     clarification = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
                     if clarification:
