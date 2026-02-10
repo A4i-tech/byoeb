@@ -6,7 +6,7 @@ import re
 import pandas as pd
 import requests
 from datetime import datetime, timezone, date
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
 
@@ -27,6 +27,27 @@ def clean_template_param(text: str) -> str:
     # Collapse multiple spaces to single
     text = re.sub(r"\s{2,}", " ", text)
     return text.strip()
+
+
+def _created_timestamp_to_date(ts: Optional[Any]) -> Optional[date]:
+    """Convert created_timestamp to date; supports datetime, epoch (int/float), or ISO str (e.g. from JSON)."""
+    if ts is None:
+        return None
+    if isinstance(ts, datetime):
+        return ts.date()
+    if isinstance(ts, (int, float)):
+        try:
+            return datetime.fromtimestamp(int(ts), tz=timezone.utc).date()
+        except (ValueError, OSError, OverflowError):
+            return None
+    if isinstance(ts, str):
+        try:
+            # ISO format from JSON (e.g. "2021-10-01T00:00:00Z" or "2021-10-01T00:00:00+00:00")
+            normalized = ts.replace("Z", "+00:00")
+            return datetime.fromisoformat(normalized).date()
+        except (ValueError, TypeError):
+            return None
+    return None
 
 
 async def send_welcome_message(
@@ -344,7 +365,7 @@ def main():
         	"location": user_data.get("user_location"),
         	"user_type": user_data.get("user_type"),
         	"test_user": str(user_data.get("test_user")),
-        	"onboarding_date": (ts.date() if (ts := user_data.get("created_timestamp")) else None),
+        	"onboarding_date": _created_timestamp_to_date(user_data.get("created_timestamp")),
 		    "language":user_data.get("user_language")
         } for user_data in users])
         df.to_excel(args.sheet, index=False)
