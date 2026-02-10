@@ -331,14 +331,16 @@ llm_client = AsyncLLamaIndexOpenAILLM(
     model=app_config["llms"]["openai"]["model"],
     api_key=env_config.env_openai_api_key,
     api_version=app_config["llms"]["openai"]["api_version"],
-    organization=env_config.env_openai_org_id
+    organization=env_config.env_openai_org_id,
+    temperature=0.0  # Set to 0 for deterministic responses (same input → same output)
 )
 
 llm_translate_and_rewrite_client = AsyncLLamaIndexOpenAILLM(
     model=app_config["llms"]["openai"]["model"],
     api_key=env_config.env_openai_api_key,
     api_version=app_config["llms"]["openai"]["api_version"],
-    organization=env_config.env_openai_org_id
+    organization=env_config.env_openai_org_id,
+    temperature=0.0  # Set to 0 for deterministic query rewriting (same input → same output)
 )
 
 
