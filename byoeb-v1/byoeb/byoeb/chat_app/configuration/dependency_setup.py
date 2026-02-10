@@ -47,15 +47,14 @@ def log_async_call(name):
     return decorator
 
 
-# App logger
+# App logger (logger name is app identity, not environment-specific)
+AZURE_LOGGER_NAME = "khushi-baby-asha-logger"
+
 if env_config.env_appinsights_connection_string:
     from azure.monitor.opentelemetry import configure_azure_monitor
     print("✅ App Insights connection string set. Enabling Azure logging.")
-    # Require environment variable for logger name to prevent accidental production access
-    if not env_config.env_app_logger_name:
-        raise ValueError("APP_LOGGER_NAME environment variable must be set.")
     configure_azure_monitor(
-        logger_name=env_config.env_app_logger_name,
+        logger_name=env_config.env_app_logger_name or AZURE_LOGGER_NAME,
         connection_string=env_config.env_appinsights_connection_string,
         instrumentations=["fastapi", "urllib3"]
     )

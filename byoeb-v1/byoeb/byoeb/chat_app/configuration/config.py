@@ -47,7 +47,6 @@ env_app_logger_name = os.getenv("APP_LOGGER_NAME")
 
 # Azure Storage
 env_azure_storage_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-env_azure_storage_account_url = os.getenv("AZURE_STORAGE_ACCOUNT_URL")
 env_azure_storage_blob_account_url = os.getenv("AZURE_STORAGE_BLOB_ACCOUNT_URL")
 env_azure_storage_queue_account_url = os.getenv("AZURE_STORAGE_QUEUE_ACCOUNT_URL")
 env_azure_storage_container_name = os.getenv("AZURE_STORAGE_CONTAINER_NAME")
