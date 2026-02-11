@@ -523,12 +523,19 @@ class ByoebUserGenerateResponse(Handler):
         )
         return new_expert_verification_message
 
+    def filter_retrieved_chunks(self, retrieved_chunks: Iterable[Chunk], threshold: float) -> Iterable[Chunk]:
+        return (
+            chunk for chunk in retrieved_chunks
+            if chunk.similarity >= threshold and
+            chunk.text and len(re.sub(r'\W+', '', chunk.text)) > 0
+        )
+
     def _chunks_to_kb_topics(self, chunks: Iterable[Chunk]) -> str:
         return "\n".join(
             f"<chunk_{i}>\n<score>{chunk.similarity:.2f}</score>\n<text>{chunk.text}</text>\n</chunk_{i}>"
             for i, chunk in enumerate(chunks)
         )
-    
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
     async def agenerate_answer(
         self,
@@ -556,8 +563,13 @@ class ByoebUserGenerateResponse(Handler):
         for chunks in await asyncio.gather(*(self.__aretrieve_chunks(q or query, k=k, search_type=t) for q, t, k in vector_search_queries)):
             for chunk in chunks:
                 retrieved_chunks[chunk.chunk_id] = chunk
-        update_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks.values() if "KB Updated" in chunk.metadata.source)
-        raw_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks.values() if "KB Updated" not in chunk.metadata.source)
+
+        retrieved_chunks_list = list(self.filter_retrieved_chunks(retrieved_chunks.values(), threshold=bot_config["retrieval"]["similarity_threshold"]))
+        if not retrieved_chunks_list:
+            return constants.IDK, constants.IDK, {}, []
+
+        update_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if "KB Updated" in chunk.metadata.source)
+        raw_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if "KB Updated" not in chunk.metadata.source)
 
         system_prompt = self._get_system_prompt(user_language)
         template_user_prompt = bot_config["llm_response"]["answer_prompts"]["user_prompt"]

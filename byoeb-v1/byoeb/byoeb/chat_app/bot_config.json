@@ -7,6 +7,9 @@
         "small_talk": "anm",
         "incomprehensible": "anm"
     },
+    "retrieval": {
+        "similarity_threshold": 0.35
+    },
     "llm_response": {
         "translation_and_rewrite_prompts": {
             "system_prompt": {
