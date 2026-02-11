@@ -14,7 +14,7 @@ from typing import Iterable, List, Dict, Any, Optional
 from byoeb.chat_app.configuration.config import bot_config, app_config
 import byoeb.chat_app.configuration.config as env_config
 from byoeb.models.message_category import MessageCategory
-from byoeb_core.models.vector_stores.chunk import Chunk
+from byoeb_core.models.vector_stores.chunk import Chunk, Chunk_metadata
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
     MessageContext,
@@ -47,6 +47,14 @@ class ByoebUserGenerateResponse(Handler):
     _incomprehensible = "incomprehensible"
     embedding_cache = EmbeddingCache("message-consumer", dim=768, capacity=embedding_cap)
 
+    def get_retrieval_type(self, chunk: Chunk) -> str | None:
+        return chunk.metadata.additional_metadata.get("retrieval_type") if chunk.metadata and chunk.metadata.additional_metadata else None
+
+    def annotate_retrieval_type(self, chunk: Chunk, retrieval_type: str):
+        if chunk.metadata is None: chunk.metadata = Chunk_metadata()
+        if chunk.metadata.additional_metadata is None: chunk.metadata.additional_metadata = {}
+        chunk.metadata.additional_metadata["retrieval_type"] = retrieval_type
+
     async def __aretrieve_chunks(
         self,
         text,
@@ -74,10 +82,12 @@ class ByoebUserGenerateResponse(Handler):
             text,
             k,
             search_type=search_type,
-            select=["id", "text", "metadata", "related_questions"],
+            select=["id", "text", "metadata"],
             vector_field="text_vector_3072"
         )
         end_time = datetime.now(timezone.utc).timestamp()
+        for chunk in retrieved_chunks:
+            self.annotate_retrieval_type(chunk, search_type)
         utils.log_to_text_file(f"Retrieved chunks in {end_time - start_time} seconds")
         return retrieved_chunks
     
@@ -103,7 +113,7 @@ class ByoebUserGenerateResponse(Handler):
             text,
             k,
             search_type=AzureVectorSearchType.DENSE.value,
-            select=["id", "metadata", "related_questions"],
+            select=["id", "related_questions"],
             vector_field="text_vector_3072"
         )
         end_time = datetime.now(timezone.utc).timestamp()
@@ -523,18 +533,21 @@ class ByoebUserGenerateResponse(Handler):
         )
         return new_expert_verification_message
 
-    def filter_retrieved_chunks(self, retrieved_chunks: Iterable[Chunk], threshold: float) -> Iterable[Chunk]:
-        return (
+    def filter_retrieved_chunks(self, retrieved_chunks: Iterable[Chunk], thresholds: dict[str, float]) -> Iterable[Chunk]:
+        return [
             chunk for chunk in retrieved_chunks
-            if chunk.similarity >= threshold and
+            if chunk.similarity >= thresholds.get(self.get_retrieval_type(chunk) or "", 0) and
             chunk.text and len(re.sub(r'\W+', '', chunk.text)) > 0
-        )
+        ]
 
     def _chunks_to_kb_topics(self, chunks: Iterable[Chunk]) -> str:
-        return "\n".join(
-            f"<chunk_{i}>\n<score>{chunk.similarity:.2f}</score>\n<text>{chunk.text}</text>\n</chunk_{i}>"
-            for i, chunk in enumerate(chunks)
-        )
+        return "\n".join("\n".join([
+            f"<chunk_{i}>",
+            f"<score>{chunk.similarity:.2f}</score>",
+            f"<text>{chunk.text}</text>",
+            f"<search_type>{self.get_retrieval_type(chunk) or 'unknown'}</search_type>",
+            f"</chunk_{i}>"
+        ]) for i, chunk in enumerate(chunks))
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
     async def agenerate_answer(
@@ -564,9 +577,9 @@ class ByoebUserGenerateResponse(Handler):
             for chunk in chunks:
                 retrieved_chunks[chunk.chunk_id] = chunk
 
-        retrieved_chunks_list = list(self.filter_retrieved_chunks(retrieved_chunks.values(), threshold=bot_config["retrieval"]["similarity_threshold"]))
+        retrieved_chunks_list = list(self.filter_retrieved_chunks(retrieved_chunks.values(), thresholds=bot_config["retrieval"]["similarity_thresholds"]))
         if not retrieved_chunks_list:
-            return constants.IDK, constants.IDK, {}, []
+            return constants.IDK, constants.IDK, {}, list(retrieved_chunks.values())
 
         update_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if "KB Updated" in chunk.metadata.source)
         raw_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if "KB Updated" not in chunk.metadata.source)
