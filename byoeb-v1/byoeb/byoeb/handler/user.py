@@ -1,4 +1,5 @@
 import json
+import logging
 import byoeb.services.user.utils as user_utils
 from typing import List, Any, Dict
 from byoeb.services.user.user import UserService
