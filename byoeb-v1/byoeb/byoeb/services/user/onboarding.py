@@ -1,5 +1,6 @@
 import hashlib
 import os
+import logging
 import byoeb.services.user.constants as user_const
 import byoeb.services.chat.constants as chat_const
 from typing import List, Optional
@@ -29,6 +30,8 @@ from datetime import datetime, timezone
 from byoeb_core.convertor.audio_convertor import wav_to_ogg_opus_bytes
 from byoeb_core.models.whatsapp.requests import media_request as wa_media
 
+logger = logging.getLogger(__name__)
+
 def get_language_code(language):
     return LANGUAGE_NAME_TO_CODE.get(language)
 
@@ -47,12 +50,14 @@ def get_user_type(choice):
 
 def _log_reply_context(rc: ReplyContext, where: str):
     try:
-        print(
-            f"[ReplyContext@{where}] reply_id={rc.reply_id!r}, "
-            f"message_category={rc.message_category!r}"
+        logger.debug(
+            "[ReplyContext@%s] reply_id=%s, message_category=%s",
+            where,
+            rc.reply_id,
+            rc.message_category,
         )
     except Exception as e:
-        print(f"[ReplyContext@{where}] <print failed: {e!r}>")
+        logger.warning("[ReplyContext@%s] <log failed: %r>", where, e)
 
 def make_reply_context(from_message: ByoebMessageContext, where: str) -> ReplyContext:
     rc = ReplyContext(
@@ -221,20 +226,20 @@ async def handle_unknown_user(
     user_db_service: UserMongoDBService,
     channel_factory: ChannelClientFactory,
 ):
-    print("handle_unknown_user")
+    logger.info("handle_unknown_user start messages=%s", len(messages))
     channel_service = WhatsAppService(channel_client_factory=channel_factory)
     if not isinstance(channel_service, WhatsAppService):
         raise ValueError("Invalid channel service type")
     for message in messages:
-        print("message.reply_context", message.reply_context)
+        logger.debug("message.reply_context=%s", message.reply_context)
         if message.reply_context is None or message.reply_context.reply_id is None:
-            print(f"onboarding message: {message}")
+            logger.info("onboarding message: %s", message)
             byoeb_message = create_language_selection_message(message)
             requests = channel_service.prepare_requests(byoeb_message)
             responses, message_ids = await channel_service.send_requests(requests)
             convs = channel_service.create_conv(byoeb_message, responses)
             new_user = create_user(phone_number_id=message.user.phone_number_id)
-            print(new_user)
+            logger.info("Created new user %s", new_user.user_id)
             message_db_queries = {
                 chat_const.CREATE: message_db_service.message_create_queries(convs)
             }
@@ -245,9 +250,9 @@ async def handle_unknown_user(
                 await message_db_service.execute_queries(message_db_queries)
                 await user_db_service.execute_queries(user_db_queries)
             except Exception as e:
-                print(f"Error in onboarding message: {e}")
+                logger.error("Error in onboarding message: %s", e, exc_info=True)
         elif message.reply_context.message_category == chat_const.LANGUAGE_SELECTION:
-            print("Language Selection")
+            logger.info("Language Selection")
             text = message.message_context.message_source_text
             code = get_language_code(text)
             update_user = create_user(
@@ -267,7 +272,7 @@ async def handle_unknown_user(
             await message_db_service.execute_queries(message_db_queries)
             await user_db_service.execute_queries(user_db_queries)
         elif message.reply_context.message_category == chat_const.USER_TYPE:
-            print("User Type")
+            logger.info("User Type")
             text = message.message_context.message_source_text
             user_type = get_user_type(text)
             update_user = create_user(
@@ -288,10 +293,10 @@ async def handle_unknown_user(
             await message_db_service.execute_queries(message_db_queries)
             await user_db_service.execute_queries(user_db_queries)
         elif message.reply_context.message_category == chat_const.CONSENT:
-            print("Consent")
+            logger.info("Consent")
             text = message.message_context.message_source_text
             consent = get_consent(text)
-            print(f"consent: {consent}")
+            logger.debug("consent=%s", consent)
             update_user = create_user(
                 phone_number_id=message.user.phone_number_id,
                 user_type=message.user.user_type,
@@ -309,7 +314,7 @@ async def handle_unknown_user(
             responses, message_ids = await channel_service.send_requests(requests)
             await user_db_service.execute_queries(user_db_queries)
         else:
-            print(f"onboarding message: {message}")
+            logger.info("onboarding message fallback: %s", message)
             byoeb_message = create_language_selection_message(message)
             requests = channel_service.prepare_requests(byoeb_message)
             responses, message_ids = await channel_service.send_requests(requests)
@@ -325,4 +330,4 @@ async def handle_unknown_user(
                 await message_db_service.execute_queries(message_db_queries)
                 await user_db_service.execute_queries(user_db_queries)
             except Exception as e:
-                print(f"Error in onboarding message: {e}")
+                logger.error("Error in onboarding message: %s", e, exc_info=True)

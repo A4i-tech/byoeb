@@ -306,13 +306,13 @@ async def related_questions_generation_feedback(llm_client: BaseLLM, data_chunk,
 
 def validate_grounded_and_selfcontained(input_text):
     # Wrap in a root tag to parse
-    print("Fallback to grounded and selfcontained")
+    logger.info("Fallback to grounded and selfcontained")
     wrapped_input = f"<root>{input_text}</root>"
 
     try:
         root = ET.fromstring(wrapped_input)
     except ET.ParseError as e:
-        print("XML parsing error:", e)
+        logger.error("XML parsing error while validating grounded/selfcontained: %s", e, exc_info=True)
         return False
 
     for pair in root:
@@ -334,7 +334,7 @@ def validate_all_tags_yes(input_text):
     try:
         root = ET.fromstring(wrapped_input)
     except ET.ParseError as e:
-        print("XML parsing error:", e)
+        logger.error("XML parsing error while validating tags: %s", e, exc_info=True)
         return False
 
     for pair in root:
@@ -391,13 +391,13 @@ async def agenerate_related_questions(
             # print(pairs_content)
             break
         elif  count < 10 and validate_grounded_and_selfcontained(feedback_xml):
-            print(pairs_content)
+            logger.debug("Pairs content (grounded/selfcontained): %s", pairs_content)
             break
         if count > 13:
-            print("Stuck in loop for 13 iterations")
-            print(pairs_content)
+            logger.warning("Stuck in loop for 13 iterations")
+            logger.debug("Pairs content when stuck: %s", pairs_content)
             with open("/home/rash598/Khushi/byoeb/byoeb-v1/byoeb/byoeb/scripts/knowledge_base/stuck_chunk.txt", "a") as file:
-                print(f"Stuck in loop for {count} iterations")
+                logger.warning("Stuck in loop for %s iterations", count)
                 file.write(f"{data_chunk}\n")
                 file.write(f"{pairs_content}\n")
                 file.write(f"{feedback_xml}\n")
@@ -476,17 +476,17 @@ async def agenerate_qas(
         )
         # print(feedback_xml)
         if validate_all_tags_yes(feedback_xml):
-            print("All tags are yes")
-            print(pairs_content)
+            logger.info("All tags are yes")
+            logger.debug("Pairs content: %s", pairs_content)
             break
         elif  count < 10 and validate_grounded_and_selfcontained(feedback_xml):
-            print(pairs_content)
+            logger.debug("Pairs content (grounded/selfcontained): %s", pairs_content)
             break
         if count > 13:
-            print("Stuck in loop for 13 iterations")
-            print(pairs_content)
+            logger.warning("Stuck in loop for 13 iterations")
+            logger.debug("Pairs content when stuck: %s", pairs_content)
             with open("/home/rash598/Khushi/byoeb/byoeb-v1/byoeb/byoeb/scripts/knowledge_base/stuck_chunk.txt", "a") as file:
-                print(f"Stuck in loop for {count} iterations")
+                logger.warning("Stuck in loop for %s iterations", count)
                 file.write(f"{data_chunk}\n")
                 file.write(f"{pairs_content}\n")
                 file.write(f"{feedback_xml}\n")
@@ -500,9 +500,9 @@ async def agenerate_qas(
         )
         valid_pairs_content = pairs_content
         count += 1
-    print(f"Valid pairs content: {valid_pairs_content}")
+    logger.info("Valid pairs content: %s", valid_pairs_content)
     related_questions, related_answers = extract_questions(valid_pairs_content)
-    print(related_questions)
+    logger.debug("Related questions extracted: %s", related_questions)
     if related_questions is None:
         raise ValueError("Failed to parse the response from the LLM.")
     qa = []
@@ -701,12 +701,12 @@ async def prepare_azure_node(
             chunk,
             llm_client
         )
-        print(f"Related questions for chunk {id}: {related_questions}")
+        logger.info("Related questions for chunk %s: %s", id, related_questions)
         try:
             text_vector_3072=await azure_openai_embed.get_embedding_function().aget_text_embedding(chunk)
-            print(f"Generated embedding for chunk {id}: {len(text_vector_3072)} dimensions")
+            logger.info("Generated embedding for chunk %s: %s dimensions", id, len(text_vector_3072))
         except Exception as e:
-            print(f"Error generating embedding for chunk {id}: {e}")
+            logger.error("Error generating embedding for chunk %s: %s", id, e, exc_info=True)
             raise e
         azure_doc = AzureSearchNode(
             id=id,
@@ -733,9 +733,9 @@ async def prepare_azure_nodes(
         documents = []
         with open(pkl_path, "wb") as file:
             pickle.dump(documents, file)
-        print(f"Created checkpoint file")
+        logger.info("Created checkpoint file at %s", pkl_path)
     start = len(documents)
-    print(f"Starting from chunk {start}")
+    logger.info("Starting from chunk %s", start)
     checkpoint = 5
     total_batches = (len(data_chunks) + batch_size - 1) // batch_size  # Calculate total batches
 
@@ -761,16 +761,16 @@ async def prepare_azure_nodes(
             # print(f"Processed {i+batch_size} out of {len(data_chunks)} chunks")
             if curr == checkpoint:
                 curr = 0
-                print(f"Saving checkpoint... {i+batch_size}/{len(data_chunks)}")
+                logger.info("Saving checkpoint... %s/%s", i+batch_size, len(data_chunks))
                 with open(pkl_path, "wb") as file:
                     pickle.dump(documents, file)
             curr += 1
             time.sleep(0.5)
         except Exception as e:
-            print(batch_chunks)
-            print(e)
+            logger.error("Error processing batch chunks: %s", batch_chunks)
+            logger.exception("Exception during batch processing: %s", e)
             raise e
-    print(f"Saving checkpoint...")
+    logger.info("Saving checkpoint...")
     with open(pkl_path, "wb") as file:
         pickle.dump(documents, file)
     return documents
@@ -784,7 +784,7 @@ async def aget_files_from_blob_store():
     return faq_files, raw_files_without_faq, update_files
     
 def fails(error: IndexAction):
-        print("Failed to upload document")
+        logger.error("Failed to upload document")
         with open("/home/rash598/Khushi/byoeb/byoeb-v1/byoeb/byoeb/scripts/knowledge_base/failures.txt", "a") as file:
             file.write(f"Action type: {error.action_type}\n")
             file.write(f"Properties: {error.additional_properties}\n")

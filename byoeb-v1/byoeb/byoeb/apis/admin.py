@@ -1,6 +1,7 @@
 import csv
 import io
 import os
+import logging
 from typing import AsyncIterator
 from byoeb.models.experiment import QueryInput
 from datetime import datetime
@@ -59,7 +60,7 @@ async def asha_logs(start: datetime = Form(...), end: datetime = Form(...)) -> S
 async def query_handler(input: QueryInput) -> JSONResponse:
     output = await process_message(input)
     output_json = output.model_dump(mode="json")
-    print("Output JSON:", output_json)
+    logging.getLogger(__name__).debug("Output JSON: %s", output_json)
     return JSONResponse(content=output_json, status_code=200)
 
 @admin_apis_router.post("/clear_history")

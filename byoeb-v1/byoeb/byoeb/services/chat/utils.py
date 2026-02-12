@@ -1,8 +1,11 @@
+import logging
 import byoeb.services.chat.constants as constants
 from typing import List
 from byoeb.models.message_category import MessageCategory
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb.chat_app.configuration.config import bot_config
+
+logger = logging.getLogger(__name__)
 
 def has_audio_additional_info(
     byoeb_message: ByoebMessageContext
@@ -68,22 +71,22 @@ def get_expert_byoeb_messages(byoeb_messages: List[ByoebMessageContext]):
 
 def get_user_byoeb_messages(byoeb_messages: List[ByoebMessageContext]):
     regular_user_type = bot_config["regular"]["user_type"]
-    print(f"[get_user_byoeb_messages] DEBUG: regular_user_type={regular_user_type}")
-    print(f"[get_user_byoeb_messages] DEBUG: Processing {len(byoeb_messages)} messages")
+    logger.debug("[get_user_byoeb_messages] regular_user_type=%s", regular_user_type)
+    logger.debug("[get_user_byoeb_messages] Processing %s messages", len(byoeb_messages))
 
     user_messages = []
     for i, byoeb_message in enumerate(byoeb_messages):
-        print(f"[get_user_byoeb_messages] DEBUG: Message {i}: user={byoeb_message.user}")
+        logger.debug("[get_user_byoeb_messages] Message %s: user=%s", i, byoeb_message.user)
         if byoeb_message.user is not None:
-            print(f"[get_user_byoeb_messages] DEBUG: Message {i}: user_type={byoeb_message.user.user_type}")
-            print(f"[get_user_byoeb_messages] DEBUG: Message {i}: user_type in regular_user_type={byoeb_message.user.user_type in regular_user_type}")
+            logger.debug("[get_user_byoeb_messages] Message %s: user_type=%s", i, byoeb_message.user.user_type)
+            logger.debug("[get_user_byoeb_messages] Message %s: user_type in regular_user_type=%s", i, byoeb_message.user.user_type in regular_user_type)
             if byoeb_message.user.user_type in regular_user_type:
                 user_messages.append(byoeb_message)
-                print(f"[get_user_byoeb_messages] DEBUG: Message {i}: ADDED to user_messages")
+                logger.debug("[get_user_byoeb_messages] Message %s: ADDED to user_messages", i)
         else:
-            print(f"[get_user_byoeb_messages] DEBUG: Message {i}: user is None")
+            logger.debug("[get_user_byoeb_messages] Message %s: user is None", i)
 
-    print(f"[get_user_byoeb_messages] DEBUG: Final user_messages count={len(user_messages)}")
+    logger.debug("[get_user_byoeb_messages] Final user_messages count=%s", len(user_messages))
     return user_messages
 
 def get_read_receipt_byoeb_messages(byoeb_messages: List[ByoebMessageContext]):

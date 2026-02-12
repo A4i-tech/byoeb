@@ -5,7 +5,6 @@ if importlib.util.find_spec("pysqlite3") is not None:
     __import__("pysqlite3")
     sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 
-
 import logging
 import logging.config
 import os
@@ -39,7 +38,7 @@ def _setup_logging():
                 log_config = yaml.safe_load(file)
                 logging.config.dictConfig(log_config)
         except Exception as e:
-            print(f"Warning: Failed to load logging.yaml: {e}. Using basicConfig.")
+            logger.warning("Failed to load logging.yaml: %s. Using basicConfig.", e)
             logging.basicConfig(
                 level=logging.INFO,
                 format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -95,7 +94,7 @@ def create_apps():
 async def lifespan(app: FastAPI):
     with tempfile.TemporaryDirectory(prefix="ashabot-") as tempdir:
         pid = os.getpid()
-        print(f"FastAPI app is running with PID: {pid}")
+        logger.info("FastAPI app is running with PID: %s", pid)
 
         from byoeb.chat_app.configuration import config
         config.app_tempdir.set_result(tempdir)

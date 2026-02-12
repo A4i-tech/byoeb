@@ -1,3 +1,4 @@
+import logging
 import byoeb.services.chat.constants as constants
 from aiocache import Cache
 from datetime import datetime, timezone
@@ -15,6 +16,7 @@ class UserMongoDBService(BaseMongoDBService):
         self._history_length = self._config["app"]["history_length"]
         self.collection_name = self._config["databases"]["mongo_db"]["user_collection"]
         self.cache = Cache(Cache.MEMORY)
+        self._logger = logging.getLogger(__name__)
         # Note: _get_repository_factory() is now provided by BaseMongoDBService
 
     async def fetch_phone_numbers_for_asha_and_test_users(self) -> List[str]:
@@ -80,7 +82,7 @@ class UserMongoDBService(BaseMongoDBService):
                 user_objects_cache[user_id] = user_object
     
     async def invalidate_user_cache(self, user_id: str):
-        print(self.cache)
+        self._logger.debug("invalidate_user_cache for user_id=%s cache=%s", user_id, self.cache)
         await self.cache.delete(user_id)
 
     async def get_user_activity_timestamp(self, user_id: str):

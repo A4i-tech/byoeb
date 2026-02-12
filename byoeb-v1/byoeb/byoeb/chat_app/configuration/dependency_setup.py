@@ -50,14 +50,14 @@ def log_async_call(name):
 # App logger
 if env_config.env_appinsights_connection_string:
     from azure.monitor.opentelemetry import configure_azure_monitor
-    print("✅ App Insights connection string set. Enabling Azure logging.")
+    _logger.info("App Insights connection string set. Enabling Azure logging.")
     configure_azure_monitor(
         logger_name=app_config["app_logger"]["azure"]["logger_name"],
         connection_string=env_config.env_appinsights_connection_string,
         instrumentations=["fastapi", "urllib3"]
     )
 else:
-    print("⚠️ App Insights connection string not set. Skipping Azure logging.")
+    _logger.warning("App Insights connection string not set. Skipping Azure logging.")
 
 import byoeb.utils.utils as byoeb_utils
 from byoeb.factory import (
@@ -145,7 +145,7 @@ from byoeb_integrations.translators.text.azure.async_azure_text_translator impor
 if not env_config.env_azure_cognitive_region: raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE environment variable must be set to use text-to-text service")
 if not env_config.env_azure_cognitive_text_to_text_resource: raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE environment variable must be set to use text-to-text service")
 if env_config.env_azure_cognitive_key:
-    print("✅ Azure Cognitive Services key set. Enabling Azure text translator.")
+    _logger.info("Azure Cognitive Services key set. Enabling Azure text translator.")
     text_translator = AsyncAzureTextTranslator(
         key=env_config.env_azure_cognitive_key,
         region=env_config.env_azure_cognitive_region,
@@ -153,7 +153,7 @@ if env_config.env_azure_cognitive_key:
     )
 else:
     from azure.identity import get_bearer_token_provider, DefaultAzureCredential
-    print("⚠️ Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure text translator")
+    _logger.warning("Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure text translator")
     text_translator = AsyncAzureTextTranslator(
     credential=DefaultAzureCredential(),
     region=env_config.env_azure_cognitive_region,
@@ -177,7 +177,7 @@ azure_openai_deployment_name = env_config.env_azure_openai_deployment_name or ap
 
 # Azure OpenAI Embed - try API key first, fallback to token provider
 if env_config.env_azure_openai_key:
-    print("✅ Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
+    _logger.info("Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
     azure_openai_key = env_config.env_azure_openai_key
     azure_openai_embed = AzureOpenAIEmbed(
         model=app_config["embeddings"]["azure"]["model"],
@@ -188,7 +188,7 @@ if env_config.env_azure_openai_key:
     )
 else:
     from azure.identity import get_bearer_token_provider, DefaultAzureCredential
-    print("⚠️ Azure OpenAI Embed key not set. Defaulting to DefaultAzureCredential for Azure OpenAI Embed")
+    _logger.warning("Azure OpenAI Embed key not set. Defaulting to DefaultAzureCredential for Azure OpenAI Embed")
     token_provider = get_bearer_token_provider(
         DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
     )
@@ -214,12 +214,12 @@ if vector_store_type == "azure_vector_search":
     
     if env_config.env_azure_search_api_key:
         from azure.core.credentials import AzureKeyCredential
-        print("✅ Azure Search API key set. Enabling Azure vector store.")
+        _logger.info("Azure Search API key set. Enabling Azure vector store.")
         credential = AzureKeyCredential(env_config.env_azure_search_api_key)
     else:
         from azure.identity import DefaultAzureCredential
         credential = DefaultAzureCredential()   
-        print("⚠️ Azure Search API key not set. Defaulting to DefaultAzureCredential")
+        _logger.warning("Azure Search API key not set. Defaulting to DefaultAzureCredential")
     
     # Azure Vector Store uses LlamaIndex embedding function
     embedding_function = azure_openai_embed.get_embedding_function()
@@ -230,7 +230,7 @@ if vector_store_type == "azure_vector_search":
         embedding_function=embedding_function,
         credential=credential
     )
-    print(f"✅ Initialized Azure Vector Store: {azure_search_service_name}/{azure_search_doc_index_name}")
+    _logger.info("Initialized Azure Vector Store: %s/%s", azure_search_service_name, azure_search_doc_index_name)
 
 elif vector_store_type == "chroma":
     # ChromaDB Vector Store - needs ChromaDB-compatible embedding function
@@ -260,7 +260,7 @@ elif vector_store_type == "chroma":
         collection_name=collection_name,
         embedding_function=chroma_embedding_function
     )
-    print(f"✅ Initialized ChromaDB Vector Store: {persist_directory}/{collection_name}")
+    _logger.info("Initialized ChromaDB Vector Store: %s/%s", persist_directory, collection_name)
 
 elif vector_store_type == "llama_index_chroma":
     # LlamaIndex ChromaDB Vector Store - uses LlamaIndex embedding function
@@ -284,7 +284,7 @@ elif vector_store_type == "llama_index_chroma":
         collection_name=collection_name,
         embedding_function=embedding_function
     )
-    print(f"✅ Initialized LlamaIndex ChromaDB Vector Store: {persist_directory}/{collection_name}")
+    _logger.info("Initialized LlamaIndex ChromaDB Vector Store: %s/%s", persist_directory, collection_name)
 
 else:
     raise ValueError(
@@ -365,7 +365,7 @@ elif account_url:
     )
 else:
     media_storage = None
-    print("⚠️ Azure Blob Storage not configured. Media storage disabled.")
+    _logger.warning("Azure Blob Storage not configured. Media storage disabled.")
 
 # Scheduler configuration
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -404,10 +404,10 @@ def start_scheduler():
     """Start the scheduler."""
     if not scheduler.running:
         scheduler.start()
-        print("✅ Background job scheduler started")
+        _logger.info("Background job scheduler started")
 
 def stop_scheduler():
     """Stop the scheduler."""
     if scheduler.running:
         scheduler.shutdown()
-        print("✅ Background job scheduler stopped")
+        _logger.info("Background job scheduler stopped")

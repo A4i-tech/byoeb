@@ -14,6 +14,8 @@ from byoeb_core.models.byoeb.user import PhoneNumberId
 from fastmcp.server.dependencies import get_http_request
 from pydantic import TypeAdapter, ValidationError
 
+logger = logging.getLogger(__name__)
+
 def get_git_root_path():
     current_dir = os.path.abspath(__file__)
     try:
@@ -23,7 +25,7 @@ def get_git_root_path():
             current_dir = os.path.dirname(current_dir)
         return current_dir
     except Exception as e:
-        print(f"Error: {str(e)}")
+        logger.error("Error determining git root: %s", str(e), exc_info=True)
         return None
     
 def log_to_text_file(text):
