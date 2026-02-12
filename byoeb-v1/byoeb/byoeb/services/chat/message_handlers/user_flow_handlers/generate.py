@@ -10,11 +10,11 @@ import random
 from rapidfuzz.fuzz import ratio
 from datetime import datetime, timezone
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
-from typing import List, Dict, Any, Optional
+from typing import Iterable, List, Dict, Any, Optional
 from byoeb.chat_app.configuration.config import bot_config, app_config
 import byoeb.chat_app.configuration.config as env_config
 from byoeb.models.message_category import MessageCategory
-from byoeb_core.models.vector_stores.chunk import Chunk
+from byoeb_core.models.vector_stores.chunk import Chunk, Chunk_metadata
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
     MessageContext,
@@ -47,6 +47,14 @@ class ByoebUserGenerateResponse(Handler):
     _incomprehensible = "incomprehensible"
     embedding_cache = EmbeddingCache("message-consumer", dim=768, capacity=embedding_cap)
 
+    def get_retrieval_type(self, chunk: Chunk) -> str | None:
+        return chunk.metadata.additional_metadata.get("retrieval_type") if chunk.metadata and chunk.metadata.additional_metadata else None
+
+    def annotate_retrieval_type(self, chunk: Chunk, retrieval_type: str):
+        if chunk.metadata is None: chunk.metadata = Chunk_metadata()
+        if chunk.metadata.additional_metadata is None: chunk.metadata.additional_metadata = {}
+        chunk.metadata.additional_metadata["retrieval_type"] = retrieval_type
+
     async def __aretrieve_chunks(
         self,
         text,
@@ -74,10 +82,12 @@ class ByoebUserGenerateResponse(Handler):
             text,
             k,
             search_type=search_type,
-            select=["id", "text", "metadata", "related_questions"],
+            select=["id", "text", "metadata"],
             vector_field="text_vector_3072"
         )
         end_time = datetime.now(timezone.utc).timestamp()
+        for chunk in retrieved_chunks:
+            self.annotate_retrieval_type(chunk, search_type)
         utils.log_to_text_file(f"Retrieved chunks in {end_time - start_time} seconds")
         return retrieved_chunks
     
@@ -103,7 +113,7 @@ class ByoebUserGenerateResponse(Handler):
             text,
             k,
             search_type=AzureVectorSearchType.DENSE.value,
-            select=["id", "metadata", "related_questions"],
+            select=["id", "related_questions"],
             vector_field="text_vector_3072"
         )
         end_time = datetime.now(timezone.utc).timestamp()
@@ -522,7 +532,23 @@ class ByoebUserGenerateResponse(Handler):
             incoming_timestamp=message.incoming_timestamp,
         )
         return new_expert_verification_message
-    
+
+    def filter_retrieved_chunks(self, retrieved_chunks: Iterable[Chunk], thresholds: dict[str, float]) -> Iterable[Chunk]:
+        return [
+            chunk for chunk in retrieved_chunks
+            if chunk.similarity >= thresholds.get(self.get_retrieval_type(chunk) or "", 0) and
+            chunk.text and len(re.sub(r'\W+', '', chunk.text)) > 0
+        ]
+
+    def _chunks_to_kb_topics(self, chunks: Iterable[Chunk]) -> str:
+        return "\n".join("\n".join([
+            f"<chunk_{i}>",
+            f"<score>{chunk.similarity:.2f}</score>",
+            f"<text>{chunk.text}</text>",
+            f"<search_type>{self.get_retrieval_type(chunk) or 'unknown'}</search_type>",
+            f"</chunk_{i}>"
+        ]) for i, chunk in enumerate(chunks))
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
     async def agenerate_answer(
         self,
@@ -550,8 +576,13 @@ class ByoebUserGenerateResponse(Handler):
         for chunks in await asyncio.gather(*(self.__aretrieve_chunks(q or query, k=k, search_type=t) for q, t, k in vector_search_queries)):
             for chunk in chunks:
                 retrieved_chunks[chunk.chunk_id] = chunk
-        update_kb_list = ", ".join(str(chunk.text) for chunk in retrieved_chunks.values() if "KB Updated" in chunk.metadata.source)
-        raw_kb_list = ", ".join(str(chunk.text) for chunk in retrieved_chunks.values() if "KB Updated" not in chunk.metadata.source)
+
+        retrieved_chunks_list = list(self.filter_retrieved_chunks(retrieved_chunks.values(), thresholds=bot_config["retrieval"]["similarity_thresholds"]))
+        if not retrieved_chunks_list:
+            return constants.IDK, constants.IDK, {}, list(retrieved_chunks.values())
+
+        update_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if "KB Updated" in chunk.metadata.source)
+        raw_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if "KB Updated" not in chunk.metadata.source)
 
         system_prompt = self._get_system_prompt(user_language)
         template_user_prompt = bot_config["llm_response"]["answer_prompts"]["user_prompt"]
@@ -573,7 +604,7 @@ class ByoebUserGenerateResponse(Handler):
         return response_en, response_source, tokens, list(retrieved_chunks.values())
 
     async def needs_clarification(self, query: str, query_type: str, user_language: str, retrieved_chunks: list[Chunk]) -> Optional[tuple[str, str, dict[str, int]]]:
-        kb_topics = ", ".join(str(c.text) for c in retrieved_chunks)
+        kb_topics = self._chunks_to_kb_topics(retrieved_chunks)
         task_description = bot_config["llm_response"]["clarification_prompts"]["system_prompt"]
         response_translate = bot_config["llm_response"]["clarification_prompts"]["response_translate"][user_language]
         output_format = bot_config["llm_response"]["clarification_prompts"]["output"]
@@ -762,7 +793,7 @@ class ByoebUserGenerateResponse(Handler):
                             response_en, response_source, tokens = response_en2, response_source2, tokens2
                             break
 
-                if utils.is_idk(response_en):
+                if utils.is_idk(response_en) and (FeatureFlag.QUERY_DISAMBIGUATION in feature_flags or message.user.test_user):
                     print("Query expansion was unsuccessful, assessing whether clarification is required...")
                     clarification = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
                     if clarification:
