@@ -99,7 +99,7 @@ async def get_mongo_collection():
     """Get MongoDB collection using the same setup as the application."""
     try:
         from byoeb.factory import MongoDBFactory
-        from byoeb.chat_app.configuration.config import app_config
+        from byoeb.chat_app.configuration.config import app_config, env_mongo_db_connection_string
         from byoeb.factory.mongo_db import Scope
     except ImportError as e:
         print(f"❌ Import error: {e}")
@@ -107,6 +107,15 @@ async def get_mongo_collection():
         print(f"byoeb_root: {byoeb_root}")
         print(f"Looking for byoeb module at: {os.path.join(byoeb_root, 'byoeb')}")
         raise
+    
+    # Check if MongoDB connection string is configured
+    if not env_mongo_db_connection_string:
+        error_msg = (
+            "MONGO_DB_CONNECTION_STRING environment variable is not set. "
+            "Please set it to your MongoDB connection string (e.g., staging MongoDB)."
+        )
+        print(f"❌ {error_msg}")
+        raise ValueError(error_msg)
     
     mongo_factory = MongoDBFactory(
         config=app_config,
@@ -134,13 +143,13 @@ async def find_user_by_phone(phone_number: str) -> Dict[str, Any]:
 
 async def update_user_language(phone_number: str, language: str) -> bool:
     """Update user language in the database."""
+    collection, config = await get_mongo_collection()
+    
+    # Find user by phone number
+    filter_dict = {"User.phone_number_id": phone_number}
+    user_doc = await collection.find_one(filter_dict)
+    
     try:
-        collection, config = await get_mongo_collection()
-        
-        # Find user by phone number
-        filter_dict = {"User.phone_number_id": phone_number}
-        user_doc = await collection.find_one(filter_dict)
-        
         if not user_doc:
             print(f"❌ User with phone number {phone_number} not found in database")
             return False

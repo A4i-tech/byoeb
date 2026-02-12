@@ -79,12 +79,14 @@ jobs:
           RECIEVE_URL: ${{ steps.receive-endpoint.outputs.url }}
           USER_NAME: ${{ secrets.USERNAME }}
           PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER }}
+          MONGO_DB_CONNECTION_STRING: ${{ secrets.MONGO_DB_CONNECTION_STRING }}
         run: |
           set -o pipefail
           docker run --rm \
             -e RECIEVE_URL="$RECIEVE_URL" \
             -e USER_NAME="$USER_NAME" \
             -e PHONE_NUMBER_ID="$PHONE_NUMBER_ID" \
+            -e MONGO_DB_CONNECTION_STRING="$MONGO_DB_CONNECTION_STRING" \
             "${{ inputs.image-ref }}" \
             poetry run pytest tests/integration
 
