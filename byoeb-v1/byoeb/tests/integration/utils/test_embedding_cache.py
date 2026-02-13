@@ -4,21 +4,27 @@ from fastmcp import Client
 import os
 import pytest
 import requests
+from dotenv import load_dotenv
 
+# Load keys.env from project root (byoeb-v1/byoeb/) so RECIEVE_URL and PHONE_NUMBER_ID are set
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_byoeb_root = os.path.abspath(os.path.join(_current_dir, "..", "..", ".."))
+_keys_env = os.path.join(_byoeb_root, "keys.env")
+if os.path.exists(_keys_env):
+    load_dotenv(_keys_env, override=True)
 
 BASE_URL = os.getenv("RECIEVE_URL")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 USER_NAME = os.getenv("USER_NAME", "byoeb-user")
-if BASE_URL is None:
-    raise RuntimeError("Environment variable (BASE_URL) is missing")
-if PHONE_NUMBER_ID is None:
-    raise RuntimeError("Environment variable (PHONE_NUMBER_ID) is missing")
 
-BASE_URL = BASE_URL.replace("receive", "")
-MCP_URL = BASE_URL + "mcp?phone_number=" + PHONE_NUMBER_ID
-PURGE_URL = BASE_URL + "purge_request_cache"
-REGISTER_URL = BASE_URL + "register_users"
-DELETE_URL = BASE_URL + "delete_users"
+if BASE_URL and PHONE_NUMBER_ID:
+    _base = BASE_URL.replace("receive", "")
+    MCP_URL = _base + "mcp?phone_number=" + PHONE_NUMBER_ID
+    PURGE_URL = _base + "purge_request_cache"
+    REGISTER_URL = _base + "register_users"
+    DELETE_URL = _base + "delete_users"
+else:
+    MCP_URL = PURGE_URL = REGISTER_URL = DELETE_URL = None
 
 def get_cache_hit(resp: Any) -> bool:
     return next((v for k, v in resp.additional_info if k == "Cache hit"), False)
@@ -34,7 +40,21 @@ async def run_queries(queries: List[str], features: Set[Literal["audio", "histor
 
 @pytest.mark.asyncio
 async def test_repeated_query_hits_cache():
+    if BASE_URL is None or PHONE_NUMBER_ID is None:
+        pytest.skip("RECIEVE_URL and PHONE_NUMBER_ID required (e.g. set in keys.env)")
     requests.post(PURGE_URL).raise_for_status()
+    requests.delete(DELETE_URL, json=[PHONE_NUMBER_ID]).raise_for_status()
+
+    user = {
+        "phone_number_id": PHONE_NUMBER_ID,
+        "user_location": {"district": "Test District"},
+        "user_type": "asha",
+        "user_language": LanguageCode.ENGLISH.value,
+        "user_name": USER_NAME,
+        "test_user": True,
+    }
+    requests.post(REGISTER_URL, json=[user]).raise_for_status()
+
     queries = ["what is antara injection?"] * 2
 
     responses = [resp async for resp in run_queries(queries)]
@@ -50,6 +70,8 @@ async def test_repeated_query_hits_cache():
     (LanguageCode.HINDI, "antara injection kya hai", ["devanagari", "hit"]),
 ])
 async def test_cached_response_respects_lang(lang: LanguageCode, query: str, features: set[str]):
+    if BASE_URL is None or PHONE_NUMBER_ID is None:
+        pytest.skip("RECIEVE_URL and PHONE_NUMBER_ID required (e.g. set in keys.env)")
     if "purge" in features:
         requests.post(PURGE_URL).raise_for_status()
 
