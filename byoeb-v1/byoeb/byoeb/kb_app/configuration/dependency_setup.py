@@ -16,11 +16,29 @@ logger = logging.getLogger(__name__)
 # Optional secondary storage for monthly analysis
 amedia_storage_analysis: BaseMediaStorage = None
 
-account_url = app_config["media_storage"]["azure"]["account_url"]
-container_name = app_config["media_storage"]["azure"]["container_name"]
+# Require environment variables to prevent accidental production access
+if not env_config.env_azure_storage_blob_account_url:
+    raise ValueError(
+        "AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set. "
+    )
+if not env_config.env_azure_storage_container_name:
+    raise ValueError(
+        "AZURE_STORAGE_CONTAINER_NAME environment variable must be set. "
+    )
+if not env_config.env_azure_openai_endpoint:
+    raise ValueError(
+        "AZURE_OPENAI_ENDPOINT environment variable must be set. "
+    )
+if not env_config.env_azure_openai_deployment_name:
+    raise ValueError(
+        "AZURE_OPENAI_DEPLOYMENT_NAME environment variable must be set. "
+    )
+
+account_url = env_config.env_azure_storage_blob_account_url
+container_name = env_config.env_azure_storage_container_name
 model = app_config["embeddings"]["azure"]["model"]
-deployment_name = env_config.env_azure_openai_deployment_name or app_config["embeddings"]["azure"]["deployment_name"]
-aoai_endpoint = env_config.env_azure_openai_endpoint or app_config["embeddings"]["azure"]["endpoint"]
+deployment_name = env_config.env_azure_openai_deployment_name
+aoai_endpoint = env_config.env_azure_openai_endpoint
 cognitive_services_endpoint = app_config["app"]["azure_cognitive_endpoint"]
 api_version = app_config["embeddings"]["azure"]["api_version"]
 default_credential = DefaultAzureCredential()
@@ -77,8 +95,9 @@ else:
         credentials=DefaultAzureCredential()
     )
 
-# Secondary client for monthly analysis (no fallback to primary container)
-analysis_container = app_config["media_storage"]["azure"].get("analysis_container_name")
+# Secondary client for monthly analysis
+# Use environment variable if set, otherwise optional (no fallback to prevent production access)
+analysis_container = env_config.env_azure_storage_analysis_container_name
 if analysis_container:
     if env_config.env_azure_storage_connection_string:
         amedia_storage_analysis = AsyncAzureBlobStorage(
@@ -104,9 +123,17 @@ vector_store: BaseVectorStore = None
 if vector_store_type == "azure_vector_search":
     from azure.search.documents.indexes.models import AzureOpenAIVectorizerParameters
 
-    # Azure Search Service Configuration - use environment variables if set, otherwise fallback to app_config.json
-    azure_search_service_name = env_config.env_azure_search_service_name or app_config["vector_store"]["azure_vector_search"]["service_name"]
-    azure_search_doc_index_name = env_config.env_azure_search_index_name or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
+    # Require environment variables for Azure Search to prevent accidental production access
+    if not env_config.env_azure_search_service_name:
+        raise ValueError(
+            "AZURE_SEARCH_SERVICE_NAME environment variable must be set. "
+        )
+    if not env_config.env_azure_search_index_name:
+        raise ValueError(
+            "AZURE_SEARCH_INDEX_NAME environment variable must be set. "
+        )
+    azure_search_service_name = env_config.env_azure_search_service_name
+    azure_search_doc_index_name = env_config.env_azure_search_index_name
     if env_config.env_azure_search_api_key:
         from azure.core.credentials import AzureKeyCredential
         logger.info("Azure Search API key set. Enabling Azure vector store.")
