@@ -700,11 +700,11 @@ class ByoebUserGenerateResponse(Handler):
 
         can_reformulate, result = parse_expansion_xml(response_text)
 
-        self._logger.debug("Original query: %s", original_query)
+        logger.debug("Original query: %s", original_query)
         if not can_reformulate:
-            self._logger.debug("Query expansion skipped: %s", original_query)
+            logger.debug("Query expansion skipped: %s", original_query)
             for reason in result or ["Insufficient context in original query"]:
-                self._logger.debug("Query expansion skip reason: %s", reason)
+                logger.debug("Query expansion skip reason: %s", reason)
             return []
 
         return result
