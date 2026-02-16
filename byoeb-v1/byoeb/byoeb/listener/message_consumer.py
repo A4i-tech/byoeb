@@ -54,7 +54,14 @@ class QueueConsumer:
             )
         else:
             # Fallback to managed identity (for backward compatibility)
+            # Use DefaultAzureCredential - requires service account to be added in the cloud
+            # or explicit access via AZ CLI, so is very safe
             from azure.identity import DefaultAzureCredential
+            if not self._account_url:
+                raise ValueError(
+                    "Queue account URL must be set from AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable "
+                    "when connection string is not available. "
+                )
             default_credential = DefaultAzureCredential()
             return await AsyncAzureStorageQueue.aget_or_create(
                 account_url=self._account_url,
@@ -65,7 +72,9 @@ class QueueConsumer:
     async def __get_or_create_dead_letter_queue_client(
         self
     ) -> BaseQueue:
-        dlq_name = self._config["message_queue"]["azure"]["dead_letter_queue"]
+        # Environment variable is required (validated at startup in config.py)
+        from byoeb.chat_app.configuration.config import env_azure_queue_dead_letter
+        dlq_name = env_azure_queue_dead_letter
         self._dlq_client = await self.__create_azure_storage_queue_client(dlq_name)
         return self._dlq_client
     

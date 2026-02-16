@@ -58,7 +58,7 @@ async def register_users(
     - Other fields like `block`, `sector`, `sub_center` are optional.
     - Calls the async handler `users_handler.aregister` with validated payload.
     """
-    payload = [u.dict(exclude_unset=True) for u in users]
+    payload = [u.model_dump(exclude_unset=True) for u in users]
     response = await dependency_setup.users_handler.aregister(payload)
     if response.status_code == ByoebStatusCodes.OK.value:
         return [User(**x) for x in response.message]
@@ -77,7 +77,7 @@ async def update_users(
     - Include only fields that need to be updated.
     - Calls `users_handler.aupdate` internally.
     """
-    payload = [u.dict(exclude_unset=True) for u in users]
+    payload = [u.model_dump(exclude_unset=True) for u in users]
     response = await dependency_setup.users_handler.aupdate(payload)
     return JSONResponse(
         content=response.message,
@@ -104,9 +104,8 @@ async def get_users(
     - Accepts multiple `phone_number_id` values as query parameters.
     """
     response = await dependency_setup.users_handler.aget(phone_number_ids)
-    print("Response from aget:", response.message)
-
-    return list(map(lambda x: User(**x), response.message))
+    # Only build User from dicts that represent users (have user_id); skip "User not found" entries
+    return [User(**x) for x in response.message if isinstance(x, dict) and "user_id" in x]
 
     
 # -----------------------------

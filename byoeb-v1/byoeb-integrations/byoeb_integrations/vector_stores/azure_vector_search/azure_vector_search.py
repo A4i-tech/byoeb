@@ -1,6 +1,8 @@
 import asyncio
 import logging
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 from typing import Any, AsyncIterator, Coroutine, List, Optional
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_exponential, wait_fixed
 from tqdm.asyncio import tqdm
@@ -118,8 +120,7 @@ class AzureVectorStore(BaseVectorStore):
         )
 
     def fails(self, error: IndexAction):
-        print("Failed to upload document")
-        print(error.additional_properties)
+        logger.error("Failed to upload document: %s", error.additional_properties)
 
     async def __prepare_azure_node(
         self,

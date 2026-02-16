@@ -5,6 +5,8 @@ from typing import List
 import aiohttp
 import logging
 import asyncio
+
+logger = logging.getLogger(__name__)
 from enum import Enum
 from abc import ABC
 from byoeb_core.models.whatsapp.requests import (
@@ -74,7 +76,6 @@ class AsyncWhatsAppClient(ABC):
         self._parallel_connection_count = parallel_connection_count
         self._request_timeout = request_timeout
         self._keepalive_timeout = keepalive_timeout
-        self._logger = logging.getLogger(self.__class__.__name__)
     
     @classmethod
     def get_product_name(cls):
@@ -186,11 +187,11 @@ class AsyncWhatsAppClient(ABC):
                     return status, None, json_response.get("error")
             
         except asyncio.TimeoutError as e:
-            self._logger.error(f"Timeout error: {e}")
+            logger.error(f"Timeout error: {e}")
             return StatusCode.TIMEOUT_ERROR.value, None, e
         
         except Exception as e:
-            self._logger.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return StatusCode.INTERNAL_SERVER_ERROR.value, None, e
     
     async def __delete__(
@@ -215,11 +216,11 @@ class AsyncWhatsAppClient(ABC):
                 else:
                     return status, None, json_response
         except asyncio.TimeoutError as e:
-            self._logger.error(f"Timeout error: {e}")
+            logger.error(f"Timeout error: {e}")
             return StatusCode.TIMEOUT_ERROR.value, None, e
 
         except Exception as e:
-            self._logger.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return StatusCode.INTERNAL_SERVER_ERROR.value, None, e
         
     async def __get__(
@@ -244,11 +245,11 @@ class AsyncWhatsAppClient(ABC):
                 else:
                     return status, None, content
         except asyncio.TimeoutError as e:
-            self._logger.error(f"Timeout error: {e}")
+            logger.error(f"Timeout error: {e}")
             return StatusCode.TIMEOUT_ERROR.value, None, e
 
         except Exception as e:
-            self._logger.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return StatusCode.INTERNAL_SERVER_ERROR.value, None, e
         
     async def __post__(
@@ -294,11 +295,11 @@ class AsyncWhatsAppClient(ABC):
                     return status, None, json_response
 
         except asyncio.TimeoutError as e:
-            self._logger.error(f"Timeout error: {e}")
+            logger.error(f"Timeout error: {e}")
             return StatusCode.TIMEOUT_ERROR.value, None, e
 
         except Exception as e:
-            self._logger.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return StatusCode.INTERNAL_SERVER_ERROR.value, None, e
     
     async def _upload_media(
@@ -606,7 +607,7 @@ class AsyncWhatsAppClient(ABC):
         tasks = []
         send_function = self.get_send_function(message_type)
         for payload in payloads:
-            # print(f"Sending message: {payload}")
+            logger.debug("Sending message: %s", payload)
             tasks.append(send_function(payload))
         responses = await asyncio.gather(*tasks)
         batch_responses = []

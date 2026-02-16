@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import logging
 from byoeb.constants.feature_enums import FeatureFlag
 from byoeb.services.chat.utils import clean_message_for_console
 import byoeb.services.chat.constants as constants
@@ -10,11 +11,11 @@ import random
 from rapidfuzz.fuzz import ratio
 from datetime import datetime, timezone
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
-from typing import List, Dict, Any, Optional
+from typing import Iterable, List, Dict, Any, Optional
 from byoeb.chat_app.configuration.config import bot_config, app_config
 import byoeb.chat_app.configuration.config as env_config
 from byoeb.models.message_category import MessageCategory
-from byoeb_core.models.vector_stores.chunk import Chunk
+from byoeb_core.models.vector_stores.chunk import Chunk, Chunk_metadata
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
     MessageContext,
@@ -28,6 +29,8 @@ from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.chat_app.configuration.dependency_setup import llm_client
 from byoeb.chat_app.configuration.config import env_ashabot_message_cache_capacity, feature_flags
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
+
+logger = logging.getLogger(__name__)
 
 embedding_cap = int(env_ashabot_message_cache_capacity or 64)
 embedding_fn = (
@@ -46,6 +49,14 @@ class ByoebUserGenerateResponse(Handler):
     _small_talk = "small_talk"
     _incomprehensible = "incomprehensible"
     embedding_cache = EmbeddingCache("message-consumer", dim=768, capacity=embedding_cap)
+
+    def get_retrieval_type(self, chunk: Chunk) -> str | None:
+        return chunk.metadata.additional_metadata.get("retrieval_type") if chunk.metadata and chunk.metadata.additional_metadata else None
+
+    def annotate_retrieval_type(self, chunk: Chunk, retrieval_type: str):
+        if chunk.metadata is None: chunk.metadata = Chunk_metadata()
+        if chunk.metadata.additional_metadata is None: chunk.metadata.additional_metadata = {}
+        chunk.metadata.additional_metadata["retrieval_type"] = retrieval_type
 
     async def __aretrieve_chunks(
         self,
@@ -74,10 +85,12 @@ class ByoebUserGenerateResponse(Handler):
             text,
             k,
             search_type=search_type,
-            select=["id", "text", "metadata", "related_questions"],
+            select=["id", "text", "metadata"],
             vector_field="text_vector_3072"
         )
         end_time = datetime.now(timezone.utc).timestamp()
+        for chunk in retrieved_chunks:
+            self.annotate_retrieval_type(chunk, search_type)
         utils.log_to_text_file(f"Retrieved chunks in {end_time - start_time} seconds")
         return retrieved_chunks
     
@@ -103,7 +116,7 @@ class ByoebUserGenerateResponse(Handler):
             text,
             k,
             search_type=AzureVectorSearchType.DENSE.value,
-            select=["id", "metadata", "related_questions"],
+            select=["id", "related_questions"],
             vector_field="text_vector_3072"
         )
         end_time = datetime.now(timezone.utc).timestamp()
@@ -176,8 +189,8 @@ class ByoebUserGenerateResponse(Handler):
         query_type: str
     ):
         source_text = message.message_context.message_source_text
-        print("IDK Message source text: ", source_text)
-        print("IDK Query type: ", query_type)
+        logger.debug("IDK Message source text: %s", source_text)
+        logger.debug("IDK Query type: %s", query_type)
         template_idk = bot_config["template_messages"]["user"]["audio"]["idk"][query_type]
         if query_type != self._incomprehensible and query_type != self._asha_work_related:
             return {}
@@ -213,8 +226,8 @@ class ByoebUserGenerateResponse(Handler):
             or message_type == MessageTypes.INTERACTIVE_LIST.value
         ):
             modality = self.TEXT_MODALITY
-        print("Modality: ", modality)
-        print("Query:", query)
+        logger.debug("Modality: %s", modality)
+        logger.debug("Query: %s", query)
         template_idk = bot_config["template_messages"]["user"][modality]["idk"][query_type]
         if response_text == constants.IDK and modality == self.AUDIO_MODALITY:
             status = message.reply_context.additional_info.get(constants.STATUS)
@@ -300,7 +313,7 @@ class ByoebUserGenerateResponse(Handler):
             constants.DATA: translated_audio_message,
             constants.MIME_TYPE: "audio/ogg",
         }
-         
+    
     async def __create_source_text(
         self,
         message: ByoebMessageContext,
@@ -336,26 +349,34 @@ class ByoebUserGenerateResponse(Handler):
         default_message_category: Optional[MessageCategory] = None
     ) -> ByoebMessageContext:
         start_time = datetime.now(timezone.utc).timestamp()
-        if response_source is None:
-            message_source_text, options, send_related_questions = await self.__create_source_text(
-                message=message,
-                response_text=response_en,
-                query_type=query_type,
-            )
-        elif utils.is_idk(response_en):
+        user_language = message.user.user_language
+        
+        # Use canned responses with user.language - no need to detect script/language
+        # If response_source is provided, use it directly (it's from canned templates)
+        # If response_source is None or empty, translate from response_en to user's language
+        if utils.is_idk(response_en):
             message_source_text, options, send_related_questions = self.__get_idk_response(
                 message=message,
                 response_text=response_en,
                 query_type=query_type,
             )
+        elif response_source is None or (isinstance(response_source, str) and not response_source.strip()):
+            # If no response_source, translate from response_en to user's language
+            logger.debug("[__create_user_message] response_source is None or empty, translating from response_en to %s", user_language)
+            message_source_text, options, send_related_questions = await self.__create_source_text(
+                message=message,
+                response_text=response_en,
+                query_type=query_type,
+            )
         else:
+            # Use provided response_source - it's from canned templates in the correct language
             message_source_text = response_source
             options = None
             send_related_questions = True
-        print("Options: ", options)
+            logger.debug("[__create_user_message] Using provided response_source from canned templates for language %s: '%s...'", user_language, (message_source_text or "")[:100])
+        logger.debug("Options: %s", options)
         end_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Translated response message in {end_time - start_time} seconds")
-        user_language = message.user.user_language
 
         cache_info = {"cache_score": cache_details[0]} if cache_details[0] is not None else {}
         if cache_hit:
@@ -384,18 +405,24 @@ class ByoebUserGenerateResponse(Handler):
                     cache["media_info"] = {user_language: media_info}
                 else:
                     cache[user_language] = media_info
-                self.embedding_cache.update(cache_id, cache)
+                try:
+                    self.embedding_cache.update(cache_id, cache)
+                except Exception as e:
+                    logger.warning("Embedding cache update failed: %s. Continuing without cache update.", e)
 
         utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
         description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
         message_type = None
         message_category = (default_message_category or MessageCategory.BOT_TO_USER_RESPONSE).value
+        logger.debug("[__create_user_message] Determining message_type. Incoming message_type: '%s'", message.message_context.message_type)
         if (message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value):
             message_type = MessageTypes.REGULAR_AUDIO.value
+            logger.debug("[__create_user_message] Set message_type to REGULAR_AUDIO (incoming was audio)")
         elif (message.message_context.message_type == MessageTypes.REGULAR_TEXT.value
               or message.message_context.message_type == MessageTypes.INTERACTIVE_LIST.value
               or message.message_context.message_type == MessageTypes.INTERACTIVE_BUTTON.value):
             message_type = MessageTypes.INTERACTIVE_LIST.value
+            logger.debug("[__create_user_message] Set message_type to INTERACTIVE_LIST (incoming was text/interactive)")
         button_reply_additional_info = {}
         interactive_list_additional_info = {}
         text_additional_info = {}
@@ -439,11 +466,24 @@ class ByoebUserGenerateResponse(Handler):
                 constants.QUERY_TYPE: query_type
             }
         else:
+            # Default case: for normal text messages, use INTERACTIVE_LIST to show related questions
+            if message_type is None:
+                # If message_type wasn't set above, default to INTERACTIVE_LIST for text messages
+                # This ensures text responses are sent as text with interactive list (related questions)
+                if message.message_context.message_type != MessageTypes.REGULAR_AUDIO.value:
+                    message_type = MessageTypes.INTERACTIVE_LIST.value
+                    logger.debug("[__create_user_message] Set message_type to INTERACTIVE_LIST (default for non-audio)")
+                else:
+                    # If it was an audio message, keep it as audio
+                    message_type = MessageTypes.REGULAR_AUDIO.value
+                    logger.debug("[__create_user_message] Set message_type to REGULAR_AUDIO (default for audio)")
             interactive_list_additional_info = {
                 constants.DESCRIPTION: description,
                 constants.ROW_TEXTS: related_questions,
                 constants.QUERY_TYPE: query_type
             }
+        
+        logger.debug("[__create_user_message] Final message_type: '%s', message_category: '%s'; related_questions count: %s", message_type, message_category, len(related_questions) if related_questions else 0)
         reply_context= self.__create_reply_context(message)
         user_message = ByoebMessageContext(
             channel_type=message.channel_type,
@@ -457,8 +497,8 @@ class ByoebUserGenerateResponse(Handler):
             ),
             message_context=MessageContext(
                 message_type=message_type,
-                message_source_text=message_source_text,
-                message_english_text=response_en,
+                message_source_text=message_source_text,  # This should be in user's language (Hindi, etc.)
+                message_english_text=response_en,  # This is the English translation for internal use
                 additional_info={
                     **media_info,
                     **button_reply_additional_info,
@@ -471,7 +511,7 @@ class ByoebUserGenerateResponse(Handler):
             reply_context=reply_context,
             incoming_timestamp=message.incoming_timestamp,
         )
-        print("Message category: ", user_message.message_category)
+        logger.debug("[__create_user_message] Final message - category: %s; source_text: '%s...'; english_text: '%s...'", user_message.message_category, (user_message.message_context.message_source_text or "")[:100], (user_message.message_context.message_english_text or "")[:100])
         return user_message
     
     def __create_expert_verification_message(
@@ -522,7 +562,23 @@ class ByoebUserGenerateResponse(Handler):
             incoming_timestamp=message.incoming_timestamp,
         )
         return new_expert_verification_message
-    
+
+    def filter_retrieved_chunks(self, retrieved_chunks: Iterable[Chunk], thresholds: dict[str, float]) -> Iterable[Chunk]:
+        return [
+            chunk for chunk in retrieved_chunks
+            if chunk.similarity >= thresholds.get(self.get_retrieval_type(chunk) or "", 0) and
+            chunk.text and len(re.sub(r'\W+', '', chunk.text)) > 0
+        ]
+
+    def _chunks_to_kb_topics(self, chunks: Iterable[Chunk]) -> str:
+        return "\n".join("\n".join([
+            f"<chunk_{i}>",
+            f"<score>{chunk.similarity:.2f}</score>",
+            f"<text>{chunk.text}</text>",
+            f"<search_type>{self.get_retrieval_type(chunk) or 'unknown'}</search_type>",
+            f"</chunk_{i}>"
+        ]) for i, chunk in enumerate(chunks))
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
     async def agenerate_answer(
         self,
@@ -550,8 +606,13 @@ class ByoebUserGenerateResponse(Handler):
         for chunks in await asyncio.gather(*(self.__aretrieve_chunks(q or query, k=k, search_type=t) for q, t, k in vector_search_queries)):
             for chunk in chunks:
                 retrieved_chunks[chunk.chunk_id] = chunk
-        update_kb_list = ", ".join(str(chunk.text) for chunk in retrieved_chunks.values() if "KB Updated" in chunk.metadata.source)
-        raw_kb_list = ", ".join(str(chunk.text) for chunk in retrieved_chunks.values() if "KB Updated" not in chunk.metadata.source)
+
+        retrieved_chunks_list = list(self.filter_retrieved_chunks(retrieved_chunks.values(), thresholds=bot_config["retrieval"]["similarity_thresholds"]))
+        if not retrieved_chunks_list:
+            return constants.IDK, constants.IDK, {}, list(retrieved_chunks.values())
+
+        update_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if "KB Updated" in chunk.metadata.source)
+        raw_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if "KB Updated" not in chunk.metadata.source)
 
         system_prompt = self._get_system_prompt(user_language)
         template_user_prompt = bot_config["llm_response"]["answer_prompts"]["user_prompt"]
@@ -560,20 +621,27 @@ class ByoebUserGenerateResponse(Handler):
         user_prompt = template_user_prompt.replace("<QUERY_TYPE>", query_type).replace("<QUERY_EN_ADDCONTEXT>", query).replace("<RAW_KB>", raw_kb_list).replace("<NEW_KB>", update_kb_list)
         augmented_prompts = self.__augment(system_prompt, user_prompt)
 
+        logger.debug("[agenerate_answer] Generating answer for user_language: %s", user_language)
+        logger.debug("[agenerate_answer] System prompt language section: %s...", bot_config['llm_response']['answer_prompts']['system_prompt']['response_translate'].get(user_language, 'NOT FOUND')[:200])
+
         start_time = datetime.now(timezone.utc).timestamp()
         llm_response, response_text = await llm_client.generate_response(augmented_prompts)
         tokens = llm_client.get_response_tokens(llm_response)
         response_en, response_source = parse_response_xml(response_text)
         end_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Generated answer tokens and response in {end_time - start_time} seconds: {str(tokens)} {response_text}")
-        print("Generated answer: ", response_en)
-        print("Query type: ", query_type)
+        logger.debug("[agenerate_answer] Generated answer_en: %s...", response_en[:100] if response_en else 'None')
+        logger.debug("[agenerate_answer] Generated answer_source (for language %s): %s...", user_language, response_source[:100] if response_source else 'None')
+        logger.debug("[agenerate_answer] Query type: %s", query_type)
         if response_en is None or query_type is None:
             raise ValueError("Parsing failed, response or query_type is None.")
+        # Log warning if response_source is None or empty for non-English languages
+        if (response_source is None or not response_source.strip()) and user_language not in ["en", "hi"]:
+            logger.warning("[agenerate_answer] WARNING: response_source is None or empty for language %s. Will fall back to translation from English.", user_language)
         return response_en, response_source, tokens, list(retrieved_chunks.values())
 
     async def needs_clarification(self, query: str, query_type: str, user_language: str, retrieved_chunks: list[Chunk]) -> Optional[tuple[str, str, dict[str, int]]]:
-        kb_topics = ", ".join(str(c.text) for c in retrieved_chunks)
+        kb_topics = self._chunks_to_kb_topics(retrieved_chunks)
         task_description = bot_config["llm_response"]["clarification_prompts"]["system_prompt"]
         response_translate = bot_config["llm_response"]["clarification_prompts"]["response_translate"][user_language]
         output_format = bot_config["llm_response"]["clarification_prompts"]["output"]
@@ -632,15 +700,14 @@ class ByoebUserGenerateResponse(Handler):
 
         can_reformulate, result = parse_expansion_xml(response_text)
 
-        print(f"Original query: {original_query}")
+        logger.debug("Original query: %s", original_query)
         if not can_reformulate:
-            print(f"Query expansion skipped -", original_query)
+            logger.debug("Query expansion skipped: %s", original_query)
             for reason in result or ["Insufficient context in original query"]:
-                print("-", reason)
+                logger.debug("Query expansion skip reason: %s", reason)
             return []
 
         return result
-
     @retry(
         stop=stop_after_attempt(3),  # Retry up to 3 times
         wait=wait_exponential(multiplier=1, max=10),  # Exponential backoff with a max wait time of 10 seconds
@@ -705,21 +772,78 @@ class ByoebUserGenerateResponse(Handler):
                 status=constants.PENDING,
                 related_questions=related_questions
             )
-        elif utils.is_onboard(message.message_context.message_source_text, message.user.user_language):
-            print("Is onboard message")
+        elif (utils.is_onboard(message.message_context.message_source_text, message.user.user_language) or
+              utils.is_onboard(message.message_context.message_english_text or "", message.user.user_language)):
+            logger.info("Is onboard message - returning already registered response (user_language=%s)", message.user.user_language)
+            logger.debug("  message_source_text: '%s'; message_english_text: '%s'", message.message_context.message_source_text, message.message_context.message_english_text)
+            # Import constants for onboarding messages
+            from byoeb.constants.onboarding_text import ALREADY_REGISTERED_DICT, THANK_YOU_DICT, RELATED_QUESTIONS
+            from byoeb.constants.user_enums import UserType, LanguageCode
+            
+            user_language = message.user.user_language
+            user_type = message.user.user_type or UserType.ASHA.value
+            
+            logger.debug("  user_language: %s, user_type: %s; ALREADY_REGISTERED_DICT keys: %s; THANK_YOU_DICT[%s] keys: %s", user_language, user_type, list(ALREADY_REGISTERED_DICT.keys()), user_type, list(THANK_YOU_DICT.get(user_type, {}).keys()))
+            
+            # Get the "already registered" message in user's language
+            already_registered_msg = ALREADY_REGISTERED_DICT.get(user_language, ALREADY_REGISTERED_DICT[LanguageCode.ENGLISH.value])
+            logger.debug("  Retrieved already_registered_msg: '%s...'", (already_registered_msg or "")[:50])
+            
+            # Get the thank you message from THANK_YOU_DICT
+            # Fallback: OTHERS -> ASHA -> English
+            if user_type in THANK_YOU_DICT:
+                thank_you_msg = THANK_YOU_DICT[user_type].get(user_language, THANK_YOU_DICT[user_type].get(LanguageCode.ENGLISH.value, ""))
+            else:
+                # For user types not in dict (like OTHERS), use ASHA messages
+                logger.debug("  User type '%s' not in THANK_YOU_DICT, falling back to ASHA messages", user_type)
+                thank_you_msg = THANK_YOU_DICT[UserType.ASHA.value].get(user_language, THANK_YOU_DICT[UserType.ASHA.value].get(LanguageCode.ENGLISH.value, ""))
+            logger.debug("  Retrieved thank_you_msg: '%s...'", (thank_you_msg or "")[:50])
+            
+            # Combine messages
+            response_text = f"{already_registered_msg} {thank_you_msg}"
+            
+            logger.debug("  Constructed response_text in %s: '%s...'", user_language, (response_text or "")[:100])
+            
+            # Use static RELATED_QUESTIONS instead of dynamic fetching
+            related_questions = RELATED_QUESTIONS["questions"].get(user_language, RELATED_QUESTIONS["questions"][LanguageCode.ENGLISH.value])
+            logger.debug("  Using static related_questions: %s", related_questions)
+            
+            # Translate response to English for response_en (needed for internal processing)
+            # If translation fails, use a simple fallback
+            try:
+                from byoeb.chat_app.configuration.dependency_setup import text_translator
+                response_en = await text_translator.atranslate_text(
+                    input_text=response_text,
+                    source_language=user_language,
+                    target_language="en"
+                )
+                logger.debug("  Translated response_en: '%s...'", response_en[:100] if response_en else 'None')
+            except Exception as translation_error:
+                logger.warning("  Translation failed: %s", translation_error)
+                # Fallback: Use English version of already_registered message
+                response_en = ALREADY_REGISTERED_DICT.get(LanguageCode.ENGLISH.value, "You are already registered with the system.")
+                logger.debug("  Using fallback response_en: '%s'", response_en)
+            
             query_type = "asha_work_related"
-            query = "antara injection, tobacco, chaaya goli"
-            retrieved_chunks_related_questions = await self._retrieve_top_k_chunks_for_related_questions(query, k=10)
-            related_questions = self.get_related_questions(message.user.user_language, retrieved_chunks_related_questions, message.message_context.message_source_text)
+            print(f"  Calling __create_user_message with response_source='{response_text[:50]}...'")
             byoeb_user_message = await self.__create_user_message(
                 message=message,
-                response_en="You are already connected to Ashabot.",
-                response_source=None,
+                response_en=response_en,
+                response_source=response_text,  # Pass the Hindi text directly - this should be used as message_source_text
                 query_type=query_type,
                 related_questions=related_questions
             )
+            logger.debug("  Created user message with source_text: '%s...'", (byoeb_user_message.message_context.message_source_text or "")[:100])
         else:
+            # Normal message flow - not AUDIO_IDK and not onboarding
+            logger.info("[generate] Processing normal message (user_language=%s)", message.user.user_language)
+            logger.debug("  message_source_text: '%s...'; message_english_text: '%s...'", (message.message_context.message_source_text or "")[:100], (message.message_context.message_english_text or "")[:100])
+            
             message_english = message.message_context.message_english_text
+            if not message_english:
+                logger.warning("[generate] message_english_text is None or empty, using message_source_text as fallback")
+                message_english = message.message_context.message_source_text
+            
             user_language = message.user.user_language
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
             default_message_category = None
@@ -729,8 +853,12 @@ class ByoebUserGenerateResponse(Handler):
                 start_time = datetime.now(timezone.utc).timestamp()
                 embedding = await embedding_fn.aget_text_embedding(message_english)
                 end_time = datetime.now(timezone.utc).timestamp()
-                print(f"Generated cache embeddings in {end_time - start_time}s")
-                cache_result = self.embedding_cache.query(embedding, 0.9)
+                logger.debug("Generated cache embeddings in %ss", end_time - start_time)
+                try:
+                    cache_result = self.embedding_cache.query(embedding, 0.9)
+                except Exception as e:
+                    logger.warning("Embedding cache query failed: %s. Continuing without cache.", e)
+                    cache_result = None, None, None
             else:
                 embedding = None
                 cache_result = None, None, None
@@ -749,7 +877,7 @@ class ByoebUserGenerateResponse(Handler):
                 else:
                     query_expansions_queries = await self.agenerate_expansion_queries(message_english, retrieved_chunks)
                     query_expansion_search_ops = [(None, AzureVectorSearchType.HYBRID.value, 3), (None, AzureVectorSearchType.DENSE.value, 3)]
-                    print("Response is IDK, attempting query expansion:", query_expansions_queries)
+                    logger.debug("Response is IDK, attempting query expansion: %s", query_expansions_queries)
                     for q in query_expansions_queries:
                         try:
                             response_en2, response_source2, tokens2, retrieved_chunks2 = await self.agenerate_answer(user_language, q, self._asha_work_related, query_expansion_search_ops)
@@ -762,8 +890,8 @@ class ByoebUserGenerateResponse(Handler):
                             response_en, response_source, tokens = response_en2, response_source2, tokens2
                             break
 
-                if utils.is_idk(response_en):
-                    print("Query expansion was unsuccessful, assessing whether clarification is required...")
+                if utils.is_idk(response_en) and (FeatureFlag.QUERY_DISAMBIGUATION in feature_flags or message.user.test_user):
+                    logger.debug("Query expansion was unsuccessful, assessing whether clarification is required...")
                     clarification = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
                     if clarification:
                         default_message_category = MessageCategory.AUDIO_DISAMBIGUATION if message.message_context.message_type == MessageTypes.REGULAR_AUDIO else MessageCategory.TEXT_DISAMBIGUATION
@@ -776,8 +904,12 @@ class ByoebUserGenerateResponse(Handler):
                     cache_val["answer"] = cache_val.get("answer", {})
                     cache_val["answer"][user_language] = response_en, response_source, related_questions, tokens
                     miss_thresh = cache_result[0] if cache_result is not None else None
-                    cache_result = self.embedding_cache.store(embedding, cache_val)
-                    cache_result = miss_thresh, *cache_result[1:]
+                    try:
+                        cache_result = self.embedding_cache.store(embedding, cache_val)
+                        cache_result = miss_thresh, *cache_result[1:]
+                    except Exception as e:
+                        logger.warning("Embedding cache store failed: %s. Continuing without cache.", e)
+                        cache_result = None, None, None
                 else:
                     cache_result = None, None, None
 
@@ -799,7 +931,7 @@ class ByoebUserGenerateResponse(Handler):
                 cache_hit=cache_hit,
                 default_message_category=default_message_category
             )
-        print("Created user message")
+        logger.info("Created user message")
         byoeb_expert_message = None
         # byoeb_expert_message = self.__create_expert_verification_message(
         #     message,
@@ -811,21 +943,21 @@ class ByoebUserGenerateResponse(Handler):
         # print("Created expert message")
 
         # Aggregate all messages
-        print(f"[GENERATE] byoeb_user_message: {clean_message_for_console(byoeb_user_message)}")
-        print(f"[GENERATE] byoeb_expert_message: {clean_message_for_console(byoeb_expert_message) if byoeb_expert_message else byoeb_expert_message}")
-        print(f"[GENERATE] read_reciept_message: {clean_message_for_console(read_reciept_message)}")
+        logger.debug("[GENERATE] byoeb_user_message: %s", clean_message_for_console(byoeb_user_message))
+        logger.debug("[GENERATE] byoeb_expert_message: %s", clean_message_for_console(byoeb_expert_message) if byoeb_expert_message else byoeb_expert_message)
+        logger.debug("[GENERATE] read_reciept_message: %s", clean_message_for_console(read_reciept_message))
         
         if byoeb_user_message is not None:
             byoeb_messages.append(byoeb_user_message)
-            print(f"[GENERATE] Added user message to list")
+            logger.debug("[GENERATE] Added user message to list")
         if byoeb_expert_message is not None:
             byoeb_messages.append(byoeb_expert_message)
-            print(f"[GENERATE] Added expert message to list")
+            logger.debug("[GENERATE] Added expert message to list")
         if read_reciept_message is not None:
             byoeb_messages.append(read_reciept_message)
-            print(f"[GENERATE] Added read receipt message to list")
+            logger.debug("[GENERATE] Added read receipt message to list")
             
-        print(f"[GENERATE] Final byoeb_messages count: {len(byoeb_messages)}")
+        logger.info("[GENERATE] Final byoeb_messages count: %s", len(byoeb_messages))
         return byoeb_messages
     
     async def handle(
@@ -839,18 +971,18 @@ class ByoebUserGenerateResponse(Handler):
             start_time = datetime.now(timezone.utc).timestamp()
             new_messages = await self.handle_message_generate_workflow(messages)
             end_time = datetime.now(timezone.utc).timestamp()
-            print(f"[GENERATE] Generated {len(new_messages)} messages")
+            logger.info("[GENERATE] Generated %s messages", len(new_messages))
             utils.log_to_text_file(f"E2E Generated answer and related questions in {end_time - start_time} seconds")
         except RetryError as e:
             utils.log_to_text_file(f"RetryError in generating response: {e}")
-            print("RetryError in generating response: ", e)
+            logger.error("RetryError in generating response: %s", e, exc_info=True)
             raise e
         except Exception as e:
             utils.log_to_text_file(f"Error in generating response: {e}")
-            print("Error in generating response: ", e)
+            logger.error("Error in generating response: %s", e, exc_info=True)
             raise e
         if self._successor:
-            print(f"[GENERATE] Passing {len(new_messages)} messages to successor")
+            logger.info("[GENERATE] Passing %s messages to successor", len(new_messages))
             return await self._successor.handle(
                 new_messages
             )

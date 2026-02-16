@@ -20,6 +20,9 @@ PURGE_URL = BASE_URL + "purge_request_cache"
 REGISTER_URL = BASE_URL + "register_users"
 DELETE_URL = BASE_URL + "delete_users"
 
+# Timeout for HTTP calls (integration server may be slow)
+HTTP_TIMEOUT_S = 60
+
 def get_cache_hit(resp: Any) -> bool:
     return next((v for k, v in resp.additional_info if k == "Cache hit"), False)
 
@@ -34,7 +37,7 @@ async def run_queries(queries: List[str], features: Set[Literal["audio", "histor
 
 @pytest.mark.asyncio
 async def test_repeated_query_hits_cache():
-    requests.post(PURGE_URL).raise_for_status()
+    requests.post(PURGE_URL, timeout=HTTP_TIMEOUT_S).raise_for_status()
     queries = ["what is antara injection?"] * 2
 
     responses = [resp async for resp in run_queries(queries)]
@@ -51,9 +54,9 @@ async def test_repeated_query_hits_cache():
 ])
 async def test_cached_response_respects_lang(lang: LanguageCode, query: str, features: set[str]):
     if "purge" in features:
-        requests.post(PURGE_URL).raise_for_status()
+        requests.post(PURGE_URL, timeout=HTTP_TIMEOUT_S).raise_for_status()
 
-    requests.delete(DELETE_URL, json=[PHONE_NUMBER_ID]).raise_for_status()
+    requests.delete(DELETE_URL, json=[PHONE_NUMBER_ID], timeout=HTTP_TIMEOUT_S).raise_for_status()
 
     user = {
         "phone_number_id": PHONE_NUMBER_ID,
@@ -64,7 +67,7 @@ async def test_cached_response_respects_lang(lang: LanguageCode, query: str, fea
         "test_user": True,
     }
 
-    requests.post(REGISTER_URL, json=[user]).raise_for_status()
+    requests.post(REGISTER_URL, json=[user], timeout=HTTP_TIMEOUT_S).raise_for_status()
 
     responses = [resp async for resp in run_queries([query])]
     assert responses

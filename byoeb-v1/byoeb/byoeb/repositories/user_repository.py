@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import AsyncIterator, Dict, Any, Optional, List
+from datetime import datetime
 
 from byoeb.repositories.base_repository import BaseRepository
 
@@ -73,13 +74,13 @@ class UserRepository(BaseRepository, ABC):
 
     @abstractmethod
     def find_active_users_in_timeframe(self, 
-                                       start_timestamp: int, 
-                                       end_timestamp: int) -> AsyncIterator[Dict[str, Any]]:
+                                       start_timestamp: datetime, 
+                                       end_timestamp: datetime) -> AsyncIterator[Dict[str, Any]]:
         """Find users who were active within a specific timeframe."""
         pass
 
     @abstractmethod
-    async def update_user_activity_timestamp(self, user_id: str, timestamp: int) -> bool:
+    async def update_user_activity_timestamp(self, user_id: str, timestamp: datetime) -> bool:
         """Update user's activity timestamp."""
         pass
 

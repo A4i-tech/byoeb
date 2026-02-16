@@ -173,4 +173,4 @@ if __name__ == "__main__":
     text_1 = "This is a test sentence. This is another test sentence."
     text_2 = "How are you doing? I am doing well."
     chunks = text_parser.get_chunks_from_collection([text_1,text_2])
-    print(chunks)
+    logger.info("Chunks: %s", chunks)

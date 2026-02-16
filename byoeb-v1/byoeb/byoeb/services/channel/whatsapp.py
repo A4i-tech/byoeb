@@ -1,4 +1,6 @@
 import asyncio
+import json
+import logging
 import byoeb.services.chat.constants as constants
 import byoeb.services.chat.utils as utils 
 import byoeb_integrations.channel.whatsapp.request_payload as wa_req_payload
@@ -47,20 +49,46 @@ class WhatsAppService(BaseChannelService):
         self,
         byoeb_message: ByoebMessageContext
     ) -> List[Dict[str, Any]]:
+        _log = logging.getLogger(__name__)
         wa_requests = []
+        msg_ctx = byoeb_message.message_context
+        msg_type = getattr(msg_ctx, "message_type", None) or (msg_ctx.get("message_type") if isinstance(msg_ctx, dict) else None)
+        has_tpl = utils.has_template_additional_info(byoeb_message)
+        _log.debug(
+            "[prepare_requests] message_type=%s has_interactive_button=%s has_interactive_list=%s has_text=%s has_template=%s has_audio=%s",
+            msg_type,
+            utils.has_interactive_button_additional_info(byoeb_message),
+            utils.has_interactive_list_additional_info(byoeb_message),
+            utils.has_text(byoeb_message),
+            has_tpl,
+            utils.has_audio_additional_info(byoeb_message),
+        )
         if utils.has_interactive_button_additional_info(byoeb_message):
+            _log.debug("[prepare_requests] Preparing interactive button message")
             wa_interactive_button_message = wa_req_payload.get_whatsapp_interactive_button_request_from_byoeb_message(byoeb_message)
             wa_requests.append(wa_interactive_button_message)
         elif utils.has_interactive_list_additional_info(byoeb_message):
+            _log.debug("[prepare_requests] Preparing interactive list message")
             wa_interactive_list_message = wa_req_payload.get_whatsapp_interactive_list_request_from_byoeb_message(byoeb_message)
             wa_requests.append(wa_interactive_list_message)
         elif utils.has_text(byoeb_message):
+            _log.debug("[prepare_requests] Preparing text message")
             wa_text_message = wa_req_payload.get_whatsapp_text_request_from_byoeb_message(byoeb_message)
             wa_requests.append(wa_text_message)
-        if utils.has_template_additional_info(byoeb_message):
+        else:
+            _log.debug("[prepare_requests] No text/button/list; will add template if present")
+        if has_tpl:
+            _log.info("[prepare_requests] Preparing template message (e.g. DYK)")
             wa_template_message = wa_req_payload.get_whatsapp_template_request_from_byoeb_message(byoeb_message)
-            # print("Whatsapp template message", json.dumps(wa_template_message))
+            _log.debug("Whatsapp template message %s", json.dumps(wa_template_message))
             wa_requests.append(wa_template_message)
+        elif not wa_requests and msg_type in ("template_text", "template"):
+            # Fallback: template-only message (e.g. DYK) when additional_info has template keys
+            info = getattr(msg_ctx, "additional_info", None) or (msg_ctx.get("additional_info") if isinstance(msg_ctx, dict) else None)
+            if info and all(k in info for k in ("template_name", "template_language", "template_parameters")):
+                _log.info("[prepare_requests] Preparing template message (fallback for template_text)")
+                wa_template_message = wa_req_payload.get_whatsapp_template_request_from_byoeb_message(byoeb_message)
+                wa_requests.append(wa_template_message)
         if utils.has_audio_additional_info(byoeb_message):
             wa_audio_message = wa_req_payload.get_whatsapp_audio_request_from_byoeb_message(byoeb_message)
             if wa_audio_message is not None:
@@ -94,7 +122,7 @@ class WhatsAppService(BaseChannelService):
             tasks.append(client.asend_batch_messages([request], message_type))
         results = await asyncio.gather(*tasks)
         responses = [response for result in results for response in result]
-        print("WhatsApp responses", responses)
+        logging.getLogger(__name__).debug("WhatsApp responses %s", responses)
         message_ids = [response.messages[0].id if response.messages else None for response in responses]
         return responses, message_ids
     

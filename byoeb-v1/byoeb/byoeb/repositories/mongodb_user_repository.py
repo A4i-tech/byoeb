@@ -1,4 +1,5 @@
 from typing import AsyncIterator, Dict, Any, Optional, List
+from datetime import datetime
 from byoeb.repositories.mongodb_base_repository import MongoBaseRepository
 from byoeb.repositories.user_repository import UserRepository
 import os
@@ -72,8 +73,8 @@ class MongoUserRepository(UserRepository, MongoBaseRepository):
         return _empty()
 
     def find_active_users_in_timeframe(self, 
-                                       start_timestamp: int, 
-                                       end_timestamp: int) -> AsyncIterator[Dict[str, Any]]:
+                                       start_timestamp: datetime, 
+                                       end_timestamp: datetime) -> AsyncIterator[Dict[str, Any]]:
         filter_dict = {
             "User.activity_timestamp": {
                 "$gte": start_timestamp, 
@@ -82,7 +83,7 @@ class MongoUserRepository(UserRepository, MongoBaseRepository):
         }
         return self.find_all(filter_dict)
 
-    async def update_user_activity_timestamp(self, user_id: str, timestamp: int) -> bool:
+    async def update_user_activity_timestamp(self, user_id: str, timestamp: datetime) -> bool:
         filter_dict = {"_id": user_id}
         update_dict = {"$set": {"User.activity_timestamp": timestamp}}
         return await self.update_one(filter_dict, update_dict)

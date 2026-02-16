@@ -17,9 +17,20 @@ from byoeb_core.models.byoeb.message_context import ByoebMessageContext, Message
 from byoeb_core.models.byoeb.user import User
 from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import StatusCode
 from datetime import datetime, timezone
-from typing import AsyncIterator, Iterable, List, Optional, Set, Tuple, TypeAlias
+from typing import Any, AsyncIterator, Iterable, List, Optional, Set, Tuple, TypeAlias
 import os
 import re
+
+
+def _ensure_utc_dates(obj: Any) -> Any:
+    """Recursively ensure datetime values are UTC-aware so User model accepts them (e.g. from MongoDB)."""
+    if isinstance(obj, datetime):
+        return obj.replace(tzinfo=timezone.utc) if obj.tzinfo is None else obj
+    if isinstance(obj, dict):
+        return {k: _ensure_utc_dates(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_ensure_utc_dates(v) for v in obj]
+    return obj
 
 
 DykBatch: TypeAlias = Iterable[Tuple[User, Set[str]]]
@@ -60,7 +71,8 @@ async def pick_candidates(dyk_repo: DykRepository, user_repo: UserRepository, la
         filtern_user_ids.add(record.user_id)
     buffer: List[User] = []
     async for doc in potential_candidates:
-        user = User(**doc["User"])
+        user_data = _ensure_utc_dates(doc["User"])
+        user = User(**user_data)
         if user.user_id in filtern_user_ids:
             continue
         buffer.append(user)
@@ -88,7 +100,7 @@ async def queue(dyk_repo: DykRepository, sheet: DykFactSheet, candidates: DykBat
         }
 
         batch_id, queued, exhausted = await queue(records, [])
-        print("Queued %d ops, exhausted %d ops", queued, exhausted)
+        # Logging handled by send_logger; keep docstring example concise
     """
 
     batch_id = uuid.uuid4().hex
@@ -142,7 +154,8 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
     pending = [p async for p in dyk_repo.find_pending_of_batches(sheet.keys(), [batch_id])]
     users: dict[str, Optional[User]] = {p.user_id: None for p in pending}
     async for user_doc in user_repo.find_users_by_ids(list(users.keys())):
-        user = User(**user_doc["User"])
+        user_data = _ensure_utc_dates(user_doc["User"])
+        user = User(**user_data)
         users[str(user.user_id)] = user
 
     ts = int(datetime.now(timezone.utc).timestamp())
@@ -197,7 +210,9 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
 
             requests = whatsapp_service.prepare_requests(byoeb_message)
             if not requests:
-                send_logger.error("Failed to prepare a request message", extra={AppInsightsLogHandler.DETAILS: {
+                send_logger.error(
+                    "Failed to prepare a request message (template may be missing or additional_info keys wrong)",
+                    extra={AppInsightsLogHandler.DETAILS: {
                     "context": dispatch.__name__,
                     "dyk_id": str(record.dyk_id),
                     "user_id": record.user_id,
@@ -222,14 +237,18 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, sheet: Dy
                 n_failure += 1
                 continue
 
-            send_logger.info("Sent DYK %s to user %s", record.dyk_id, record.user_id, extra={AppInsightsLogHandler.DETAILS: {
-                "context": dispatch.__name__,
-                "dyk_id": str(record.dyk_id),
-                "user_id": record.user_id,
-                "batch_id": batch_id,
-                "user_phone_number": phone_number,
-                "whatsapp_message_ids": json.dumps(message_ids)
-            }})
+            send_logger.info(
+                "Sent DYK %s to user %s (phone_number_id=%s)",
+                record.dyk_id, record.user_id, phone_number,
+                extra={AppInsightsLogHandler.DETAILS: {
+                    "context": dispatch.__name__,
+                    "dyk_id": str(record.dyk_id),
+                    "user_id": record.user_id,
+                    "batch_id": batch_id,
+                    "user_phone_number": phone_number,
+                    "whatsapp_message_ids": json.dumps(message_ids)
+                }}
+            )
             completed.append(record.id)
             n_success += 1
     finally:

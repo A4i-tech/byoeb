@@ -35,7 +35,6 @@
         "mongo_db":
         {
             "provider_type": "azure_cosmos_mongo_db",
-            "database_name": "ashadb",
             "dyk_collection": "ashadyks",
             "user_collection": "ashausers",
             "message_collection": "ashamessages",
@@ -45,7 +44,6 @@
     "embeddings": {
         "azure": {
             "model": "text-embedding-3-large",
-            "endpoint": "https://khushi-baby-asha-oai.openai.azure.com/",
             "deployment_name": "text-embedding-3-large",
             "api_version": "2023-03-15-preview"
         }
@@ -53,7 +51,6 @@
     "llms": {
         "azure": {
             "model": "gpt-4o",
-            "endpoint": "https://khushi-baby-asha-oai.openai.azure.com/",
             "deployment_name": "gpt-4o",
             "api_version": "2023-03-15-preview"
         },
@@ -64,13 +61,10 @@
     },
     "media_storage": {
         "azure": {
-            "account_url": "https://khushibabyashastorage.blob.core.windows.net",
-            "container_name": "ashacontainer"
         }
     },
     "message_queue": {
         "azure": {
-            "account_url": "https://khushibabyashastorage.queue.core.windows.net",
             "queue_status": "statusmessages",
             "queue_bot": "botmessages",
             "dead_letter_queue": "deadletterqueue",
@@ -119,13 +113,10 @@
             "doc_index_name": "vector_collection"
         },
         "azure_vector_search": {
-            "service_name": "khushi-baby-asha-search",
-            "doc_index_name": "khushi-baby-asha-doc-index"
         }
     },
     "app_logger": {
         "azure": {
-            "logger_name": "khushi-baby-asha-logger"
         }
     }
 }

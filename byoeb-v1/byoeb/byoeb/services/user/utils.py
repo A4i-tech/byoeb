@@ -5,8 +5,6 @@ from typing import List, Dict, Any, Optional
 def get_experts_numbers(
     experts: Dict[str, List[str]]
 ) -> List[str]:
-    # print("Experts: ", experts)
-    # print("type: ", type(experts))
     combined_list = []
     for items in experts.values():
         if items:  # Check if the value is not None or empty
