@@ -216,8 +216,8 @@ def create_user(
         test_user=(user_type == "others"),
         experts={},
         audience=[],
-        created_timestamp=int(datetime.now(timezone.utc).timestamp()),
-        activity_timestamp=int(datetime.now(timezone.utc).timestamp()),
+        created_timestamp=datetime.now(timezone.utc),
+        activity_timestamp=datetime.now(timezone.utc),
     )
     
 async def handle_unknown_user(

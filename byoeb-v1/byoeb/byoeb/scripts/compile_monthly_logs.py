@@ -365,12 +365,10 @@ async def get_user_repository(mongo_factory: MongoDBFactory):
 
 async def count_onboarded_asha(start: datetime, end: datetime, user_repo) -> int:
     """Count onboarded ASHA users by created_timestamp in [start, end)."""
-    start_ts = int(start.timestamp())
-    end_ts = int(end.timestamp())
     filter_dict = {
         "User.user_type": "asha",
         "User.test_user": {"$ne": True},
-        "User.created_timestamp": {"$gte": start_ts, "$lt": end_ts}
+        "User.created_timestamp": {"$gte": start, "$lt": end}
     }
     try:
         return await user_repo.count(filter_dict)

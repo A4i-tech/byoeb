@@ -359,8 +359,8 @@ class MessageMongoDBService(BaseMongoDBService):
                             test_user=False,
                             experts={},
                             audience=[],
-                            created_timestamp=int(datetime.now(timezone.utc).timestamp()),
-                            activity_timestamp=int(datetime.now(timezone.utc).timestamp()),
+                            created_timestamp=datetime.now(timezone.utc),
+                            activity_timestamp=datetime.now(timezone.utc),
                             last_conversations=[],
                             additional_info={}
                         ),

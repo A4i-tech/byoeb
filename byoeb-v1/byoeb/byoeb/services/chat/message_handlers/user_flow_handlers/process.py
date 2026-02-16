@@ -4,7 +4,7 @@ import byoeb.utils.utils as utils
 import byoeb.services.chat.constants as constants
 from tenacity import retry, stop_after_attempt, wait_exponential
 from byoeb.chat_app.configuration.config import bot_config
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageTypes
 from byoeb.services.chat.message_handlers.base import Handler
@@ -44,12 +44,16 @@ class ByoebUserProcess(Handler):
     
     def _create_conversation_history(self, last_conversations: List[Dict[str, Any]]) -> str:
         conversation_history = []
-        curr_time = datetime.now(timezone.utc).timestamp()
+        curr_time = datetime.now(timezone.utc)
         i = 1
         for conversation in last_conversations:
-            timestamp = int(conversation.get(constants.TIMESTAMP, 0))
-            if curr_time - timestamp > 1800:
-                continue  # Skip conversations older than 30 min
+            conversation_time = conversation.get(constants.TIMESTAMP, None)
+            if conversation_time is None or not isinstance(conversation_time, datetime):
+                continue
+            if conversation_time.tzinfo is None:
+                conversation_time = conversation_time.replace(tzinfo=timezone.utc)
+            if (curr_time - conversation_time) > timedelta(minutes=30):
+                continue
             
             question = conversation.get(constants.QUESTION, None)
             answer = conversation.get(constants.ANSWER, None)
@@ -90,14 +94,15 @@ class ByoebUserProcess(Handler):
         template_user_prompt = bot_config["llm_response"]["translation_and_rewrite_prompts"]["user_prompt"]
         user_prompt = template_user_prompt.replace("<QUERY>", source_text).replace("<CONVERSATION_HISTORY>", conversation_history_str)
         augmented_prompts = self.__augment(system_prompt, user_prompt)
-        start_time = datetime.now(timezone.utc).timestamp()
+        start_time = datetime.now(timezone.utc)
         llm_response, response_text = await llm_translate_and_rewrite_client.generate_response(augmented_prompts)
         tokens = llm_translate_and_rewrite_client.get_response_tokens(llm_response)
         query_en, query_en_addcontext, query_type  = parse_xml_with_regex(response_text)
         if query_en is None or query_en_addcontext is None or query_type is None:
             raise Exception("LLM response is not in expected format")
-        end_time = datetime.now(timezone.utc).timestamp()
-        utils.log_to_text_file(f"Query rewritting and transcribe in {end_time - start_time} seconds: {str(tokens)} {response_text}")
+        end_time = datetime.now(timezone.utc)
+        duration_seconds = (end_time - start_time).total_seconds()
+        utils.log_to_text_file(f"Query rewritting and transcribe in {duration_seconds} seconds: {str(tokens)} {response_text}")
         return query_en, query_en_addcontext, query_type, tokens
 
     async def annotate_audio_transcription(self, message: ByoebMessageContext, audio_message: Optional[MediaData] = None):
@@ -106,7 +111,7 @@ class ByoebUserProcess(Handler):
         from byoeb.chat_app.configuration.dependency_setup import speech_translator
         from byoeb_core.convertor.audio_convertor import ogg_opus_to_wav_bytes
 
-        start_time = datetime.now(timezone.utc).timestamp()
+        start_time = datetime.now(timezone.utc)
         if audio_message is None:
             media_id = message.message_context.media_info.media_id
             channel_client = await channel_client_factory.get(message.channel_type)
@@ -115,12 +120,13 @@ class ByoebUserProcess(Handler):
         audio_message_wav = ogg_opus_to_wav_bytes(audio_message.data)
         audio_to_text = await speech_translator.aspeech_to_text(audio_message_wav, message.user.user_language, test_user=message.user.test_user)
         message.message_context.message_source_text = audio_to_text
-        end_time = datetime.now(timezone.utc).timestamp()
-        AppInsightsLogHandler.getLogger("audio_to_text").info(f"Time taken for audio to text transcribe: {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {
+        end_time = datetime.now(timezone.utc)
+        duration_seconds = (end_time - start_time).total_seconds()
+        AppInsightsLogHandler.getLogger("audio_to_text").info(f"Time taken for audio to text transcribe: {duration_seconds} seconds", extra={AppInsightsLogHandler.DETAILS: {
             "message_id": message.message_context.message_id,
-            "time_taken": end_time - start_time
+            "time_taken": duration_seconds
         }})
-        utils.log_to_text_file(f"Time taken for audio to text transcribe: {end_time - start_time} seconds")
+        utils.log_to_text_file(f"Time taken for audio to text transcribe: {duration_seconds} seconds")
         if message.message_context.media_info:
             message.message_context.media_info.media_type = audio_message.mime_type
 
@@ -136,10 +142,10 @@ class ByoebUserProcess(Handler):
 
         if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
             await self.annotate_audio_transcription(message)
-        
+
         # Check if this is an onboarding message BEFORE processing
         is_onboarding_message = utils.is_onboard(message.message_context.message_source_text, message.user.user_language)
-        
+
         # Skip LLM translation/rewriting for onboarding messages to prevent them from being sent to vector store/LLM
         # Also skip for AUDIO_IDK messages (they don't need translation/rewriting)
         if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
@@ -156,12 +162,13 @@ class ByoebUserProcess(Handler):
         else:
             # Normal messages: call LLM for translation and rewriting
             logger.info("[process] Processing normal message (not onboarding): '%s...'", (message.message_context.message_source_text or "")[:50])
-            start_time = datetime.now(timezone.utc).timestamp()
+            start_time = datetime.now(timezone.utc)
             query_en, query_en_addcontext, query_type, tokens = await self.llm_translation_and_query_rewritting(message)
-            end_time = datetime.now(timezone.utc).timestamp()
-            AppInsightsLogHandler.getLogger("query_rewriting").info(f"Rewrote queries for {message.message_context.message_id} in {end_time - start_time} using {tokens.get('completion_tokens')} completion and {tokens.get('prompt_tokens')} prompt tokens", extra={AppInsightsLogHandler.DETAILS: {
+            end_time = datetime.now(timezone.utc)
+            duration_seconds = (end_time - start_time).total_seconds()
+            AppInsightsLogHandler.getLogger("query_rewriting").info(f"Rewrote queries for {message.message_context.message_id} in {duration_seconds} using {tokens.get('completion_tokens')} completion and {tokens.get('prompt_tokens')} prompt tokens", extra={AppInsightsLogHandler.DETAILS: {
                 "message_id": message.message_context.message_id,
-                "time_taken": end_time - start_time,
+                "time_taken": duration_seconds,
                 "completion_tokens": tokens.get("completion_tokens"),
                 "prompt_tokens": tokens.get("prompt_tokens")
             }})

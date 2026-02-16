@@ -65,7 +65,7 @@ class ByoebUserSendResponse(Handler):
         qa = {
             constants.AUDIO_MESSAGE_ID: audio_message_id,
             constants.TEXT_MESSAGE_ID: text_message_id,
-            constants.TIMESTAMP: str(int(datetime.now(timezone.utc).timestamp())),
+            constants.TIMESTAMP: datetime.now(timezone.utc),
             constants.QUESTION: byoeb_user_message.reply_context.reply_english_text,
             constants.ANSWER: byoeb_user_message.message_context.message_english_text
         }
