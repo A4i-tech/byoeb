@@ -37,26 +37,26 @@ class QueueProducerHandler:
         message
     ) -> Any:
         is_whatsapp, message_type = wa_validator.validate_whatsapp_message(message)
-        print("message_type", message_type)
+        self._logger.debug("message_type=%s", message_type)
         if is_whatsapp:
             return "whatsapp", message_type
         return False, None
             
         
     async def handle(self, message):
-        print("[handle] ▶ start")
-        print(f"[handle]   in  message={message}")
+        self._logger.info("[handle] ▶ start")
+        self._logger.debug("[handle]   in message=%s", message)
 
-        print("[handle] → __validate_channel_and_get_message_type")
+        self._logger.debug("[handle] → __validate_channel_and_get_message_type")
         channel, message_type = await self.__validate_channel_and_get_message_type(message)
-        print(f"[handle] ← __validate...  out channel={channel}, message_type={message_type}")
+        self._logger.debug("[handle] ← __validate... out channel=%s, message_type=%s", channel, message_type)
 
         if message_type is None:
-            print(f"[handle] ↳ branch: unsupported message type")
+            self._logger.warning("[handle] ↳ branch: unsupported message type")
             return ByoebResponseModel(status_code=ByoebStatusCodes.OK, message="unsupported message type")
 
         if message_type == "status":
-            print("[handle] ↳ branch: status → return OK('status update')")
+            self._logger.info("[handle] ↳ branch: status → return OK('status update')")
             status = message["entry"][0]["changes"][0]["value"]["statuses"][0]
             AppInsightsLogHandler.getLogger("wa_transmission_status").info(f"Received status {status['status']} for message {status['id']}", extra={AppInsightsLogHandler.DETAILS: {
                 "id": status["id"],
@@ -70,36 +70,35 @@ class QueueProducerHandler:
             )
 
         if not channel:
-            print("[handle] ↳ branch: invalid channel → return BAD_REQUEST('Invalid channel')")
+            self._logger.warning("[handle] ↳ branch: invalid channel → return BAD_REQUEST('Invalid channel')")
             return ByoebResponseModel(
                 status_code=ByoebStatusCodes.BAD_REQUEST,
                 message="Invalid channel"
             )
 
         try:
-            print(f"[handle] → __get_or_create_message_producer(message_type={message_type})")
+            self._logger.debug("[handle] → __get_or_create_message_producer(message_type=%s)", message_type)
             message_producer_service = await self.__get_or_create_message_producer(message_type)
-            print(f"[handle] ← __get_or_create... out producer={type(message_producer_service).__name__}")
+            self._logger.debug("[handle] ← __get_or_create... out producer=%s", type(message_producer_service).__name__)
         except Exception as e:
-            print(f"[handle] ✖ producer init failed: {e}")
-            traceback.print_exc()
+            self._logger.exception("[handle] ✖ producer init failed: %s", e)
             return ByoebResponseModel(
                 status_code=ByoebStatusCodes.INTERNAL_SERVER_ERROR,
                 message=f"Invalid producer type: {str(e)}"
             )
 
-        print("[handle] → apublish_message(message, channel)", message)
+        self._logger.info("[handle] → apublish_message(message, channel)")
         response, err = await message_producer_service.apublish_message(message, channel)
-        print(f"[handle] ← apublish_message out response={response}, err={err}")
+        self._logger.info("[handle] ← apublish_message out response=%s err=%s", response, err)
 
         if err is not None:
-            print("[handle] ↳ branch: publish error → return 500")
+            self._logger.error("[handle] ↳ branch: publish error → return 500")
             return ByoebResponseModel(
                 status_code=ByoebStatusCodes.INTERNAL_SERVER_ERROR,
                 message=err
             )
 
-        print("[handle] ◀ return OK(response)")
+        self._logger.info("[handle] ◀ return OK(response)")
         return ByoebResponseModel(
             status_code=ByoebStatusCodes.OK,
             message=response

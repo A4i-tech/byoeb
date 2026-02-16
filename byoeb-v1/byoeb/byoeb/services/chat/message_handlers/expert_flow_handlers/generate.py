@@ -1,5 +1,6 @@
 import re
 import json
+import logging
 import byoeb.services.chat.constants as constants
 from typing import List, Dict, Any
 from datetime import datetime, timezone
@@ -13,6 +14,8 @@ from byoeb_core.models.byoeb.message_context import (
 )
 from byoeb_core.models.byoeb.user import User
 from byoeb.services.chat.message_handlers.base import Handler
+
+logger = logging.getLogger(__name__)
 
 class ByoebExpertGenerateResponse(Handler):
 
@@ -155,7 +158,7 @@ class ByoebExpertGenerateResponse(Handler):
                 emoji,
                 status
             )
-            print("Reply context: ", json.dumps(reply_context.model_dump()))
+            logger.debug("Reply context: %s", json.dumps(reply_context.model_dump()))
             message_context = None
             if (reply_to_user_message_context.message_context.message_type == MessageTypes.REGULAR_AUDIO.value):
                 message_context = MessageContext(

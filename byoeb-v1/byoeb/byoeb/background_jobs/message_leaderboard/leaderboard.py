@@ -446,7 +446,7 @@ async def build_block_leaderboard_for_district(
     return df.head(3)
 
 async def format_leaderboard_as_template_parameters(
-    top3_df: pd.DataFrame,
+    top3_df: pd.DataFrame, 
     is_block_leaderboard: bool = False,
     user_language: str = "en"
 ) -> List[str]:
@@ -625,7 +625,7 @@ async def send_leaderboard_template_messages(
             user_has_location = has_location_info(user)
             is_block_leaderboard = False
             user_leaderboard_df = top3_df  # Default to global districts
-            
+
             if user_has_location:
                 user_district = get_user_district(user)
                 if user_district:

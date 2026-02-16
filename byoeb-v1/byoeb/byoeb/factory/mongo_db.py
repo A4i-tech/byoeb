@@ -3,8 +3,10 @@ import asyncio
 from enum import Enum
 from typing import Optional
 import certifi
+import urllib.parse
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
+from pymongo.uri_parser import parse_uri
 
 class Scope(Enum):
     SINGLETON = "singleton"
@@ -36,7 +38,14 @@ class MongoDBFactory:
                 return self._db
 
             connection_string = env_config.env_mongo_db_connection_string
-            db_name = self._config["databases"]["mongo_db"]["database_name"]
+            if not connection_string:
+                raise ValueError(
+                    "MONGO_DB_CONNECTION_STRING environment variable must be set. "
+                )
+            # Extract database name from connection string
+            db_name = parse_uri(connection_string)["database"]
+            if db_name is None:
+                raise RuntimeError("Database name must be specified in the mongodb connection string")
             tls_enabled = _is_tls_enabled(connection_string)
             if tls_enabled:
                 self._client = AsyncMongoClient(connection_string, tlsCAFile=certifi.where())
@@ -51,7 +60,6 @@ class MongoDBFactory:
 
 
 def _is_tls_enabled(connection_string: str) -> bool:
-    import urllib.parse
     parsed = urllib.parse.urlparse(connection_string)
     query = urllib.parse.parse_qs(parsed.query)
     for key in ['tls', 'ssl']:

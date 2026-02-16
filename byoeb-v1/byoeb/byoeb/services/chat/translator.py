@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Optional
 from pydantic import TypeAdapter
 
@@ -8,6 +9,8 @@ from byoeb_core.translators.speech.base import BaseSpeechTranslator
 from byoeb.utils.utils import hash_dict
 from byoeb_integrations.translators.speech.azure.async_azure_openai_translator import AsyncAzureOpenAISpeechTranslator
 from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
+
+logger = logging.getLogger(__name__)
 
 
 class TranslatorAdapter(BaseSpeechTranslator):
@@ -53,12 +56,22 @@ class TranslatorAdapter(BaseSpeechTranslator):
             case "speech_to_text", "azure_openai" if not env_config.env_azure_openai_speech_endpoint:
                 raise RuntimeError("AZURE_OPENAI_SPEECH_ENDPOINT environment variable must be set to use " + service + " service")
             case "speech_to_text", "azure_openai" if env_config.env_azure_openai_speech_key:
-                print(f"✅ Azure OpenAI key set. Enabling Azure OpenAI translator for motive={motive}, service={service}, model={attributes['model']}.")
+                logger.info(
+                    "Azure OpenAI key set. Enabling Azure OpenAI translator for motive=%s, service=%s, model=%s.",
+                    motive,
+                    service,
+                    attributes["model"],
+                )
                 attributes["api_key"] = env_config.env_azure_openai_speech_key
                 attributes["endpoint"] = env_config.env_azure_openai_speech_endpoint
                 return AsyncAzureOpenAISpeechTranslator(**attributes)
             case "speech_to_text", "azure_openai":
-                print(f"⚠️ Azure OpenAI key not set. Defaulting to DefaultAzureCredential for Azure OpenAI translator for motive={motive}, service={service}, model={attributes['model']}.")
+                logger.warning(
+                    "Azure OpenAI key not set. Defaulting to DefaultAzureCredential for motive=%s, service=%s, model=%s.",
+                    motive,
+                    service,
+                    attributes["model"],
+                )
                 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
                 attributes["token_provider"] = get_bearer_token_provider(DefaultAzureCredential(), azure_cognitive_endpoint)
                 attributes["endpoint"] = env_config.env_azure_openai_speech_endpoint
@@ -68,14 +81,22 @@ class TranslatorAdapter(BaseSpeechTranslator):
             case "text_to_speech", "azure_cognitive" if not env_config.env_azure_cognitive_text_to_speech_resource:
                 raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE environment variable must be set to use " + service + " service")
             case "text_to_speech", "azure_cognitive" if env_config.env_azure_speech_key:
-                print(f"✅ Azure Cognitive Services key set. Enabling Azure speech translator for motive={motive}, service={service}.")
+                logger.info(
+                    "Azure Cognitive Services key set. Enabling Azure speech translator for motive=%s, service=%s.",
+                    motive,
+                    service,
+                )
                 return AsyncAzureSpeechTranslator(
                     region=env_config.env_azure_cognitive_region,
                     resource_id=env_config.env_azure_cognitive_text_to_speech_resource,
                     key=env_config.env_azure_speech_key
                 )
             case "text_to_speech", "azure_cognitive":
-                print(f"⚠️ Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure speech translator for motive={motive}, service={service}.")
+                logger.warning(
+                    "Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for motive=%s, service=%s.",
+                    motive,
+                    service,
+                )
                 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
                 return AsyncAzureSpeechTranslator(
                     region=env_config.env_azure_cognitive_region,

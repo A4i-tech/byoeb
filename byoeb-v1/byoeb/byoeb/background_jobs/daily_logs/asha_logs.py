@@ -1,4 +1,4 @@
-from typing import Any, AsyncIterator, Optional
+from typing import Any, AsyncIterator, Optional, Union
 from datetime import datetime
 from byoeb.chat_app.configuration.config import app_config
 from byoeb.chat_app.configuration.dependency_setup import user_db_service
@@ -24,7 +24,16 @@ async def get_user_infos(batch, user_info_dict):
 
     return user_info_dict
 
-    
+
+def _to_date_str(ts: Union[None, int, float, datetime]) -> Optional[str]:
+    """Format timestamp as dd-mm-yyyy. Accepts Unix timestamp (int/float) or datetime."""
+    if ts is None:
+        return None
+    if isinstance(ts, datetime):
+        return ts.strftime("%d-%m-%Y")
+    return datetime.fromtimestamp(ts).strftime("%d-%m-%Y")
+
+
 def extract_fields(entry, user_info_dict) -> Optional[dict[str, Any]]:
     user = entry.get("user", {})
     user_id = user.get("user_id")
@@ -43,12 +52,10 @@ def extract_fields(entry, user_info_dict) -> Optional[dict[str, Any]]:
     incoming_ts = entry.get("incoming_timestamp")
     outgoing_ts = entry.get("outgoing_timestamp")
     onboarding_ts = user.created_timestamp
-    
-    
 
-    # Convert timestamp to day format (dd-mm-yyyy)
-    day = datetime.fromtimestamp(incoming_ts).strftime("%d-%m-%Y") if incoming_ts else None
-    onboarding_date = datetime.fromtimestamp(onboarding_ts).strftime("%d-%m-%Y") if onboarding_ts else None
+    # Convert timestamp to day format (dd-mm-yyyy); support both numeric and datetime
+    day = _to_date_str(incoming_ts)
+    onboarding_date = _to_date_str(onboarding_ts)
 
     status = message_additional_info.get("status")
     if not status:

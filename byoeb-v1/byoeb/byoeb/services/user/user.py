@@ -7,6 +7,18 @@ from byoeb_core.models.byoeb.user import User
 from byoeb.services.user.base import BaseUserService
 from byoeb.repositories.user_repository import UserRepository
 
+
+def _ensure_utc_dates(obj: Any) -> Any:
+    """Recursively ensure datetime values are UTC-aware so User model accepts them (e.g. from MongoDB)."""
+    if isinstance(obj, datetime):
+        return obj.replace(tzinfo=timezone.utc) if obj.tzinfo is None else obj
+    if isinstance(obj, dict):
+        return {k: _ensure_utc_dates(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_ensure_utc_dates(v) for v in obj]
+    return obj
+
+
 class UserService(BaseUserService):
     def __init__(
         self,
@@ -26,7 +38,7 @@ class UserService(BaseUserService):
             json_data_users.append({
                 "_id": user.user_id,
                 "User": user.model_dump(),
-                "timestamp": str(int(datetime.now(timezone.utc).timestamp()))
+                "timestamp": datetime.now(timezone.utc)
             })
         return json_data_users
     
@@ -218,7 +230,7 @@ class UserService(BaseUserService):
         query = {"_id": {"$in": user_ids}}
         users_data: List[User] = []
         async for document in self.__user_repository.find_all(query):
-            user_data = document['User']
+            user_data = _ensure_utc_dates(document["User"])
             users_data.append(User(**user_data))
         return users_data
     
@@ -245,13 +257,12 @@ class UserService(BaseUserService):
                 test_user=user.test_user,
                 experts=user.experts,
                 audience=user.audience,
-                created_timestamp = str(int(datetime.now(timezone.utc).timestamp())),
+                created_timestamp=datetime.now(timezone.utc),
                 additional_info=user.additional_info,
             )
             byoeb_users.append(new_user)
         json_data_users = self.__prepare_user_insert_data(byoeb_users)
         inserted_ids = await self.__user_repository.insert_many(json_data_users)
-        print(inserted_ids)
         ids = list(set(ids + inserted_ids))
         messages, update_queries, delete_queries = await self.__get_post_insert_users_queries(ids, byoeb_users)
         if update_queries:
@@ -264,7 +275,8 @@ class UserService(BaseUserService):
         if update_queries:
             await self.__user_repository.bulk_update(update_queries)
         byoeb_messages.extend(messages)
-        return byoeb_messages
+        # Return registered users as dicts so API can return List[User]
+        return [u.model_dump() for u in byoeb_users]
     
     async def adelete(
         self,

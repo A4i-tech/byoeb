@@ -1,8 +1,11 @@
 import threading
+import logging
 from typing import Any, Dict
 from enum import Enum
 from openai import OpenAI, AsyncAzureOpenAI
 from byoeb_core.llms.base import BaseLLM
+
+logger = logging.getLogger(__name__)
 
 class AzureOpenAIParamsEnum(Enum):
     TEMPERATURE = "temperature"
@@ -49,7 +52,8 @@ class AsyncAzureOpenAILLM(BaseLLM):
         prompts: list,
         **kwargs
     ) -> Any:
-        print(f"Thread ID: {threading.get_ident()}, Variable Address: {id(prompts)}, client address: {id(self.__client)}")
+        logger.debug("Thread ID: %s, Variable Address: %s, client address: %s", 
+                     threading.get_ident(), id(prompts), id(self.__client))
         temperature = kwargs.get(
             AzureOpenAIParamsEnum.TEMPERATURE.value,
             self.__DEFAULT_TEMPERATURE

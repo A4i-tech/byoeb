@@ -47,17 +47,19 @@ def log_async_call(name):
     return decorator
 
 
-# App logger
+# App logger (logger name is app identity, not environment-specific)
+AZURE_LOGGER_NAME = "khushi-baby-asha-logger"
+
 if env_config.env_appinsights_connection_string:
     from azure.monitor.opentelemetry import configure_azure_monitor
-    print("✅ App Insights connection string set. Enabling Azure logging.")
+    _logger.info("App Insights connection string set. Enabling Azure logging.")
     configure_azure_monitor(
-        logger_name=app_config["app_logger"]["azure"]["logger_name"],
+        logger_name=env_config.env_app_logger_name or AZURE_LOGGER_NAME,
         connection_string=env_config.env_appinsights_connection_string,
         instrumentations=["fastapi", "urllib3"]
     )
 else:
-    print("⚠️ App Insights connection string not set. Skipping Azure logging.")
+    _logger.warning("App Insights connection string not set. Skipping Azure logging.")
 
 import byoeb.utils.utils as byoeb_utils
 from byoeb.factory import (
@@ -123,10 +125,17 @@ message_producer_handler = QueueProducerHandler(
 
 # message consumer
 from byoeb.listener.message_consumer import QueueConsumer
+# Require environment variable for queue account URL to prevent accidental production access
+if not env_config.env_azure_storage_queue_account_url:
+    raise ValueError(
+        "AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable must be set. "
+    )
+# Environment variable is required (validated at startup in config.py)
+queue_name = env_config.env_azure_queue_bot
 message_consumer = QueueConsumer(
     config=app_config,
-    account_url=app_config["message_queue"]["azure"]["account_url"],
-    queue_name=app_config["message_queue"]["azure"]["queue_bot"],
+    account_url=env_config.env_azure_storage_queue_account_url,
+    queue_name=queue_name,
     consuemr_type=app_config["app"]["queue_provider"],
     user_db_service=user_db_service,
     message_db_service=message_db_service,
@@ -145,7 +154,7 @@ from byoeb_integrations.translators.text.azure.async_azure_text_translator impor
 if not env_config.env_azure_cognitive_region: raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE environment variable must be set to use text-to-text service")
 if not env_config.env_azure_cognitive_text_to_text_resource: raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE environment variable must be set to use text-to-text service")
 if env_config.env_azure_cognitive_key:
-    print("✅ Azure Cognitive Services key set. Enabling Azure text translator.")
+    _logger.info("Azure Cognitive Services key set. Enabling Azure text translator.")
     text_translator = AsyncAzureTextTranslator(
         key=env_config.env_azure_cognitive_key,
         region=env_config.env_azure_cognitive_region,
@@ -153,7 +162,7 @@ if env_config.env_azure_cognitive_key:
     )
 else:
     from azure.identity import get_bearer_token_provider, DefaultAzureCredential
-    print("⚠️ Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure text translator")
+    _logger.warning("Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure text translator")
     text_translator = AsyncAzureTextTranslator(
     credential=DefaultAzureCredential(),
     region=env_config.env_azure_cognitive_region,
@@ -171,13 +180,21 @@ from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search im
 from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
 from byoeb_core.vector_stores.base import BaseVectorStore
 
-# Use environment variables for Azure OpenAI endpoint and deployment if set, otherwise fallback to app_config.json
-azure_openai_endpoint = env_config.env_azure_openai_endpoint or app_config["embeddings"]["azure"]["endpoint"]
-azure_openai_deployment_name = env_config.env_azure_openai_deployment_name or app_config["embeddings"]["azure"]["deployment_name"]
+# Require environment variables for Azure OpenAI endpoint and deployment to prevent accidental production access
+if not env_config.env_azure_openai_endpoint:
+    raise ValueError(
+        "AZURE_OPENAI_ENDPOINT environment variable must be set. "
+    )
+if not env_config.env_azure_openai_deployment_name:
+    raise ValueError(
+        "AZURE_OPENAI_DEPLOYMENT_NAME environment variable must be set. "
+    )
+azure_openai_endpoint = env_config.env_azure_openai_endpoint
+azure_openai_deployment_name = env_config.env_azure_openai_deployment_name
 
 # Azure OpenAI Embed - try API key first, fallback to token provider
 if env_config.env_azure_openai_key:
-    print("✅ Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
+    _logger.info("Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
     azure_openai_key = env_config.env_azure_openai_key
     azure_openai_embed = AzureOpenAIEmbed(
         model=app_config["embeddings"]["azure"]["model"],
@@ -188,7 +205,7 @@ if env_config.env_azure_openai_key:
     )
 else:
     from azure.identity import get_bearer_token_provider, DefaultAzureCredential
-    print("⚠️ Azure OpenAI Embed key not set. Defaulting to DefaultAzureCredential for Azure OpenAI Embed")
+    _logger.warning("Azure OpenAI Embed key not set. Defaulting to DefaultAzureCredential for Azure OpenAI Embed")
     token_provider = get_bearer_token_provider(
         DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
     )
@@ -208,18 +225,26 @@ vector_store_type = env_config.env_vector_store_type or "azure_vector_search"
 vector_store: BaseVectorStore = None
 
 if vector_store_type == "azure_vector_search":
-    # Azure Search Service Configuration - use environment variables if set, otherwise fallback to app_config.json
-    azure_search_service_name = env_config.env_azure_search_service_name or app_config["vector_store"]["azure_vector_search"]["service_name"]
-    azure_search_doc_index_name = env_config.env_azure_search_index_name or app_config["vector_store"]["azure_vector_search"]["doc_index_name"]
+    # Require environment variables for Azure Search to prevent accidental production access
+    if not env_config.env_azure_search_service_name:
+        raise ValueError(
+            "AZURE_SEARCH_SERVICE_NAME environment variable must be set. "
+        )
+    if not env_config.env_azure_search_index_name:
+        raise ValueError(
+            "AZURE_SEARCH_INDEX_NAME environment variable must be set. "
+        )
+    azure_search_service_name = env_config.env_azure_search_service_name
+    azure_search_doc_index_name = env_config.env_azure_search_index_name
     
     if env_config.env_azure_search_api_key:
         from azure.core.credentials import AzureKeyCredential
-        print("✅ Azure Search API key set. Enabling Azure vector store.")
+        _logger.info("Azure Search API key set. Enabling Azure vector store.")
         credential = AzureKeyCredential(env_config.env_azure_search_api_key)
     else:
         from azure.identity import DefaultAzureCredential
         credential = DefaultAzureCredential()   
-        print("⚠️ Azure Search API key not set. Defaulting to DefaultAzureCredential")
+        _logger.warning("Azure Search API key not set. Defaulting to DefaultAzureCredential")
     
     # Azure Vector Store uses LlamaIndex embedding function
     embedding_function = azure_openai_embed.get_embedding_function()
@@ -230,7 +255,7 @@ if vector_store_type == "azure_vector_search":
         embedding_function=embedding_function,
         credential=credential
     )
-    print(f"✅ Initialized Azure Vector Store: {azure_search_service_name}/{azure_search_doc_index_name}")
+    _logger.info("Initialized Azure Vector Store: %s/%s", azure_search_service_name, azure_search_doc_index_name)
 
 elif vector_store_type == "chroma":
     # ChromaDB Vector Store - needs ChromaDB-compatible embedding function
@@ -260,7 +285,7 @@ elif vector_store_type == "chroma":
         collection_name=collection_name,
         embedding_function=chroma_embedding_function
     )
-    print(f"✅ Initialized ChromaDB Vector Store: {persist_directory}/{collection_name}")
+    _logger.info("Initialized ChromaDB Vector Store: %s/%s", persist_directory, collection_name)
 
 elif vector_store_type == "llama_index_chroma":
     # LlamaIndex ChromaDB Vector Store - uses LlamaIndex embedding function
@@ -284,7 +309,7 @@ elif vector_store_type == "llama_index_chroma":
         collection_name=collection_name,
         embedding_function=embedding_function
     )
-    print(f"✅ Initialized LlamaIndex ChromaDB Vector Store: {persist_directory}/{collection_name}")
+    _logger.info("Initialized LlamaIndex ChromaDB Vector Store: %s/%s", persist_directory, collection_name)
 
 else:
     raise ValueError(
@@ -347,8 +372,18 @@ from byoeb_core.media_storage.base import BaseMediaStorage
 from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
 from azure.identity import DefaultAzureCredential
 
-container_name = app_config["media_storage"]["azure"]["container_name"]
-account_url = app_config["media_storage"]["azure"]["account_url"]
+# Require environment variables for storage URLs to prevent accidental production access
+if not env_config.env_azure_storage_blob_account_url:
+    raise ValueError(
+        "AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set. "
+    )
+if not env_config.env_azure_storage_container_name:
+    raise ValueError(
+        "AZURE_STORAGE_CONTAINER_NAME environment variable must be set. "
+    )
+
+container_name = env_config.env_azure_storage_container_name
+account_url = env_config.env_azure_storage_blob_account_url
 
 if env_config.env_azure_storage_connection_string:
     media_storage: BaseMediaStorage = AsyncAzureBlobStorage(
@@ -365,7 +400,7 @@ elif account_url:
     )
 else:
     media_storage = None
-    print("⚠️ Azure Blob Storage not configured. Media storage disabled.")
+    _logger.warning("Azure Blob Storage not configured. Media storage disabled.")
 
 # Scheduler configuration
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -374,15 +409,22 @@ from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 import pymongo
+from pymongo.uri_parser import parse_uri
 from byoeb.chat_app.configuration.config import env_mongo_db_connection_string
 
 # MongoDB connection configuration for scheduler job store
 MONGODB_URL = env_mongo_db_connection_string
-MONGODB_DATABASE = app_config["databases"]["mongo_db"]["database_name"]
 MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
 
 # Initialize MongoDB client and job store
 mongodb_client = pymongo.MongoClient(MONGODB_URL)
+
+# Extract database name from connection string
+db_name = parse_uri(MONGODB_URL)["database"]
+if db_name is None:
+    raise RuntimeError("Database name must be specified in the mongodb connection string")
+MONGODB_DATABASE = db_name
+
 mongodb_jobstore = MongoDBJobStore(
     database=MONGODB_DATABASE,
     collection=MONGODB_COLLECTION,
@@ -404,10 +446,10 @@ def start_scheduler():
     """Start the scheduler."""
     if not scheduler.running:
         scheduler.start()
-        print("✅ Background job scheduler started")
+        _logger.info("Background job scheduler started")
 
 def stop_scheduler():
     """Stop the scheduler."""
     if scheduler.running:
         scheduler.shutdown()
-        print("✅ Background job scheduler stopped")
+        _logger.info("Background job scheduler stopped")

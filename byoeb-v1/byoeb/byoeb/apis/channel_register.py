@@ -13,9 +13,8 @@ async def register(request: Request):
     """
     Route to handle the registration process.
     """
-    # print("Received the request: ", request.query_params._dict)
-    _logger.debug(msg=f"Received the request: \n{request.query_params._dict}")
+    _logger.debug("Received the request: %s", request.query_params._dict)
     response = await dependency_setup.channel_register_handler.handle(request)
-    print("Response: ", response.message)
+    _logger.debug("Response: %s", response.message)
     return JSONResponse(content=int(response.message), status_code=200)
     # return JSONResponse(content={"message": "received"}, status_code=200)
