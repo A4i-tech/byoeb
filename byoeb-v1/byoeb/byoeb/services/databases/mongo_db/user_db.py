@@ -8,6 +8,18 @@ from typing import List, Dict, Any, Optional
 from byoeb.services.databases.mongo_db.base import BaseMongoDBService
 import os
 
+
+def _ensure_utc_dates(obj: Any) -> Any:
+    """Recursively ensure datetime values are UTC-aware so User model accepts them (e.g. from MongoDB)."""
+    if isinstance(obj, datetime):
+        return obj.replace(tzinfo=timezone.utc) if obj.tzinfo is None else obj
+    if isinstance(obj, dict):
+        return {k: _ensure_utc_dates(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_ensure_utc_dates(v) for v in obj]
+    return obj
+
+
 class UserMongoDBService(BaseMongoDBService):
     """Service class for user-related MongoDB operations."""
 
@@ -89,7 +101,7 @@ class UserMongoDBService(BaseMongoDBService):
         """Get the user's last activity timestamp with caching."""
         cached_data = await self.cache.get(user_id)
         if cached_data is not None and isinstance(cached_data, dict):
-            user = User(**cached_data)
+            user = User(**_ensure_utc_dates(cached_data))
             activity_timestamp = user.activity_timestamp
             if activity_timestamp is None:
                 activity_timestamp = user.created_timestamp 
@@ -102,7 +114,8 @@ class UserMongoDBService(BaseMongoDBService):
         if user_obj is None:
             return None
 
-        user = User(**user_obj["User"])
+        user_data = _ensure_utc_dates(user_obj["User"])
+        user = User(**user_data)
         activity_timestamp = user.activity_timestamp
         if activity_timestamp is None:
             activity_timestamp = user.created_timestamp
@@ -115,10 +128,14 @@ class UserMongoDBService(BaseMongoDBService):
         repository_factory = await self._get_repository_factory()
         user_repository = await repository_factory.get_user_repository()
         users_obj = [doc async for doc in user_repository.find_all({"_id": {"$in": user_ids}})]
-        try:
-            return [User(**user_obj["User"]) for user_obj in users_obj]
-        except Exception:
-            return []
+        result = []
+        for user_obj in users_obj:
+            try:
+                user_data = _ensure_utc_dates(user_obj["User"])
+                result.append(User(**user_data))
+            except Exception:
+                continue
+        return result
     
     async def get_users_by_type(self, user_type: str) -> List[User]:
         """Fetch users by type using repository."""

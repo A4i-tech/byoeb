@@ -1,7 +1,11 @@
-# fixes crash during 'import chromadb' - see: https://docs.trychroma.com/docs/overview/troubleshooting#sqlite
+# Fixes crash during 'import chromadb' on some environments - see: https://docs.trychroma.com/docs/overview/troubleshooting#sqlite
+# pysqlite3 is optional (e.g. not installed on Windows); use it only when available.
 import sys
-__import__("pysqlite3")
-sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+try:
+    __import__("pysqlite3")
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+except ModuleNotFoundError:
+    pass  # use default sqlite3
 
 import os
 
