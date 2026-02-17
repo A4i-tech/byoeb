@@ -1,0 +1,297 @@
+[
+  {
+    "question": "Why is the TT booster given to pregnant women?",
+    "expected": "answered",
+    "category": "pregnancy_immunization"
+  },
+  {
+    "question": "What is the Antara injection?",
+    "expected": "answered",
+    "category": "contraception"
+  },
+  {
+    "question": "Which vaccine is given to a 2-month-old baby?",
+    "expected": "answered",
+    "category": "immunization"
+  },
+  {
+    "question": "How many times should a pregnant woman have ANC visits?",
+    "expected": "answered",
+    "category": "pregnancy"
+  },
+  {
+    "question": "What is essential newborn care?",
+    "expected": "answered",
+    "category": "newborn"
+  },
+  {
+    "question": "How can an ASHA support breastfeeding?",
+    "expected": "answered",
+    "category": "asha_breastfeeding"
+  },
+  {
+    "question": "What does the Janani Shishu Suraksha cover?",
+    "expected": "answered",
+    "category": "maternal_scheme"
+  },
+  {
+    "question": "When is the pentavalent vaccine given?",
+    "expected": "answered",
+    "category": "immunization"
+  },
+  {
+    "question": "How many times can a 6-month-old baby be breastfed?",
+    "expected": "answered",
+    "category": "breastfeeding"
+  },
+  {
+    "question": "When should a newborn baby be bathed?",
+    "expected": "answered",
+    "category": "newborn"
+  },
+  {
+    "question": "What is the typical weight of a 1-year-old child?",
+    "expected": "answered",
+    "category": "child_health"
+  },
+  {
+    "question": "What are the long-term effects of tobacco?",
+    "expected": "answered",
+    "category": "tobacco"
+  },
+  {
+    "question": "What are the side effects of the Antara injection?",
+    "expected": "answered",
+    "category": "contraception"
+  },
+  {
+    "question": "What is HBNC (Home-Based Newborn Care)?",
+    "expected": "answered",
+    "category": "newborn"
+  },
+  {
+    "question": "What is the ABHA (Ayushman Bharat Health Account) ID?",
+    "expected": "answered",
+    "category": "scheme"
+  },
+  {
+    "question": "When is the BCG vaccine administered?",
+    "expected": "answered",
+    "category": "immunization"
+  },
+  {
+    "question": "What are the benefits of the Antara injection?",
+    "expected": "answered",
+    "category": "contraception"
+  },
+  {
+    "question": "What are the symptoms of TB?",
+    "expected": "answered",
+    "category": "tb"
+  },
+  {
+    "question": "What is the role of an ASHA (Accredited Social Health Activist)?",
+    "expected": "answered",
+    "category": "asha"
+  },
+  {
+    "question": "Why is the BCG vaccine given?",
+    "expected": "answered",
+    "category": "immunization"
+  },
+  {
+    "question": "What is sickle cell?",
+    "expected": "answered",
+    "category": "health"
+  },
+  {
+    "question": "When is the Antara injection administered?",
+    "expected": "answered",
+    "category": "contraception"
+  },
+  {
+    "question": "When is the measles vaccine given?",
+    "expected": "answered",
+    "category": "immunization"
+  },
+  {
+    "question": "What should be the weight of a 6-month-old baby?",
+    "expected": "answered",
+    "category": "child_health"
+  },
+  {
+    "question": "What is the weight of a newborn baby?",
+    "expected": "answered",
+    "category": "newborn"
+  },
+  {
+    "question": "What is the name of the block chief medical officer of Salumber?",
+    "expected": "idk",
+    "category": "location_specific"
+  },
+  {
+    "question": "What is bone marrow?",
+    "expected": "idk",
+    "category": "out_of_scope"
+  },
+  {
+    "question": "What is the number to enroll in the Mobile Academy course?",
+    "expected": "idk",
+    "category": "admin_training"
+  },
+  {
+    "question": "Why should we use the ASHA IE application?",
+    "expected": "idk",
+    "category": "app_training"
+  },
+  {
+    "question": "When did the NHM start?",
+    "expected": "idk",
+    "category": "factual_not_in_scope"
+  },
+  {
+    "question": "Why is the hair falling out?",
+    "expected": "idk",
+    "category": "general_health"
+  },
+  {
+    "question": "What is the purpose of the question box?",
+    "expected": "idk",
+    "category": "meta_product"
+  },
+  {
+    "question": "What is the ASHA bot? Can you explain it through a video?",
+    "expected": "idk",
+    "category": "meta_product"
+  },
+  {
+    "question": "What is the name of the Chief Minister?",
+    "expected": "idk",
+    "category": "politics"
+  },
+  {
+    "question": "Which block has asked the most questions?",
+    "expected": "idk",
+    "category": "analytics_not_health"
+  },
+  {
+    "question": "Which vaccines are given to a one-year-old child?",
+    "expected": "idk",
+    "category": "idk_child_health"
+  },
+  {
+    "question": "What vaccines are given to a one-year-old child?",
+    "expected": "idk",
+    "category": "idk_child_health"
+  },
+  {
+    "question": "What should be the weight of a newborn baby?",
+    "expected": "idk",
+    "category": "idk_child_health"
+  },
+  {
+    "question": "Vitamin ka pill",
+    "expected": "idk",
+    "category": "idk_general"
+  },
+  {
+    "question": "What are vitamins?",
+    "expected": "idk",
+    "category": "idk_general"
+  },
+  {
+    "question": "How much vitamins should be given to children aged 3-5 years?",
+    "expected": "idk",
+    "category": "idk_general"
+  },
+  {
+    "question": "Today there is a camp in Nadi Mahula, there is also vaccination, pregnant women can also get checkups done, they can come with a token for free sonography, and they need to bring Aadhaar card and Mamta card with them.",
+    "expected": "idk",
+    "category": "idk_maternal_care"
+  },
+  {
+    "question": "When should a pregnant woman undergo a sonography?",
+    "expected": "idk",
+    "category": "idk_maternal_care"
+  },
+  {
+    "question": "In which months should a pregnant woman have a sonography?",
+    "expected": "idk",
+    "category": "idk_maternal_care"
+  },
+  {
+    "question": "How many years does the RBS team provide service?",
+    "expected": "idk",
+    "category": "idk_payment"
+  },
+  {
+    "question": "For how many years does the RBS team provide service?",
+    "expected": "idk",
+    "category": "idk_payment"
+  },
+  {
+    "question": "How many years did the RBS team work?",
+    "expected": "idk",
+    "category": "idk_payment"
+  },
+  {
+    "question": "What is the average height of a 5-year-old child?",
+    "expected": "idk",
+    "category": "idk_supplies"
+  },
+  {
+    "question": "What is the height of a 5-year-old child?",
+    "expected": "idk",
+    "category": "idk_supplies"
+  },
+  {
+    "question": "How much can the height of a 5-year-old child increase?",
+    "expected": "idk",
+    "category": "idk_supplies"
+  },
+  {
+    "question": "Sir, the ASHA digital app is not working",
+    "expected": "idk",
+    "category": "idk_administrative"
+  },
+  {
+    "question": "The ASHA digital app is not working and is also not updating.",
+    "expected": "idk",
+    "category": "idk_administrative"
+  },
+  {
+    "question": "The delete option in the ASHA digital app is not working.",
+    "expected": "idk",
+    "category": "idk_administrative"
+  },
+  {
+    "question": "How to identify a leprosy patient?",
+    "expected": "idk",
+    "category": "idk_training"
+  },
+  {
+    "question": "How to create a NISCHAY ID?",
+    "expected": "idk",
+    "category": "idk_training"
+  },
+  {
+    "question": "How to make a TB Nischay ID card?",
+    "expected": "idk",
+    "category": "idk_training"
+  },
+  {
+    "question": "What are the 27 tasks of ASHA (Accredited Social Health Activist)?",
+    "expected": "idk",
+    "category": "idk_workload"
+  },
+  {
+    "question": "59 ASHA (Accredited Social Health Activist) tasks",
+    "expected": "idk",
+    "category": "idk_workload"
+  },
+  {
+    "question": "After I left, how many tasks are still pending?",
+    "expected": "idk",
+    "category": "idk_workload"
+  }
+]
