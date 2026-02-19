@@ -45,6 +45,31 @@ jobs:
       coverage-gist-id: ${{ github.event_name == 'push' && github.ref_name == 'a4i/main' && vars.COVERAGE_GIST_ID || '' }}
     secrets: inherit
 
+  # Lint: Ruff + import check (catches missing imports / undefined names before merge)
+  lint-byoeb-core:
+    name: lint (byoeb-core)
+    uses: ./.github/workflows/lint.yml
+    with:
+      directory: ./byoeb-v1/byoeb-core
+      package-import: byoeb_core
+    secrets: inherit
+
+  lint-byoeb:
+    name: lint (byoeb)
+    uses: ./.github/workflows/lint.yml
+    with:
+      directory: ./byoeb-v1/byoeb
+      package-import: byoeb
+    secrets: inherit
+
+  lint-byoeb-integrations:
+    name: lint (byoeb-integrations)
+    uses: ./.github/workflows/lint.yml
+    with:
+      directory: ./byoeb-v1/byoeb-integrations
+      package-import: byoeb_integrations
+    secrets: inherit
+
   # Step 2: Build (validates Dockerfile - uses Docker layer caching for fast builds)
   build:
     name: Build Docker image
@@ -96,7 +121,7 @@ jobs:
   # Step 4: Publish Docker Image (only if tests passed)
   publish-image:
     name: Publish image
-    needs: [build, unit-test-byoeb-core, unit-test-byoeb, unit-test-byoeb-integrations]
+    needs: [build, unit-test-byoeb-core, unit-test-byoeb, unit-test-byoeb-integrations, lint-byoeb-core, lint-byoeb, lint-byoeb-integrations]
     if: success() && github.event_name == 'push' && (github.ref_name == 'a4i/staging' || github.ref_name == 'a4i/main')
     runs-on: ubuntu-latest
     outputs:
