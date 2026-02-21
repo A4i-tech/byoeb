@@ -10,6 +10,15 @@
     "retrieval": {
         "similarity_thresholds": {"dense": 0.35}
     },
+    "response_cache": {
+        "capacity": 64,
+        "embedding_dim": 768,
+        "embedding_model": "text-embedding-3-small",
+        "embedding_threshold": 0.8,
+        "ner_labels": ["Age", "Gender", "Disease", "Vaccine", "Symptom"],
+        "ner_model": "gliner-community/gliner_medium-v2.5",
+        "ner_threshold": 0.5
+    },
     "llm_response": {
         "translation_and_rewrite_prompts": {
             "system_prompt": {

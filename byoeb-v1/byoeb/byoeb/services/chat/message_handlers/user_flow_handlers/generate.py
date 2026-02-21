@@ -6,12 +6,12 @@ from byoeb.constants.feature_enums import FeatureFlag
 from byoeb.services.chat.utils import clean_message_for_console
 import byoeb.services.chat.constants as constants
 import re
-from byoeb.utils.embedding_cache import CacheResult, EmbeddingCache
+from byoeb.utils.response_cache import DbmKVCache, LanceDBEmbeddingCache, ResponseCache, ResponseCacheLookup, SimpleResponseCache, create_gliner_ner
 import byoeb.utils.utils as utils
 import random
 from rapidfuzz.fuzz import ratio
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
-from typing import Iterable, List, Dict, Any, Optional
+from typing import Iterable, List, Dict, Any, Optional, TypeAlias
 from byoeb.chat_app.configuration.config import bot_config, app_config
 import byoeb.chat_app.configuration.config as env_config
 from byoeb.models.message_category import MessageCategory
@@ -27,7 +27,7 @@ from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search im
 from byoeb_core.models.byoeb.user import User
 from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.chat_app.configuration.dependency_setup import llm_client
-from byoeb.chat_app.configuration.config import env_ashabot_message_cache_capacity, feature_flags
+from byoeb.chat_app.configuration.config import feature_flags
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from opentelemetry.trace import Status, StatusCode
 
@@ -45,12 +45,8 @@ from byoeb.observability.tracing import (
 
 logger = logging.getLogger(__name__)
 
-embedding_cap = int(env_ashabot_message_cache_capacity or 64)
-embedding_fn = (
-    OpenAIEmbed(model="text-embedding-3-small", dimensions=768, api_key=env_config.env_openai_api_key).get_embedding_function()
-    if env_config.env_openai_api_key and embedding_cap > 0 else None
-)
-
+resp_cfg = bot_config["response_cache"]
+ResponseCacheT: TypeAlias = dict[str, Any]
 class ByoebUserGenerateResponse(Handler):
     AUDIO_MODALITY = "audio"
     TEXT_MODALITY = "text"
@@ -61,7 +57,14 @@ class ByoebUserGenerateResponse(Handler):
     _asha_work_related = "asha_work_related"
     _small_talk = "small_talk"
     _incomprehensible = "incomprehensible"
-    embedding_cache = EmbeddingCache("message-consumer", dim=768, capacity=embedding_cap)
+
+    response_cache: ResponseCache[ResponseCacheT] | None = SimpleResponseCache[ResponseCacheT](
+        cache=DbmKVCache[ResponseCacheT](),
+        emb_fn=OpenAIEmbed(model=resp_cfg["embedding_model"], dimensions=resp_cfg["embedding_dim"], api_key=env_config.env_openai_api_key).get_embedding_function(),
+        emb_cache=LanceDBEmbeddingCache(dim=resp_cfg["embedding_dim"], threshold=resp_cfg["embedding_threshold"]),
+        ner_gen=create_gliner_ner(model_id=resp_cfg["ner_model"], threshold=resp_cfg["ner_threshold"], labels=resp_cfg["ner_labels"]),
+        capacity=resp_cfg["capacity"], logger=logger
+    ) if env_config.env_openai_api_key and resp_cfg["capacity"] > 0 else None
 
     def __init__(self, successor=None):
         super().__init__(successor)
@@ -371,7 +374,7 @@ class ByoebUserGenerateResponse(Handler):
         related_questions: List[str] = None,
         emoji = None,
         status = None,
-        cache_details: CacheResult = (None, None, None),  # used for audio cache
+        cache_details: ResponseCacheLookup[ResponseCacheT] | None = None,  # used for audio cache
         cache_hit: bool = False,
         default_message_category: Optional[MessageCategory] = None
     ) -> ByoebMessageContext:
@@ -405,12 +408,17 @@ class ByoebUserGenerateResponse(Handler):
         end_time = time.perf_counter()
         utils.log_to_text_file(f"Translated response message in {end_time - start_time} seconds")
 
-        cache_info = {"cache_score": cache_details[0]} if cache_details[0] is not None else {}
+        cache_info = {}
+        if cache_details is not None:
+            assert self.response_cache is not None
+            cache_info["cache_index"] = self.response_cache.hash(cache_details.index)
+            if cache_details.similarity is not None:
+                cache_info["cache_score"] = cache_details.similarity
         if cache_hit:
             cache_info["cache_hit"] = cache_hit
-        if cache_details[1] is not None:
-            cache_id = cache_details[1]
-            cache = cache_details[2]
+        if cache_details is not None and cache_details.value is not None:
+            cache_id = cache_details.index
+            cache = cache_details.value
         else:
             cache_id, cache = None, None
 
@@ -427,15 +435,12 @@ class ByoebUserGenerateResponse(Handler):
                 "time_taken": end_time - start_time
             }})
             if cache_id is not None:
-                assert cache is not None
+                assert self.response_cache is not None and cache is not None
                 if "media_info" not in cache:
                     cache["media_info"] = {user_language: media_info}
                 else:
                     cache[user_language] = media_info
-                try:
-                    self.embedding_cache.update(cache_id, cache)
-                except Exception as e:
-                    logger.warning("Embedding cache update failed: %s. Continuing without cache update.", e)
+                await self.response_cache.store(cache_id, cache)
 
         utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
         description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
@@ -936,36 +941,28 @@ class ByoebUserGenerateResponse(Handler):
                 message_english = message.message_context.message_source_text
             
             user_language = message.user.user_language
-            query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
-            
-            default_message_category = None
-            cache_hit = False
-
-            if embedding_fn and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
+            if self.response_cache and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
                 with self._tracer.start_as_current_span(SPAN_EMBEDDING) as emb_span:
                     emb_span.set_attribute("message_id", msg_id)
                     start_time = time.perf_counter()
-                    embedding = await embedding_fn.aget_text_embedding(message_english)
+                    cache_index = await self.response_cache.index(message_english)
                     end_time = time.perf_counter()
                     emb_span.set_attribute("duration_ms", int((end_time - start_time) * 1000))
                 with self._tracer.start_as_current_span(SPAN_CACHE_QUERY) as cache_span:
                     cache_span.set_attribute("message_id", msg_id)
-                    try:
-                        cache_result = self.embedding_cache.query(embedding, 0.9)
-                        hit = cache_result[2] is not None and bool(cache_result[2])
-                        cache_span.set_attribute("cache_hit", hit)
-                        if hit and cache_result[0] is not None:
-                            cache_span.set_attribute("score", float(cache_result[0]))
-                    except Exception as e:
-                        logger.warning("Embedding cache query failed: %s. Continuing without cache.", e)
-                        cache_result = None, None, None
-                        cache_span.set_attribute("cache_hit", False)
+                    cache_result = await self.response_cache.lookup(cache_index)
+                    cache_span.set_attribute("cache_hit", cache_result is not None and cache_result.value is not None and "answer" in cache_result.value and user_language in cache_result.value["answer"])
+                    if cache_result and cache_result.similarity is not None:
+                        cache_span.set_attribute("score", cache_result.similarity)
             else:
-                embedding = None
-                cache_result = None, None, None
+                cache_index = None
+                cache_result = None
 
-            cache_val = cache_result[2] if cache_result else None
-            if cache_val and "answer" in cache_val and user_language in cache_val["answer"]:
+            query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
+            default_message_category = None
+            cache_hit = False
+            cache_val = cache_result.value if cache_result is not None else None
+            if cache_val is not None and "answer" in cache_val and user_language in cache_val["answer"]:
                 response_en, response_source, related_questions, tokens = cache_val["answer"][user_language]
                 cache_hit = True
             else:
@@ -1029,19 +1026,14 @@ class ByoebUserGenerateResponse(Handler):
                     related_questions = self.get_related_questions(message.user.user_language, await retrieved_chunks_related_questions, message.message_context.message_source_text)
                     rq_span.set_attribute("count", len(related_questions))
 
-                if not skip_cache and embedding:
+                if not skip_cache and cache_index is not None:
+                    assert self.response_cache is not None
                     cache_val = cache_val or {}
                     cache_val["answer"] = cache_val.get("answer", {})
                     cache_val["answer"][user_language] = response_en, response_source, related_questions, tokens
-                    miss_thresh = cache_result[0] if cache_result is not None else None
-                    try:
-                        cache_result = self.embedding_cache.store(embedding, cache_val)
-                        cache_result = miss_thresh, *cache_result[1:]
-                    except Exception as e:
-                        logger.warning("Embedding cache store failed: %s. Continuing without cache.", e)
-                        cache_result = None, None, None
+                    cache_result = await self.response_cache.store(cache_index, cache_val)
                 else:
-                    cache_result = None, None, None
+                    cache_result = None
 
                 end_time = time.perf_counter()
                 AppInsightsLogHandler.getLogger("generate_answer_and_related_questions").info(f"Generated related questions for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {

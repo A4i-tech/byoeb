@@ -103,8 +103,6 @@ env_vector_store_type = os.getenv("VECTOR_STORE_TYPE")
 env_persist_directory = os.getenv("PERSIST_DIRECTORY")
 
 # Others
-env_ashabot_message_cache_capacity = os.getenv("ASHABOT_MESSAGE_CACHE_CAPACITY")
-
 env_ashabot_feature_flags = os.getenv("ASHABOT_FEATURE_FLAGS")
 feature_flags: set[FeatureFlag] = set()
 for entry in (env_ashabot_feature_flags or "").split(","):

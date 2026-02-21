@@ -27,6 +27,7 @@ matplotlib = "^3.8.0"
 mongomock-motor = "^0.0.36"
 pysqlite3-binary = {version = "^0.5.4", platform = "linux"}
 lancedb = "^0.26.0"
+gliner = "^0.2.25"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
