@@ -15,7 +15,7 @@
         "embedding_dim": 768,
         "embedding_model": "text-embedding-3-small",
         "embedding_threshold": 0.8,
-        "ner_labels": ["Age", "Gender", "Disease", "Vaccine", "Symptom"],
+        "ner_labels": ["age", "bodypart", "condition", "demographic", "disease", "drug", "gender", "measurement", "procedure", "program", "symptom"],
         "ner_model": "gliner-community/gliner_medium-v2.5",
         "ner_threshold": 0.5
     },
