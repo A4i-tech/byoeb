@@ -40,6 +40,13 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
+# Optional Langfuse tracing (pip install langfuse). Gracefully disabled if not installed or not configured.
+try:
+    from langfuse import Langfuse as _Langfuse
+    HAS_LANGFUSE = True
+except ImportError:
+    HAS_LANGFUSE = False
+
 # Try new package name first (ddgs), fallback to old name (duckduckgo_search) with warning suppression
 try:
     from ddgs import DDGS
@@ -74,7 +81,9 @@ DEFAULT_CHAT_DEPLOYMENT = "gpt-4o"
 # Default score when LLM fails or returns invalid JSON (so row is not forced into "worst" set)
 DEFAULT_FAILURE_SCORE = 30
 # Default batch size for scoring multiple pairs per LLM call (reduces API calls and latency)
-DEFAULT_BATCH_SIZE = 5
+DEFAULT_BATCH_SIZE = 10
+# Default number of parallel workers (concurrent LLM calls). Tune to your Azure OpenAI TPM/RPM quota.
+DEFAULT_WORKERS = 8
 # Only keep citations for pairs with cumulative_score <= this (low-scoring pairs). Clear citations for high scores.
 CITATIONS_ONLY_BELOW_CUMULATIVE = 18
 # Azure OpenAI pricing per 1M tokens (gpt-4o approximate)
@@ -224,9 +233,25 @@ async def fetch_validation_pairs(
     if limit:
         cursor = cursor.limit(limit)
     rows: list[dict[str, Any]] = []
+    # Onboarding-related keywords to exclude.
+    # Only filter when the query STARTS with the keyword (i.e. it's a command/intent, not a real health question
+    # that merely mentions onboarding in context like "What is HB level for onboard ASHA?")
+    ONBOARDING_START_KEYWORDS = [
+        "onboard asha", "onboard-asha", "onboardasha",
+        "onboard anm", "onboard-anm",
+        "register asha", "register anm",
+    ]
+
+    def _is_onboarding_query(text: str) -> bool:
+        lower = text.lower().strip()
+        # Strip trailing punctuation/parenthetical so "Onboard ASHA (Accredited...)" still matches
+        core = lower.split("(")[0].rstrip(" .,!?-").strip()
+        return any(core == kw or core.startswith(kw + " ") or core.startswith(kw + ",") or core.startswith(kw + "-") for kw in ONBOARDING_START_KEYWORDS)
+
     skipped_empty = 0
     skipped_idk = 0
     skipped_small_talk = 0
+    skipped_onboarding = 0
     async for doc in cursor:
         md = doc.get("message_data", {})
         query_text = _get_query_text(md)
@@ -241,6 +266,9 @@ async def fetch_validation_pairs(
         if query_type == "small_talk":
             skipped_small_talk += 1
             continue
+        if _is_onboarding_query(query_text):
+            skipped_onboarding += 1
+            continue
         rows.append({
             "query": query_text,
             "response": response_text,
@@ -250,7 +278,7 @@ async def fetch_validation_pairs(
             "user_id": (md.get("user") or {}).get("user_id"),
             "query_type": query_type,
         })
-    print(f"Fetched {len(rows)} Q&A pairs (skipped {skipped_empty} empty, {skipped_idk} IDK, {skipped_small_talk} small_talk).", file=sys.stderr)
+    print(f"Fetched {len(rows)} Q&A pairs (skipped {skipped_empty} empty, {skipped_idk} IDK, {skipped_small_talk} small_talk, {skipped_onboarding} onboarding).", file=sys.stderr)
     return rows
 
 
@@ -345,7 +373,23 @@ The "results" array must contain exactly {len(pairs)} objects, one per pair in o
     messages = [{"role": "user", "content": prompt}]
     total_prompt_tokens = 0
     total_completion_tokens = 0
-    
+
+    def _call_with_retry(create_kwargs: dict, max_retries: int = 5) -> Any:
+        """Call the OpenAI API with exponential backoff on rate limit (429) errors."""
+        import time as _time
+        for attempt in range(max_retries):
+            try:
+                return client.chat.completions.create(**create_kwargs)
+            except Exception as e:
+                err_str = str(e)
+                is_rate_limit = "429" in err_str or "RateLimit" in err_str or "rate_limit" in err_str.lower()
+                if is_rate_limit and attempt < max_retries - 1:
+                    wait = 2 ** attempt  # 1s, 2s, 4s, 8s, 16s
+                    print(f"      Rate limit hit, retrying in {wait}s (attempt {attempt + 1}/{max_retries})...", file=sys.stderr)
+                    _time.sleep(wait)
+                else:
+                    raise
+
     try:
         max_iterations = 5  # Prevent infinite loops
         iteration = 0
@@ -373,7 +417,7 @@ The "results" array must contain exactly {len(pairs)} objects, one per pair in o
             else:
                 create_kwargs["response_format"] = {"type": "json_object"}
             
-            resp = client.chat.completions.create(**create_kwargs)
+            resp = _call_with_retry(create_kwargs)
             
             usage = resp.usage
             total_prompt_tokens += getattr(usage, "prompt_tokens", 0) or 0
@@ -616,6 +660,58 @@ def _execute_web_search(search_query: str) -> dict[str, Any]:
 
 
 
+def _get_langfuse_client() -> Any:
+    """Return a Langfuse client if credentials are configured, else None."""
+    if not HAS_LANGFUSE:
+        return None
+    secret_key = os.environ.get("LANGFUSE_SECRET_KEY")
+    public_key = os.environ.get("LANGFUSE_PUBLIC_KEY")
+    host = os.environ.get("LANGFUSE_HOST") or os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
+    if not secret_key or not public_key:
+        return None
+    return _Langfuse(secret_key=secret_key, public_key=public_key, host=host)
+
+
+def _langfuse_trace_batch(lf: Any, deployment: str, pairs: list[tuple[str, str]], score_dicts: list[dict]) -> None:
+    """
+    Send per-pair generation observations + scores to Langfuse.
+    Our custom LLM judge already ran; this is tracing only.
+    Each pair gets its own trace so it appears as a separate observation in Langfuse.
+    """
+    if lf is None:
+        return
+    try:
+        for idx, ((query, response), score_dict) in enumerate(zip(pairs, score_dicts)):
+            pair_trace_id = lf.create_trace_id()
+            # Generation observation: input = query, output = bot response
+            with lf.start_as_current_observation(
+                as_type="generation",
+                name="qa_pair_scoring",
+                trace_context={"trace_id": pair_trace_id},
+                model=deployment,
+                input={"query": query},
+                output=response,
+                metadata={
+                    "pair_index": idx,
+                    "cumulative_score": score_dict.get("cumulative_score"),
+                    "reason": score_dict.get("reason", ""),
+                },
+            ):
+                pass  # observation closes automatically on exit
+            # Log individual dimension scores to the trace
+            c = score_dict.get("completeness", 0)
+            f = score_dict.get("factual_accuracy", 0)
+            rel = score_dict.get("relevance", 0)
+            reason = score_dict.get("reason", "")
+            lf.create_score(trace_id=pair_trace_id, name="completeness", value=c, data_type="NUMERIC", comment=reason)
+            lf.create_score(trace_id=pair_trace_id, name="factual_accuracy", value=f, data_type="NUMERIC", comment=reason)
+            lf.create_score(trace_id=pair_trace_id, name="relevance", value=rel, data_type="NUMERIC", comment=reason)
+            lf.create_score(trace_id=pair_trace_id, name="cumulative_score", value=c + f + rel, data_type="NUMERIC", comment=reason)
+        lf.flush()
+    except Exception as e:
+        print(f"    Langfuse trace error (non-fatal): {str(e)[:80]}", file=sys.stderr)
+
+
 def run_llm_judge(rows: list[dict], deployment: str, args: argparse.Namespace) -> list[dict]:
     """Score each row with LLM (batched) and add score columns. Returns rows with completeness, factual_accuracy, relevance, cumulative_score."""
     try:
@@ -629,61 +725,112 @@ def run_llm_judge(rows: list[dict], deployment: str, args: argparse.Namespace) -
         print("AZURE_OPENAI_KEY and AZURE_OPENAI_ENDPOINT required for LLM judge. Use --no-llm to export without scoring.", file=sys.stderr)
         return rows
     client = AzureOpenAI(api_key=api_key, api_version=os.environ.get("OPENAI_API_VERSION", "2024-02-15-preview"), azure_endpoint=endpoint)
+    lf = _get_langfuse_client()
+    if lf:
+        host = os.environ.get("LANGFUSE_HOST") or os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
+        print(f"  Langfuse tracing enabled. Traces will appear at {host}", file=sys.stderr)
     total = len(rows)
     batch_size = getattr(args, "batch_size", DEFAULT_BATCH_SIZE)
+    num_workers = getattr(args, "workers", DEFAULT_WORKERS)
     num_batches = (total + batch_size - 1) // batch_size
-    print(f"  Scoring {total} pairs with LLM (deployment={deployment}, batch_size={batch_size}, {num_batches} batches).", file=sys.stderr)
-    failed = 0
+    print(f"  Scoring {total} pairs with LLM (deployment={deployment}, batch_size={batch_size}, workers={num_workers}, {num_batches} batches).", file=sys.stderr)
+    failed = [0]  # mutable int for thread-safe increment via lock
     total_prompt_tokens = 0
     total_completion_tokens = 0
     import time
+    import threading
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     t0 = time.perf_counter()
-    progress_interval = max(1, num_batches // 10) if num_batches > 10 else 1
     use_web_search = getattr(args, "use_web_search", False)
     if use_web_search and not HAS_DUCKDUCKGO:
         print("  WARNING: --use-web-search enabled but 'ddgs' not installed (pip install ddgs). Web search disabled.", file=sys.stderr)
         use_web_search = False
-    
+
+    # Build all batches upfront
+    batches = []
     for batch_idx in range(0, total, batch_size):
-        current_batch = (batch_idx // batch_size) + 1
         batch = rows[batch_idx:batch_idx + batch_size]
         pairs = [(row["query"], row["response"]) for row in batch]
-        print(f"  Processing batch {current_batch}/{num_batches} (pairs {batch_idx+1}-{min(batch_idx+batch_size, total)} of {total})...", file=sys.stderr)
+        batches.append((batch_idx, batch, pairs))
+
+    # Thread-safe counters
+    completed_count = 0
+    lock = threading.Lock()
+
+    def _process_one_batch(args_tuple):
+        batch_idx, batch, pairs = args_tuple
+        current_batch = (batch_idx // batch_size) + 1
+        print(f"  [worker] Starting batch {current_batch}/{num_batches} ({len(pairs)} pairs)...", file=sys.stderr)
         score_dicts, pt, ct = _score_batch(client, deployment, pairs, use_web_search=use_web_search)
-        total_prompt_tokens += pt
-        total_completion_tokens += ct
-        for row, score_dict in zip(batch, score_dicts):
-            if score_dict.get("reason", "").startswith("LLM failure"):
-                failed += 1
-            row["completeness"] = score_dict["completeness"]
-            row["factual_accuracy"] = score_dict["factual_accuracy"]
-            row["relevance"] = score_dict["relevance"]
-            row["cumulative_score"] = score_dict["cumulative_score"]
-            row["reason"] = score_dict.get("reason", "")
-            row["citations"] = score_dict.get("citations", "")  # From LLM's web search tool calls
-            row["citation_comment"] = score_dict.get("citation_comment", "")
-            # Only keep citations for low-scoring pairs; clear if model wrongly added them for high scores
-            if use_web_search and row.get("cumulative_score", 0) > CITATIONS_ONLY_BELOW_CUMULATIVE:
-                row["citations"] = ""
-                row["citation_comment"] = ""
-        print(f"  Batch {current_batch}/{num_batches} complete.", file=sys.stderr)
-        # Log progress summary periodically
-        if current_batch % progress_interval == 0 or current_batch == num_batches:
+        return (current_batch, batch_idx, batch, pairs, score_dicts, pt, ct)
+
+    # Run batches in parallel
+    with ThreadPoolExecutor(max_workers=num_workers) as executor:
+        futures = {executor.submit(_process_one_batch, b): b for b in batches}
+        for future in as_completed(futures):
+            try:
+                current_batch, batch_idx, batch, pairs, score_dicts, pt, ct = future.result()
+            except Exception as exc:
+                # Entire batch failed — assign default failure scores
+                batch_idx_failed, batch_failed, pairs_failed = futures[future]
+                current_batch = (batch_idx_failed // batch_size) + 1
+                score_dicts = [{
+                    "completeness": 10, "factual_accuracy": 10, "relevance": 10,
+                    "cumulative_score": DEFAULT_FAILURE_SCORE,
+                    "reason": f"LLM failure: {str(exc)[:50]}",
+                    "citations": "", "citation_comment": "",
+                }] * len(batch_failed)
+                batch, pairs, pt, ct = batch_failed, pairs_failed, 0, 0
+                print(f"  ERROR batch {current_batch}: {exc}", file=sys.stderr)
+
+            with lock:
+                total_prompt_tokens += pt
+                total_completion_tokens += ct
+                completed_count += 1
+                done = completed_count
+
+            for row, score_dict in zip(batch, score_dicts):
+                if score_dict.get("reason", "").startswith("LLM failure"):
+                    with lock:
+                        failed[0] += 1
+                row["completeness"] = score_dict["completeness"]
+                row["factual_accuracy"] = score_dict["factual_accuracy"]
+                row["relevance"] = score_dict["relevance"]
+                row["cumulative_score"] = score_dict["cumulative_score"]
+                row["reason"] = score_dict.get("reason", "")
+                row["citations"] = score_dict.get("citations", "")
+                row["citation_comment"] = score_dict.get("citation_comment", "")
+                if use_web_search and row.get("cumulative_score", 0) > CITATIONS_ONLY_BELOW_CUMULATIVE:
+                    row["citations"] = ""
+                    row["citation_comment"] = ""
+
+            # Langfuse tracing (best-effort, non-blocking)
+            _langfuse_trace_batch(lf, deployment, pairs, score_dicts)
+
+            # Progress logging: every batch for small runs, every 1% for large runs
+            log_interval = max(1, num_batches // 100)
             elapsed = time.perf_counter() - t0
-            scored_so_far = min(batch_idx + batch_size, total)
+            scored_so_far = min(done * batch_size, total)
             rate = scored_so_far / elapsed if elapsed > 0 else 0
-            print(f"  Scored {scored_so_far}/{total} pairs (batch {current_batch}/{num_batches}, {elapsed:.1f}s elapsed, ~{rate:.1f} pairs/s)...", file=sys.stderr)
+            eta = (total - scored_so_far) / rate if rate > 0 else 0
+            if done % log_interval == 0 or done == num_batches:
+                print(f"  Batch {done}/{num_batches} done | {scored_so_far}/{total} pairs | {elapsed:.1f}s elapsed | ~{rate:.1f} pairs/s | ETA ~{eta/60:.1f}min", file=sys.stderr)
     elapsed_total = time.perf_counter() - t0
     total_tokens = total_prompt_tokens + total_completion_tokens
     cost_input = (total_prompt_tokens / 1_000_000) * LLM_COST_INPUT_PER_1M
     cost_output = (total_completion_tokens / 1_000_000) * LLM_COST_OUTPUT_PER_1M
     cost_total = cost_input + cost_output
-    print(f"  Done. Scored {total} pairs in {elapsed_total:.1f}s. Failed: {failed}.", file=sys.stderr)
+    print(f"  Done. Scored {total} pairs in {elapsed_total:.1f}s. Failed: {failed[0]}.", file=sys.stderr)
     print(f"  Cost: {total_prompt_tokens:,} prompt + {total_completion_tokens:,} completion = {total_tokens:,} total tokens.", file=sys.stderr)
     print(f"  Estimated cost: ${cost_input:.4f} (input) + ${cost_output:.4f} (output) = ${cost_total:.4f} total.", file=sys.stderr)
     if use_web_search:
         pairs_with_citations = sum(1 for row in rows if row.get("citations", "").strip())
         print(f"  Web search: {pairs_with_citations}/{total} pairs have citations.", file=sys.stderr)
+    if lf:
+        try:
+            lf.flush()
+        except Exception:
+            pass
     
     return rows
 
@@ -772,6 +919,7 @@ def main() -> None:
     parser.add_argument("--sample-size", type=int, default=5000, help="Max random sample size to score (default: 5000). Ignored if --score-all.")
     parser.add_argument("--worst-n", type=int, default=5000, help="After LLM, how many worst-scoring rows to output (default: 5000).")
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help=f"Number of pairs to score per LLM call (default: {DEFAULT_BATCH_SIZE}). Higher = faster but larger prompts.")
+    parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS, help=f"Number of parallel LLM calls (default: {DEFAULT_WORKERS}). Increase for faster throughput; tune to your Azure OpenAI TPM/RPM quota.")
     parser.add_argument("--use-web-search", action="store_true", help="Enable web search for citations on low-scoring pairs (DuckDuckGo, no API key). Requires: pip install ddgs.")
     parser.add_argument("--no-llm", action="store_true", help="Skip LLM judge; export sampled pairs only")
     parser.add_argument("--llm-model", type=str, default=None, help=f"Azure OpenAI chat deployment (default: {DEFAULT_CHAT_DEPLOYMENT})")
