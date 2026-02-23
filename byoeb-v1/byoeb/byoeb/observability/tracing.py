@@ -9,6 +9,11 @@ import json
 import logging
 from typing import Any, Optional, Tuple
 
+try:
+    from langfuse.types import TraceContext
+except ImportError:
+    TraceContext = dict  # type: ignore[misc, assignment]
+
 from opentelemetry import trace, context
 from opentelemetry.propagate import inject, extract
 
@@ -56,7 +61,7 @@ def get_conversation_tracer() -> trace.Tracer:
     return trace.get_tracer(TRACER_NAME, TRACER_VERSION)
 
 
-def get_current_otel_trace_context() -> Optional[dict[str, str]]:
+def get_current_otel_trace_context() -> Optional[TraceContext]:
     """
     Return current OTEL trace context for linking Langfuse (or other backends).
     Returns {"trace_id": "32 hex", "parent_span_id": "16 hex"} or None if no active span.

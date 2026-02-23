@@ -6,7 +6,6 @@ import uuid
 from typing import Any, List, Dict, Literal, Set
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
 from pydantic import BaseModel, Field, PositiveInt
-from byoeb.observability.tracing import get_conversation_tracer, SPAN_RECEIVE
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
     MessageContext,
@@ -40,29 +39,13 @@ async def receive(body: Dict[str, Any] = Body(..., description="Raw WhatsApp web
     Handles an incoming WhatsApp message from a user.
     The message is processed by the message_producer_handler.
     """
-    tracer = get_conversation_tracer()
-    with tracer.start_as_current_span(SPAN_RECEIVE) as span:
-        try:
-            message_id = None
-            if isinstance(body, dict) and "entry" in body and body["entry"]:
-                changes = body["entry"][0].get("changes") or []
-                if changes and "value" in changes[0]:
-                    msgs = (changes[0]["value"].get("messages") or [])
-                    if msgs:
-                        message_id = msgs[0].get("id")
-            if message_id:
-                span.set_attribute("message_id", message_id)
-            span.set_attribute("channel", "whatsapp")
-            _logger.info(f"Received WhatsApp request: {json.dumps(body, ensure_ascii=False)}")
-            response = await dependency_setup.message_producer_handler.handle(body)
-            _logger.info(f"Handler response: {response}")
-            return JSONResponse(
-                status_code=response.status_code,
-                content=response.message if isinstance(response.message, str) else str(response.message)
-            )
-        except Exception as e:
-            span.record_exception(e)
-            raise
+    _logger.info(f"Received WhatsApp request: {json.dumps(body, ensure_ascii=False)}")
+    response = await dependency_setup.message_producer_handler.handle(body)
+    _logger.info(f"Handler response: {response}")
+    return JSONResponse(
+        status_code=response.status_code,
+        content=response.message if isinstance(response.message, str) else str(response.message)
+    )
 
 
 @chat_apis_router.get("/get_bot_messages", summary="Fetch bot messages after a given timestamp")

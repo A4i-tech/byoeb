@@ -108,10 +108,10 @@ class ByoebUserProcess(Handler):
         augmented_prompts = self.__augment(system_prompt, user_prompt)
         start_time = datetime.now(timezone.utc)
         from byoeb.observability.langfuse_client import observe_llm
-        with observe_llm("llm_translation_and_query_rewriting", model="translation_rewrite", input_data={"user_prompt_preview": (user_prompt or "")[:500]}) as lf_obs:
+        with observe_llm("llm_translation_and_query_rewriting", model="translation_rewrite", input_data={"user_prompt": user_prompt}) as lf_obs:
             llm_response, response_text = await llm_translate_and_rewrite_client.generate_response(augmented_prompts)
             tokens = llm_translate_and_rewrite_client.get_response_tokens(llm_response)
-            lf_obs.update(output=response_text[:2000] if response_text else None, usage={"prompt_tokens": tokens.get("prompt_tokens"), "completion_tokens": tokens.get("completion_tokens")})
+            lf_obs.update(output=response_text, usage={"prompt_tokens": tokens.get("prompt_tokens"), "completion_tokens": tokens.get("completion_tokens")})
         query_en, query_en_addcontext, query_type  = parse_xml_with_regex(response_text)
         if query_en is None or query_en_addcontext is None or query_type is None:
             raise Exception("LLM response is not in expected format")
