@@ -113,6 +113,10 @@ class AsyncAzureStorageQueue(BaseQueue):
     ) -> Any:
         await self.__queue_client.delete_message(message)
     
+    @property
+    def is_closed(self) -> bool:
+        return self.__queue_client is None
+
     def get_azure_queue_client(self):
         return self.__queue_client
     
