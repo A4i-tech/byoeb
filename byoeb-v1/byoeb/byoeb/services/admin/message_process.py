@@ -2,16 +2,15 @@ import re
 import hashlib
 import logging
 import httpx
-from typing import List, Dict, Any
+from typing import List, Dict
 from datetime import datetime, timezone
 from byoeb.chat_app.configuration.config import bot_config
-from byoeb.chat_app.configuration.dependency_setup import vector_store, llm_translate_and_rewrite_client, llm_client
+from byoeb.chat_app.configuration.dependency_setup import byoeb_user_process, vector_store, llm_translate_and_rewrite_client, llm_client
 from byoeb.models.experiment import QueryInput, QueryOutput
 from byoeb_core.models.vector_stores.chunk import Chunk, Chunk_metadata
-from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+from tenacity import retry, stop_after_attempt, wait_exponential
 from azure.search.documents.models import VectorizedQuery
 from byoeb_core.models.vector_stores.azure.azure_search import AzureSearchNode
-from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 
 QUERY_EN = "query_en"
 QUERY_EN_ADDCONTEXT = "query_en_addcontext"
@@ -57,8 +56,8 @@ def get_conversation_history(user_id, history_length):
             continue  # Skip conversations older than 30 min
         if question is None or answer is None:
             continue
-        conversation_history.append(f"query{i+1}: {question} answer{i+1}: {answer}")
-        i+=1
+        conversation_history.append({"role": "user", "content": question})
+        conversation_history.append({"role": "assistant", "content": answer})
     return conversation_history
 
 async def llm_translation_and_query_rewritting(system_prompt, question, conversation_history):
@@ -76,13 +75,8 @@ async def llm_translation_and_query_rewritting(system_prompt, question, conversa
             extracted_data[key] = match.group(1).strip() if match else None  # Strip removes extra spaces and newlines
 
         return extracted_data[QUERY_EN], extracted_data[QUERY_EN_ADDCONTEXT], extracted_data[QUERY_TYPE]
-    conversation_history_str = ", ".join(conversation_history)
-    template_user_prompt = bot_config["llm_response"]["translation_and_rewrite_prompts"]["user_prompt"]
-    user_prompt = template_user_prompt.replace("<QUERY>", question).replace("<CONVERSATION_HISTORY>", conversation_history_str)
-    augmented_prompts = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt}
-    ]
+    conversation_history = byoeb_user_process._create_conversation_history(conversation_history)
+    augmented_prompts = byoeb_user_process.__augment(system_prompt, question, conversation_history)
     llm_response, response_text = await llm_translate_and_rewrite_client.generate_response(augmented_prompts)
     tokens = llm_translate_and_rewrite_client.get_response_tokens(llm_response)
     query_en, query_en_addcontext, query_type  = parse_xml_with_regex(response_text)
