@@ -40,9 +40,11 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
+
 # Optional Langfuse tracing (pip install langfuse). Gracefully disabled if not installed or not configured.
 try:
-    from langfuse import Langfuse as _Langfuse
+    from langfuse import Langfuse
     HAS_LANGFUSE = True
 except ImportError:
     HAS_LANGFUSE = False
@@ -61,12 +63,6 @@ except ImportError:
         HAS_DUCKDUCKGO = True
     except ImportError:
         HAS_DUCKDUCKGO = False
-
-try:
-    from langfuse import Langfuse
-    HAS_LANGFUSE = True
-except ImportError:
-    HAS_LANGFUSE = False
 
 # Ensure byoeb package is on path when run as script
 _script_dir = Path(__file__).resolve().parent
@@ -143,13 +139,13 @@ def _get_response_text(entry: dict) -> str:
 def _get_query_source(entry: dict) -> str:
     """Extract reply_source_text for output column."""
     reply_context = entry.get("reply_context") or {}
-    return (reply_context.get("reply_source_text") or "").strip() or ""
+    return (reply_context.get("reply_source_text") or "").strip()
 
 
 def _get_response_source(entry: dict) -> str:
     """Extract message_source_text for output column."""
     message_context = entry.get("message_context") or {}
-    return (message_context.get("message_source_text") or "").strip() or ""
+    return (message_context.get("message_source_text") or "").strip()
 
 
 def _get_query_type(entry: dict) -> str:
@@ -158,6 +154,85 @@ def _get_query_type(entry: dict) -> str:
     additional = reply_context.get("additional_info") or {}
     qt = additional.get("query_type")
     return str(qt) if qt is not None else ""
+
+
+def _is_context_lost_query(query: str) -> bool:
+    """
+    Detect queries where context is clearly lost, e.g. one-word pronouns like "this", "he", "she", "that".
+    These are not useful for human validation on their own and should be excluded.
+    """
+    if not query or not isinstance(query, str):
+        return False
+    # Normalize: lowercase, strip whitespace and common surrounding punctuation/quotes
+    normalized = query.strip().lower().strip(" \"'“”‘’.,!?-")
+    if not normalized:
+        return False
+    # Only treat it as context-lost if it is exactly one of these pronouns/demonstratives
+    context_lost_tokens = {"this", "he", "she", "that"}
+    return normalized in context_lost_tokens
+
+
+def _normalize_source_for_dedup(query_source: str) -> str:
+    """
+    Normalize source-language query for duplicate detection.
+    Goal: treat minor differences like extra spaces or trailing punctuation
+    ("?", "।", "!", ".", ",") as the same query.
+    """
+    if not query_source or not isinstance(query_source, str):
+        return ""
+    s = query_source.strip().lower()
+    # Collapse internal whitespace
+    s = " ".join(s.split())
+    # Strip common trailing punctuation characters repeatedly
+    trailing_punct = "?.!।,؛"
+    while s and s[-1] in trailing_punct:
+        s = s[:-1].rstrip()
+    return s
+
+
+def _filter_rows_for_validation(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Apply post-processing filters before exporting for human validation:
+      1. Drop rows where the English query has clearly lost context (e.g. just "this", "he", "she", "that").
+      2. Drop duplicate queries in the source language based on normalized query_source
+         (ignoring extra spaces and trailing punctuation), keeping the first occurrence.
+    """
+    if not rows:
+        return rows
+
+    # Step 1: filter context-lost queries
+    filtered_rows: list[dict[str, Any]] = []
+    context_lost_count = 0
+    for row in rows:
+        q = (row.get("query") or "").strip()
+        if _is_context_lost_query(q):
+            context_lost_count += 1
+            continue
+        filtered_rows.append(row)
+
+    # Step 2: remove duplicates on normalized query_source (source language query)
+    deduped_rows: list[dict[str, Any]] = []
+    seen_query_sources: set[str] = set()
+    duplicate_source_count = 0
+    for row in filtered_rows:
+        raw_qs = (row.get("query_source") or "").strip()
+        norm_qs = _normalize_source_for_dedup(raw_qs)
+        if norm_qs:
+            if norm_qs in seen_query_sources:
+                duplicate_source_count += 1
+                continue
+            seen_query_sources.add(norm_qs)
+        deduped_rows.append(row)
+
+    removed_total = context_lost_count + duplicate_source_count
+    if removed_total:
+        print(
+            f"Post-filtering removed {removed_total} rows "
+            f"({context_lost_count} context-lost queries, "
+            f"{duplicate_source_count} duplicate source-language queries).",
+            file=sys.stderr,
+        )
+    return deduped_rows
 
 
 def _parse_date_or_timestamp(value: str) -> tuple[float, float]:
@@ -229,7 +304,7 @@ async def fetch_validation_pairs(
         "message_data.user.user_id": 1,
         "message_data.message_category": 1,
     }
-    cursor = message_collection.find(query, projection).sort("message_data.incoming_timestamp", -1)
+    cursor = message_collection.find(query, projection).sort("message_data.incoming_timestamp", -1).max_time_ms(300_000)  # 5 min server-side timeout
     if limit:
         cursor = cursor.limit(limit)
     rows: list[dict[str, Any]] = []
@@ -293,13 +368,13 @@ def sample_rows(rows: list[dict], sample_size: int, seed: Optional[int]) -> list
 def _get_chat_deployment(args: argparse.Namespace) -> str:
     """Resolve chat deployment: --llm-model > env > hardcoded default."""
     return (
-        (getattr(args, "llm_model", None) or "")
+        (args.llm_model or "")
         or os.environ.get("AZURE_OPENAI_CHAT_DEPLOYMENT")
         or DEFAULT_CHAT_DEPLOYMENT
     )
 
 
-def _score_batch(client: Any, deployment: str, pairs: list[tuple[str, str]], use_web_search: bool = False) -> tuple[list[dict[str, Any]], int, int]:
+async def _score_batch(client: Any, deployment: str, pairs: list[tuple[str, str]], use_web_search: bool = False) -> tuple[list[dict[str, Any]], int, int]:
     """
     Score multiple Q&A pairs in one LLM call with optional web search tool.
     Returns (list of score_dicts, prompt_tokens, completion_tokens).
@@ -374,21 +449,19 @@ The "results" array must contain exactly {len(pairs)} objects, one per pair in o
     total_prompt_tokens = 0
     total_completion_tokens = 0
 
-    def _call_with_retry(create_kwargs: dict, max_retries: int = 5) -> Any:
-        """Call the OpenAI API with exponential backoff on rate limit (429) errors."""
-        import time as _time
-        for attempt in range(max_retries):
-            try:
-                return client.chat.completions.create(**create_kwargs)
-            except Exception as e:
-                err_str = str(e)
-                is_rate_limit = "429" in err_str or "RateLimit" in err_str or "rate_limit" in err_str.lower()
-                if is_rate_limit and attempt < max_retries - 1:
-                    wait = 2 ** attempt  # 1s, 2s, 4s, 8s, 16s
-                    print(f"      Rate limit hit, retrying in {wait}s (attempt {attempt + 1}/{max_retries})...", file=sys.stderr)
-                    _time.sleep(wait)
-                else:
-                    raise
+    def _is_rate_limit_error(e: Exception) -> bool:
+        err_str = str(e)
+        return "429" in err_str or "RateLimit" in err_str or "rate_limit" in err_str.lower()
+
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(max=16),
+        retry=retry_if_exception(_is_rate_limit_error),
+        before_sleep=lambda rs: print(f"      Rate limit hit, retrying in {rs.next_action.sleep:.0f}s (attempt {rs.attempt_number}/5)...", file=sys.stderr),
+        reraise=True,
+    )
+    async def _call_with_retry(create_kwargs: dict) -> Any:
+        return await client.chat.completions.create(**create_kwargs)
 
     try:
         max_iterations = 5  # Prevent infinite loops
@@ -417,7 +490,7 @@ The "results" array must contain exactly {len(pairs)} objects, one per pair in o
             else:
                 create_kwargs["response_format"] = {"type": "json_object"}
             
-            resp = _call_with_retry(create_kwargs)
+            resp = await _call_with_retry(create_kwargs)
             
             usage = resp.usage
             total_prompt_tokens += getattr(usage, "prompt_tokens", 0) or 0
@@ -558,77 +631,6 @@ The "results" array must contain exactly {len(pairs)} objects, one per pair in o
         )
 
 
-def _score_single_pair(client: Any, deployment: str, query: str, response: str) -> tuple[dict[str, Any], bool, str]:
-    """
-    Call LLM judge for one Q&A pair. Returns (score_dict, ok).
-    score_dict has completeness, factual_accuracy, relevance (1-10), reason (optional), cumulative_score.
-    """
-    prompt = f"""You are evaluating health-information bot called <asha_bot>. I will be giving question-answer pairs. Score each pair on three dimensions from 1 to 10 (1=worst, 10=best).
-
-<asha_bot>
-You are ASHA Saheli, an AI-powered WhatsApp chatbot from Khushi Baby. You help Indian Community Health Workers (ASHAs) by answering their questions about maternal health, child health, vaccinations, and rural health practices.
-
-You provide:
-- Instant, accurate responses using your health knowledge base
-- Multilingual support (Hindi, Marathi, Telugu, English)
-- Simple, easy-to-understand language
-- Expert-verified answers when needed
-
-You answer questions about ASHA work, health protocols, vaccination schedules, and maternal/child health. When you don't know something, you escalate to ANM experts for verification.
-
-Your goal: Empower ASHAs with reliable health information to better serve their communities.
-</asha_bot>
-
-IMPORTANT: Be fair and practical. A direct, factual answer that correctly addresses the question is COMPLETE and should score highly (8-10). Do NOT penalize answers for lacking "broader context" unless the question explicitly asks for it.
-
-Criteria:
-- Completeness (1-10): Does the answer fully address what the question asks? A direct factual answer is sufficient unless the question explicitly requests broader context.
-- Factual accuracy (1-10): Is the answer factually correct based on standard medical/health information?
-- Relevance (1-10): Is the answer on-topic and relevant to the question?
-
-{JUDGE_GOOD_EXAMPLES}
-
-Now evaluate this pair:
-
-Query: {json.dumps(query, ensure_ascii=False)}
-Answer: {json.dumps(response, ensure_ascii=False)}
-
-Respond with ONLY a JSON object (no markdown, no extra text) in this exact format. You must always include "reason" with a one-line explanation (e.g. what is good or what could be improved):
-{{"completeness": <1-10>, "factual_accuracy": <1-10>, "relevance": <1-10>, "reason": "<one-line explanation for your scores>"}}
-"""
-    try:
-        resp = client.chat.completions.create(
-            model=deployment,
-            messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"},
-        )
-        content = resp.choices[0].message.content
-        data = json.loads(content)
-        c = int(data.get("completeness", 5))
-        f = int(data.get("factual_accuracy", 5))
-        r = int(data.get("relevance", 5))
-        c = max(1, min(10, c))
-        f = max(1, min(10, f))
-        r = max(1, min(10, r))
-        data["completeness"] = c
-        data["factual_accuracy"] = f
-        data["relevance"] = r
-        data["cumulative_score"] = c + f + r
-        data["reason"] = (data.get("reason") or "").strip() or "No reason provided"
-        return (data, True, "")
-    except Exception as e:
-        return (
-            {
-                "completeness": 10,
-                "factual_accuracy": 10,
-                "relevance": 10,
-                "reason": "LLM failure",
-                "cumulative_score": DEFAULT_FAILURE_SCORE,
-            },
-            False,
-            str(e),
-        )
-
 
 def _execute_web_search(search_query: str) -> dict[str, Any]:
     """
@@ -659,17 +661,6 @@ def _execute_web_search(search_query: str) -> dict[str, Any]:
 
 
 
-
-def _get_langfuse_client() -> Any:
-    """Return a Langfuse client if credentials are configured, else None."""
-    if not HAS_LANGFUSE:
-        return None
-    secret_key = os.environ.get("LANGFUSE_SECRET_KEY")
-    public_key = os.environ.get("LANGFUSE_PUBLIC_KEY")
-    host = os.environ.get("LANGFUSE_HOST") or os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
-    if not secret_key or not public_key:
-        return None
-    return _Langfuse(secret_key=secret_key, public_key=public_key, host=host)
 
 
 def _langfuse_trace_batch(lf: Any, deployment: str, pairs: list[tuple[str, str]], score_dicts: list[dict]) -> None:
@@ -712,10 +703,10 @@ def _langfuse_trace_batch(lf: Any, deployment: str, pairs: list[tuple[str, str]]
         print(f"    Langfuse trace error (non-fatal): {str(e)[:80]}", file=sys.stderr)
 
 
-def run_llm_judge(rows: list[dict], deployment: str, args: argparse.Namespace) -> list[dict]:
-    """Score each row with LLM (batched) and add score columns. Returns rows with completeness, factual_accuracy, relevance, cumulative_score."""
+async def run_llm_judge(rows: list[dict], deployment: str, args: argparse.Namespace) -> list[dict]:
+    """Score each row with LLM (async batched) and add score columns."""
     try:
-        from openai import AzureOpenAI
+        from openai import AsyncAzureOpenAI
     except ImportError:
         print("openai package not installed; skipping LLM judge. Use --no-llm to export without scoring.", file=sys.stderr)
         return rows
@@ -724,24 +715,26 @@ def run_llm_judge(rows: list[dict], deployment: str, args: argparse.Namespace) -
     if not api_key or not endpoint:
         print("AZURE_OPENAI_KEY and AZURE_OPENAI_ENDPOINT required for LLM judge. Use --no-llm to export without scoring.", file=sys.stderr)
         return rows
-    client = AzureOpenAI(api_key=api_key, api_version=os.environ.get("OPENAI_API_VERSION", "2024-02-15-preview"), azure_endpoint=endpoint)
-    lf = _get_langfuse_client()
+
+    import time
+
+    client = AsyncAzureOpenAI(
+        api_key=api_key,
+        api_version=os.environ.get("OPENAI_API_VERSION", "2024-02-15-preview"),
+        azure_endpoint=endpoint,
+    )
+    lf = Langfuse() if HAS_LANGFUSE else None
     if lf:
         host = os.environ.get("LANGFUSE_HOST") or os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
         print(f"  Langfuse tracing enabled. Traces will appear at {host}", file=sys.stderr)
+
     total = len(rows)
-    batch_size = getattr(args, "batch_size", DEFAULT_BATCH_SIZE)
-    num_workers = getattr(args, "workers", DEFAULT_WORKERS)
+    batch_size = args.batch_size
+    concurrency = args.workers
     num_batches = (total + batch_size - 1) // batch_size
-    print(f"  Scoring {total} pairs with LLM (deployment={deployment}, batch_size={batch_size}, workers={num_workers}, {num_batches} batches).", file=sys.stderr)
-    failed = [0]  # mutable int for thread-safe increment via lock
-    total_prompt_tokens = 0
-    total_completion_tokens = 0
-    import time
-    import threading
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    t0 = time.perf_counter()
-    use_web_search = getattr(args, "use_web_search", False)
+    print(f"  Scoring {total} pairs with LLM (deployment={deployment}, batch_size={batch_size}, concurrency={concurrency}, {num_batches} batches).", file=sys.stderr)
+
+    use_web_search = args.use_web_search
     if use_web_search and not HAS_DUCKDUCKGO:
         print("  WARNING: --use-web-search enabled but 'ddgs' not installed (pip install ddgs). Web search disabled.", file=sys.stderr)
         use_web_search = False
@@ -753,74 +746,71 @@ def run_llm_judge(rows: list[dict], deployment: str, args: argparse.Namespace) -
         pairs = [(row["query"], row["response"]) for row in batch]
         batches.append((batch_idx, batch, pairs))
 
-    # Thread-safe counters
+    failed = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
     completed_count = 0
-    lock = threading.Lock()
+    t0 = time.perf_counter()
+    log_interval = max(1, num_batches // 100)
 
-    def _process_one_batch(args_tuple):
-        batch_idx, batch, pairs = args_tuple
+    # Semaphore limits concurrent in-flight requests (rate limit friendly)
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def _process_one_batch(batch_idx: int, batch: list, pairs: list) -> tuple:
         current_batch = (batch_idx // batch_size) + 1
-        print(f"  [worker] Starting batch {current_batch}/{num_batches} ({len(pairs)} pairs)...", file=sys.stderr)
-        score_dicts, pt, ct = _score_batch(client, deployment, pairs, use_web_search=use_web_search)
+        print(f"  [async] Starting batch {current_batch}/{num_batches} ({len(pairs)} pairs)...", file=sys.stderr)
+        async with semaphore:
+            score_dicts, pt, ct = await _score_batch(client, deployment, pairs, use_web_search=use_web_search)
         return (current_batch, batch_idx, batch, pairs, score_dicts, pt, ct)
 
-    # Run batches in parallel
-    with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        futures = {executor.submit(_process_one_batch, b): b for b in batches}
-        for future in as_completed(futures):
-            try:
-                current_batch, batch_idx, batch, pairs, score_dicts, pt, ct = future.result()
-            except Exception as exc:
-                # Entire batch failed — assign default failure scores
-                batch_idx_failed, batch_failed, pairs_failed = futures[future]
-                current_batch = (batch_idx_failed // batch_size) + 1
-                score_dicts = [{
-                    "completeness": 10, "factual_accuracy": 10, "relevance": 10,
-                    "cumulative_score": DEFAULT_FAILURE_SCORE,
-                    "reason": f"LLM failure: {str(exc)[:50]}",
-                    "citations": "", "citation_comment": "",
-                }] * len(batch_failed)
-                batch, pairs, pt, ct = batch_failed, pairs_failed, 0, 0
-                print(f"  ERROR batch {current_batch}: {exc}", file=sys.stderr)
+    # Launch all batches concurrently; semaphore keeps in-flight count bounded
+    tasks = [_process_one_batch(bi, b, p) for bi, b, p in batches]
+    for coro in asyncio.as_completed(tasks):
+        try:
+            current_batch, batch_idx, batch, pairs, score_dicts, pt, ct = await coro
+        except Exception as exc:
+            score_dicts = [{
+                "completeness": 10, "factual_accuracy": 10, "relevance": 10,
+                "cumulative_score": DEFAULT_FAILURE_SCORE,
+                "reason": f"LLM failure: {str(exc)[:50]}",
+                "citations": "", "citation_comment": "",
+            }]
+            batch, pairs, pt, ct = [], [], 0, 0
+            print(f"  ERROR: {exc}", file=sys.stderr)
 
-            with lock:
-                total_prompt_tokens += pt
-                total_completion_tokens += ct
-                completed_count += 1
-                done = completed_count
+        total_prompt_tokens += pt
+        total_completion_tokens += ct
+        completed_count += 1
+        done = completed_count
 
-            for row, score_dict in zip(batch, score_dicts):
-                if score_dict.get("reason", "").startswith("LLM failure"):
-                    with lock:
-                        failed[0] += 1
-                row["completeness"] = score_dict["completeness"]
-                row["factual_accuracy"] = score_dict["factual_accuracy"]
-                row["relevance"] = score_dict["relevance"]
-                row["cumulative_score"] = score_dict["cumulative_score"]
-                row["reason"] = score_dict.get("reason", "")
-                row["citations"] = score_dict.get("citations", "")
-                row["citation_comment"] = score_dict.get("citation_comment", "")
-                if use_web_search and row.get("cumulative_score", 0) > CITATIONS_ONLY_BELOW_CUMULATIVE:
-                    row["citations"] = ""
-                    row["citation_comment"] = ""
+        for row, score_dict in zip(batch, score_dicts):
+            if score_dict.get("reason", "").startswith("LLM failure"):
+                failed += 1
+            row["completeness"] = score_dict["completeness"]
+            row["factual_accuracy"] = score_dict["factual_accuracy"]
+            row["relevance"] = score_dict["relevance"]
+            row["cumulative_score"] = score_dict["cumulative_score"]
+            row["reason"] = score_dict.get("reason", "")
+            row["citations"] = score_dict.get("citations", "")
+            row["citation_comment"] = score_dict.get("citation_comment", "")
+            if use_web_search and row.get("cumulative_score", 0) > CITATIONS_ONLY_BELOW_CUMULATIVE:
+                row["citations"] = ""
+                row["citation_comment"] = ""
 
-            # Langfuse tracing (best-effort, non-blocking)
-            _langfuse_trace_batch(lf, deployment, pairs, score_dicts)
+        _langfuse_trace_batch(lf, deployment, pairs, score_dicts)
 
-            # Progress logging: every batch for small runs, every 1% for large runs
-            log_interval = max(1, num_batches // 100)
-            elapsed = time.perf_counter() - t0
-            scored_so_far = min(done * batch_size, total)
-            rate = scored_so_far / elapsed if elapsed > 0 else 0
-            eta = (total - scored_so_far) / rate if rate > 0 else 0
-            if done % log_interval == 0 or done == num_batches:
-                print(f"  Batch {done}/{num_batches} done | {scored_so_far}/{total} pairs | {elapsed:.1f}s elapsed | ~{rate:.1f} pairs/s | ETA ~{eta/60:.1f}min", file=sys.stderr)
+        elapsed = time.perf_counter() - t0
+        scored_so_far = min(done * batch_size, total)
+        rate = scored_so_far / elapsed if elapsed > 0 else 0
+        eta = (total - scored_so_far) / rate if rate > 0 else 0
+        if done % log_interval == 0 or done == num_batches:
+            print(f"  Batch {done}/{num_batches} done | {scored_so_far}/{total} pairs | {elapsed:.1f}s elapsed | ~{rate:.1f} pairs/s | ETA ~{eta/60:.1f}min", file=sys.stderr)
     elapsed_total = time.perf_counter() - t0
     total_tokens = total_prompt_tokens + total_completion_tokens
     cost_input = (total_prompt_tokens / 1_000_000) * LLM_COST_INPUT_PER_1M
     cost_output = (total_completion_tokens / 1_000_000) * LLM_COST_OUTPUT_PER_1M
     cost_total = cost_input + cost_output
-    print(f"  Done. Scored {total} pairs in {elapsed_total:.1f}s. Failed: {failed[0]}.", file=sys.stderr)
+    print(f"  Done. Scored {total} pairs in {elapsed_total:.1f}s. Failed: {failed}.", file=sys.stderr)
     print(f"  Cost: {total_prompt_tokens:,} prompt + {total_completion_tokens:,} completion = {total_tokens:,} total tokens.", file=sys.stderr)
     print(f"  Estimated cost: ${cost_input:.4f} (input) + ${cost_output:.4f} (output) = ${cost_total:.4f} total.", file=sys.stderr)
     if use_web_search:
@@ -858,28 +848,44 @@ async def main_async(args: argparse.Namespace) -> None:
 
     rows = await fetch_validation_pairs(
         message_collection,
-        start_arg=getattr(args, "start", None),
-        end_arg=getattr(args, "end", None),
-        limit=getattr(args, "limit", None),
+        start_arg=args.start,
+        end_arg=args.end,
+        limit=args.limit,
     )
     if not rows:
         print("No Q&A pairs found.", file=sys.stderr)
         return
 
-    if getattr(args, "score_all", False):
+    if args.score_all:
         print(f"Scoring all {len(rows)} pairs (--score-all).", file=sys.stderr)
     else:
-        rows = sample_rows(rows, args.sample_size, getattr(args, "seed", None))
+        rows = sample_rows(rows, args.sample_size, args.seed)
         print(f"Sampled {len(rows)} pairs for output/LLM.", file=sys.stderr)
 
     used_llm = not args.no_llm
     if used_llm:
         deployment = _get_chat_deployment(args)
         print(f"Running LLM judge (deployment={deployment})...", file=sys.stderr)
-        rows = run_llm_judge(rows, deployment, args)
+        rows = await run_llm_judge(rows, deployment, args)
+        # Apply validation-specific filters before selecting the worst-N so that
+        # the final sheet does not contain obvious context-lost queries or
+        # exact duplicates in the source language.
+        rows = _filter_rows_for_validation(rows)
         rows = apply_worst_n(rows, args.worst_n, used_llm=True)
     else:
+        # Even without LLM scoring, still apply the same validation filters.
+        rows = _filter_rows_for_validation(rows)
         rows = apply_worst_n(rows, args.worst_n, used_llm=False)
+
+    if len(rows) < args.worst_n:
+        # Help the operator satisfy the "~5000 queries" requirement when post-filters
+        # remove some rows, by logging a clear hint instead of silently shrinking.
+        print(
+            f"NOTE: After filtering context-lost and duplicate source-language queries, "
+            f"only {len(rows)} rows remain (requested worst-n={args.worst_n}). "
+            f"Consider increasing --worst-n and/or --sample-size if you need ~{args.worst_n} rows in the final sheet.",
+            file=sys.stderr,
+        )
 
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -919,7 +925,7 @@ def main() -> None:
     parser.add_argument("--sample-size", type=int, default=5000, help="Max random sample size to score (default: 5000). Ignored if --score-all.")
     parser.add_argument("--worst-n", type=int, default=5000, help="After LLM, how many worst-scoring rows to output (default: 5000).")
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help=f"Number of pairs to score per LLM call (default: {DEFAULT_BATCH_SIZE}). Higher = faster but larger prompts.")
-    parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS, help=f"Number of parallel LLM calls (default: {DEFAULT_WORKERS}). Increase for faster throughput; tune to your Azure OpenAI TPM/RPM quota.")
+    parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS, help=f"Max concurrent async LLM calls (default: {DEFAULT_WORKERS}). Tune to your Azure OpenAI TPM/RPM quota.")
     parser.add_argument("--use-web-search", action="store_true", help="Enable web search for citations on low-scoring pairs (DuckDuckGo, no API key). Requires: pip install ddgs.")
     parser.add_argument("--no-llm", action="store_true", help="Skip LLM judge; export sampled pairs only")
     parser.add_argument("--llm-model", type=str, default=None, help=f"Azure OpenAI chat deployment (default: {DEFAULT_CHAT_DEPLOYMENT})")
