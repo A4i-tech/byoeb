@@ -9,11 +9,7 @@ import json
 import logging
 from typing import Any, Optional, Tuple
 
-try:
-    from langfuse.types import TraceContext
-except ImportError:
-    TraceContext = dict  # type: ignore[misc, assignment]
-
+from langfuse.types import TraceContext
 from opentelemetry import trace, context
 from opentelemetry.propagate import inject, extract
 

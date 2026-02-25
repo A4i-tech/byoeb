@@ -3,6 +3,7 @@ import logging
 import byoeb.services.chat.constants as constants
 import byoeb.utils.utils as utils
 from byoeb.models.message_category import MessageCategory
+import time
 from datetime import datetime, timezone
 from byoeb.chat_app.configuration.config import app_config
 from byoeb.services.chat import utils as chat_utils
@@ -260,15 +261,10 @@ class ByoebUserSendResponse(Handler):
         with self._tracer.start_as_current_span(SPAN_SEND_WORKFLOW) as wf_span:
             wf_span.set_attribute("message_id", msg_id)
             wf_span.set_attribute("track_message_id", str(track_message_id or ""))
-            try:
-                send_start = datetime.now(timezone.utc).timestamp()
-                _, user_responses, expert_responses = await asyncio.gather(mark_read_task, user_task, expert_task)
-                wf_span.set_attribute("duration_ms", int((datetime.now(timezone.utc).timestamp() - send_start) * 1000))
-                wf_span.set_status(Status(StatusCode.OK))
-            except Exception as e:
-                wf_span.record_exception(e)
-                wf_span.set_status(Status(StatusCode.ERROR, str(e)))
-                raise
+            send_start = time.perf_counter()
+            _, user_responses, expert_responses = await asyncio.gather(mark_read_task, user_task, expert_task)
+            wf_span.set_attribute("duration_ms", int((time.perf_counter() - send_start) * 1000))
+            wf_span.set_status(Status(StatusCode.OK))
         self._logger.info(
             "[send] gather done; user_responses_len=%s expert_responses_len=%s",
             len(user_responses) if user_responses else 0,

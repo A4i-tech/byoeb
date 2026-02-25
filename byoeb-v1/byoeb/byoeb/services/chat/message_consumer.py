@@ -326,19 +326,14 @@ class MessageConsmerService:
             with self._tracer.start_as_current_span(SPAN_CONSUME_MESSAGE) as span:
                 span.set_attribute("message_id", msg_id)
                 span.set_attribute("user_id", str(user_id))
-                try:
-                    conv.user.activity_timestamp = datetime.now(timezone.utc)
-                    if conv.user.user_type in self._regular_user_type:
-                        self._logger.debug("[consume] queue user_flow msg_id=%s", msg_id)
-                        return await self._run_in_context(ctx, lambda: self.__process_byoebuser_conversation(conv))
-                    elif self.__is_expert_user_type(conv.user.user_type):
-                        self._logger.debug("[consume] queue expert_flow msg_id=%s", msg_id)
-                        return await self._run_in_context(ctx, lambda: self.__process_byoebexpert_conversation(conv))
-                    return None, None, None
-                except Exception as e:
-                    span.record_exception(e)
-                    span.set_status(Status(StatusCode.ERROR, str(e)))
-                    raise
+                conv.user.activity_timestamp = datetime.now(timezone.utc)
+                if conv.user.user_type in self._regular_user_type:
+                    self._logger.debug("[consume] queue user_flow msg_id=%s", msg_id)
+                    return await self._run_in_context(ctx, lambda: self.__process_byoebuser_conversation(conv))
+                elif self.__is_expert_user_type(conv.user.user_type):
+                    self._logger.debug("[consume] queue expert_flow msg_id=%s", msg_id)
+                    return await self._run_in_context(ctx, lambda: self.__process_byoebexpert_conversation(conv))
+                return None, None, None
 
         tasks = [process_one(conv) for conv in conversations]
         results = await asyncio.gather(*tasks) if tasks else []

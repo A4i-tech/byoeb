@@ -124,38 +124,32 @@ class ByoebUserProcess(Handler):
         msg_id = getattr(message.message_context, "message_id", None) or ""
         with self._tracer.start_as_current_span(SPAN_AUDIO_TO_TEXT) as span:
             span.set_attribute("message_id", msg_id)
-            try:
-                # dependency injection
-                from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
-                from byoeb.chat_app.configuration.dependency_setup import speech_translator
-                from byoeb_core.convertor.audio_convertor import ogg_opus_to_wav_bytes
+            # dependency injection
+            from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
+            from byoeb.chat_app.configuration.dependency_setup import speech_translator
+            from byoeb_core.convertor.audio_convertor import ogg_opus_to_wav_bytes
 
-                start_time = datetime.now(timezone.utc)
-                if audio_message is None:
-                    media_id = message.message_context.media_info.media_id
-                    channel_client = await channel_client_factory.get(message.channel_type)
-                    _, audio_message, err = await channel_client.adownload_media(media_id)
+            start_time = datetime.now(timezone.utc)
+            if audio_message is None:
+                media_id = message.message_context.media_info.media_id
+                channel_client = await channel_client_factory.get(message.channel_type)
+                _, audio_message, err = await channel_client.adownload_media(media_id)
 
-                audio_message_wav = ogg_opus_to_wav_bytes(audio_message.data)
-                audio_to_text = await speech_translator.aspeech_to_text(audio_message_wav, message.user.user_language, test_user=message.user.test_user)
-                message.message_context.message_source_text = audio_to_text
-                end_time = datetime.now(timezone.utc)
-                duration_seconds = (end_time - start_time).total_seconds()
-                span.set_attribute("duration_ms", int(duration_seconds * 1000))
-                span.set_attribute("success", True)
-                span.set_status(Status(StatusCode.OK))
-                AppInsightsLogHandler.getLogger("audio_to_text").info(f"Time taken for audio to text transcribe: {duration_seconds} seconds", extra={AppInsightsLogHandler.DETAILS: {
-                    "message_id": message.message_context.message_id,
-                    "time_taken": duration_seconds
-                }})
-                utils.log_to_text_file(f"Time taken for audio to text transcribe: {duration_seconds} seconds")
-                if message.message_context.media_info:
-                    message.message_context.media_info.media_type = audio_message.mime_type
-            except Exception as e:
-                span.record_exception(e)
-                span.set_attribute("success", False)
-                span.set_status(Status(StatusCode.ERROR, str(e)))
-                raise
+            audio_message_wav = ogg_opus_to_wav_bytes(audio_message.data)
+            audio_to_text = await speech_translator.aspeech_to_text(audio_message_wav, message.user.user_language, test_user=message.user.test_user)
+            message.message_context.message_source_text = audio_to_text
+            end_time = datetime.now(timezone.utc)
+            duration_seconds = (end_time - start_time).total_seconds()
+            span.set_attribute("duration_ms", int(duration_seconds * 1000))
+            span.set_attribute("success", True)
+            span.set_status(Status(StatusCode.OK))
+            AppInsightsLogHandler.getLogger("audio_to_text").info(f"Time taken for audio to text transcribe: {duration_seconds} seconds", extra={AppInsightsLogHandler.DETAILS: {
+                "message_id": message.message_context.message_id,
+                "time_taken": duration_seconds
+            }})
+            utils.log_to_text_file(f"Time taken for audio to text transcribe: {duration_seconds} seconds")
+            if message.message_context.media_info:
+                message.message_context.media_info.media_type = audio_message.mime_type
 
     async def handle_process_message_workflow(
         self,
@@ -166,67 +160,62 @@ class ByoebUserProcess(Handler):
 
         with self._tracer.start_as_current_span(SPAN_PROCESS_WORKFLOW) as span:
             span.set_attribute("message_id", msg_id)
-            try:
-                query_type = None
-                query_en = None
-                query_en_addcontext = None
+            query_type = None
+            query_en = None
+            query_en_addcontext = None
 
-                if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
-                    await self.annotate_audio_transcription(message)
+            if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
+                await self.annotate_audio_transcription(message)
 
-                # Check if this is an onboarding message BEFORE processing
-                is_onboarding_message = utils.is_onboard(message.message_context.message_source_text, message.user.user_language)
+            # Check if this is an onboarding message BEFORE processing
+            is_onboarding_message = utils.is_onboard(message.message_context.message_source_text, message.user.user_language)
 
-                # Skip LLM translation/rewriting for onboarding messages to prevent them from being sent to vector store/LLM
-                # Also skip for AUDIO_IDK messages (they don't need translation/rewriting)
-                if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
-                    pass
-                elif is_onboarding_message:
-                    logger.info("[process] Detected onboarding message: '%s...'", (message.message_context.message_source_text or "")[:50])
-                    source_text = message.message_context.message_source_text
-                    query_en = source_text
-                    query_en_addcontext = source_text
-                    query_type = "small_talk"
-                else:
-                    with self._tracer.start_as_current_span(SPAN_QUERY_REWRITE) as rw_span:
-                        rw_span.set_attribute("message_id", msg_id)
-                        start_time = datetime.now(timezone.utc)
-                        logger.info("[process] Processing normal message (not onboarding): '%s...'", (message.message_context.message_source_text or "")[:50])
-                        query_en, query_en_addcontext, query_type, tokens = await self.llm_translation_and_query_rewritting(message)
-                        end_time = datetime.now(timezone.utc)
-                        duration_seconds = (end_time - start_time).total_seconds()
-                        rw_span.set_attribute("duration_ms", int(duration_seconds * 1000))
-                        pt, ct = tokens.get("prompt_tokens") or 0, tokens.get("completion_tokens") or 0
-                        rw_span.set_attribute("prompt_tokens", pt)
-                        rw_span.set_attribute("completion_tokens", ct)
-                        rw_span.set_attribute("llm.prompt_tokens", pt)
-                        rw_span.set_attribute("llm.completion_tokens", ct)
-                        if "total_tokens" in tokens and tokens["total_tokens"] is not None:
-                            rw_span.set_attribute("llm.total_tokens", tokens["total_tokens"])
-                        rw_span.set_status(Status(StatusCode.OK))
-                        AppInsightsLogHandler.getLogger("query_rewriting").info(f"Rewrote queries for {message.message_context.message_id} in {duration_seconds} using {tokens.get('completion_tokens')} completion and {tokens.get('prompt_tokens')} prompt tokens", extra={AppInsightsLogHandler.DETAILS: {
-                            "message_id": message.message_context.message_id,
-                            "time_taken": duration_seconds,
-                            "completion_tokens": tokens.get("completion_tokens"),
-                            "prompt_tokens": tokens.get("prompt_tokens")
-                        }})
+            # Skip LLM translation/rewriting for onboarding messages to prevent them from being sent to vector store/LLM
+            # Also skip for AUDIO_IDK messages (they don't need translation/rewriting)
+            if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
+                pass
+            elif is_onboarding_message:
+                logger.info("[process] Detected onboarding message: '%s...'", (message.message_context.message_source_text or "")[:50])
+                source_text = message.message_context.message_source_text
+                query_en = source_text
+                query_en_addcontext = source_text
+                query_type = "small_talk"
+            else:
+                with self._tracer.start_as_current_span(SPAN_QUERY_REWRITE) as rw_span:
+                    rw_span.set_attribute("message_id", msg_id)
+                    start_time = datetime.now(timezone.utc)
+                    logger.info("[process] Processing normal message (not onboarding): '%s...'", (message.message_context.message_source_text or "")[:50])
+                    query_en, query_en_addcontext, query_type, tokens = await self.llm_translation_and_query_rewritting(message)
+                    end_time = datetime.now(timezone.utc)
+                    duration_seconds = (end_time - start_time).total_seconds()
+                    rw_span.set_attribute("duration_ms", int(duration_seconds * 1000))
+                    pt, ct = tokens.get("prompt_tokens") or 0, tokens.get("completion_tokens") or 0
+                    rw_span.set_attribute("prompt_tokens", pt)
+                    rw_span.set_attribute("completion_tokens", ct)
+                    rw_span.set_attribute("llm.prompt_tokens", pt)
+                    rw_span.set_attribute("llm.completion_tokens", ct)
+                    if "total_tokens" in tokens and tokens["total_tokens"] is not None:
+                        rw_span.set_attribute("llm.total_tokens", tokens["total_tokens"])
+                    rw_span.set_status(Status(StatusCode.OK))
+                    AppInsightsLogHandler.getLogger("query_rewriting").info(f"Rewrote queries for {message.message_context.message_id} in {duration_seconds} using {tokens.get('completion_tokens')} completion and {tokens.get('prompt_tokens')} prompt tokens", extra={AppInsightsLogHandler.DETAILS: {
+                        "message_id": message.message_context.message_id,
+                        "time_taken": duration_seconds,
+                        "completion_tokens": tokens.get("completion_tokens"),
+                        "prompt_tokens": tokens.get("prompt_tokens")
+                    }})
 
-                # Set message_english_text - use query_en_addcontext if available, otherwise fallback to source text
-                if query_en_addcontext is not None:
-                    message.message_context.message_english_text = query_en_addcontext
-                else:
-                    message.message_context.message_english_text = message.message_context.message_source_text
-                message.message_context.additional_info = {
-                    constants.QUERY_TYPE: query_type,
-                    constants.QUERY_EN: query_en,
-                    constants.CONV_HISTORY: self._create_conversation_history(message.user.last_conversations)
-                }
-                span.set_status(Status(StatusCode.OK))
-                return message
-            except Exception as e:
-                span.record_exception(e)
-                span.set_status(Status(StatusCode.ERROR, str(e)))
-                raise
+            # Set message_english_text - use query_en_addcontext if available, otherwise fallback to source text
+            if query_en_addcontext is not None:
+                message.message_context.message_english_text = query_en_addcontext
+            else:
+                message.message_context.message_english_text = message.message_context.message_source_text
+            message.message_context.additional_info = {
+                constants.QUERY_TYPE: query_type,
+                constants.QUERY_EN: query_en,
+                constants.CONV_HISTORY: self._create_conversation_history(message.user.last_conversations)
+            }
+            span.set_status(Status(StatusCode.OK))
+            return message
 
     async def handle(
         self,
