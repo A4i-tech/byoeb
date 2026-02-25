@@ -9,7 +9,6 @@ Usage:
   From byoeb-v1/byoeb:
     poetry run python tests/integration/run_release_qa_benchmark.py
     poetry run python tests/integration/run_release_qa_benchmark.py --base-url http://127.0.0.1:8000
-    poetry run python tests/integration/run_release_qa_benchmark.py --use-mcp   # MCP asha_chat instead of /receive
     poetry run python tests/integration/run_release_qa_benchmark.py --output benchmark_results.json
 
 Requires:
@@ -26,9 +25,9 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Literal
 
-import requests
+from pydantic import BaseModel, TypeAdapter, ValidationError, field_validator
 
 # Paths: script lives in tests/integration
 _CURRENT_DIR = Path(__file__).resolve().parent
@@ -78,144 +77,24 @@ DISAMBIGUATION_PHRASES = [
 RESPONSE_SNIPPET_LEN = 300  # chars to show when printing responses
 
 
+class BenchmarkItem(BaseModel):
+    question: str
+    expected: Literal["answered", "idk"]
+    category: str = ""
+
+    @field_validator("question")
+    @classmethod
+    def strip_question(cls, v: str) -> str:
+        return v.strip()
+
+
 def load_benchmark_set(path: Path) -> List[Dict[str, Any]]:
-    """Load benchmark set from JSON. Each item: question, expected ('answered'|'idk'), optional category."""
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    if not isinstance(data, list):
-        raise ValueError("Benchmark set must be a JSON array of {question, expected, category?}")
-    out = []
-    for i, item in enumerate(data):
-        if not isinstance(item, dict) or "question" not in item or "expected" not in item:
-            raise ValueError(f"Item {i}: must have 'question' and 'expected'")
-        q = str(item["question"]).strip()
-        exp = str(item["expected"]).strip().lower()
-        if exp not in ("answered", "idk"):
-            raise ValueError(f"Item {i}: expected must be 'answered' or 'idk', got {item['expected']!r}")
-        out.append({
-            "question": q,
-            "expected": exp,
-            "category": item.get("category", ""),
-        })
-    return out
-
-
-def create_text_message_payload(
-    text: str,
-    phone_number_id: str = DEFAULT_PHONE_NUMBER_ID,
-    message_id: Optional[str] = None,
-    timestamp: Optional[str] = None,
-) -> Dict[str, Any]:
-    """Create WhatsApp webhook payload for a text message."""
-    if message_id is None:
-        message_id = f"wamid.test{int(time.time())}{phone_number_id}"
-    if timestamp is None:
-        timestamp = str(int(time.time()))
-    return {
-        "object": "whatsapp_business_account",
-        "entry": [
-            {
-                "id": "211506508713627",
-                "changes": [
-                    {
-                        "value": {
-                            "messaging_product": "whatsapp",
-                            "metadata": {
-                                "display_phone_number": "919001386867",
-                                "phone_number_id": "183958451475612",
-                            },
-                            "contacts": [{"profile": {"name": USER_NAME}, "wa_id": phone_number_id}],
-                            "messages": [
-                                {
-                                    "from": phone_number_id,
-                                    "id": message_id,
-                                    "timestamp": timestamp,
-                                    "text": {"body": text},
-                                    "type": "text",
-                                }
-                            ],
-                        },
-                        "field": "messages",
-                    }
-                ],
-            }
-        ],
-    }
-
-
-def get_bot_messages(base_url: str, timestamp: str, timeout: int = 10) -> List[Dict[str, Any]]:
-    """Fetch bot messages after the given timestamp."""
-    url = base_url.rstrip("/").replace("/receive", "") + "/get_bot_messages"
-    url = f"{url}?timestamp={timestamp}"
+    """Load benchmark set from JSON and validate using pydantic."""
     try:
-        r = requests.get(url, timeout=timeout)
-        if r.status_code == 200:
-            data = r.json()
-            if isinstance(data, list):
-                return [m for m in data if isinstance(m, dict)]
-            if isinstance(data, dict):
-                return [data]
-        return []
-    except Exception:
-        return []
-
-
-def wait_for_bot_response(
-    base_url: str,
-    user_timestamp: str,
-    timeout: int = 45,
-    poll_interval: int = 2,
-) -> List[Dict[str, Any]]:
-    """Wait until at least one bot message appears after user_timestamp."""
-    start = time.time()
-    while time.time() - start < timeout:
-        all_msgs = get_bot_messages(base_url, user_timestamp)
-        bot_msgs = []
-        for m in all_msgs:
-            if m.get("message_category") in (
-                "bot_to_asha", "bot_to_asha_response", "bot_to_anm", "bot_to_anm_response",
-                "bot_to_anm_verification", "bot_to_anm_consensus", "audio_idk", "text_idk",
-                "audio_idk_reconfirmation", "text_disambiguation", "audio_disambiguation",
-            ):
-                bot_msgs.append(m)
-            elif m.get("message_category") in ("asha_to_bot", "anm_to_bot", "user_to_bot"):
-                continue
-            elif m.get("outgoing_timestamp") not in (None, "None", ""):
-                bot_msgs.append(m)
-        if bot_msgs:
-            valid_ts = [
-                int(str(m["outgoing_timestamp"]))
-                for m in bot_msgs
-                if m.get("outgoing_timestamp") not in (None, "None", "")
-            ]
-            if valid_ts and max(valid_ts) > int(user_timestamp):
-                return bot_msgs
-        time.sleep(poll_interval)
-    return []
-
-
-def extract_response_text(bot_messages: List[Dict[str, Any]]) -> Tuple[str, Optional[str]]:
-    """Concatenate message_source_text from bot messages; return (text, primary_message_category).
-    primary_message_category is from the message with latest outgoing_timestamp that has text."""
-    parts = []
-    primary_category: Optional[str] = None
-    best_ts: Optional[int] = None
-    for m in bot_messages:
-        ctx = m.get("message_context") or {}
-        text = ctx.get("message_source_text") or ""
-        if text:
-            parts.append(text)
-        ts = m.get("outgoing_timestamp")
-        if ts is not None and ts not in ("None", ""):
-            try:
-                t = int(str(ts))
-                if best_ts is None or t >= best_ts:
-                    best_ts = t
-                    if text:
-                        primary_category = m.get("message_category")
-            except (TypeError, ValueError):
-                pass
-    return " ".join(parts).strip(), primary_category
+        items = TypeAdapter(list[BenchmarkItem]).validate_json(path.read_text(encoding="utf-8"))
+    except ValidationError as e:
+        raise ValueError(f"Benchmark set is invalid: {e}") from e
+    return [item.model_dump() for item in items]
 
 
 def is_idk_response(response_text: str) -> bool:
@@ -257,62 +136,6 @@ def mask_mongo_connection_string(conn_str: Optional[str]) -> str:
     if len(conn_str) <= 60:
         return conn_str
     return conn_str[:60] + "..."
-
-
-def run_one_question(
-    base_url: str,
-    question: str,
-    phone_number_id: str,
-    receive_timeout: int = 30,
-    wait_timeout: int = 45,
-) -> Dict[str, Any]:
-    """Send one question to /receive, wait for bot response, return result with is_idk and status."""
-    receive_url = base_url.rstrip("/")
-    if not receive_url.endswith("/receive"):
-        receive_url = receive_url + "/receive"
-    timestamp = str(int(time.time()))
-    payload = create_text_message_payload(question, phone_number_id=phone_number_id, timestamp=timestamp)
-    result = {
-        "question": question,
-        "response_text": "",
-        "is_idk": False,
-        "is_disambiguation": False,
-        "message_category": None,
-        "status": "unknown",
-        "error": None,
-    }
-    try:
-        r = requests.post(
-            receive_url, json=payload, headers={"Content-Type": "application/json"}, timeout=receive_timeout
-        )
-        result["receive_status_code"] = r.status_code
-        if r.status_code != 200:
-            result["status"] = "receive_failed"
-            result["error"] = (r.text[:500] if r.text else "Non-200")
-            return result
-    except Exception as e:
-        result["status"] = "receive_error"
-        result["error"] = str(e)
-        return result
-
-    bot_messages = wait_for_bot_response(base_url, timestamp, timeout=wait_timeout)
-    response_text, primary_category = extract_response_text(bot_messages)
-    result["response_text"] = response_text[:2000] if response_text else ""
-    result["message_category"] = primary_category
-    result["is_disambiguation"] = is_disambiguation_response(response_text, primary_category)
-    result["is_idk"] = (
-        not result["is_disambiguation"]
-        and (primary_category in ("text_idk", "audio_idk", "audio_idk_reconfirmation") or is_idk_response(response_text))
-    )
-    if not response_text:
-        result["status"] = "no_response"
-    elif result["is_disambiguation"]:
-        result["status"] = "disambiguation"
-    elif result["is_idk"]:
-        result["status"] = "idk"
-    else:
-        result["status"] = "answered"
-    return result
 
 
 def run_one_question_mcp(
@@ -428,15 +251,10 @@ def main() -> int:
         help="Print a snippet of the bot response after each question (to verify evaluation)",
     )
     parser.add_argument(
-        "--use-mcp",
-        action="store_true",
-        help="Use MCP asha_chat tool instead of /receive + get_bot_messages",
-    )
-    parser.add_argument(
-        "--mcp-timeout",
+        "--timeout",
         type=int,
         default=90,
-        help="Timeout in seconds for each MCP call when using --use-mcp (default: 90)",
+        help="Timeout in seconds for each MCP call (default: 90)",
     )
     args = parser.parse_args()
 
@@ -462,18 +280,13 @@ def main() -> int:
     positive_items = [x for x in items if x["expected"] == "answered"]
     negative_items = [x for x in items if x["expected"] == "idk"]
 
-    base_normalized = base_url.rstrip("/")
-    receive_url = base_normalized + "/receive" if not base_normalized.endswith("/receive") else base_normalized
-
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
-    mode = "MCP (asha_chat)" if args.use_mcp else "Receive (/receive + get_bot_messages)"
+    mode = "MCP (asha_chat)"
     if not args.quiet:
         print(f"Release QA Benchmark — {date_str}")
         print(f"Mode:        {mode}")
         print(f"Loaded {len(items)} items ({len(positive_items)} positive, {len(negative_items)} negative)")
         print(f"Base URL:    {base_url}")
-        if not args.use_mcp:
-            print(f"Receive URL: {receive_url}")
         print(f"PHONE_NUMBER_ID: {args.phone}")
         print(f"User name:   {USER_NAME}")
         db_conn = os.getenv("MONGO_DB_CONNECTION_STRING")
@@ -486,11 +299,7 @@ def main() -> int:
         expected = item["expected"]
         if not args.quiet:
             print(f"[{i}/{len(items)}] {q[:70]}{'...' if len(q) > 70 else ''}")
-        res = (
-            run_one_question_mcp(base_url, q, args.phone, timeout=args.mcp_timeout)
-            if args.use_mcp
-            else run_one_question(base_url, q, args.phone)
-        )
+        res = run_one_question_mcp(base_url, q, args.phone, timeout=args.timeout)
         res["expected"] = expected
         res["category"] = item.get("category", "")
         res["passed"] = (
@@ -502,7 +311,7 @@ def main() -> int:
             actual = res["status"]
             mark = "✓" if res["passed"] else "✗"
             print(f"  -> {mark} expected={expected}, actual={actual}")
-            if args.show_responses or args.use_mcp:
+            if args.show_responses or True:
                 print(f"     Bot: {snippet(res.get('response_text') or '')}")
         if i < len(items):
             time.sleep(args.delay)
@@ -547,7 +356,7 @@ def main() -> int:
         payload = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "base_url": base_url,
-            "mode": "mcp" if args.use_mcp else "receive",
+            "mode": "mcp",
             "summary": {
                 "total": len(results),
                 "positive_total": pos_total,

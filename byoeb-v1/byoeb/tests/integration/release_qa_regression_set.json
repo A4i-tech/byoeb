@@ -185,11 +185,6 @@
     "category": "idk_child_health"
   },
   {
-    "question": "What should be the weight of a newborn baby?",
-    "expected": "idk",
-    "category": "idk_child_health"
-  },
-  {
     "question": "Vitamin ka pill",
     "expected": "idk",
     "category": "idk_general"
