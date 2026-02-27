@@ -645,10 +645,27 @@ class ByoebUserGenerateResponse(Handler):
 
         from byoeb.observability.langfuse_client import observe_llm
         start_time = time.perf_counter()
-        with observe_llm("agenerate_answer", model="answer", input_data={"query": query}) as lf_obs:
+        with observe_llm(
+            "agenerate_answer",
+            model="answer",
+            input_data={
+                "query": query,
+                "query_type": query_type,
+                "user_language": user_language,
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "augmented_prompts": augmented_prompts,
+            },
+        ) as lf_obs:
             llm_response, response_text = await llm_client.generate_response(augmented_prompts)
             tokens = llm_client.get_response_tokens(llm_response)
-            lf_obs.update(output=response_text, usage={"prompt_tokens": tokens.get("prompt_tokens"), "completion_tokens": tokens.get("completion_tokens")})
+            lf_obs.update(
+                output=response_text,
+                usage={
+                    "prompt_tokens": tokens.get("prompt_tokens"),
+                    "completion_tokens": tokens.get("completion_tokens"),
+                },
+            )
         response_en, response_source = parse_response_xml(response_text)
         end_time = time.perf_counter()
         utils.log_to_text_file(f"Generated answer tokens and response in {end_time - start_time} seconds: {str(tokens)} {response_text}")
@@ -675,11 +692,28 @@ class ByoebUserGenerateResponse(Handler):
             .replace("<KB_TOPICS>", kb_topics)
 
         from byoeb.observability.langfuse_client import observe_llm
-        with observe_llm("needs_clarification", model="clarification", input_data={"query": query}) as lf_obs:
+        with observe_llm(
+            "needs_clarification",
+            model="clarification",
+            input_data={
+                "query": query,
+                "query_type": query_type,
+                "user_language": user_language,
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "kb_topics": kb_topics,
+            },
+        ) as lf_obs:
             llm_response, response = await llm_client.generate_response(self.__augment(system_prompt, user_prompt))
             response = response.strip()
             tokens = llm_client.get_response_tokens(llm_response)
-            lf_obs.update(output=response, usage={"prompt_tokens": tokens.get("prompt_tokens"), "completion_tokens": tokens.get("completion_tokens")})
+            lf_obs.update(
+                output=response,
+                usage={
+                    "prompt_tokens": tokens.get("prompt_tokens"),
+                    "completion_tokens": tokens.get("completion_tokens"),
+                },
+            )
         if not response:
             return None
 
@@ -718,10 +752,26 @@ class ByoebUserGenerateResponse(Handler):
 
         from byoeb.observability.langfuse_client import observe_llm
         start_time = time.perf_counter()
-        with observe_llm("agenerate_expansion_queries", model="expansion", input_data={"query": original_query}) as lf_obs:
+        with observe_llm(
+            "agenerate_expansion_queries",
+            model="expansion",
+            input_data={
+                "original_query": original_query,
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "chunks_text": chunks_text,
+                "augmented_prompts": augmented_prompts,
+            },
+        ) as lf_obs:
             llm_response, response_text = await llm_client.generate_response(augmented_prompts)
             tokens = llm_client.get_response_tokens(llm_response)
-            lf_obs.update(output=response_text, usage={"prompt_tokens": tokens.get("prompt_tokens"), "completion_tokens": tokens.get("completion_tokens")})
+            lf_obs.update(
+                output=response_text,
+                usage={
+                    "prompt_tokens": tokens.get("prompt_tokens"),
+                    "completion_tokens": tokens.get("completion_tokens"),
+                },
+            )
         end_time = time.perf_counter()
 
         utils.log_to_text_file(f"Generated expansion queries in {end_time - start_time} seconds: {str(tokens)}")
