@@ -1,5 +1,4 @@
 import asyncio
-import json
 import re
 from typing import Dict, List, Optional
 from byoeb_core.llms.base import BaseLLM
@@ -24,8 +23,7 @@ async def _aget_search_queries(text: str, llm_client: BaseLLM) -> List[str]:
     _, resp = await llm_client.generate_response(prompt)
     start = resp.find("[")
     end = resp.rfind("]") + 1
-    words = json.loads(resp[start:end])
-    return TypeAdapter(List[str]).validate_python(words)
+    return TypeAdapter(List[str]).validate_json(resp[start:end])
 
 
 async def _aget_related_questions(llm_client: BaseLLM, system_prompt: str, user_prompt: str, length: int) -> List[str]:
