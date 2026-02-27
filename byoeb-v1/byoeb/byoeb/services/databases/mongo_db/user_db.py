@@ -1,12 +1,15 @@
 import logging
+import os
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
 import byoeb.services.chat.constants as constants
 from aiocache import Cache
-from datetime import datetime, timezone
+from pymongo.errors import BulkWriteError
+
 from byoeb_core.models.byoeb.user import User
 from byoeb.factory import MongoDBFactory
-from typing import List, Dict, Any, Optional
 from byoeb.services.databases.mongo_db.base import BaseMongoDBService
-import os
 
 
 def _ensure_utc_dates(obj: Any) -> Any:
@@ -203,6 +206,14 @@ class UserMongoDBService(BaseMongoDBService):
         repository_factory = await self._get_repository_factory()
         user_repository = await repository_factory.get_user_repository()
         if queries.get("create"):
-            await user_repository.insert_many(queries["create"])
+            try:
+                await user_repository.insert_many(queries["create"])
+            except BulkWriteError as e:
+                # Ignore duplicate key errors on _id to keep onboarding idempotent
+                write_errors = e.details.get("writeErrors") if hasattr(e, "details") else None
+                if write_errors and all(err.get("code") == 11000 for err in write_errors):
+                    self._logger.info("Ignoring duplicate user create during execute_queries: %s", e)
+                else:
+                    raise
         if queries.get("update"):
             await user_repository.bulk_update(queries["update"])
