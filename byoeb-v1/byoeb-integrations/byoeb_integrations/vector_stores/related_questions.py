@@ -75,29 +75,43 @@ async def aget_related_questions(
 
         related_chunks_text = "\n\n".join(related_chunks)
         system_prompt = (
-            "Generate three related questions for the given text. "
-            "Follow the instructions. "
-            "1. Each question MUST be DISTINCT i.e., intended to elicit different information.\n\n"
-            f"2. Each question's length MUST be <character_limit>{length}</character_limit> CHARACTERS OR LESS.\n\n"
-            "3. Respond with the three questions in XML format.\n\n"
-            "Sample output:\n"
+            "You generate three related questions that a user might want to ask next, based on retrieved knowledge base chunks.\n\n"
+            "Rules:\n"
+            "1. Each question MUST be answerable using ONLY the provided chunks.\n"
+            "2. For each question, you MUST quote the exact span of text from the chunks that answers it.\n"
+            "3. Each question MUST be DISTINCT — each should target a different piece of information from the chunks.\n"
+            f"4. Each question MUST be {length} CHARACTERS OR LESS.\n"
+            "5. Respond only in the XML format shown in the example.\n\n"
+            "<example>\n"
+            "<related_chunks>"
+            "A pregnant woman should visit the Anganwadi centre at least 4 times during pregnancy "
+            "for antenatal check-ups. She should take one IFA tablet daily for 180 days during "
+            "pregnancy to prevent anaemia."
+            "</related_chunks>\n"
             "<related_questions>\n"
-            "<q_1>Content of first question</q_1>\n"
-            "<q_2>Content of second question</q_2>\n"
-            "<q_3>Content of third question</q_3>\n"
-            "</related_questions>\n\n"
-            "<instructions>\n"
-            "Use the following related chunks as additional context:\n"
+            "<q_1>\n"
+            "<source>visit the Anganwadi centre at least 4 times during pregnancy</source>\n"
+            "<question>How many antenatal check-ups should a pregnant woman have?</question>\n"
+            "</q_1>\n"
+            "<q_2>\n"
+            "<source>take one IFA tablet daily for 180 days during pregnancy</source>\n"
+            "<question>How long should a pregnant woman take IFA tablets?</question>\n"
+            "</q_2>\n"
+            "<q_3>\n"
+            "<source>to prevent anaemia</source>\n"
+            "<question>Why should a pregnant woman take IFA tablets?</question>\n"
+            "</q_3>\n"
+            "</related_questions>\n"
+            "</example>\n\n"
             "<related_chunks>\n"
             f"{related_chunks_text}\n"
-            "</related_chunks>\n"
-            "</instructions>"
+            "</related_chunks>"
         )
 
     related_questions = {"en": await _aget_related_questions(llm_client, system_prompt, text, length)}
 
     user_prompt = f"""Translate the following list of questions <en_questions> {related_questions['en']} </en_questions> from english to desired language.
-    Maintain the output structure as follows:
+    Maintain the order and the output structure as follows:
     <related_questions>
     <q_1>Translated question 1</q_1>
     <q_2>Translated question 2</q_2>
@@ -105,8 +119,9 @@ async def aget_related_questions(
     </related_questions>
     Note above is a sample for three questions follow same based on number of questions.
     """
+    related_questions_en = "\n".join(f"<q_{i}>{query}</q_{i}>" for i, query in enumerate(related_questions["en"]))
     for lang, translation_prompt in languages_translation_prompts.items():
-        related_questions[lang] = await _aget_related_questions(llm_client, translation_prompt, user_prompt, length)
+        related_questions[lang] = await _aget_related_questions(llm_client, user_prompt + "\n\n" + translation_prompt, related_questions_en, length)
 
     return related_questions
         
