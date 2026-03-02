@@ -33,7 +33,7 @@ class ByoebUserProcess(Handler):
         super().__init__(successor)
         self._tracer = get_conversation_tracer()
 
-    def __augment(self, system_prompt, user_prompt, conversation_history):
+    def build_augmented_prompts(self, system_prompt, user_prompt, conversation_history):
         return [
             {"role": "system", "content": system_prompt},
             *conversation_history,
@@ -97,7 +97,7 @@ class ByoebUserProcess(Handler):
         user_prompt = messages.message_context.message_source_text
         conversation_history = self._create_conversation_history(messages.user.last_conversations)
         system_prompt = self._get_system_prompt(messages.user.user_language)
-        augmented_prompts = self.__augment(system_prompt, user_prompt, conversation_history)
+        augmented_prompts = self.build_augmented_prompts(system_prompt, user_prompt, conversation_history)
         start_time = datetime.now(timezone.utc)
         from byoeb.observability.langfuse_client import observe_llm
         with observe_llm(
