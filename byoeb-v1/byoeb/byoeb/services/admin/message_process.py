@@ -75,7 +75,6 @@ async def llm_translation_and_query_rewritting(system_prompt, question, conversa
             extracted_data[key] = match.group(1).strip() if match else None  # Strip removes extra spaces and newlines
 
         return extracted_data[QUERY_EN], extracted_data[QUERY_EN_ADDCONTEXT], extracted_data[QUERY_TYPE]
-    conversation_history = byoeb_user_process._create_conversation_history(conversation_history)
     augmented_prompts = byoeb_user_process.build_augmented_prompts(system_prompt, question, conversation_history)
     llm_response, response_text = await llm_translate_and_rewrite_client.generate_response(augmented_prompts)
     tokens = llm_translate_and_rewrite_client.get_response_tokens(llm_response)
