@@ -507,6 +507,7 @@ The "results" array must contain exactly {len(pairs)} objects, one per pair in o
                 tool_results = []
                 for tool_call in message.tool_calls:
                     if tool_call.function.name == "web_search":
+                        func_args: dict[str, Any] = {}
                         try:
                             func_args = json.loads(tool_call.function.arguments)
                             search_query = func_args.get("query", "")
@@ -568,12 +569,13 @@ The "results" array must contain exactly {len(pairs)} objects, one per pair in o
                 rel = int(r.get("relevance", 5))
                 cumulative = c + f + rel
                 citations = (r.get("citations") or "").strip()
-                if use_web_search and cumulative <= CITATIONS_ONLY_BELOW_CUMULATIVE and not citations:
+                any_low = c < 6 or f < 6 or rel < 6
+                if use_web_search and (any_low or cumulative <= CITATIONS_ONLY_BELOW_CUMULATIVE) and not citations:
                     low_score_pairs_needing_search.append((idx, pairs[idx], cumulative, r))
             
             # Phase 2: If there are low-scoring pairs, search for them
             if low_score_pairs_needing_search and use_web_search and iteration == 1:
-                print(f"      Phase 1 complete: Scored all {len(pairs)} pairs. Found {len(low_score_pairs_needing_search)} low-scoring pairs (cumulative <= {CITATIONS_ONLY_BELOW_CUMULATIVE}). Starting Phase 2: web search...", file=sys.stderr)
+                print(f"      Phase 1 complete: Scored all {len(pairs)} pairs. Found {len(low_score_pairs_needing_search)} low-scoring pairs (any dimension < 6 or cumulative <= {CITATIONS_ONLY_BELOW_CUMULATIVE}). Starting Phase 2: web search...", file=sys.stderr)
                 # Add the current response as Phase 1 scores
                 messages.append(message)
                 # Create a prompt asking to search for these specific pairs, preserving their scores
@@ -582,7 +584,7 @@ The "results" array must contain exactly {len(pairs)} objects, one per pair in o
                     search_prompt_parts.append(f"Pair {idx+1} (scores: completeness={score_dict.get('completeness')}, factual_accuracy={score_dict.get('factual_accuracy')}, relevance={score_dict.get('relevance')}, cumulative={cum_score}): Query: {json.dumps(q, ensure_ascii=False)[:150]}... Answer: {json.dumps(a, ensure_ascii=False)[:150]}...")
                 messages.append({
                     "role": "user",
-                    "content": f"Phase 1 complete: You scored all {len(pairs)} pairs. Now Phase 2: These {len(low_score_pairs_needing_search)} pairs have LOW scores (cumulative <= {CITATIONS_ONLY_BELOW_CUMULATIVE}). You MUST call web_search for each of these pairs. Keep the same scores you already assigned, but add citations and citation_comment after reading the search results.\n\n" + "\n\n".join(search_prompt_parts) + f"\n\nCall web_search for these pairs, then provide your final JSON with the SAME scores but WITH citations and citation_comment for these low-scoring pairs."
+                    "content": f"Phase 1 complete: You scored all {len(pairs)} pairs. Now Phase 2: These {len(low_score_pairs_needing_search)} pairs have LOW scores (any dimension < 6 or cumulative <= {CITATIONS_ONLY_BELOW_CUMULATIVE}). You MUST call web_search for each of these pairs. Keep the same scores you already assigned, but add citations and citation_comment after reading the search results.\n\n" + "\n\n".join(search_prompt_parts) + f"\n\nCall web_search for these pairs, then provide your final JSON with the SAME scores but WITH citations and citation_comment for these low-scoring pairs."
                 })
                 continue  # Go back to get tool calls (Phase 2)
             
@@ -598,7 +600,8 @@ The "results" array must contain exactly {len(pairs)} objects, one per pair in o
                 citations = (r.get("citations") or "").strip()
                 citation_comment = (r.get("citation_comment") or "").strip()
                 # Warn if low-scoring pair has no citations (when web search is enabled)
-                if use_web_search and cumulative <= CITATIONS_ONLY_BELOW_CUMULATIVE and not citations:
+                any_low = c < 6 or f < 6 or rel < 6
+                if use_web_search and (any_low or cumulative <= CITATIONS_ONLY_BELOW_CUMULATIVE) and not citations:
                     print(f"    WARNING: Pair {idx} has low score ({cumulative}) but no citations.", file=sys.stderr)
                 score_dicts.append({
                     "completeness": c,
@@ -793,7 +796,9 @@ async def run_llm_judge(rows: list[dict], deployment: str, args: argparse.Namesp
             row["reason"] = score_dict.get("reason", "")
             row["citations"] = score_dict.get("citations", "")
             row["citation_comment"] = score_dict.get("citation_comment", "")
-            if use_web_search and row.get("cumulative_score", 0) > CITATIONS_ONLY_BELOW_CUMULATIVE:
+            c, f, r = row.get("completeness", 10), row.get("factual_accuracy", 10), row.get("relevance", 10)
+            all_high = c >= 6 and f >= 6 and r >= 6
+            if use_web_search and all_high and row.get("cumulative_score", 0) > CITATIONS_ONLY_BELOW_CUMULATIVE:
                 row["citations"] = ""
                 row["citation_comment"] = ""
 
@@ -931,11 +936,6 @@ def main() -> None:
     parser.add_argument("--llm-model", type=str, default=None, help=f"Azure OpenAI chat deployment (default: {DEFAULT_CHAT_DEPLOYMENT})")
     parser.add_argument("--format", choices=["excel", "csv", "both"], default="excel", help="Output format (default: excel)")
     args = parser.parse_args()
-
-    if not args.start and args.end:
-        parser.error("Provide both --start and --end, or neither.")
-    if args.start and not args.end:
-        parser.error("Provide both --start and --end, or neither.")
 
     # Align env with cluster_idk_questions pattern
     if not os.environ.get("AZURE_OPENAI_API_KEY") and os.environ.get("AZURE_OPENAI_KEY"):
