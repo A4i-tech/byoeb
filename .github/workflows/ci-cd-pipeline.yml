@@ -255,3 +255,22 @@ jobs:
       environment: production
       deployment-url: ${{ needs.deploy-production.outputs['service-url'] }}
     secrets: inherit
+
+  # Step 6: Trigger DeepWiki re-index on production push (Issue #137)
+  deepwiki-index:
+    name: Trigger DeepWiki index
+    needs: [deploy-production, publish-image]
+    if: github.event_name == 'push' && github.ref_name == 'a4i/main' && needs.deploy-production.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger DeepWiki re-index
+        env:
+          DEEPWIKI_URL: ${{ secrets.DEEPWIKI_WEBHOOK_URL }}
+        run: |
+          if [ -n "$DEEPWIKI_URL" ]; then
+            echo "Triggering DeepWiki re-index..."
+            curl -sSf -X POST "$DEEPWIKI_URL" -H "Content-Type: application/json" \
+              -d "{\"repository\": \"${{ github.repository }}\", \"ref\": \"${{ github.sha }}\"}" || true
+          else
+            echo "DEEPWIKI_WEBHOOK_URL not set. See docs/DEEPWIKI_CD.md to configure automatic indexing. Use dev.a4i@iiitb.ac.in for DeepWiki integration."
+          fi
