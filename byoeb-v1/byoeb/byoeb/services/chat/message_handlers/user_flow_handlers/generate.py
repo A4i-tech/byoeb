@@ -314,6 +314,27 @@ class ByoebUserGenerateResponse(Handler):
             constants.MIME_TYPE: "audio/ogg",
         }
     
+    async def __translate_en_to_user_language_llm_fallback(self, response_en: str, user_language: str) -> str:
+        """When Azure Translator fails, translate via LLM so user still gets response in their language."""
+        if user_language == "en":
+            return response_en
+        trans_cfg = bot_config["llm_response"]["answer_prompts"]["system_prompt"]["response_translate"]
+        if user_language not in trans_cfg:
+            logger.warning("[__translate_en_to_user_language_llm_fallback] No prompt for %s, returning English", user_language)
+            return response_en
+        system = (
+            trans_cfg[user_language]
+            + "\n\nOutput ONLY the translated text in the target language. Do not output XML or any labels."
+        )
+        user_msg = response_en
+        prompts = [{"role": "system", "content": system}, {"role": "user", "content": user_msg}]
+        try:
+            llm_response, text = await llm_client.generate_response(prompts)
+            return (text or "").strip() or response_en
+        except Exception as e:
+            logger.warning("[__translate_en_to_user_language_llm_fallback] LLM translate failed: %s", e, exc_info=True)
+            return response_en
+
     async def __create_source_text(
         self,
         message: ByoebMessageContext,
@@ -363,11 +384,19 @@ class ByoebUserGenerateResponse(Handler):
         elif response_source is None or (isinstance(response_source, str) and not response_source.strip()):
             # If no response_source, translate from response_en to user's language
             logger.debug("[__create_user_message] response_source is None or empty, translating from response_en to %s", user_language)
-            message_source_text, options, send_related_questions = await self.__create_source_text(
-                message=message,
-                response_text=response_en,
-                query_type=query_type,
-            )
+            try:
+                message_source_text, options, send_related_questions = await self.__create_source_text(
+                    message=message,
+                    response_text=response_en,
+                    query_type=query_type,
+                )
+            except Exception as e:
+                logger.warning("[__create_user_message] Azure translation failed, using LLM fallback: %s", e, exc_info=True)
+                message_source_text = await self.__translate_en_to_user_language_llm_fallback(
+                    response_en, user_language
+                )
+                options = None
+                send_related_questions = True
         else:
             # Use provided response_source - it's from canned templates in the correct language
             message_source_text = response_source
@@ -614,15 +643,15 @@ class ByoebUserGenerateResponse(Handler):
         update_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if "KB Updated" in chunk.metadata.source)
         raw_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if "KB Updated" not in chunk.metadata.source)
 
-        system_prompt = self._get_system_prompt(user_language)
+        # Use English prompt so answer content is identical for all languages (avoids short answer for hi/mr/te).
+        system_prompt = self._get_system_prompt("en")
         template_user_prompt = bot_config["llm_response"]["answer_prompts"]["user_prompt"]
         # Replace placeholders with actual values
-        
+
         user_prompt = template_user_prompt.replace("<QUERY_TYPE>", query_type).replace("<QUERY_EN_ADDCONTEXT>", query).replace("<RAW_KB>", raw_kb_list).replace("<NEW_KB>", update_kb_list)
         augmented_prompts = self.__augment(system_prompt, user_prompt)
 
-        logger.debug("[agenerate_answer] Generating answer for user_language: %s", user_language)
-        logger.debug("[agenerate_answer] System prompt language section: %s...", bot_config['llm_response']['answer_prompts']['system_prompt']['response_translate'].get(user_language, 'NOT FOUND')[:200])
+        logger.debug("[agenerate_answer] Generating answer (canonical English); display language=%s", user_language)
 
         start_time = datetime.now(timezone.utc).timestamp()
         llm_response, response_text = await llm_client.generate_response(augmented_prompts)
@@ -631,13 +660,11 @@ class ByoebUserGenerateResponse(Handler):
         end_time = datetime.now(timezone.utc).timestamp()
         utils.log_to_text_file(f"Generated answer tokens and response in {end_time - start_time} seconds: {str(tokens)} {response_text}")
         logger.debug("[agenerate_answer] Generated answer_en: %s...", response_en[:100] if response_en else 'None')
-        logger.debug("[agenerate_answer] Generated answer_source (for language %s): %s...", user_language, response_source[:100] if response_source else 'None')
-        logger.debug("[agenerate_answer] Query type: %s", query_type)
         if response_en is None or query_type is None:
             raise ValueError("Parsing failed, response or query_type is None.")
-        # Log warning if response_source is None or empty for non-English languages
-        if (response_source is None or not response_source.strip()) and user_language not in ["en", "hi"]:
-            logger.warning("[agenerate_answer] WARNING: response_source is None or empty for language %s. Will fall back to translation from English.", user_language)
+        # Non-English: ignore LLM's response_src and force translation from response_en so content is consistent.
+        if user_language != "en":
+            response_source = None
         return response_en, response_source, tokens, list(retrieved_chunks.values())
 
     async def needs_clarification(self, query: str, query_type: str, user_language: str, retrieved_chunks: list[Chunk]) -> Optional[tuple[str, str, dict[str, int]]]:
