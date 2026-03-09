@@ -145,11 +145,13 @@ def create_consent_message(
 
 def create_audio(
     user_lang: str,
-    user_type: str
+    user_type: Optional[str]
 ):
     # Get the directory of the current script
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    audio_path = os.path.join(current_dir, 'onboarding', user_lang, f'welcome_messages_{user_type}.wav')
+    # Fallback to asha when user_type is None (e.g. consent step before type persisted)
+    effective_type = user_type if user_type else UserType.ASHA.value
+    audio_path = os.path.join(current_dir, 'onboarding', user_lang, f'welcome_messages_{effective_type}.wav')
     audio_path = os.path.normpath(audio_path)
     audio_bytes = None
     with open(audio_path, 'rb') as file:
@@ -163,7 +165,10 @@ def create_initial_message(
     message: ByoebMessageContext
 ) -> ByoebMessageContext:
     mapped_user_type = map_user_type(message.user.user_type)
-    user_lang = message.user.user_language
+    # Fallback so create_audio never gets None (e.g. consent reply with stale user)
+    if mapped_user_type is None:
+        mapped_user_type = UserType.ASHA.value
+    user_lang = message.user.user_language or LanguageCode.HINDI.value
     audio_bytes, audio_type = create_audio(user_lang, mapped_user_type)
     text_message = THANK_YOU_DICT[mapped_user_type][user_lang]
     if mapped_user_type == UserType.ANM.value:

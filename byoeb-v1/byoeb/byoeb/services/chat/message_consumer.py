@@ -180,8 +180,14 @@ class MessageConsmerService:
             if (bot_message.message_category == constants.USER_TYPE
                 or bot_message.message_category == constants.LANGUAGE_SELECTION
                 or bot_message.message_category == constants.CONSENT):
-                self._logger.info("[__create_conversations] onboarding_flow msg_id=%s bot_cat=%s -> onboard", m.message_context.message_id, bot_message.message_category)
-                onboard_convs.append(conversation)
+                # Only route to onboarding if user still needs it (missing type or language)
+                if user.user_type is None or user.user_language is None:
+                    self._logger.info("[__create_conversations] onboarding_flow msg_id=%s bot_cat=%s -> onboard", m.message_context.message_id, bot_message.message_category)
+                    onboard_convs.append(conversation)
+                else:
+                    # Already onboarded user replying to old onboarding message -> regular flow
+                    self._logger.info("[__create_conversations] already_onboarded replying_to_onboarding -> conversations (msg_id=%s)", m.message_context.message_id)
+                    conversations.append(conversation)
             elif user.user_type is None or user.user_language is None:
                 # Check if this is an onboarding message from an already-registered user
                 is_onboarding_msg = utils.is_onboard(m.message_context.message_source_text, user.user_language)
