@@ -41,7 +41,7 @@ class MongoDykRepository(DykRepository, MongoBaseRepository):
     async def find_by_language(self, lang: LanguageCode, offset: int, length: int) -> List[DykEntry]:
         query = {f"languages.{lang.value}": {"$exists": True}}
         documents = self._collection.find(query, skip=offset, limit=length)
-        return [self._doc_to_entry(doc) for doc in documents]
+        return [self._doc_to_entry(doc) async for doc in documents]
 
     async def find_available_languages(self) -> List[LanguageCode]:
         docs = await self._collection.aggregate([
