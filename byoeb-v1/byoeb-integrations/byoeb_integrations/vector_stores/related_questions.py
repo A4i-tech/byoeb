@@ -104,7 +104,8 @@ async def aget_related_questions(
             related_chunks = [c.text for r in results for c in r]
 
         related_chunks_text = "\n\n".join(related_chunks)
-        system_prompt = (
+        # if no related were chunks found, then we have no knowledgebase to proceed with - in which case we should early-return.
+        system_prompt = None if not related_chunks_text else (
             "You generate three related questions that a user might want to ask next, based on retrieved knowledge base chunks.\n\n"
             "Rules:\n"
             "1. Each question MUST be answerable using ONLY the provided chunks.\n"
@@ -137,7 +138,7 @@ async def aget_related_questions(
             "</related_chunks>"
         )
 
-    related_questions = {"en": await _aget_related_questions(llm_client, system_prompt, text, length)}
+    related_questions = {"en": await _aget_related_questions(llm_client, system_prompt, text, length)} if system_prompt else {"en": []}
 
     related_questions_en = "\n".join(f'<q id="eid_{i}">{q}</q>' for i, q in enumerate(related_questions["en"]))
     for lang, translation_prompt in languages_translation_prompts.items():
