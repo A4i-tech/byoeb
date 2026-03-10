@@ -15,7 +15,8 @@ from byoeb.services.chat import constants
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageContext, MessageTypes
 from byoeb_core.models.byoeb.user import User
 from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import StatusCode
-from datetime import datetime, timezone
+from byoeb.utils.utils import ensure_utc_dates
+from datetime import datetime, timedelta, timezone
 from typing import AsyncIterator, Iterable, List, Optional, Tuple, TypeAlias
 import os
 import re
@@ -59,8 +60,7 @@ async def pick_candidates(dyk_repo: DykRepository, user_repo: UserRepository, la
         filtern_user_ids.add(record.user_id)
     buffer: List[User] = []
     async for doc in potential_candidates:
-        user_data = _ensure_utc_dates(doc["User"])
-        user = User(**user_data)
+        user = User(**ensure_utc_dates(doc["User"]))
         if user.user_id in filtern_user_ids:
             continue
         buffer.append(user)
@@ -121,7 +121,7 @@ async def queue(dyk_repo: DykRepository, candidates: DykBatch) -> Tuple[str, int
     return batch_id, n_queued, n_exhausted
 
 
-def message_simple(user: User, record: DykRecord, entry: DykLanguageEntry, ts: int) -> ByoebMessageContext:
+def message_simple(user: User, record: DykRecord, entry: DykLanguageEntry, ts: datetime) -> ByoebMessageContext:
     return ByoebMessageContext(
         channel_type="whatsapp",
         message_category="did_you_know",
@@ -141,12 +141,12 @@ def message_simple(user: User, record: DykRecord, entry: DykLanguageEntry, ts: i
         reply_context=None,
         cross_conversation_id=None,
         cross_conversation_context=None,
-        incoming_timestamp=ts,
-        outgoing_timestamp=ts
+        incoming_timestamp=int(ts.timestamp()),
+        outgoing_timestamp=int(ts.timestamp())
     )
 
 
-def message_with_related_questions(user: User, record: DykRecord, entry: DykLanguageEntry, ts: int) -> ByoebMessageContext:
+def message_with_related_questions(user: User, record: DykRecord, entry: DykLanguageEntry, ts: datetime) -> ByoebMessageContext:
     message = LANGUAGE_TEMPLATES[record.dyk_lang].replace("{message}", entry.fact)
     button_titles = sample(entry.related_questions, k=min(len(entry.related_questions), 3)) if entry.related_questions else []
     additional_info = {constants.BUTTON_TITLES: button_titles} if button_titles else None
@@ -166,8 +166,8 @@ def message_with_related_questions(user: User, record: DykRecord, entry: DykLang
         reply_context=None,
         cross_conversation_id=None,
         cross_conversation_context=None,
-        incoming_timestamp=ts,
-        outgoing_timestamp=ts
+        incoming_timestamp=int(ts.timestamp()),
+        outgoing_timestamp=int(ts.timestamp())
     )
 
 
@@ -176,11 +176,11 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_
     pending = [p async for p in dyk_repo.find_pending_of_batches(langs, [batch_id])]
     users: dict[str, Optional[User]] = {p.user_id: None for p in pending}
     async for user_doc in user_repo.find_users_by_ids(list(users.keys())):
-        user_data = _ensure_utc_dates(user_doc["User"])
-        user = User(**user_data)
+        user = User(**ensure_utc_dates(user_doc["User"]))
         users[str(user.user_id)] = user
 
-    ts = int(datetime.now(timezone.utc).timestamp())
+    ts = datetime.now(timezone.utc)
+    wa_engagement_window = timedelta(days=1)
     n_success = 0
     n_failure = 0
 
@@ -206,7 +206,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_
 
             lang_entry = entry.languages[record.dyk_lang]
 
-            if user.activity_timestamp is None or ts - user.activity_timestamp > 86_400:
+            if user.activity_timestamp is None or ts - user.activity_timestamp > wa_engagement_window:
                 byoeb_message = message_simple(user, record, lang_entry, ts)
             else:
                 byoeb_message = message_with_related_questions(user, record, lang_entry, ts)
