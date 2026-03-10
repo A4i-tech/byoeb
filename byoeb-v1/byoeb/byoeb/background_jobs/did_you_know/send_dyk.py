@@ -66,6 +66,7 @@ async def pick_candidates(dyk_repo: DykRepository, user_repo: UserRepository, la
         buffer.append(user)
         if len(buffer) == batch_size:
             yield buffer
+            buffer = []
     if buffer:
         yield buffer
 
