@@ -4,13 +4,12 @@ import uuid
 from random import sample
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from byoeb.background_jobs.did_you_know.config import bot_config
-from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
 from byoeb.models.dyk import DykLanguageEntry, DykRecord
 from byoeb.repositories.dyk_repository import DykRepository
 from byoeb.repositories.user_repository import UserRepository
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.repositories.repository_factory import get_repository_factory
-from byoeb.services.channel.whatsapp import WhatsAppService
+from byoeb.services.channel.base import BaseChannelService
 from byoeb.services.chat import constants
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageContext, MessageTypes
 from byoeb_core.models.byoeb.user import User
@@ -172,8 +171,8 @@ def message_with_related_questions(user: User, record: DykRecord, entry: DykLang
     )
 
 
-async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_service: WhatsAppService, batch_id: str, langs: Iterable[LanguageCode]) -> Tuple[int, int]:
-    """ Dispatches queued DYK messages to WhatsApp. Returns number of successful and unsuccessful operations. """
+async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, channel: BaseChannelService, batch_id: str, langs: Iterable[LanguageCode]) -> Tuple[int, int]:
+    """ Dispatches queued DYK messages to channel. Returns number of successful and unsuccessful operations. """
     pending = [p async for p in dyk_repo.find_pending_of_batches(langs, [batch_id])]
     users: dict[str, Optional[User]] = {p.user_id: None for p in pending}
     async for user_doc in user_repo.find_users_by_ids(list(users.keys())):
@@ -212,7 +211,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_
             else:
                 byoeb_message = message_with_related_questions(user, record, lang_entry, ts)
 
-            requests = whatsapp_service.prepare_requests(byoeb_message)
+            requests = channel.prepare_requests(byoeb_message)
             if not requests:
                 send_logger.error(
                     "Failed to prepare a request message (template may be missing or additional_info keys wrong)",
@@ -227,7 +226,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_
                 continue
 
             # TODO: we should probably batch `requests` here so we call send_requests() sparingly...
-            responses, message_ids = await whatsapp_service.send_requests(requests)
+            responses, message_ids = await channel.send_requests(requests)
             assert len(responses) > 0
             failed = False
             for response in responses:
@@ -238,7 +237,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_
                         "user_id": record.user_id,
                         "batch_id": batch_id,
                         "user_phone_number": phone_number,
-                        "whatsapp_response_code": response.response_status.status
+                        "channel_response_code": response.response_status.status
                     }})
                     n_failure += 1
                     failed = True
@@ -250,7 +249,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_
                     "user_id": record.user_id,
                     "batch_id": batch_id,
                     "user_phone_number": phone_number,
-                    "whatsapp_message_ids": json.dumps(message_ids)
+                    "channel_message_ids": json.dumps(message_ids)
                 }})
                 completed.append(record.id)
                 n_success += 1
@@ -260,7 +259,7 @@ async def dispatch(dyk_repo: DykRepository, user_repo: UserRepository, whatsapp_
     return n_success, n_failure
 
 
-async def main(user_types: List[str], batch_size: int) -> None:
+async def main(user_types: List[str], batch_size: int, channel: BaseChannelService) -> None:
     factory = await get_repository_factory()
     dyk_repo = await factory.get_dyk_repository()
     user_repo = await factory.get_user_repository()
@@ -276,8 +275,7 @@ async def main(user_types: List[str], batch_size: int) -> None:
         run_logger.info("[batch-%s] Queued jobs: %d", batch_id, queued, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # messages that were added to the dispatch queue
         run_logger.info("[batch-%s] Exhausted jobs: %d", batch_id, exhausted, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # users who could not be sent a DYK message (because they have received every DYK message)
 
-    # dispatch (...to whatsapp. pick a batch of candidates and send them their assigned dyks)
-    whatsapp_service = WhatsAppService(channel_client_factory)
+    # dispatch (...to channel. pick a batch of candidates and send them their assigned dyks)
     batch_ids = [b async for b in dyk_repo.find_pending_batch_ids()]
     retries = 0
     while True:
@@ -286,8 +284,8 @@ async def main(user_types: List[str], batch_size: int) -> None:
 
         failed_batches = []
         for batch_id in batch_ids:
-            success, fail = await dispatch(dyk_repo, user_repo, whatsapp_service, batch_id, active_langs)
-            run_logger.info("[batch-%s] Dispatched jobs: %d succeeded, %d failed", batch_id, success, fail, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # messages that were sent to WhatsApp (includes messages that were just queued)
+            success, fail = await dispatch(dyk_repo, user_repo, channel, batch_id, active_langs)
+            run_logger.info("[batch-%s] Dispatched jobs: %d succeeded, %d failed", batch_id, success, fail, extra={AppInsightsLogHandler.DETAILS: {"batch_id": batch_id}})  # messages that were sent to channel (includes messages that were just queued)
             if fail > 0:
                 failed_batches.append(batch_id)
 
@@ -306,7 +304,7 @@ send_logger = AppInsightsLogHandler.getLogger("dyk_send")
 
 user_types_to_send = bot_config["user_types_to_send"]
 # WhatsApp-configured templates now drive DYK; keep a simple language list for CSV parsing.
-N_RETRIES = 5  # number of times to retry dispatch()ing to WhatsApp in the event of failure
+N_RETRIES = 5  # number of times to retry dispatch()ing to channel in the event of failure
 
 LANGUAGE_TEMPLATES: dict[LanguageCode, str] = {LanguageCode(lang["language"]): "\n".join(lang["template"]) for lang in bot_config["languages"]}
 LANGUAGE_TEMPLATES.update({code: "{message}" for code in LanguageCode if code not in LANGUAGE_TEMPLATES})
@@ -314,8 +312,7 @@ LANGUAGE_TEMPLATES.update({code: "{message}" for code in LanguageCode if code no
 # Wrapper function for scheduler to call without arguments
 async def run():
     """Wrapper function that loads config and calls main() - used by scheduler"""
-    await main(user_types_to_send, 2048)
+    from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
+    from byoeb.services.channel.whatsapp import WhatsAppService
 
-
-if __name__ == "__main__":
-    asyncio.run(main(user_types_to_send, 2048))
+    await main(user_types_to_send, 2048, WhatsAppService(channel_client_factory))
