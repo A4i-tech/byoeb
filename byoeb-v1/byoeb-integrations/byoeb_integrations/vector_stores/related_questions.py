@@ -141,6 +141,10 @@ async def aget_related_questions(
 
     related_questions_en = "\n".join(f'<q id="eid_{i}">{q}</q>' for i, q in enumerate(related_questions["en"]))
     for lang, translation_prompt in languages_translation_prompts.items():
+        if not related_questions["en"]:
+            related_questions[lang] = []
+            continue
+
         examples = "\n".join(
             f'Input: <q id="eid_{i}">{en}</q>  Output: <q id="eid_{i}">{translated}</q>'
             for i, (en, translated) in enumerate(zip(_TRANSLATION_EXAMPLES["en"], _TRANSLATION_EXAMPLES.get(lang, [])))
