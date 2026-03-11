@@ -141,32 +141,47 @@ class ByoebUserProcess(Handler):
         msg_id = getattr(message.message_context, "message_id", None) or ""
         with self._tracer.start_as_current_span(SPAN_AUDIO_TO_TEXT) as span:
             span.set_attribute("message_id", msg_id)
-            # dependency injection
-            from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
-            from byoeb.chat_app.configuration.dependency_setup import speech_translator
-            from byoeb_core.convertor.audio_convertor import ogg_opus_to_wav_bytes
+            try:
+                # dependency injection
+                from byoeb.chat_app.configuration.dependency_setup import channel_client_factory
+                from byoeb.chat_app.configuration.dependency_setup import speech_translator
+                from byoeb_core.convertor.audio_convertor import ogg_opus_to_wav_bytes
 
-            start_time = datetime.now(timezone.utc)
-            if audio_message is None:
-                media_id = message.message_context.media_info.media_id
-                channel_client = await channel_client_factory.get(message.channel_type)
-                _, audio_message, err = await channel_client.adownload_media(media_id)
+                start_time = datetime.now(timezone.utc)
+                if audio_message is None:
+                    media_info = getattr(message.message_context, "media_info", None)
+                    if media_info is None:
+                        span.set_attribute("success", False)
+                        span.set_status(Status(StatusCode.ERROR, "media_info missing for audio message"))
+                        raise ValueError("media_info missing for audio message; cannot run speech-to-text")
+                    media_id = media_info.media_id
+                    channel_client = await channel_client_factory.get(message.channel_type)
+                    _, audio_message, err = await channel_client.adownload_media(media_id)
+                    if err or audio_message is None:
+                        span.set_attribute("success", False)
+                        span.set_status(Status(StatusCode.ERROR, "failed to download audio"))
+                        raise RuntimeError("failed to download audio for speech-to-text")
 
-            audio_message_wav = ogg_opus_to_wav_bytes(audio_message.data)
-            audio_to_text = await speech_translator.aspeech_to_text(audio_message_wav, message.user.user_language, test_user=message.user.test_user)
-            message.message_context.message_source_text = audio_to_text
-            end_time = datetime.now(timezone.utc)
-            duration_seconds = (end_time - start_time).total_seconds()
-            span.set_attribute("duration_ms", int(duration_seconds * 1000))
-            span.set_attribute("success", True)
-            span.set_status(Status(StatusCode.OK))
-            AppInsightsLogHandler.getLogger("audio_to_text").info(f"Time taken for audio to text transcribe: {duration_seconds} seconds", extra={AppInsightsLogHandler.DETAILS: {
-                "message_id": message.message_context.message_id,
-                "time_taken": duration_seconds
-            }})
-            utils.log_to_text_file(f"Time taken for audio to text transcribe: {duration_seconds} seconds")
-            if message.message_context.media_info:
-                message.message_context.media_info.media_type = audio_message.mime_type
+                audio_message_wav = ogg_opus_to_wav_bytes(audio_message.data)
+                audio_to_text = await speech_translator.aspeech_to_text(audio_message_wav, message.user.user_language, test_user=message.user.test_user)
+                message.message_context.message_source_text = audio_to_text
+                end_time = datetime.now(timezone.utc)
+                duration_seconds = (end_time - start_time).total_seconds()
+                span.set_attribute("duration_ms", int(duration_seconds * 1000))
+                span.set_attribute("success", True)
+                span.set_status(Status(StatusCode.OK))
+                AppInsightsLogHandler.getLogger("audio_to_text").info(f"Time taken for audio to text transcribe: {duration_seconds} seconds", extra={AppInsightsLogHandler.DETAILS: {
+                    "message_id": message.message_context.message_id,
+                    "time_taken": duration_seconds
+                }})
+                utils.log_to_text_file(f"Time taken for audio to text transcribe: {duration_seconds} seconds")
+                if message.message_context.media_info:
+                    message.message_context.media_info.media_type = audio_message.mime_type
+            except Exception as e:
+                span.record_exception(e)
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                span.set_attribute("success", False)
+                raise
 
     async def handle_process_message_workflow(
         self,

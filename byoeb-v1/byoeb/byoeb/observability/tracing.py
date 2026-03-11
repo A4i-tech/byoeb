@@ -7,13 +7,15 @@ OTEL tracing helpers for conversation flow (Issue #217).
 
 import json
 import logging
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
-from langfuse.types import TraceContext
 from opentelemetry import trace, context
 from opentelemetry.propagate import inject, extract
 
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
+
+# Shape passed to Langfuse for trace linking; avoid importing langfuse.types (layout varies by version).
+TraceContextDict = Dict[str, str]
 
 
 TRACER_NAME = "byoeb.conversation"
@@ -33,6 +35,7 @@ SPAN_CREATE_CONVERSATIONS = "conversation.create_conversations"
 # Phase 2: process / generate / send
 SPAN_PROCESS_WORKFLOW = "conversation.process_workflow"
 SPAN_AUDIO_TO_TEXT = "conversation.audio_to_text"
+SPAN_TEXT_TO_SPEECH = "conversation.text_to_speech"
 SPAN_QUERY_REWRITE = "conversation.query_rewrite"
 SPAN_GENERATE_WORKFLOW = "conversation.generate_workflow"
 SPAN_EMBEDDING = "conversation.embedding"
@@ -57,7 +60,7 @@ def get_conversation_tracer() -> trace.Tracer:
     return trace.get_tracer(TRACER_NAME, TRACER_VERSION)
 
 
-def get_current_otel_trace_context() -> Optional[TraceContext]:
+def get_current_otel_trace_context() -> Optional[TraceContextDict]:
     """
     Return current OTEL trace context for linking Langfuse (or other backends).
     Returns {"trace_id": "32 hex", "parent_span_id": "16 hex"} or None if no active span.
@@ -100,6 +103,11 @@ def inject_trace_context_into_payload(byoeb_message: ByoebMessageContext) -> str
 def parse_queue_payload_and_extract_context(raw: str) -> Tuple[ByoebMessageContext, Optional[context.Context]]:
     """
     Parse a raw queue message and optionally extract trace context.
+
+    Payload format is the same for text and audio messages (ByoebMessageContext).
+    Speech-to-text (Cognitive Services) is traced via SPAN_AUDIO_TO_TEXT in the
+    process workflow; this function only parses the queue payload and does not
+    touch audio content.
 
     - If payload is wrapped (has "body" and "_trace"): parse body as ByoebMessageContext,
       extract context from _trace, return (message, extracted_context).

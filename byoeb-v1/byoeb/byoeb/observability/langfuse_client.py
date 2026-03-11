@@ -45,7 +45,7 @@ def observe_llm(name: str, model: str = "", input_data: Any = None):
     """
     # Always tag environment / component metadata so observations can be filtered in Langfuse.
     env = os.getenv("APP_ENV", "LOCAL")
-    logger.info("observe_llm start: %s env=%s", name, env)
+    logger.debug("observe_llm start: %s env=%s", name, env)
 
     enriched_input: Dict[str, Any] = {
         "environment": env,

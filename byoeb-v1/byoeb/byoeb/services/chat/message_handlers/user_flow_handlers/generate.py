@@ -40,6 +40,7 @@ from byoeb.observability.tracing import (
     SPAN_QUERY_EXPANSION,
     SPAN_NEEDS_CLARIFICATION,
     SPAN_RELATED_QUESTIONS,
+    SPAN_TEXT_TO_SPEECH,
 )
 
 logger = logging.getLogger(__name__)
@@ -320,11 +321,21 @@ class ByoebUserGenerateResponse(Handler):
         user: User
     ):
         from byoeb.chat_app.configuration.dependency_setup import speech_translator
-        translated_audio_message = await speech_translator.atext_to_speech(
-            input_text=message_source_text,
-            source_language=user.user_language,
-            test_user=user.test_user
-        )
+        with self._tracer.start_as_current_span(SPAN_TEXT_TO_SPEECH) as span:
+            span.set_attribute("language", user.user_language or "")
+            span.set_attribute("input_length", len(message_source_text or ""))
+            try:
+                translated_audio_message = await speech_translator.atext_to_speech(
+                    input_text=message_source_text,
+                    source_language=user.user_language,
+                    test_user=user.test_user
+                )
+                span.set_attribute("output_bytes", len(translated_audio_message) if translated_audio_message else 0)
+                span.set_status(Status(StatusCode.OK))
+            except Exception as e:
+                span.record_exception(e)
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                raise
         return {
             constants.DATA: translated_audio_message,
             constants.MIME_TYPE: "audio/ogg",
