@@ -139,19 +139,18 @@ class QueueConsumer:
         self._logger.info(f"Queue info: {self._az_storage_queue}")
 
         while True:
-            with self._tracer.start_as_current_span("message_queue.batch_process", kind=trace.SpanKind.CONSUMER) as span:
-                try:
-                    messages = await self.__areceive()
+            try:
+                messages = await self.__areceive()
 
+                if len(messages) == 0:
+                    await asyncio.sleep(0.5)
+                    continue
+
+                with self._tracer.start_as_current_span("message_queue.batch_process", kind=trace.SpanKind.CONSUMER) as span:
                     span.set_attribute("messaging.system", "azure_storage_queue")
                     span.set_attribute("messaging.destination", self._queue_name)
                     span.set_attribute("messaging.destination_kind", "queue")
                     span.set_attribute("messaging.message_count", len(messages))
-
-                    if len(messages) == 0:
-                        span.set_attribute("messaging.empty_batch", True)
-                        await asyncio.sleep(0.5)
-                        continue
 
                     message_content = []
                     dlq_count = 0
@@ -219,16 +218,10 @@ class QueueConsumer:
                     }})
 
                     utils.log_to_text_file(f"Processed {len(messages)} message in: {duration} seconds")
+            except Exception as e:
+                traceback.print_exc()
 
-                    span.set_status(Status(StatusCode.OK))
-
-                except Exception as e:
-                    self._logger.error(f"Error in batch processing: {e}")
-                    span.record_exception(e)
-                    span.set_status(Status(StatusCode.ERROR, str(e)))
-                    traceback.print_exc()
-
-                await asyncio.sleep(0.5)
+            await asyncio.sleep(0.5)
 
     async def close(
         self
