@@ -4,7 +4,6 @@ from azure.storage.queue import QueueMessage
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 import byoeb.utils.utils as utils
 import uuid
-import traceback
 from datetime import datetime
 from opentelemetry import trace
 from byoeb_core.message_queue.base import BaseQueue
@@ -117,71 +116,63 @@ class QueueConsumer:
         queue_retry_count = self._config["app"]["queue_retry_count"]
         dlq_client = await self.__get_or_create_dead_letter_queue_client()
         self._logger.info(f"Queue info: {self._az_storage_queue}")
+        loop = asyncio.get_running_loop()
         while self._running:
-            await self.__heartbeat(dlq_client, queue_retry_count)
+            # using same semaphore here as in handle() - this is intended. when we are at full queue
+            # capacity, there is no point querying the queue for messages only to hold messages in memory.
+            async with self._concurrency:
+                try:
+                    batch = [message async for message in self.__areceive()]
+                except Exception as e:
+                    batch = []
+                    self._logger.exception(e)
+
+            messages = []
+            dlq_count = 0
+            for message in batch:
+                if message.dequeue_count > queue_retry_count:
+                    # no need to spend consumer's time waiting on these tasks, can dispatch-and-forget
+                    loop.create_task(dlq_client.send_message(message.content))
+                    loop.create_task(self._az_storage_queue.delete_message(message))
+                    dlq_count += 1
+                    continue
+                messages.append(message)
+
+            if len(messages) > 0:
+                loop.create_task(self.handle(messages, dlq_count))
+
             await asyncio.sleep(self._poll_frequency)
 
-    async def __heartbeat(self, dlq_client: BaseQueue, queue_retry_count: int):
+    async def handle(self, batch: list[QueueMessage], dlq_count: int):
         async with self._concurrency:
-            try:
-                batch = [message async for message in self.__areceive()]
-            except Exception as e:
-                self._logger.exception(e)
-                traceback.print_exc()
-                return
-
-            if len(batch) == 0:
-                return
-
-            with self._tracer.start_as_current_span("message_queue.batch_process", kind=trace.SpanKind.CONSUMER, attributes={
+            self._logger.info(f"Received {len(batch)} messages")
+            with self._tracer.start_as_current_span("message_queue.consume_messages", attributes={
                 "messaging.system": "azure_storage_queue",
                 "messaging.destination": self._queue_name,
                 "messaging.destination_kind": "queue",
-                "messaging.message_count": len(batch)
+                "messaging.message_count": len(batch),
+                "messaging.dlq_count": dlq_count
             }) as span:
-                message_content = []
-                dlq_count = 0
-                loop = asyncio.get_running_loop()
-                for message in batch:
-                    if message.dequeue_count > queue_retry_count:
-                        # no need to spend consumer's time waiting on these tasks, can dispatch-and-forget
-                        loop.create_task(dlq_client.send_message(message.content))
-                        loop.create_task(self._az_storage_queue.delete_message(message))
-                        dlq_count += 1
-                        continue
-                    message_content.append(message)
+                start_time = datetime.now()
+                successfully_processed_messages = await self._message_consumer_svc.consume([m.content for m in batch]) or []
+                end_time = datetime.now()
+                duration = (end_time - start_time).total_seconds()
 
-                span.set_attribute("messaging.dlq_count", dlq_count)
-                if len(message_content) > 0:
-                    loop.create_task(self.handle(message_content, dlq_count))
+                span.set_attribute("messaging.duration_seconds", duration)
+                span.set_attribute("messaging.success_count", len(successfully_processed_messages))
+                span.set_attribute("messaging.failure_count", len(batch) - len(successfully_processed_messages) - dlq_count)
+                span.set_attribute("messaging.processed_count", len(successfully_processed_messages))
+                span.set_attribute("messaging.success_rate", len(successfully_processed_messages) / len(batch))
 
-    async def handle(self, batch: list[QueueMessage], dlq_count: int):
-        assert len(batch) > 0
-        self._logger.info(f"Received {len(batch)} messages")
+                self._logger.info(f"Successfully processed {len(successfully_processed_messages)} messages")
+                utils.log_to_text_file(f"Successfully processed {len(successfully_processed_messages)} messages")
 
-        start_time = datetime.now()
-        successfully_processed_messages = []
-        with self._tracer.start_as_current_span("message_queue.consume_messages", attributes={"messaging.batch_size": len(batch)}) as span:
-            successfully_processed_messages = await self._message_consumer_svc.consume([m.content for m in batch]) or []
-            span.set_attribute("messaging.processed_count", len(successfully_processed_messages))
-            span.set_attribute("messaging.success_rate", len(successfully_processed_messages) / len(batch))
+                processed_ids = {message.message_context.message_id for message in successfully_processed_messages}
+                remove_messages = [msg for msg in batch if any(processed_id in msg.content for processed_id in processed_ids)]
 
-            self._logger.info(f"consume() returned {len(successfully_processed_messages)} successfully processed messages")
-            self._logger.info(f"Successfully processed {len(successfully_processed_messages)} messages")
-            utils.log_to_text_file(f"Successfully processed {len(successfully_processed_messages)} messages")
-
-            processed_ids = {message.message_context.message_id for message in successfully_processed_messages}
-            remove_messages = [msg for msg in batch if any(processed_id in msg.content for processed_id in processed_ids)]
-
-            await asyncio.gather(*[self._az_storage_queue.delete_message(m) for m in remove_messages])
-            self._logger.info(f"Deleted {len(remove_messages)} messages")
-
-            span.set_attribute("messaging.deleted_count", len(remove_messages))
-            end_time = datetime.now()
-            duration = (end_time - start_time).total_seconds()
-            span.set_attribute("messaging.duration_seconds", duration)
-            span.set_attribute("messaging.success_count", len(successfully_processed_messages))
-            span.set_attribute("messaging.failure_count", len(batch) - len(successfully_processed_messages) - dlq_count)
+                await asyncio.gather(*[self._az_storage_queue.delete_message(m) for m in remove_messages])
+                self._logger.info(f"Deleted {len(remove_messages)} messages")
+                span.set_attribute("messaging.deleted_count", len(remove_messages))
 
         self._batch_message_consumer_logger.info(f"Processed batch of {len(batch)} messages for queue {self._queue_name} in {duration} seconds", extra={AppInsightsLogHandler.DETAILS: {
             "batch_id": str(uuid.uuid4()),
