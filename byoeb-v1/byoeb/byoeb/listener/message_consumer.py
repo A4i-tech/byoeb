@@ -26,7 +26,8 @@ class QueueConsumer:
         message_db_service: MessageMongoDBService,
         channel_client_factory: ChannelClientFactory,
         consuemr_type: str = None,
-        poll_frequency: float = 0.5
+        poll_frequency: float = 0.5,
+        concurrency: int = 16
     ):
         self._logger = logging.getLogger(__name__)
         self._consumer_type = consuemr_type
@@ -37,6 +38,7 @@ class QueueConsumer:
         self._batch_message_consumer_logger = AppInsightsLogHandler.getLogger("batch_message_consumer")
         self._message_consumer_svc = MessageConsmerService(config=self._config, user_db_service=user_db_service, message_db_service=message_db_service, channel_client_factory=channel_client_factory)
         self._poll_frequency = poll_frequency
+        self._concurrency = asyncio.Semaphore(concurrency)
         self._running = True
     
     async def __create_azure_storage_queue_client(
@@ -115,18 +117,21 @@ class QueueConsumer:
         queue_retry_count = self._config["app"]["queue_retry_count"]
         dlq_client = await self.__get_or_create_dead_letter_queue_client()
         self._logger.info(f"Queue info: {self._az_storage_queue}")
-        loop = asyncio.get_running_loop()
         while self._running:
+            await self.__heartbeat(dlq_client, queue_retry_count)
+            await asyncio.sleep(self._poll_frequency)
+
+    async def __heartbeat(self, dlq_client: BaseQueue, queue_retry_count: int):
+        async with self._concurrency:
             try:
                 batch = [message async for message in self.__areceive()]
             except Exception as e:
                 self._logger.exception(e)
                 traceback.print_exc()
-                continue
+                return
 
             if len(batch) == 0:
-                await asyncio.sleep(self._poll_frequency)
-                continue
+                return
 
             with self._tracer.start_as_current_span("message_queue.batch_process", kind=trace.SpanKind.CONSUMER, attributes={
                 "messaging.system": "azure_storage_queue",
@@ -136,6 +141,7 @@ class QueueConsumer:
             }) as span:
                 message_content = []
                 dlq_count = 0
+                loop = asyncio.get_running_loop()
                 for message in batch:
                     if message.dequeue_count > queue_retry_count:
                         # no need to spend consumer's time waiting on these tasks, can dispatch-and-forget
@@ -148,7 +154,6 @@ class QueueConsumer:
                 span.set_attribute("messaging.dlq_count", dlq_count)
                 if len(message_content) > 0:
                     loop.create_task(self.handle(message_content, dlq_count))
-            await asyncio.sleep(self._poll_frequency)
 
     async def handle(self, batch: list[QueueMessage], dlq_count: int):
         assert len(batch) > 0
