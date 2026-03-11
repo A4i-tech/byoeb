@@ -1,8 +1,8 @@
-import asyncio
 import logging
 from enum import Enum
-from typing import Any
+from typing import Any, AsyncIterator
 from byoeb_core.message_queue.base import BaseQueue
+from azure.storage.queue import QueueMessage
 from azure.storage.queue.aio import QueueClient
 from azure.core.exceptions import ResourceExistsError
 
@@ -86,7 +86,7 @@ class AsyncAzureStorageQueue(BaseQueue):
     async def receive_message(
         self,
         **kwargs
-    ) -> Any:
+    ) -> AsyncIterator[QueueMessage]:
         visibility_timeout = kwargs.get(
             AzureStorageQueueParamsEnum.VISIBILITY_TIMEOUT.value,
             self.__VISIBILITY_TIMEOUT

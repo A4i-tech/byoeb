@@ -4,7 +4,6 @@ from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 import byoeb.utils.utils as utils
 import uuid
 import traceback
-import time
 from datetime import datetime
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -100,8 +99,7 @@ class QueueConsumer:
 
     async def __areceive(
         self
-    ) -> list:
-        messages = []
+    ):
         if isinstance(self._az_storage_queue, AsyncAzureStorageQueue):
             msgs = await self._az_storage_queue.receive_message(
                 visibility_timeout=self._config["message_queue"]["azure"]["visibility_timeout"],
@@ -109,9 +107,7 @@ class QueueConsumer:
                 max_messages=self._config["app"]["batch_size"]
             )
             async for msg in msgs:
-                messages.append(msg)
-        
-        return messages
+                yield msg
 
     async def __delete_message(
         self,
@@ -140,7 +136,7 @@ class QueueConsumer:
 
         while True:
             try:
-                messages = await self.__areceive()
+                messages = [m async for m in self.__areceive()]
 
                 if len(messages) == 0:
                     await asyncio.sleep(0.5)
