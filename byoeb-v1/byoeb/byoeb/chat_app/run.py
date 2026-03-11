@@ -109,7 +109,6 @@ async def lifespan(app: FastAPI):
         from byoeb.chat_app.configuration.dependency_setup import start_scheduler, stop_scheduler
 
         try:
-            await message_consumer.initialize()
             asyncio.create_task(message_consumer.listen())
         except Exception as e:
             logger.error(f"Failed to initialize message consumer: {e}")
