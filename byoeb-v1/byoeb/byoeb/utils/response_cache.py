@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import asyncio
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 import dbm
 from enum import Enum, auto
@@ -16,8 +17,14 @@ from byoeb.chat_app.configuration.config import app_tempdir
 from gliner import GLiNER
 from pydantic import Field, validate_call
 
+_logger = logging.getLogger("response_cache")
+
 NERList: TypeAlias = list[tuple[str, str]]
 NERGenerator = Callable[[str], Awaitable[NERList]]
+
+# runtime placeholder value - this value is not stored, only propagated across
+# callees to differentiate failed vs. successful NER queries.
+NER_MAGIC_SKIPPED = [("\x00", "")]
 
 Embedding: TypeAlias = list[float]
 EmbeddingId: TypeAlias = int
@@ -108,7 +115,7 @@ class ResponseCache(ABC, Generic[ResponseCacheT]):
         """
 
     @abstractmethod
-    async def store(self, index: ResponseCacheIndex, value: ResponseCacheT) -> ResponseCacheLookup[ResponseCacheT]:
+    async def store(self, index: ResponseCacheIndex, value: ResponseCacheT) -> ResponseCacheLookup[ResponseCacheT] | None:
         """
         Maps the given value to the given index and returns the operation performed during the mapping.
 
@@ -131,11 +138,33 @@ class ResponseCache(ABC, Generic[ResponseCacheT]):
 
 
 @validate_call
-def create_gliner_ner(model_id: str, threshold: float = Field(..., ge=0.0, le=1.0), labels: list[str] = Field(..., min_length=1)) -> NERGenerator:
-    model = GLiNER.from_pretrained(model_id)
+def create_gliner_ner(
+    model_id: str,
+    threshold: float = Field(..., ge=0.0, le=1.0),
+    labels: list[str] = Field(..., min_length=1),
+    teardown_executor: Callable[[Awaitable], None] | None = None
+) -> NERGenerator:
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(GLiNER.from_pretrained, model_id)
     async def g(text: str) -> NERList:
-        entities = model.predict_entities(text, labels, threshold=threshold)
+        if executor._shutdown:
+            return NER_MAGIC_SKIPPED
+        try:
+            model = future.result()
+        except asyncio.CancelledError:
+            executor.shutdown()
+            return NER_MAGIC_SKIPPED
+        except BaseException as e:
+            _logger.error("NER model (%s) loading failed" % model_id)
+            _logger.exception(e)
+            executor.shutdown()
+            return NER_MAGIC_SKIPPED
+        loop = asyncio.get_event_loop()
+        entities = await loop.run_in_executor(executor, lambda: model.predict_entities(text, labels, threshold=threshold))
         return [(e["label"], e["text"]) for e in entities]
+
+    if teardown_executor is not None:
+        teardown_executor(asyncio.to_thread(executor.shutdown))
     return g
 
 
@@ -235,7 +264,11 @@ class SimpleResponseCache(ResponseCache[ResponseCacheT]):
         self.logger.debug("Computing embeddings and NERs for: %s", query)
         return await asyncio.gather(self.emb_fn.aget_text_embedding(query), self.ner_gen(query))
 
-    async def store(self, index: ResponseCacheIndex, value: ResponseCacheT) -> ResponseCacheLookup[ResponseCacheT]:
+    async def store(self, index: ResponseCacheIndex, value: ResponseCacheT) -> ResponseCacheLookup[ResponseCacheT] | None:
+        ner = index[1]
+        if ner == NER_MAGIC_SKIPPED:
+            return None
+
         id, sim, status = await self._lookup(index)
         if id is None:
             assert not isinstance(index[0], EmbeddingId)
@@ -243,7 +276,6 @@ class SimpleResponseCache(ResponseCache[ResponseCacheT]):
 
         sim = sim if sim is not None else 0.0
         status = status if status is not None else ResponseCacheLookupStatus.FOUND_SUBOPTIMAL
-        ner = index[1]
         key = self.hash((id, ner)).encode()
 
         if key in self.lru:

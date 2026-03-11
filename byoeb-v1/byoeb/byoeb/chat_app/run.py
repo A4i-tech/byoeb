@@ -99,14 +99,9 @@ async def lifespan(app: FastAPI):
         from byoeb.chat_app.configuration import config
         config.app_tempdir.set_result(tempdir)
 
-        from byoeb.chat_app.configuration.dependency_setup import (
-            channel_client_factory,
-            message_consumer,
-            queue_producer_factory,
-            text_translator
-        )
+        from byoeb.chat_app.configuration.dependency_setup import message_consumer
         from byoeb.apis.background_jobs import setup_scheduled_jobs
-        from byoeb.chat_app.configuration.dependency_setup import start_scheduler, stop_scheduler
+        from byoeb.chat_app.configuration.dependency_setup import start_scheduler, teardown
 
         try:
             await message_consumer.initialize()
@@ -119,18 +114,11 @@ async def lifespan(app: FastAPI):
 
         setup_scheduled_jobs()
         start_scheduler()
-        logger.info("Background job scheduler started during application startup")
 
         async with mcp_app.lifespan(app):
             yield
 
-        stop_scheduler()
-        logger.info("Background job scheduler stopped during application shutdown")
-
-        await channel_client_factory.close()
-        await message_consumer.close()
-        await queue_producer_factory.close()
-        await text_translator._close()
+        await teardown()
         logger.info("FastAPI app is shutting down. Closing all clients")
 
 app, mcp_app = create_apps()

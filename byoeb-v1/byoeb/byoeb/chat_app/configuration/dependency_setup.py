@@ -3,8 +3,10 @@ from byoeb.chat_app.configuration.config import app_config
 
 import time, json, traceback, uuid, asyncio
 import logging
+from typing import Awaitable
 
 _logger = logging.getLogger("flow")
+teardown_callbacks: list[Awaitable] = []
 
 def _safe_json(obj):
     try:
@@ -446,6 +448,13 @@ scheduler = AsyncIOScheduler(
     job_defaults={'coalesce': False, 'max_instances': 1}
 )
 
+teardown_callbacks.extend((
+    message_consumer.close(),
+    channel_client_factory.close(),
+    queue_producer_factory.close(),
+    text_translator._close()
+))
+
 def get_scheduler() -> AsyncIOScheduler:
     """Get the scheduler instance."""
     return scheduler
@@ -456,8 +465,14 @@ def start_scheduler():
         scheduler.start()
         _logger.info("Background job scheduler started")
 
-def stop_scheduler():
-    """Stop the scheduler."""
+async def teardown():
     if scheduler.running:
         scheduler.shutdown()
         _logger.info("Background job scheduler stopped")
+
+    global teardown_callbacks
+    try:
+        for coro in teardown_callbacks:
+            await coro
+    finally:
+        teardown_callbacks.clear()
