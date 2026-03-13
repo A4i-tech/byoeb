@@ -103,36 +103,42 @@ class MessageConsmerService:
 
         # Telemetry: detect possible DB/network transient when fewer users returned than requested
         if len(byoeb_users) < len(user_ids):
-            AppInsightsLogHandler.getLogger("onboarding_routing").warning(
-                "user_lookup_returned_fewer_than_requested (possible transient)",
-                extra={
-                    AppInsightsLogHandler.DETAILS: {
-                        "requested_count": len(user_ids),
-                        "fetched_count": len(byoeb_users),
-                        "missing_count": len(user_ids) - len(byoeb_users),
-                    }
-                },
-            )
+            try:
+                AppInsightsLogHandler.getLogger("onboarding_routing").warning(
+                    "user_lookup_returned_fewer_than_requested (possible transient)",
+                    extra={
+                        AppInsightsLogHandler.DETAILS: {
+                            "requested_count": len(user_ids),
+                            "fetched_count": len(byoeb_users),
+                            "missing_count": len(user_ids) - len(byoeb_users),
+                        }
+                    },
+                )
+            except Exception as e:
+                self._logger.warning("[onboarding_routing] telemetry failed: %s", e)
 
         for m in messages:
             user = self.__get_user(byoeb_users, m.user.phone_number_id)
             if user is None:
-                self._logger.info("[__create_conversations] user_not_found phone=%s -> onboard", m.user.phone_number_id)
-                AppInsightsLogHandler.getLogger("onboarding_routing").info(
-                    "routed_to_onboard: user_not_found",
-                    extra={
-                        AppInsightsLogHandler.DETAILS: {
-                            "reason": "user_not_found",
-                            "message_id": m.message_context.message_id,
-                            "phone_number_id": m.user.phone_number_id,
-                        }
-                    },
-                )
+                self._logger.info("[__create_conversations] user_not_found phone=%s -> onboard", utils.mask_phone(getattr(m.user, "phone_number_id", "")))
+                try:
+                    AppInsightsLogHandler.getLogger("onboarding_routing").info(
+                        "routed_to_onboard: user_not_found",
+                        extra={
+                            AppInsightsLogHandler.DETAILS: {
+                                "reason": "user_not_found",
+                                "message_id": m.message_context.message_id,
+                                "phone_number_id": utils.mask_phone(getattr(m.user, "phone_number_id", "")),
+                            }
+                        },
+                    )
+                except Exception as e:
+                    self._logger.warning("[onboarding_routing] telemetry failed: %s", e)
                 onboard_convs.append(m)
                 continue
 
             # minimal peek
-            self._logger.info("[__create_conversations] user_found phone=%s user_type=%s reply_id=%s", m.user.phone_number_id, user.user_type, m.reply_context.reply_id)
+            self._logger.info("[__create_conversations] user_found phone=%s user_type=%s reply_id=%s", utils.mask_phone(getattr(m.user, "phone_number_id", "")), user.user_type, m.reply_context.reply_id)
 
             if self.__is_expert_user_type(user.user_type) and m.reply_context.reply_id is None:
                 # attach last bot message to reply
@@ -185,18 +191,21 @@ class MessageConsmerService:
                     else:
                         # New user needs onboarding
                         self._logger.info("[__create_conversations] no_bot_msg + needs_onboarding -> onboard (msg_id=%s)", m.message_context.message_id)
-                        AppInsightsLogHandler.getLogger("onboarding_routing").info(
-                            "routed_to_onboard: needs_onboarding_no_bot_msg",
-                            extra={
-                                AppInsightsLogHandler.DETAILS: {
-                                    "reason": "needs_onboarding_no_bot_msg",
-                                    "message_id": m.message_context.message_id,
-                                    "phone_number_id": m.user.phone_number_id,
-                                    "has_user_type": user.user_type is not None,
-                                    "has_user_language": user.user_language is not None,
-                                }
-                            },
-                        )
+                        try:
+                            AppInsightsLogHandler.getLogger("onboarding_routing").info(
+                                "routed_to_onboard: needs_onboarding_no_bot_msg",
+                                extra={
+                                    AppInsightsLogHandler.DETAILS: {
+                                        "reason": "needs_onboarding_no_bot_msg",
+                                        "message_id": m.message_context.message_id,
+                                        "phone_number_id": utils.mask_phone(getattr(m.user, "phone_number_id", "")),
+                                        "has_user_type": user.user_type is not None,
+                                        "has_user_language": user.user_language is not None,
+                                    }
+                                },
+                            )
+                        except Exception as e:
+                            self._logger.warning("[onboarding_routing] telemetry failed: %s", e)
                         onboard_convs.append(m)
                 else:
                     self._logger.info("[__create_conversations] no_bot_msg -> conversations (msg_id=%s)", m.message_context.message_id)
@@ -238,17 +247,20 @@ class MessageConsmerService:
                 else:
                     # Missing user fields, needs onboarding
                     self._logger.info("[__create_conversations] missing_user_fields -> onboard (msg_id=%s)", m.message_context.message_id)
-                    AppInsightsLogHandler.getLogger("onboarding_routing").info(
-                        "routed_to_onboard: missing_user_fields",
-                        extra={
-                            AppInsightsLogHandler.DETAILS: {
-                                "reason": "missing_user_fields",
-                                "message_id": m.message_context.message_id,
-                                "phone_number_id": m.user.phone_number_id,
-                                "user_id": getattr(user, "user_id", None),
-                            }
-                        },
-                    )
+                    try:
+                        AppInsightsLogHandler.getLogger("onboarding_routing").info(
+                            "routed_to_onboard: missing_user_fields",
+                            extra={
+                                AppInsightsLogHandler.DETAILS: {
+                                    "reason": "missing_user_fields",
+                                    "message_id": m.message_context.message_id,
+                                    "phone_number_id": utils.mask_phone(getattr(m.user, "phone_number_id", "")),
+                                    "user_id": getattr(user, "user_id", None),
+                                }
+                            },
+                        )
+                    except Exception as e:
+                        self._logger.warning("[onboarding_routing] telemetry failed: %s", e)
                     onboard_convs.append(m)
             else:
                 self._logger.info("[__create_conversations] regular_flow -> conversations (msg_id=%s)", m.message_context.message_id)

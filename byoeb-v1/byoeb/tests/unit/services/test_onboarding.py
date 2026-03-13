@@ -122,6 +122,22 @@ def test_get_user_type():
 
 @pytest.mark.asyncio
 async def test_first_message_triggers_language_selection(mock_services):
+    """Onboarding-like first message (e.g. 'onboard asha') creates user and sends language selection."""
+    msg_db, user_db, channel_factory = mock_services
+
+    user = make_user(phone="919111111111")
+    msg = make_msg(user, category=None, text="onboard asha")
+
+    await mod.handle_unknown_user([msg], msg_db, user_db, channel_factory)
+
+    assert len(user_db.created) == 1
+    assert len(msg_db.created) == 1
+    assert len(msg_db.executed) == 1
+
+
+@pytest.mark.asyncio
+async def test_first_message_non_onboarding_sends_register_prompt_no_user(mock_services):
+    """First message that is not onboarding-like (e.g. 'hi') sends register prompt and does not create user."""
     msg_db, user_db, channel_factory = mock_services
 
     user = make_user(phone="919111111111")
@@ -129,9 +145,9 @@ async def test_first_message_triggers_language_selection(mock_services):
 
     await mod.handle_unknown_user([msg], msg_db, user_db, channel_factory)
 
-    assert len(user_db.created) == 1
-    assert len(msg_db.created) == 1
-    assert len(msg_db.executed) == 1
+    assert len(user_db.created) == 0
+    # Register prompt is sent via channel; msg_db may or may not record it depending on flow
+    assert len(msg_db.executed) == 0
 
 @pytest.mark.asyncio
 async def test_language_selection_sends_user_type_buttons_and_updates_user_lang(mock_services):

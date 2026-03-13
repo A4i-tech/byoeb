@@ -157,6 +157,11 @@ ONBOARD_WELCOME_MESSAGE_DICT = {
     ],
 }
 
+# Shown when user is in onboarding path but message is not onboarding-like (e.g. not "onboard asha").
+REGISTER_PROMPT_TEXT = (
+    "To register with ASHA Saheli, please send 'onboard asha' or a similar phrase in your language."
+)
+
 # Suggested questions list text + items
 RELATED_QUESTIONS = {
     "description": {

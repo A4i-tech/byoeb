@@ -12,6 +12,7 @@ from byoeb.constants.onboarding_text import (
     CONSENT_DICT,
     THANK_YOU_DICT,
     RELATED_QUESTIONS,
+    REGISTER_PROMPT_TEXT,
     YES_SET,
     NO_SET,
     USER_TYPE_OPTIONS,
@@ -31,8 +32,12 @@ from byoeb_core.models.byoeb.user import User
 from datetime import datetime, timezone
 from byoeb_core.convertor.audio_convertor import wav_to_ogg_opus_bytes
 from byoeb_core.models.whatsapp.requests import media_request as wa_media
+import asyncio
 
 logger = logging.getLogger(__name__)
+
+# Timeout for outbound channel (e.g. WhatsApp) send in onboarding
+ONBOARDING_SEND_REQUESTS_TIMEOUT_SECONDS = 30
 
 def get_language_code(language):
     return LANGUAGE_NAME_TO_CODE.get(language)
@@ -113,12 +118,6 @@ def create_language_selection_message(
         ),
         reply_context=make_reply_context(message, "create_language_selection_message"),
     )
-
-
-# Shown when user is in onboarding path but message is not onboarding-like (e.g. not "onboard asha").
-REGISTER_PROMPT_TEXT = (
-    "To register with ASHA Saheli, please send 'onboard asha' or a similar phrase in your language."
-)
 
 
 def create_register_prompt_message(message: ByoebMessageContext) -> ByoebMessageContext:
@@ -263,36 +262,49 @@ async def handle_unknown_user(
             user_lang = getattr(message.user, "user_language", None)
             is_onboarding_intent = utils.is_onboard(msg_text, user_lang)
             if not is_onboarding_intent:
-                logger.info("onboarding path but message not onboarding-like, sending register prompt: %s", msg_text[:80])
+                logger.info("onboarding path but message not onboarding-like, sending register prompt: %s", utils.mask_message_preview(msg_text))
+                # DEBUG: correlate with DB using message_id when investigating a specific case (no raw PII at INFO)
+                logger.debug(
+                    "register_prompt context: message_id=%s, phone=%s, msg_len=%d",
+                    message.message_context.message_id if message.message_context else None,
+                    utils.mask_phone(getattr(message.user, "phone_number_id", "")),
+                    len(msg_text),
+                )
+                try:
+                    AppInsightsLogHandler.getLogger("onboarding_guard").info(
+                        "register_prompt_sent: message not onboarding-like (possible transient)",
+                        extra={
+                            AppInsightsLogHandler.DETAILS: {
+                                "reason": "register_prompt_not_onboarding_like",
+                                "message_id": message.message_context.message_id if message.message_context else None,
+                                "phone_number_id": utils.mask_phone(getattr(message.user, "phone_number_id", "")),
+                                "message_preview": utils.mask_message_preview(msg_text),
+                            }
+                        },
+                    )
+                except Exception as e:
+                    logger.warning("[onboarding_guard] telemetry failed: %s", e)
+                byoeb_message = create_register_prompt_message(message)
+                requests = channel_service.prepare_requests(byoeb_message)
+                await asyncio.wait_for(channel_service.send_requests(requests), timeout=ONBOARDING_SEND_REQUESTS_TIMEOUT_SECONDS)
+                continue
+            logger.info("onboarding message: %s", message)
+            try:
                 AppInsightsLogHandler.getLogger("onboarding_guard").info(
-                    "register_prompt_sent: message not onboarding-like (possible transient)",
+                    "language_selection_sent",
                     extra={
                         AppInsightsLogHandler.DETAILS: {
-                            "reason": "register_prompt_not_onboarding_like",
+                            "reason": "language_selection_sent",
                             "message_id": message.message_context.message_id if message.message_context else None,
-                            "phone_number_id": getattr(message.user, "phone_number_id", None),
-                            "message_preview": (msg_text[:80] + "…") if len(msg_text) > 80 else msg_text,
+                            "phone_number_id": utils.mask_phone(getattr(message.user, "phone_number_id", "")),
                         }
                     },
                 )
-                byoeb_message = create_register_prompt_message(message)
-                requests = channel_service.prepare_requests(byoeb_message)
-                await channel_service.send_requests(requests)
-                continue
-            logger.info("onboarding message: %s", message)
-            AppInsightsLogHandler.getLogger("onboarding_guard").info(
-                "language_selection_sent",
-                extra={
-                    AppInsightsLogHandler.DETAILS: {
-                        "reason": "language_selection_sent",
-                        "message_id": message.message_context.message_id if message.message_context else None,
-                        "phone_number_id": getattr(message.user, "phone_number_id", None),
-                    }
-                },
-            )
+            except Exception as e:
+                logger.warning("[onboarding_guard] telemetry failed: %s", e)
             byoeb_message = create_language_selection_message(message)
             requests = channel_service.prepare_requests(byoeb_message)
-            responses, message_ids = await channel_service.send_requests(requests)
+            responses, message_ids = await asyncio.wait_for(channel_service.send_requests(requests), timeout=ONBOARDING_SEND_REQUESTS_TIMEOUT_SECONDS)
             convs = channel_service.create_conv(byoeb_message, responses)
             new_user = create_user(phone_number_id=message.user.phone_number_id)
             logger.info("Created new user %s", new_user.user_id)
@@ -320,7 +332,7 @@ async def handle_unknown_user(
             }
             byoeb_message = create_user_selection_message(message, code)
             requests = channel_service.prepare_requests(byoeb_message)
-            responses, message_ids = await channel_service.send_requests(requests)
+            responses, message_ids = await asyncio.wait_for(channel_service.send_requests(requests), timeout=ONBOARDING_SEND_REQUESTS_TIMEOUT_SECONDS)
             convs = channel_service.create_conv(byoeb_message, responses)
             message_db_queries = {
                 chat_const.CREATE: message_db_service.message_create_queries(convs)
@@ -341,7 +353,7 @@ async def handle_unknown_user(
             }
             byoeb_message = create_consent_message(message, user_type)
             requests = channel_service.prepare_requests(byoeb_message)
-            responses, message_ids = await channel_service.send_requests(requests)
+            responses, message_ids = await asyncio.wait_for(channel_service.send_requests(requests), timeout=ONBOARDING_SEND_REQUESTS_TIMEOUT_SECONDS)
             convs = channel_service.create_conv(byoeb_message, responses)
             message_db_queries = {
                 chat_const.CREATE: message_db_service.message_create_queries(convs)
@@ -367,7 +379,7 @@ async def handle_unknown_user(
             byoeb_message_no_reply.reply_context = None
             # print(f"Initial message: {byoeb_message}")
             requests = channel_service.prepare_requests(byoeb_message_no_reply)
-            responses, message_ids = await channel_service.send_requests(requests)
+            responses, message_ids = await asyncio.wait_for(channel_service.send_requests(requests), timeout=ONBOARDING_SEND_REQUESTS_TIMEOUT_SECONDS)
             await user_db_service.execute_queries(user_db_queries)
         else:
             # Guard: only send language selection when message is onboarding-like (e.g. "onboard asha")
@@ -375,26 +387,35 @@ async def handle_unknown_user(
             user_lang = getattr(message.user, "user_language", None)
             is_onboarding_intent = utils.is_onboard(msg_text, user_lang)
             if not is_onboarding_intent:
-                logger.info("onboarding fallback but message not onboarding-like, sending register prompt: %s", msg_text[:80])
-                AppInsightsLogHandler.getLogger("onboarding_guard").info(
-                    "register_prompt_sent: fallback path, message not onboarding-like (possible transient)",
-                    extra={
-                        AppInsightsLogHandler.DETAILS: {
-                            "reason": "register_prompt_fallback_not_onboarding_like",
-                            "message_id": message.message_context.message_id if message.message_context else None,
-                            "phone_number_id": getattr(message.user, "phone_number_id", None),
-                            "message_preview": (msg_text[:80] + "…") if len(msg_text) > 80 else msg_text,
-                        }
-                    },
+                logger.info("onboarding fallback but message not onboarding-like, sending register prompt: %s", utils.mask_message_preview(msg_text))
+                logger.debug(
+                    "register_prompt context: message_id=%s, phone=%s, msg_len=%d",
+                    message.message_context.message_id if message.message_context else None,
+                    utils.mask_phone(getattr(message.user, "phone_number_id", "")),
+                    len(msg_text),
                 )
+                try:
+                    AppInsightsLogHandler.getLogger("onboarding_guard").info(
+                        "register_prompt_sent: fallback path, message not onboarding-like (possible transient)",
+                        extra={
+                            AppInsightsLogHandler.DETAILS: {
+                                "reason": "register_prompt_fallback_not_onboarding_like",
+                                "message_id": message.message_context.message_id if message.message_context else None,
+                                "phone_number_id": utils.mask_phone(getattr(message.user, "phone_number_id", "")),
+                                "message_preview": utils.mask_message_preview(msg_text),
+                            }
+                        },
+                    )
+                except Exception as e:
+                    logger.warning("[onboarding_guard] telemetry failed: %s", e)
                 byoeb_message = create_register_prompt_message(message)
                 requests = channel_service.prepare_requests(byoeb_message)
-                await channel_service.send_requests(requests)
+                await asyncio.wait_for(channel_service.send_requests(requests), timeout=ONBOARDING_SEND_REQUESTS_TIMEOUT_SECONDS)
                 continue
             logger.info("onboarding message fallback: %s", message)
             byoeb_message = create_language_selection_message(message)
             requests = channel_service.prepare_requests(byoeb_message)
-            responses, message_ids = await channel_service.send_requests(requests)
+            responses, message_ids = await asyncio.wait_for(channel_service.send_requests(requests), timeout=ONBOARDING_SEND_REQUESTS_TIMEOUT_SECONDS)
             convs = channel_service.create_conv(byoeb_message, responses)
             new_user = create_user(phone_number_id=message.user.phone_number_id)
             message_db_queries = {
