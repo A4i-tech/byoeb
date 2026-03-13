@@ -103,24 +103,44 @@ THANK_YOU_DICT = {
     # Note: OTHERS user type uses ASHA messages (fallback handled in code)
 }
 
+# Phrases that indicate user wants to register (onboarding intent). Used by is_onboard() and the
+# language-selection guard. Includes ASHA, ANM, and Others user-type variants.
 ONBOARD_WELCOME_MESSAGE_DICT = {
     LanguageCode.HINDI.value: [
         "में एक आशा हूँ और मुझे आशा सहेली बोट से जुड़ना है",
         "मैं आशा हूँ और मुझे आशा सहेली बोट से जुड़ना है",
         "आशा सहेली बोट से जुड़ना है",
         "आशा सहेली से जुड़ना है",
-        "onboard asha",  # Also accept English "onboard asha" for Hindi users
-        "onboard-asha"
+        "onboard asha",
+        "onboard-asha",
+        "onboard anm",
+        "onboard-anm",
+        "onboard others",
+        "onboard-others",
     ],
-    LanguageCode.ENGLISH.value: ["onboard asha", "onboard-asha", "ONBOARD ASHA"],
+    LanguageCode.ENGLISH.value: [
+        "onboard asha",
+        "onboard-asha",
+        "ONBOARD ASHA",
+        "onboard anm",
+        "onboard-anm",
+        "ONBOARD ANM",
+        "onboard others",
+        "onboard-others",
+        "ONBOARD OTHERS",
+    ],
     LanguageCode.MARATHI.value: [
         "मी आशा आहे आणि मला आशा सहेली बॉटमध्ये सामील व्हायचे आहे",
         "मी आशा आहे आणि मला आशा सहेली बॉटमध्ये सामील व्हायचे आहे",
         "आशा सहेली बॉटमध्ये सामील व्हायचे आहे",
         "आशा सहेली बॉटमध्ये सामील",
         "आशा सहेली सामील व्हायचे आहे",
-        "onboard asha",  # Also accept English for Marathi users
-        "onboard-asha"
+        "onboard asha",
+        "onboard-asha",
+        "onboard anm",
+        "onboard-anm",
+        "onboard others",
+        "onboard-others",
     ],
     LanguageCode.TELUGU.value: [
         "నేను ఆశాను మరియు ఆశా సహేలి బాట్‌లో చేరాలనుకుంటున్నాను",
@@ -128,8 +148,12 @@ ONBOARD_WELCOME_MESSAGE_DICT = {
         "ఆశా సహేలి బాట్‌లో చేరాలనుకుంటున్నాను",
         "ఆశా సహేలి బాట్‌లో చేరాలి",
         "ఆశా సహేలి చేరాలనుకుంటున్నాను",
-        "onboard asha",  # Also accept English for Telugu users
-        "onboard-asha"
+        "onboard asha",
+        "onboard-asha",
+        "onboard anm",
+        "onboard-anm",
+        "onboard others",
+        "onboard-others",
     ],
 }
 

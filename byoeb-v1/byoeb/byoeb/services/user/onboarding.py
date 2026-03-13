@@ -16,6 +16,8 @@ from byoeb.constants.onboarding_text import (
     NO_SET,
     USER_TYPE_OPTIONS,
 )
+from byoeb.utils import utils
+from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from byoeb.factory import ChannelClientFactory
 from byoeb_core.models.byoeb.message_context import (
     ByoebMessageContext,
@@ -111,6 +113,28 @@ def create_language_selection_message(
         ),
         reply_context=make_reply_context(message, "create_language_selection_message"),
     )
+
+
+# Shown when user is in onboarding path but message is not onboarding-like (e.g. not "onboard asha").
+REGISTER_PROMPT_TEXT = (
+    "To register with ASHA Saheli, please send 'onboard asha' or a similar phrase in your language."
+)
+
+
+def create_register_prompt_message(message: ByoebMessageContext) -> ByoebMessageContext:
+    """Simple text reply asking user to send onboarding phrase to start registration."""
+    return ByoebMessageContext(
+        channel_type=message.channel_type,
+        message_category=user_const.LANGUAGE_SELECTION,
+        user=message.user,
+        message_context=MessageContext(
+            message_type=MessageTypes.REGULAR_TEXT.value,
+            message_source_text=REGISTER_PROMPT_TEXT,
+            additional_info={},
+        ),
+        reply_context=make_reply_context(message, "create_register_prompt_message"),
+    )
+
 
 def map_user_type(user_type: Optional[str]) -> Optional[str]:
     if user_type is None:
@@ -233,7 +257,39 @@ async def handle_unknown_user(
     for message in messages:
         logger.debug("message.reply_context=%s", message.reply_context)
         if message.reply_context is None or message.reply_context.reply_id is None:
+            # Guard: only send language selection when message is onboarding-like (e.g. "onboard asha")
+            # and user is not found or language not set. Otherwise prompt to register.
+            msg_text = (message.message_context and message.message_context.message_source_text) or ""
+            user_lang = getattr(message.user, "user_language", None)
+            is_onboarding_intent = utils.is_onboard(msg_text, user_lang)
+            if not is_onboarding_intent:
+                logger.info("onboarding path but message not onboarding-like, sending register prompt: %s", msg_text[:80])
+                AppInsightsLogHandler.getLogger("onboarding_guard").info(
+                    "register_prompt_sent: message not onboarding-like (possible transient)",
+                    extra={
+                        AppInsightsLogHandler.DETAILS: {
+                            "reason": "register_prompt_not_onboarding_like",
+                            "message_id": message.message_context.message_id if message.message_context else None,
+                            "phone_number_id": getattr(message.user, "phone_number_id", None),
+                            "message_preview": (msg_text[:80] + "…") if len(msg_text) > 80 else msg_text,
+                        }
+                    },
+                )
+                byoeb_message = create_register_prompt_message(message)
+                requests = channel_service.prepare_requests(byoeb_message)
+                await channel_service.send_requests(requests)
+                continue
             logger.info("onboarding message: %s", message)
+            AppInsightsLogHandler.getLogger("onboarding_guard").info(
+                "language_selection_sent",
+                extra={
+                    AppInsightsLogHandler.DETAILS: {
+                        "reason": "language_selection_sent",
+                        "message_id": message.message_context.message_id if message.message_context else None,
+                        "phone_number_id": getattr(message.user, "phone_number_id", None),
+                    }
+                },
+            )
             byoeb_message = create_language_selection_message(message)
             requests = channel_service.prepare_requests(byoeb_message)
             responses, message_ids = await channel_service.send_requests(requests)
@@ -314,6 +370,27 @@ async def handle_unknown_user(
             responses, message_ids = await channel_service.send_requests(requests)
             await user_db_service.execute_queries(user_db_queries)
         else:
+            # Guard: only send language selection when message is onboarding-like (e.g. "onboard asha")
+            msg_text = (message.message_context and message.message_context.message_source_text) or ""
+            user_lang = getattr(message.user, "user_language", None)
+            is_onboarding_intent = utils.is_onboard(msg_text, user_lang)
+            if not is_onboarding_intent:
+                logger.info("onboarding fallback but message not onboarding-like, sending register prompt: %s", msg_text[:80])
+                AppInsightsLogHandler.getLogger("onboarding_guard").info(
+                    "register_prompt_sent: fallback path, message not onboarding-like (possible transient)",
+                    extra={
+                        AppInsightsLogHandler.DETAILS: {
+                            "reason": "register_prompt_fallback_not_onboarding_like",
+                            "message_id": message.message_context.message_id if message.message_context else None,
+                            "phone_number_id": getattr(message.user, "phone_number_id", None),
+                            "message_preview": (msg_text[:80] + "…") if len(msg_text) > 80 else msg_text,
+                        }
+                    },
+                )
+                byoeb_message = create_register_prompt_message(message)
+                requests = channel_service.prepare_requests(byoeb_message)
+                await channel_service.send_requests(requests)
+                continue
             logger.info("onboarding message fallback: %s", message)
             byoeb_message = create_language_selection_message(message)
             requests = channel_service.prepare_requests(byoeb_message)
