@@ -29,6 +29,7 @@ class DykRepository(BaseRepository, ABC):
         """Return entries that have content for the requested language."""
         ...
 
+    @abstractmethod
     async def find_available_languages(self) -> List[LanguageCode]:
         """Return all languages for which DYKs exist."""
         ...
