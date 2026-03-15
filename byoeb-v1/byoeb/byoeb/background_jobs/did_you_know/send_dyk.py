@@ -147,7 +147,6 @@ def message_simple(user: User, record: DykRecord, entry: DykLanguageEntry, ts: d
 
 
 def message_with_related_questions(user: User, record: DykRecord, entry: DykLanguageEntry, ts: datetime) -> ByoebMessageContext:
-    message = LANGUAGE_TEMPLATES[record.dyk_lang].replace("{message}", entry.fact)
     button_titles = sample(entry.related_questions, k=min(len(entry.related_questions), 3)) if entry.related_questions else []
     additional_info = {constants.BUTTON_TITLES: button_titles} if button_titles else None
     message_type = MessageTypes.INTERACTIVE_BUTTON.value if button_titles else MessageTypes.REGULAR_TEXT.value
@@ -158,8 +157,8 @@ def message_with_related_questions(user: User, record: DykRecord, entry: DykLang
         message_context=MessageContext(
             message_id=f"did-you-know-{record.id}",
             message_type=message_type,
-            message_source_text=message,
-            message_english_text=message,
+            message_source_text=LANGUAGE_TEMPLATES[record.dyk_lang].replace("{message}", entry.fact),
+            message_english_text=LANGUAGE_TEMPLATES[LanguageCode.ENGLISH].replace("{message}", entry.fact),
             media_info=None,
             additional_info=additional_info,
         ),
