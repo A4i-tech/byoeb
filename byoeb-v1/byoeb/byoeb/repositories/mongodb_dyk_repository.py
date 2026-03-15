@@ -102,11 +102,10 @@ class MongoDykRepository(DykRepository, MongoBaseRepository):
 
         lang_values = list(language_to_ids.keys())
         tasks: list[Awaitable[DeleteResult]] = []
-        if lang_values:
-            tasks.append(self._queue_collection.delete_many({
-                "status": "pending",
-                "dyk_lang": {"$nin": lang_values}
-            }))
+        tasks.append(self._queue_collection.delete_many({
+            "status": "pending",
+            "dyk_lang": {"$nin": lang_values}
+        }))
         for lang, ids in language_to_ids.items():
             tasks.append(self._queue_collection.delete_many({
                 "status": "pending",
