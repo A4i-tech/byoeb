@@ -10,7 +10,7 @@ from pymongo.errors import BulkWriteError
 from byoeb_core.models.byoeb.user import User
 from byoeb.factory import MongoDBFactory
 from byoeb.services.databases.mongo_db.base import BaseMongoDBService
-from byoeb.utils.utils import ensure_utc_dates
+from byoeb.services.user.utils import ensure_utc_dates
 
 
 class UserMongoDBService(BaseMongoDBService):
@@ -94,7 +94,7 @@ class UserMongoDBService(BaseMongoDBService):
         """Get the user's last activity timestamp with caching."""
         cached_data = await self.cache.get(user_id)
         if cached_data is not None and isinstance(cached_data, dict):
-            user = User(**ensure_utc_dates(cached_data))
+            user = User(**cached_data)
             activity_timestamp = user.activity_timestamp
             if activity_timestamp is None:
                 activity_timestamp = user.created_timestamp 
@@ -107,8 +107,7 @@ class UserMongoDBService(BaseMongoDBService):
         if user_obj is None:
             return None
 
-        user_data = ensure_utc_dates(user_obj["User"])
-        user = User(**user_data)
+        user = User(**user_obj["User"])
         activity_timestamp = user.activity_timestamp
         if activity_timestamp is None:
             activity_timestamp = user.created_timestamp
@@ -124,8 +123,7 @@ class UserMongoDBService(BaseMongoDBService):
         result = []
         for user_obj in users_obj:
             try:
-                user_data = ensure_utc_dates(user_obj["User"])
-                result.append(User(**user_data))
+                result.append(User(**user_obj["User"]))
             except Exception:
                 continue
         return result
@@ -139,7 +137,7 @@ class UserMongoDBService(BaseMongoDBService):
         result: List[User] = []
         async for user_obj in users_obj:
             try:
-                user_data = _ensure_utc_dates(user_obj["User"])
+                user_data = ensure_utc_dates(user_obj["User"])
                 result.append(User(**user_data))
             except Exception as e:
                 # Match get_users resilience; log for observability without flooding on bad docs
