@@ -98,24 +98,14 @@ class MessageConsmerService:
         user_ids = list(set([hashlib.md5(number.encode()).hexdigest() for number in phone_numbers]))
         self._logger.debug("[__create_conversations] phone_numbers=%s user_ids_count=%s", phone_numbers, len(user_ids))
 
-        byoeb_users = await self._user_db_service.get_users(user_ids)
+        try:
+            byoeb_users = await self._user_db_service.get_users(user_ids)
+        except Exception as e:
+            self._logger.exception(
+                "[__create_conversations] user lookup failed (database/network error): %s", e
+            )
+            raise
         self._logger.debug("[__create_conversations] fetched_users=%s", len(byoeb_users))
-
-        # Telemetry: detect possible DB/network transient when fewer users returned than requested
-        if len(byoeb_users) < len(user_ids):
-            try:
-                AppInsightsLogHandler.getLogger("onboarding_routing").warning(
-                    "user_lookup_returned_fewer_than_requested (possible transient)",
-                    extra={
-                        AppInsightsLogHandler.DETAILS: {
-                            "requested_count": len(user_ids),
-                            "fetched_count": len(byoeb_users),
-                            "missing_count": len(user_ids) - len(byoeb_users),
-                        }
-                    },
-                )
-            except Exception as e:
-                self._logger.warning("[onboarding_routing] telemetry failed: %s", e)
 
         for m in messages:
             user = self.__get_user(byoeb_users, m.user.phone_number_id)
