@@ -855,6 +855,7 @@ class ByoebUserGenerateResponse(Handler):
             cache_hit = False
 
             if embedding_fn and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
+                start_time = datetime.now(timezone.utc).timestamp()
                 embedding = await embedding_fn.aget_text_embedding(message_english)
                 end_time = datetime.now(timezone.utc).timestamp()
                 logger.debug("Generated cache embeddings in %ss", end_time - start_time)
@@ -894,7 +895,6 @@ class ByoebUserGenerateResponse(Handler):
                         if not utils.is_idk(response_en2):
                             skip_cache = False
                             response_en, response_source, tokens = response_en2, response_source2, tokens2
-                            expansion_success = True
                             break
 
                 if utils.is_idk(response_en) and (FeatureFlag.QUERY_DISAMBIGUATION in feature_flags or message.user.test_user):
