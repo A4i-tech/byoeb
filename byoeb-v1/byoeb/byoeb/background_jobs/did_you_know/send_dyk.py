@@ -15,7 +15,6 @@ from byoeb.constants.user_enums import LanguageCode
 from byoeb.repositories.repository_factory import get_repository_factory
 from byoeb.services.channel.base import BaseChannelService
 from byoeb.services.chat import constants
-from byoeb.services.user.utils import ensure_utc_dates
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext, MessageContext, MessageTypes
 from byoeb_core.models.byoeb.user import User
 from byoeb_integrations.channel.whatsapp.meta.async_whatsapp_client import StatusCode

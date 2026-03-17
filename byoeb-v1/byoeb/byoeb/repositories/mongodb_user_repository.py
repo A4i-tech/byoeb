@@ -9,15 +9,12 @@ from byoeb.services.user.utils import ensure_utc_dates
 
 class MongoUserRepository(UserRepository, MongoBaseRepository):
 
-    def _with_utc_user(self, docs: AsyncIterator[Dict[str, Any]]) -> AsyncIterator[Dict[str, Any]]:
-        async def _gen() -> AsyncIterator[Dict[str, Any]]:
-            async for doc in docs:
-                user_section = doc.get("User")
-                if user_section is not None:
-                    doc = {**doc, "User": ensure_utc_dates(user_section)}
-                yield doc
-
-        return _gen()
+    async def _with_utc_user(self, docs: AsyncIterator[Dict[str, Any]]) -> AsyncIterator[Dict[str, Any]]:
+        async for doc in docs:
+            user_section = doc.get("User")
+            if user_section is not None:
+                doc = {**doc, "User": ensure_utc_dates(user_section)}
+            yield doc
 
     async def find_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         doc = await self.find_by_id(user_id)
