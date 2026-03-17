@@ -6,7 +6,7 @@ import logging
 import byoeb.services.chat.constants as constants
 import byoeb.utils.utils as utils
 from datetime import datetime, timezone
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from typing import Optional, List, Dict
 from opentelemetry import context as otel_context
 from opentelemetry.trace import Status, StatusCode
@@ -262,16 +262,6 @@ class MessageConsmerService:
             self._logger.exception("[__process_byoebexpert_conversation] ✖ error: %s", e)
             return None, byoeb_message_copy, e
 
-    async def _run_in_context(self, ctx: Optional[otel_context.Context], coro_fn):
-        """Run coroutine (from callable coro_fn) in the given OTEL context if present."""
-        if ctx is not None:
-            token = otel_context.attach(ctx)
-            try:
-                return await coro_fn()
-            finally:
-                otel_context.detach(token)
-        return await coro_fn()
-
     async def consume(
         self,
         messages: list
@@ -283,13 +273,10 @@ class MessageConsmerService:
         for raw in messages:
             try:
                 byoeb_message, extracted_ctx = parse_queue_payload_and_extract_context(raw)
-            except (json.JSONDecodeError, Exception) as e:
-                self._logger.warning("[consume] Failed to parse queue payload: %s", e)
-                try:
-                    byoeb_message = ByoebMessageContext.model_validate(json.loads(raw))
-                    extracted_ctx = None
-                except Exception:
-                    raise
+            except ValidationError as e:
+                self._logger.warning("[consume] payload validation failed, retrying raw: %s", e)
+                byoeb_message = ByoebMessageContext.model_validate(json.loads(raw))
+                extracted_ctx = None
             byoeb_messages.append(byoeb_message)
             if extracted_ctx is not None:
                 trace_context_by_message_id[byoeb_message.message_context.message_id] = extracted_ctx
@@ -323,17 +310,22 @@ class MessageConsmerService:
             msg_id = conv.message_context.message_id
             user_id = getattr(conv.user, "user_id", None) or ""
             ctx = trace_context_by_message_id.get(msg_id)
-            with self._tracer.start_as_current_span(SPAN_CONSUME_MESSAGE) as span:
-                span.set_attribute("message_id", msg_id)
-                span.set_attribute("user_id", str(user_id))
-                conv.user.activity_timestamp = datetime.now(timezone.utc)
-                if conv.user.user_type in self._regular_user_type:
-                    self._logger.debug("[consume] queue user_flow msg_id=%s", msg_id)
-                    return await self._run_in_context(ctx, lambda: self.__process_byoebuser_conversation(conv))
-                elif self.__is_expert_user_type(conv.user.user_type):
-                    self._logger.debug("[consume] queue expert_flow msg_id=%s", msg_id)
-                    return await self._run_in_context(ctx, lambda: self.__process_byoebexpert_conversation(conv))
-                return None, None, None
+            token = otel_context.attach(ctx) if ctx is not None else None
+            try:
+                with self._tracer.start_as_current_span(SPAN_CONSUME_MESSAGE) as span:
+                    span.set_attribute("message_id", msg_id)
+                    span.set_attribute("user_id", str(user_id))
+                    conv.user.activity_timestamp = datetime.now(timezone.utc)
+                    if conv.user.user_type in self._regular_user_type:
+                        self._logger.debug("[consume] queue user_flow msg_id=%s", msg_id)
+                        return await self.__process_byoebuser_conversation(conv)
+                    elif self.__is_expert_user_type(conv.user.user_type):
+                        self._logger.debug("[consume] queue expert_flow msg_id=%s", msg_id)
+                        return await self.__process_byoebexpert_conversation(conv)
+                    return None, None, None
+            finally:
+                if token is not None:
+                    otel_context.detach(token)
 
         tasks = [process_one(conv) for conv in conversations]
         results = await asyncio.gather(*tasks) if tasks else []

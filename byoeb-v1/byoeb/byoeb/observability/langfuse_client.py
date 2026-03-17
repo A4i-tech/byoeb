@@ -8,6 +8,7 @@ warning and operates as a no-op polyfill client automatically.
 
 import logging
 import os
+import threading
 from contextlib import contextmanager
 from typing import Any, Dict
 
@@ -16,6 +17,7 @@ from byoeb.observability.tracing import get_current_otel_trace_context
 from langfuse import Langfuse
 
 _client: Langfuse | None = None
+_client_lock = threading.Lock()
 logger = logging.getLogger(__name__)
 
 
@@ -28,10 +30,12 @@ def get_langfuse() -> Langfuse:
     """
     global _client
     if _client is None:
-        app_env = os.getenv("APP_ENV", "LOCAL")
-        # Map our APP_ENV to Langfuse environment name (lowercase for consistency)
-        lf_env = app_env.lower()
-        _client = Langfuse(environment=lf_env)
+        with _client_lock:
+            if _client is None:
+                app_env = os.getenv("APP_ENV", "LOCAL")
+                # Map our APP_ENV to Langfuse environment name (lowercase for consistency)
+                lf_env = app_env.lower()
+                _client = Langfuse(environment=lf_env)
     return _client
 
 
