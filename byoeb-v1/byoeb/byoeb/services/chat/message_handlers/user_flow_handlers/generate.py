@@ -602,17 +602,20 @@ class ByoebUserGenerateResponse(Handler):
             return extracted_data["response_en"], extracted_data["response_src"]
 
         vector_search_queries = vector_search_queries or [(query, AzureVectorSearchType.HYBRID.value, 3)]
+        
         retrieved_chunks: dict[str, Chunk] = {}
         for chunks in await asyncio.gather(*(self.__aretrieve_chunks(q or query, k=k, search_type=t) for q, t, k in vector_search_queries)):
             for chunk in chunks:
                 retrieved_chunks[chunk.chunk_id] = chunk
 
-        retrieved_chunks_list = list(self.filter_retrieved_chunks(retrieved_chunks.values(), thresholds=bot_config["retrieval"]["similarity_thresholds"]))
+        # Sort chunks deterministically by chunk_id for consistent ordering (deterministic RAG)
+        sorted_chunks = sorted(retrieved_chunks.values(), key=lambda c: c.chunk_id)
+        retrieved_chunks_list = list(self.filter_retrieved_chunks(sorted_chunks, thresholds=bot_config["retrieval"]["similarity_thresholds"]))
         if not retrieved_chunks_list:
             return constants.IDK, constants.IDK, {}, list(retrieved_chunks.values())
 
-        update_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if "KB Updated" in chunk.metadata.source)
-        raw_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if "KB Updated" not in chunk.metadata.source)
+        update_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if chunk.metadata and "KB Updated" in chunk.metadata.source)
+        raw_kb_list = self._chunks_to_kb_topics(chunk for chunk in retrieved_chunks_list if not chunk.metadata or "KB Updated" not in chunk.metadata.source)
 
         system_prompt = self._get_system_prompt(user_language)
         template_user_prompt = bot_config["llm_response"]["answer_prompts"]["user_prompt"]
@@ -760,6 +763,7 @@ class ByoebUserGenerateResponse(Handler):
     ) -> List[ByoebMessageContext]:
         byoeb_messages = []
         message: ByoebMessageContext = messages[0].model_copy(deep=True)
+        
         read_reciept_message = self.__create_read_reciept_message(message)
         if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
             related_questions = message.reply_context.additional_info.get(constants.RELATED_QUESTIONS)
@@ -846,6 +850,7 @@ class ByoebUserGenerateResponse(Handler):
             
             user_language = message.user.user_language
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
+            
             default_message_category = None
             cache_hit = False
 
@@ -863,7 +868,7 @@ class ByoebUserGenerateResponse(Handler):
                 embedding = None
                 cache_result = None, None, None
 
-            cache_val = cache_result[2]
+            cache_val = cache_result[2] if cache_result else None
             if cache_val and "answer" in cache_val and user_language in cache_val["answer"]:
                 response_en, response_source, related_questions, tokens = cache_val["answer"][user_language]
                 cache_hit = True
@@ -871,7 +876,9 @@ class ByoebUserGenerateResponse(Handler):
                 start_time = datetime.now(timezone.utc).timestamp()
                 skip_cache = True
                 retrieved_chunks_related_questions = asyncio.create_task(self._retrieve_top_k_chunks_for_related_questions(message_english, k=10))
+                
                 response_en, response_source, tokens, retrieved_chunks = await self.agenerate_answer(user_language, message_english, query_type)
+                
                 if not utils.is_idk(response_en):  # got answer on first try :)
                     skip_cache = False
                 else:
@@ -919,6 +926,7 @@ class ByoebUserGenerateResponse(Handler):
                     "time_taken": end_time - start_time,
                     **tokens
                 }})
+            
             byoeb_user_message = await self.__create_user_message(
                 message=message,
                 response_en=response_en,
