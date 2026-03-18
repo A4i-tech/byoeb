@@ -102,7 +102,7 @@ class UserMongoDBService(BaseMongoDBService):
 
         repository_factory = await self._get_repository_factory()
         user_repository = await repository_factory.get_user_repository()
-        user_obj = await user_repository.find_by_id(user_id)
+        user_obj = await user_repository.find_user_by_id(user_id)
 
         if user_obj is None:
             return None
@@ -119,7 +119,7 @@ class UserMongoDBService(BaseMongoDBService):
         """Fetch multiple users from the database using repository."""
         repository_factory = await self._get_repository_factory()
         user_repository = await repository_factory.get_user_repository()
-        users_obj = [doc async for doc in user_repository.find_all({"_id": {"$in": user_ids}})]
+        users_obj = [doc async for doc in user_repository.find_users_by_ids(user_ids)]
         result = []
         for user_obj in users_obj:
             try:

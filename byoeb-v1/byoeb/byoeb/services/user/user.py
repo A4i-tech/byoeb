@@ -217,9 +217,8 @@ class UserService(BaseUserService):
         self,
         user_ids: List[str],
     ) -> List[User]:
-        query = {"_id": {"$in": user_ids}}
         users_data: List[User] = []
-        async for document in self.__user_repository.find_all(query):
+        async for document in self.__user_repository.find_users_by_ids(user_ids):
             users_data.append(User(**document["User"]))
         return users_data
     
