@@ -187,7 +187,6 @@ class ByoebUserProcess(Handler):
             query_type = None
             query_en = None
             query_en_addcontext = None
-            conv_history = []
 
             if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
                 await self.annotate_audio_transcription(message)
@@ -210,7 +209,7 @@ class ByoebUserProcess(Handler):
                     rw_span.set_attribute("message_id", msg_id)
                     start_time = datetime.now(timezone.utc)
                     logger.info("[process] Processing normal message (not onboarding): '%s...'", (message.message_context.message_source_text or "")[:50])
-                    query_en, query_en_addcontext, query_type, tokens, conv_history = await self.llm_translation_and_query_rewritting(message)
+                    query_en, query_en_addcontext, query_type, tokens = await self.llm_translation_and_query_rewritting(message)
                     end_time = datetime.now(timezone.utc)
                     duration_seconds = (end_time - start_time).total_seconds()
                     rw_span.set_attribute("duration_ms", int(duration_seconds * 1000))
@@ -221,6 +220,7 @@ class ByoebUserProcess(Handler):
                     rw_span.set_attribute("llm.completion_tokens", ct)
                     if "total_tokens" in tokens and tokens["total_tokens"] is not None:
                         rw_span.set_attribute("llm.total_tokens", tokens["total_tokens"])
+                    rw_span.set_status(Status(StatusCode.OK))
                     AppInsightsLogHandler.getLogger("query_rewriting").info(f"Rewrote queries for {message.message_context.message_id} in {duration_seconds} using {tokens.get('completion_tokens')} completion and {tokens.get('prompt_tokens')} prompt tokens", extra={AppInsightsLogHandler.DETAILS: {
                         "message_id": message.message_context.message_id,
                         "time_taken": duration_seconds,
@@ -228,20 +228,18 @@ class ByoebUserProcess(Handler):
                         "prompt_tokens": tokens.get("prompt_tokens")
                     }})
 
-        # Set message_english_text - use query_en_addcontext if available, otherwise fallback to source text
-        if query_en_addcontext is not None:
-            message.message_context.message_english_text = query_en_addcontext
-        else:
-            message.message_context.message_english_text = message.message_context.message_source_text
-
-        chunks = [conv_history[i:i + 2] for i in range(0, len(conv_history), 2)]
-        conv_history_legacy = [f"query{i}: {chunk[0]['content']} answer{i}: {chunk[1]['content']}" for i, chunk in enumerate(chunks, start=1)]
-        message.message_context.additional_info = {
-            constants.QUERY_TYPE: query_type,
-            constants.QUERY_EN: query_en,
-            constants.CONV_HISTORY: conv_history_legacy
-        }
-        return message
+            # Set message_english_text - use query_en_addcontext if available, otherwise fallback to source text
+            if query_en_addcontext is not None:
+                message.message_context.message_english_text = query_en_addcontext
+            else:
+                message.message_context.message_english_text = message.message_context.message_source_text
+            message.message_context.additional_info = {
+                constants.QUERY_TYPE: query_type,
+                constants.QUERY_EN: query_en,
+                constants.CONV_HISTORY: self._create_conversation_history(message.user.last_conversations)
+            }
+            span.set_status(Status(StatusCode.OK))
+            return message
 
     async def handle(
         self,
