@@ -256,7 +256,24 @@ def main() -> int:
         default=90,
         help="Timeout in seconds for each MCP call (default: 90)",
     )
+    # --use-mcp: accepted for CI compatibility; script always uses MCP mode.
+    parser.add_argument(
+        "--use-mcp",
+        action="store_true",
+        help="Use MCP asha_chat tool (default and only mode; flag accepted for CI compatibility)",
+    )
+    # --mcp-timeout: CI-friendly alias for --timeout.
+    parser.add_argument(
+        "--mcp-timeout",
+        type=int,
+        default=None,
+        dest="mcp_timeout",
+        help="Timeout in seconds for each MCP call; overrides --timeout when provided",
+    )
     args = parser.parse_args()
+    # Let --mcp-timeout override --timeout if explicitly supplied
+    if args.mcp_timeout is not None:
+        args.timeout = args.mcp_timeout
 
     base_url = args.base_url
     if not base_url.startswith("http"):
