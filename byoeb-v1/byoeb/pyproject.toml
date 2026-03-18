@@ -11,6 +11,7 @@ fastapi = "^0.115.5"
 aiocache = "0.12.3"
 byoeb-integrations = {path = "../byoeb-integrations", develop = true}
 azure-monitor-opentelemetry = "1.8.3"
+langfuse = "3.14.5"
 azure-monitor-events-extension = "0.1.0"
 croniter = "6.0.0"
 rapidfuzz = "3.13.0"

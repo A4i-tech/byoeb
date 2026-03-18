@@ -61,6 +61,12 @@ if env_config.env_appinsights_connection_string:
 else:
     _logger.warning("App Insights connection string not set. Skipping Azure logging.")
 
+# Register Langfuse OTLP span exporter so conversation-flow OTEL spans
+# (process_workflow, query_rewrite, etc.) appear in Langfuse.
+# Must run after configure_azure_monitor because that sets the global TracerProvider.
+from byoeb.observability.langfuse_otel_export import setup_langfuse_otel_export
+setup_langfuse_otel_export()
+
 import byoeb.utils.utils as byoeb_utils
 from byoeb.factory import (
     ChannelRegisterFactory,

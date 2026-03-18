@@ -1,4 +1,5 @@
 import asyncio
+import time
 import hashlib
 import logging
 from byoeb.constants.feature_enums import FeatureFlag
@@ -9,7 +10,6 @@ from byoeb.utils.embedding_cache import CacheResult, EmbeddingCache
 import byoeb.utils.utils as utils
 import random
 from rapidfuzz.fuzz import ratio
-from datetime import datetime, timezone
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 from typing import Iterable, List, Dict, Any, Optional
 from byoeb.chat_app.configuration.config import bot_config, app_config
@@ -29,6 +29,19 @@ from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.chat_app.configuration.dependency_setup import llm_client
 from byoeb.chat_app.configuration.config import env_ashabot_message_cache_capacity, feature_flags
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
+from opentelemetry.trace import Status, StatusCode
+
+from byoeb.observability.tracing import (
+    get_conversation_tracer,
+    SPAN_GENERATE_WORKFLOW,
+    SPAN_EMBEDDING,
+    SPAN_CACHE_QUERY,
+    SPAN_GENERATE_ANSWER,
+    SPAN_QUERY_EXPANSION,
+    SPAN_NEEDS_CLARIFICATION,
+    SPAN_RELATED_QUESTIONS,
+    SPAN_TEXT_TO_SPEECH,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +62,10 @@ class ByoebUserGenerateResponse(Handler):
     _small_talk = "small_talk"
     _incomprehensible = "incomprehensible"
     embedding_cache = EmbeddingCache("message-consumer", dim=768, capacity=embedding_cap)
+
+    def __init__(self, successor=None):
+        super().__init__(successor)
+        self._tracer = get_conversation_tracer()
 
     def get_retrieval_type(self, chunk: Chunk) -> str | None:
         return chunk.metadata.additional_metadata.get("retrieval_type") if chunk.metadata and chunk.metadata.additional_metadata else None
@@ -80,7 +97,7 @@ class ByoebUserGenerateResponse(Handler):
         The retrieved chunks include fields such as id, text, metadata, and related questions.
         """
         from byoeb.chat_app.configuration.dependency_setup import vector_store
-        start_time = datetime.now(timezone.utc).timestamp()
+        start_time = time.perf_counter()
         retrieved_chunks = await vector_store.retrieve_top_k_chunks(
             text,
             k,
@@ -88,7 +105,7 @@ class ByoebUserGenerateResponse(Handler):
             select=["id", "text", "metadata"],
             vector_field="text_vector_3072"
         )
-        end_time = datetime.now(timezone.utc).timestamp()
+        end_time = time.perf_counter()
         for chunk in retrieved_chunks:
             self.annotate_retrieval_type(chunk, search_type)
         utils.log_to_text_file(f"Retrieved chunks in {end_time - start_time} seconds")
@@ -111,7 +128,7 @@ class ByoebUserGenerateResponse(Handler):
             List[Chunk]: A list of retrieved chunks containing related questions.
         """
         from byoeb.chat_app.configuration.dependency_setup import vector_store
-        start_time = datetime.now(timezone.utc).timestamp()
+        start_time = time.perf_counter()
         retrieved_chunks = await vector_store.retrieve_top_k_chunks(
             text,
             k,
@@ -119,7 +136,7 @@ class ByoebUserGenerateResponse(Handler):
             select=["id", "related_questions"],
             vector_field="text_vector_3072"
         )
-        end_time = datetime.now(timezone.utc).timestamp()
+        end_time = time.perf_counter()
         utils.log_to_text_file(f"Retrieved chunks for related questions in {end_time - start_time} seconds")
         return retrieved_chunks
     
@@ -304,11 +321,21 @@ class ByoebUserGenerateResponse(Handler):
         user: User
     ):
         from byoeb.chat_app.configuration.dependency_setup import speech_translator
-        translated_audio_message = await speech_translator.atext_to_speech(
-            input_text=message_source_text,
-            source_language=user.user_language,
-            test_user=user.test_user
-        )
+        with self._tracer.start_as_current_span(SPAN_TEXT_TO_SPEECH) as span:
+            span.set_attribute("language", user.user_language or "")
+            span.set_attribute("input_length", len(message_source_text or ""))
+            try:
+                translated_audio_message = await speech_translator.atext_to_speech(
+                    input_text=message_source_text,
+                    source_language=user.user_language,
+                    test_user=user.test_user
+                )
+                span.set_attribute("output_bytes", len(translated_audio_message) if translated_audio_message else 0)
+                span.set_status(Status(StatusCode.OK))
+            except Exception as e:
+                span.record_exception(e)
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                raise
         return {
             constants.DATA: translated_audio_message,
             constants.MIME_TYPE: "audio/ogg",
@@ -348,7 +375,7 @@ class ByoebUserGenerateResponse(Handler):
         cache_hit: bool = False,
         default_message_category: Optional[MessageCategory] = None
     ) -> ByoebMessageContext:
-        start_time = datetime.now(timezone.utc).timestamp()
+        start_time = time.perf_counter()
         user_language = message.user.user_language
         
         # Use canned responses with user.language - no need to detect script/language
@@ -375,7 +402,7 @@ class ByoebUserGenerateResponse(Handler):
             send_related_questions = True
             logger.debug("[__create_user_message] Using provided response_source from canned templates for language %s: '%s...'", user_language, (message_source_text or "")[:100])
         logger.debug("Options: %s", options)
-        end_time = datetime.now(timezone.utc).timestamp()
+        end_time = time.perf_counter()
         utils.log_to_text_file(f"Translated response message in {end_time - start_time} seconds")
 
         cache_info = {"cache_score": cache_details[0]} if cache_details[0] is not None else {}
@@ -389,12 +416,12 @@ class ByoebUserGenerateResponse(Handler):
 
         media_info = cache.get("media_info", {}).get(user_language) if cache is not None else None
         if media_info is None:
-            start_time = datetime.now(timezone.utc).timestamp()
+            start_time = time.perf_counter()
             media_info = await self.__create_source_audio(
                 message_source_text=message_source_text,
                 user=message.user
             )
-            end_time = datetime.now(timezone.utc).timestamp()
+            end_time = time.perf_counter()
             AppInsightsLogHandler.getLogger("text_to_audio").info(f"Created audio response message in {end_time - start_time} seconds", extra={AppInsightsLogHandler.DETAILS: {
                 "message_id": message.message_context.message_id,
                 "time_taken": end_time - start_time
@@ -627,11 +654,31 @@ class ByoebUserGenerateResponse(Handler):
         logger.debug("[agenerate_answer] Generating answer for user_language: %s", user_language)
         logger.debug("[agenerate_answer] System prompt language section: %s...", bot_config['llm_response']['answer_prompts']['system_prompt']['response_translate'].get(user_language, 'NOT FOUND')[:200])
 
-        start_time = datetime.now(timezone.utc).timestamp()
-        llm_response, response_text = await llm_client.generate_response(augmented_prompts)
-        tokens = llm_client.get_response_tokens(llm_response)
+        from byoeb.observability.langfuse_client import observe_llm
+        start_time = time.perf_counter()
+        with observe_llm(
+            "agenerate_answer",
+            model="answer",
+            input_data={
+                "query": query,
+                "query_type": query_type,
+                "user_language": user_language,
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "augmented_prompts": augmented_prompts,
+            },
+        ) as lf_obs:
+            llm_response, response_text = await llm_client.generate_response(augmented_prompts)
+            tokens = llm_client.get_response_tokens(llm_response)
+            lf_obs.update(
+                output=response_text,
+                usage={
+                    "prompt_tokens": tokens.get("prompt_tokens"),
+                    "completion_tokens": tokens.get("completion_tokens"),
+                },
+            )
         response_en, response_source = parse_response_xml(response_text)
-        end_time = datetime.now(timezone.utc).timestamp()
+        end_time = time.perf_counter()
         utils.log_to_text_file(f"Generated answer tokens and response in {end_time - start_time} seconds: {str(tokens)} {response_text}")
         logger.debug("[agenerate_answer] Generated answer_en: %s...", response_en[:100] if response_en else 'None')
         logger.debug("[agenerate_answer] Generated answer_source (for language %s): %s...", user_language, response_source[:100] if response_source else 'None')
@@ -655,8 +702,29 @@ class ByoebUserGenerateResponse(Handler):
             .replace("<QUERY_TYPE>", query_type) \
             .replace("<KB_TOPICS>", kb_topics)
 
-        llm_response, response = await llm_client.generate_response(self.__augment(system_prompt, user_prompt))
-        response = response.strip()
+        from byoeb.observability.langfuse_client import observe_llm
+        with observe_llm(
+            "needs_clarification",
+            model="clarification",
+            input_data={
+                "query": query,
+                "query_type": query_type,
+                "user_language": user_language,
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "kb_topics": kb_topics,
+            },
+        ) as lf_obs:
+            llm_response, response = await llm_client.generate_response(self.__augment(system_prompt, user_prompt))
+            response = response.strip()
+            tokens = llm_client.get_response_tokens(llm_response)
+            lf_obs.update(
+                output=response,
+                usage={
+                    "prompt_tokens": tokens.get("prompt_tokens"),
+                    "completion_tokens": tokens.get("completion_tokens"),
+                },
+            )
         if not response:
             return None
 
@@ -668,7 +736,6 @@ class ByoebUserGenerateResponse(Handler):
         if not clarification_en or not clarification_src:
             return None
 
-        tokens = llm_client.get_response_tokens(llm_response)
         return clarification_en, clarification_src, tokens
 
     async def agenerate_expansion_queries(self, original_query: str, retrieved_chunks: list[Chunk]) -> list[str]:
@@ -694,10 +761,29 @@ class ByoebUserGenerateResponse(Handler):
         user_prompt = template_user_prompt.replace("<QUERY>", original_query).replace("<RETRIEVED_CHUNKS>", chunks_text)
         augmented_prompts = self.__augment(system_prompt, user_prompt)
 
-        start_time = datetime.now(timezone.utc).timestamp()
-        llm_response, response_text = await llm_client.generate_response(augmented_prompts)
-        tokens = llm_client.get_response_tokens(llm_response)
-        end_time = datetime.now(timezone.utc).timestamp()
+        from byoeb.observability.langfuse_client import observe_llm
+        start_time = time.perf_counter()
+        with observe_llm(
+            "agenerate_expansion_queries",
+            model="expansion",
+            input_data={
+                "original_query": original_query,
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "chunks_text": chunks_text,
+                "augmented_prompts": augmented_prompts,
+            },
+        ) as lf_obs:
+            llm_response, response_text = await llm_client.generate_response(augmented_prompts)
+            tokens = llm_client.get_response_tokens(llm_response)
+            lf_obs.update(
+                output=response_text,
+                usage={
+                    "prompt_tokens": tokens.get("prompt_tokens"),
+                    "completion_tokens": tokens.get("completion_tokens"),
+                },
+            )
+        end_time = time.perf_counter()
 
         utils.log_to_text_file(f"Generated expansion queries in {end_time - start_time} seconds: {str(tokens)}")
 
@@ -763,8 +849,9 @@ class ByoebUserGenerateResponse(Handler):
     ) -> List[ByoebMessageContext]:
         byoeb_messages = []
         message: ByoebMessageContext = messages[0].model_copy(deep=True)
-        
+        msg_id = getattr(message.message_context, "message_id", None) or ""
         read_reciept_message = self.__create_read_reciept_message(message)
+
         if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
             related_questions = message.reply_context.additional_info.get(constants.RELATED_QUESTIONS)
             byoeb_user_message = await self.__create_user_message(
@@ -855,15 +942,24 @@ class ByoebUserGenerateResponse(Handler):
             cache_hit = False
 
             if embedding_fn and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
-                start_time = datetime.now(timezone.utc).timestamp()
-                embedding = await embedding_fn.aget_text_embedding(message_english)
-                end_time = datetime.now(timezone.utc).timestamp()
-                logger.debug("Generated cache embeddings in %ss", end_time - start_time)
-                try:
-                    cache_result = self.embedding_cache.query(embedding, 0.9)
-                except Exception as e:
-                    logger.warning("Embedding cache query failed: %s. Continuing without cache.", e)
-                    cache_result = None, None, None
+                with self._tracer.start_as_current_span(SPAN_EMBEDDING) as emb_span:
+                    emb_span.set_attribute("message_id", msg_id)
+                    start_time = time.perf_counter()
+                    embedding = await embedding_fn.aget_text_embedding(message_english)
+                    end_time = time.perf_counter()
+                    emb_span.set_attribute("duration_ms", int((end_time - start_time) * 1000))
+                with self._tracer.start_as_current_span(SPAN_CACHE_QUERY) as cache_span:
+                    cache_span.set_attribute("message_id", msg_id)
+                    try:
+                        cache_result = self.embedding_cache.query(embedding, 0.9)
+                        hit = cache_result[2] is not None and bool(cache_result[2])
+                        cache_span.set_attribute("cache_hit", hit)
+                        if hit and cache_result[0] is not None:
+                            cache_span.set_attribute("score", float(cache_result[0]))
+                    except Exception as e:
+                        logger.warning("Embedding cache query failed: %s. Continuing without cache.", e)
+                        cache_result = None, None, None
+                        cache_span.set_attribute("cache_hit", False)
             else:
                 embedding = None
                 cache_result = None, None, None
@@ -873,38 +969,65 @@ class ByoebUserGenerateResponse(Handler):
                 response_en, response_source, related_questions, tokens = cache_val["answer"][user_language]
                 cache_hit = True
             else:
-                start_time = datetime.now(timezone.utc).timestamp()
+                start_time = time.perf_counter()
                 skip_cache = True
                 retrieved_chunks_related_questions = asyncio.create_task(self._retrieve_top_k_chunks_for_related_questions(message_english, k=10))
-                
-                response_en, response_source, tokens, retrieved_chunks = await self.agenerate_answer(user_language, message_english, query_type)
-                
+                with self._tracer.start_as_current_span(SPAN_GENERATE_ANSWER) as ans_span:
+                    ans_span.set_attribute("message_id", msg_id)
+                    ans_start = time.perf_counter()
+                    response_en, response_source, tokens, retrieved_chunks = await self.agenerate_answer(user_language, message_english, query_type)
+                    ans_duration_ms = int((time.perf_counter() - ans_start) * 1000)
+                    pt, ct = tokens.get("prompt_tokens") or 0, tokens.get("completion_tokens") or 0
+                    ans_span.set_attribute("retrieval_chunk_count", len(retrieved_chunks))
+                    ans_span.set_attribute("rag.retrieval_chunk_count", len(retrieved_chunks))
+                    ans_span.set_attribute("rag.retrieval_duration_ms", ans_duration_ms)
+                    ans_span.set_attribute("duration_ms", ans_duration_ms)
+                    ans_span.set_attribute("prompt_tokens", pt)
+                    ans_span.set_attribute("completion_tokens", ct)
+                    ans_span.set_attribute("llm.prompt_tokens", pt)
+                    ans_span.set_attribute("llm.completion_tokens", ct)
+                    if tokens.get("total_tokens") is not None:
+                        ans_span.set_attribute("llm.total_tokens", tokens["total_tokens"])
+                    ans_span.set_attribute("idk", utils.is_idk(response_en))
                 if not utils.is_idk(response_en):  # got answer on first try :)
                     skip_cache = False
                 else:
-                    query_expansions_queries = await self.agenerate_expansion_queries(message_english, retrieved_chunks)
                     query_expansion_search_ops = [(None, AzureVectorSearchType.HYBRID.value, 3), (None, AzureVectorSearchType.DENSE.value, 3)]
-                    logger.debug("Response is IDK, attempting query expansion: %s", query_expansions_queries)
-                    for q in query_expansions_queries:
-                        try:
-                            response_en2, response_source2, tokens2, retrieved_chunks2 = await self.agenerate_answer(user_language, q, self._asha_work_related, query_expansion_search_ops)
-                        except Exception as e:
-                            utils.log_to_text_file(f"Query expansion failed for query '{q}': {e}")
-                            continue
-                        retrieved_chunks = list({c.chunk_id: c for c in retrieved_chunks + retrieved_chunks2}.values())
-                        if not utils.is_idk(response_en2):
-                            skip_cache = False
-                            response_en, response_source, tokens = response_en2, response_source2, tokens2
-                            break
+                    with self._tracer.start_as_current_span(SPAN_QUERY_EXPANSION) as exp_span:
+                        exp_span.set_attribute("message_id", msg_id)
+                        exp_start = time.perf_counter()
+                        query_expansions_queries = await self.agenerate_expansion_queries(message_english, retrieved_chunks)
+                        exp_span.set_attribute("expansion_count", len(query_expansions_queries))
+                        logger.debug("Response is IDK, attempting query expansion: %s", query_expansions_queries)
+                        for q in query_expansions_queries:
+                            try:
+                                response_en2, response_source2, tokens2, retrieved_chunks2 = await self.agenerate_answer(user_language, q, self._asha_work_related, query_expansion_search_ops)
+                            except Exception as e:
+                                utils.log_to_text_file(f"Query expansion failed for query '{q}': {e}")
+                                continue
+                            retrieved_chunks = list({c.chunk_id: c for c in retrieved_chunks + retrieved_chunks2}.values())
+                            if not utils.is_idk(response_en2):
+                                skip_cache = False
+                                response_en, response_source, tokens = response_en2, response_source2, tokens2
+                                break
+                        exp_span.set_attribute("duration_ms", int((time.perf_counter() - exp_start) * 1000))
 
                 if utils.is_idk(response_en) and (FeatureFlag.QUERY_DISAMBIGUATION in feature_flags or message.user.test_user):
                     logger.debug("Query expansion was unsuccessful, assessing whether clarification is required...")
-                    clarification = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
+                    with self._tracer.start_as_current_span(SPAN_NEEDS_CLARIFICATION) as clar_span:
+                        clar_span.set_attribute("message_id", msg_id)
+                        clar_start = time.perf_counter()
+                        clarification = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
+                        clar_span.set_attribute("clarification_asked", clarification is not None)
+                        clar_span.set_attribute("duration_ms", int((time.perf_counter() - clar_start) * 1000))
                     if clarification:
                         default_message_category = MessageCategory.AUDIO_DISAMBIGUATION if message.message_context.message_type == MessageTypes.REGULAR_AUDIO else MessageCategory.TEXT_DISAMBIGUATION
                         response_en, response_source, tokens = clarification
 
-                related_questions = self.get_related_questions(message.user.user_language, await retrieved_chunks_related_questions, message.message_context.message_source_text)
+                with self._tracer.start_as_current_span(SPAN_RELATED_QUESTIONS) as rq_span:
+                    rq_span.set_attribute("message_id", msg_id)
+                    related_questions = self.get_related_questions(message.user.user_language, await retrieved_chunks_related_questions, message.message_context.message_source_text)
+                    rq_span.set_attribute("count", len(related_questions))
 
                 if not skip_cache and embedding:
                     cache_val = cache_val or {}
@@ -920,7 +1043,7 @@ class ByoebUserGenerateResponse(Handler):
                 else:
                     cache_result = None, None, None
 
-                end_time = datetime.now(timezone.utc).timestamp()
+                end_time = time.perf_counter()
                 AppInsightsLogHandler.getLogger("generate_answer_and_related_questions").info(f"Generated related questions for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
                     "message_id": message.message_context.message_id,
                     "time_taken": end_time - start_time,
@@ -976,9 +1099,12 @@ class ByoebUserGenerateResponse(Handler):
             return {}
         new_messages = []
         try:
-            start_time = datetime.now(timezone.utc).timestamp()
-            new_messages = await self.handle_message_generate_workflow(messages)
-            end_time = datetime.now(timezone.utc).timestamp()
+            start_time = time.perf_counter()
+            with self._tracer.start_as_current_span(SPAN_GENERATE_WORKFLOW) as wf_span:
+                msg_id = getattr(messages[0].message_context, "message_id", None) or ""
+                wf_span.set_attribute("message_id", msg_id)
+                new_messages = await self.handle_message_generate_workflow(messages)
+            end_time = time.perf_counter()
             logger.info("[GENERATE] Generated %s messages", len(new_messages))
             utils.log_to_text_file(f"E2E Generated answer and related questions in {end_time - start_time} seconds")
         except RetryError as e:
