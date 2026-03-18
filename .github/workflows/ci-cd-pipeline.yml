@@ -226,9 +226,10 @@ jobs:
       AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
       TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
-  # Step 5: Run integration tests
-  integration-tests:
-    name: Run integration tests
+  # Step 5a: Run integration tests (staging — on merge to a4i/staging)
+  # Integration test job never fails the pipeline (see integration-tests.yml)
+  integration-tests-staging:
+    name: Integration tests (staging)
     needs: [deploy-staging, publish-image]
     if: needs.deploy-staging.result == 'success'
     uses: ./.github/workflows/integration-tests.yml
@@ -238,4 +239,19 @@ jobs:
       registry: ${{ needs.publish-image.outputs.registry }}
       environment: ${{ needs.publish-image.outputs.environment }}
       deployment-url: ${{ needs.deploy-staging.outputs['service-url'] }}
+    secrets: inherit
+
+  # Step 5b: Run integration tests (production — on merge to a4i/main)
+  # Integration test job never fails the pipeline (see integration-tests.yml)
+  integration-tests-production:
+    name: Integration tests (production)
+    needs: [deploy-production, publish-image]
+    if: needs.deploy-production.result == 'success'
+    uses: ./.github/workflows/integration-tests.yml
+    with:
+      service-url: ${{ needs.deploy-production.outputs['service-url'] }}
+      image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
+      registry: ${{ needs.publish-image.outputs.registry }}
+      environment: production
+      deployment-url: ${{ needs.deploy-production.outputs['service-url'] }}
     secrets: inherit
