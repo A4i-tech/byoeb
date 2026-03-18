@@ -310,22 +310,20 @@ class MessageConsmerService:
             msg_id = conv.message_context.message_id
             user_id = getattr(conv.user, "user_id", None) or ""
             ctx = trace_context_by_message_id.get(msg_id)
-            token = otel_context.attach(ctx) if ctx is not None else None
-            try:
-                with self._tracer.start_as_current_span(SPAN_CONSUME_MESSAGE) as span:
-                    span.set_attribute("message_id", msg_id)
-                    span.set_attribute("user_id", str(user_id))
-                    conv.user.activity_timestamp = datetime.now(timezone.utc)
-                    if conv.user.user_type in self._regular_user_type:
-                        self._logger.debug("[consume] queue user_flow msg_id=%s", msg_id)
-                        return await self.__process_byoebuser_conversation(conv)
-                    elif self.__is_expert_user_type(conv.user.user_type):
-                        self._logger.debug("[consume] queue expert_flow msg_id=%s", msg_id)
-                        return await self.__process_byoebexpert_conversation(conv)
-                    return None, None, None
-            finally:
-                if token is not None:
-                    otel_context.detach(token)
+            with self._tracer.start_as_current_span(
+                SPAN_CONSUME_MESSAGE,
+                context=ctx,
+            ) as span:
+                span.set_attribute("message_id", msg_id)
+                span.set_attribute("user_id", str(user_id))
+                conv.user.activity_timestamp = datetime.now(timezone.utc)
+                if conv.user.user_type in self._regular_user_type:
+                    self._logger.debug("[consume] queue user_flow msg_id=%s", msg_id)
+                    return await self.__process_byoebuser_conversation(conv)
+                elif self.__is_expert_user_type(conv.user.user_type):
+                    self._logger.debug("[consume] queue expert_flow msg_id=%s", msg_id)
+                    return await self.__process_byoebexpert_conversation(conv)
+                return None, None, None
 
         tasks = [process_one(conv) for conv in conversations]
         results = await asyncio.gather(*tasks) if tasks else []

@@ -35,7 +35,10 @@ def get_langfuse() -> Langfuse:
                 app_env = os.getenv("APP_ENV", "LOCAL")
                 # Map our APP_ENV to Langfuse environment name (lowercase for consistency)
                 lf_env = app_env.lower()
-                _client = Langfuse(environment=lf_env)
+                # Newer Langfuse Python SDKs no longer accept an `environment` kwarg.
+                # Instead, they read LANGFUSE_ENVIRONMENT from the process environment.
+                os.environ.setdefault("LANGFUSE_ENVIRONMENT", lf_env)
+                _client = Langfuse()
     return _client
 
 
@@ -62,11 +65,27 @@ def observe_llm(name: str, model: str = "", input_data: Any = None):
         else:
             enriched_input["payload"] = input_data
 
-    with get_langfuse().start_as_current_observation(
-        as_type="generation",
+    client = get_langfuse()
+    otel_ctx = get_current_otel_trace_context()
+    otel_trace_id = otel_ctx.get("trace_id") if otel_ctx else None
+    # "parent_span_id" is the *current* active OTEL span's ID; using it as
+    # parent_observation_id nests the generation beneath it in Langfuse
+    # (e.g. llm_translation_and_query_rewriting under conversation.query_rewrite).
+    otel_span_id = otel_ctx.get("parent_span_id") if otel_ctx else None
+
+    # Use the top-level client.generation() so we pass trace_id and
+    # parent_observation_id directly.  This avoids calling client.trace() or
+    # lf_trace.span() which would immediately ingest "Unnamed trace" / "Unnamed
+    # span" entities that shadow the properly-named OTEL-exported observations.
+    generation = client.generation(
         name=name,
         model=model or "unknown",
-        trace_context=get_current_otel_trace_context(),
         input=enriched_input,
-    ) as obs:
-        yield obs
+        trace_id=otel_trace_id,
+        parent_observation_id=otel_span_id,
+    )
+    logger.debug(
+        "observe_llm: created Langfuse generation '%s' under span=%s trace=%s",
+        name, otel_span_id, otel_trace_id,
+    )
+    yield generation
