@@ -849,7 +849,7 @@ class ByoebUserGenerateResponse(Handler):
     ) -> List[ByoebMessageContext]:
         byoeb_messages = []
         message: ByoebMessageContext = messages[0].model_copy(deep=True)
-        
+        msg_id = getattr(message.message_context, "message_id", None) or ""
         read_reciept_message = self.__create_read_reciept_message(message)
 
         if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
@@ -972,9 +972,23 @@ class ByoebUserGenerateResponse(Handler):
                 start_time = time.perf_counter()
                 skip_cache = True
                 retrieved_chunks_related_questions = asyncio.create_task(self._retrieve_top_k_chunks_for_related_questions(message_english, k=10))
-                
-                response_en, response_source, tokens, retrieved_chunks = await self.agenerate_answer(user_language, message_english, query_type)
-                
+                with self._tracer.start_as_current_span(SPAN_GENERATE_ANSWER) as ans_span:
+                    ans_span.set_attribute("message_id", msg_id)
+                    ans_start = time.perf_counter()
+                    response_en, response_source, tokens, retrieved_chunks = await self.agenerate_answer(user_language, message_english, query_type)
+                    ans_duration_ms = int((time.perf_counter() - ans_start) * 1000)
+                    pt, ct = tokens.get("prompt_tokens") or 0, tokens.get("completion_tokens") or 0
+                    ans_span.set_attribute("retrieval_chunk_count", len(retrieved_chunks))
+                    ans_span.set_attribute("rag.retrieval_chunk_count", len(retrieved_chunks))
+                    ans_span.set_attribute("rag.retrieval_duration_ms", ans_duration_ms)
+                    ans_span.set_attribute("duration_ms", ans_duration_ms)
+                    ans_span.set_attribute("prompt_tokens", pt)
+                    ans_span.set_attribute("completion_tokens", ct)
+                    ans_span.set_attribute("llm.prompt_tokens", pt)
+                    ans_span.set_attribute("llm.completion_tokens", ct)
+                    if tokens.get("total_tokens") is not None:
+                        ans_span.set_attribute("llm.total_tokens", tokens["total_tokens"])
+                    ans_span.set_attribute("idk", utils.is_idk(response_en))
                 if not utils.is_idk(response_en):  # got answer on first try :)
                     skip_cache = False
                 else:
