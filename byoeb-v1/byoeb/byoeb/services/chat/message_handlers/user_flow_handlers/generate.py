@@ -1012,17 +1012,6 @@ class ByoebUserGenerateResponse(Handler):
                                 break
                         exp_span.set_attribute("duration_ms", int((time.perf_counter() - exp_start) * 1000))
 
-                if utils.is_idk(response_en) and (FeatureFlag.QUERY_DISAMBIGUATION in feature_flags or message.user.test_user):
-                    logger.debug("Query expansion was unsuccessful, assessing whether clarification is required...")
-                    with self._tracer.start_as_current_span(SPAN_NEEDS_CLARIFICATION) as clar_span:
-                        clar_span.set_attribute("message_id", msg_id)
-                        clar_start = time.perf_counter()
-                        clarification = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
-                        clar_span.set_attribute("clarification_asked", clarification is not None)
-                        clar_span.set_attribute("duration_ms", int((time.perf_counter() - clar_start) * 1000))
-                    if clarification:
-                        default_message_category = MessageCategory.AUDIO_DISAMBIGUATION if message.message_context.message_type == MessageTypes.REGULAR_AUDIO else MessageCategory.TEXT_DISAMBIGUATION
-                        response_en, response_source, tokens = clarification
 
                 with self._tracer.start_as_current_span(SPAN_RELATED_QUESTIONS) as rq_span:
                     rq_span.set_attribute("message_id", msg_id)
