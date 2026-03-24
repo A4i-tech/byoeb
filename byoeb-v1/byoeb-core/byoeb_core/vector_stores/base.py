@@ -45,6 +45,14 @@ class BaseVectorStore(ABC):
     ) -> int:
         pass
 
+    async def delete_chunks_by_source(self, source: str) -> int:
+        """
+        Delete all chunks whose metadata source equals the given value.
+        Subclasses with filterable metadata should override this for efficiency.
+        Default implementation raises NotImplementedError.
+        """
+        raise NotImplementedError("delete_chunks_by_source is not supported by this vector store")
+
     @abstractmethod
     async def retrieve_top_k_chunks(
         self,

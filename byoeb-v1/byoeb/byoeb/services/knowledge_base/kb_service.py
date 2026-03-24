@@ -212,6 +212,24 @@ class KBService:
         return collection_count
 
 
+    async def remove(self, file_names: List[str]) -> dict:
+        """
+        Remove all vector store chunks whose source matches any of the given file names.
+        Returns a dict mapping each file name to the number of chunks deleted.
+        """
+        results = {}
+        for file_name in file_names:
+            logger.info(f"🗑️  Removing chunks for file: {file_name}")
+            try:
+                deleted = await self.vector_store.delete_chunks_by_source(file_name)
+                results[file_name] = deleted
+                logger.info(f"✅ Deleted {deleted} chunks for '{file_name}'")
+            except NotImplementedError:
+                logger.warning(f"Vector store does not support delete_chunks_by_source; skipping '{file_name}'")
+                results[file_name] = 0
+        return results
+
+
 def _get_default_kb_service():
     return KBService(vector_store=vector_store, media_storage=amedia_storage, llm_client=llm_client)
 
@@ -219,3 +237,8 @@ def _get_default_kb_service():
 async def upload(files: List[FileMetadata]):
     svc = _get_default_kb_service()
     return await svc.upload(files)
+
+
+async def remove(file_names: List[str]) -> dict:
+    svc = _get_default_kb_service()
+    return await svc.remove(file_names)
