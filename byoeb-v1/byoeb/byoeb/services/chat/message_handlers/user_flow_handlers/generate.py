@@ -246,7 +246,7 @@ class ByoebUserGenerateResponse(Handler):
         logger.debug("Modality: %s", modality)
         logger.debug("Query: %s", query)
         template_idk = bot_config["template_messages"]["user"][modality]["idk"][query_type]
-        if response_text == constants.IDK and modality == self.AUDIO_MODALITY:
+        if utils.is_idk(response_text) and modality == self.AUDIO_MODALITY and message.reply_context.additional_info is not None:
             status = message.reply_context.additional_info.get(constants.STATUS)
             if status == constants.WAITING:
                 return template_idk["waiting"][user_language], None, True
@@ -255,7 +255,7 @@ class ByoebUserGenerateResponse(Handler):
             options = template_idk["interactive"]["options"][user_language]
             if query == options[0]:
                 return template_idk["ask_again"][user_language], None, True
-            if query == options[1]:
+            if len(options) > 1 and query == options[1]:
                 return template_idk["send"][user_language], None, True
             return template_idk["pending"][user_language], None, True
         if query_type == self._incomprehensible or query_type == self._asha_work_related:
@@ -292,7 +292,7 @@ class ByoebUserGenerateResponse(Handler):
             message.reply_context.additional_info[constants.TRACK_MESSAGE_ID] = message.message_context.message_id
             if status == constants.PENDING and query == options[0]:
                 message.reply_context.additional_info[constants.STATUS] = constants.RESOLVED
-            elif status == constants.PENDING and query == options[1]:
+            elif status == constants.PENDING and len(options) > 1 and query == options[1]:
                 message.reply_context.additional_info[constants.STATUS] = constants.WAITING
             else:
                 reply_id = message.reply_context.additional_info.get(constants.BOT_AUDIO_IDK_MESSAGE_ID)
@@ -853,16 +853,71 @@ class ByoebUserGenerateResponse(Handler):
         read_reciept_message = self.__create_read_reciept_message(message)
 
         if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
-            related_questions = message.reply_context.additional_info.get(constants.RELATED_QUESTIONS)
-            byoeb_user_message = await self.__create_user_message(
-                message=message,
-                response_en=constants.IDK,
-                response_source=None,
-                query_type=message.reply_context.additional_info.get(constants.QUERY_TYPE),
-                emoji=self.USER_PENDING_EMOJI,
-                status=constants.PENDING,
-                related_questions=related_questions
-            )
+            idk_status = message.reply_context.additional_info.get(constants.STATUS)
+            # The stored STATUS is always PENDING (from when the AUDIO_IDK interactive was
+            # first created). Derive the real status from the user's actual button press text.
+            if idk_status == constants.PENDING:
+                qt = message.reply_context.additional_info.get(constants.QUERY_TYPE) or self._asha_work_related
+                status_info = self.__get_idk_status(message, qt)
+                if status_info:
+                    idk_status = status_info.get(constants.STATUS)
+                    message.reply_context.additional_info[constants.STATUS] = idk_status
+            if idk_status == constants.RESOLVED:
+                # User confirmed the transcription is correct — re-process the original question
+                # through the normal generate flow using the original audio question text.
+                logger.info("[generate] AUDIO_IDK RESOLVED: user confirmed transcription; re-processing original question")
+                original_source_text = message.reply_context.reply_source_text
+                original_english_text = message.reply_context.reply_english_text
+                # Always treat as asha_work_related since the user confirmed the transcription is correct
+                query_type = self._asha_work_related
+                logger.debug("[generate] original_source_text='%s...', original_english_text='%s...'", (original_source_text or "")[:80], (original_english_text or "")[:80])
+                message.message_context.message_source_text = original_source_text
+                message.message_context.message_english_text = original_english_text
+                message.message_context.additional_info = {constants.QUERY_TYPE: query_type}
+                # Restore message type to REGULAR_AUDIO so __create_user_message routes the response
+                # correctly (audio answer format, proper IDK handling).
+                # The incoming message is a button reply, but this is logically still an audio question.
+                message.message_context.message_type = MessageTypes.REGULAR_AUDIO.value
+                response_en, response_source, tokens, retrieved_chunks = await self.agenerate_answer(
+                    message.user.user_language,
+                    original_english_text or original_source_text,
+                    query_type
+                )
+                # If RAG still can't answer after confirmation, switch to plain text IDK path.
+                # Clear the AUDIO_IDK reply category so __get_idk_response uses TEXT modality,
+                # which shows "outside scope of knowledge / ask your ANM" instead of the
+                # misleading "This has already been resolved" audio template.
+                if utils.is_idk(response_en):
+                    logger.info("[generate] RESOLVED but RAG returned IDK — falling back to text IDK response")
+                    message.message_context.message_type = MessageTypes.REGULAR_TEXT.value
+                    message.reply_context.message_category = None
+                retrieved_chunks_related_questions = await self._retrieve_top_k_chunks_for_related_questions(
+                    original_english_text or original_source_text, k=10
+                )
+                related_questions = self.get_related_questions(
+                    message.user.user_language, retrieved_chunks_related_questions,
+                    original_source_text
+                )
+                byoeb_user_message = await self.__create_user_message(
+                    message=message,
+                    response_en=response_en,
+                    response_source=response_source,
+                    query_type=query_type,
+                    emoji=self.USER_PENDING_EMOJI,
+                    status=constants.PENDING,
+                    related_questions=related_questions,
+                )
+            else:
+                related_questions = message.reply_context.additional_info.get(constants.RELATED_QUESTIONS)
+                byoeb_user_message = await self.__create_user_message(
+                    message=message,
+                    response_en=constants.IDK,
+                    response_source=None,
+                    query_type=message.reply_context.additional_info.get(constants.QUERY_TYPE),
+                    emoji=self.USER_PENDING_EMOJI,
+                    status=constants.PENDING,
+                    related_questions=related_questions
+                )
         elif (utils.is_onboard(message.message_context.message_source_text, message.user.user_language) or
               utils.is_onboard(message.message_context.message_english_text or "", message.user.user_language)):
             logger.info("Is onboard message - returning already registered response (user_language=%s)", message.user.user_language)
