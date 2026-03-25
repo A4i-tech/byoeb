@@ -1,7 +1,8 @@
 import asyncio
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from random import sample
 from typing import Any, AsyncIterator, Iterable, List, Optional, Set, Tuple, TypeAlias
 import os
 import re
@@ -50,7 +51,7 @@ async def pick_candidates(dyk_repo: DykRepository, user_repo: UserRepository, la
             potential_candidates = user_repo.find_test_users()
         else:
             run_logger.debug(f"{pick_candidates.__name__}: no user_types provided - selecting all users")
-            potential_candidates = user_repo.find_all({})
+            potential_candidates = user_repo.find_all_users()
     
     filtern_user_ids = set()
     async for record in dyk_repo.find_pending_of_langs(langs):

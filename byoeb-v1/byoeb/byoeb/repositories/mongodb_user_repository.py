@@ -24,7 +24,10 @@ class MongoUserRepository(UserRepository, MongoBaseRepository):
 
     async def find_user_by_phone_number(self, phone_number: str) -> Optional[Dict[str, Any]]:
         filter_dict = {"User.phone_number_id": phone_number}
-        return await self._collection.find_one(filter_dict)
+        doc = await self._collection.find_one(filter_dict)
+        if doc is not None and "User" in doc:
+            doc = {**doc, "User": ensure_utc_dates(doc["User"])}
+        return doc
 
     def find_users_by_type(self, user_type: str) -> AsyncIterator[Dict[str, Any]]:
         filter_dict = {"User.user_type": user_type}
@@ -67,6 +70,9 @@ class MongoUserRepository(UserRepository, MongoBaseRepository):
     def find_users_by_ids(self, user_ids: List[str]) -> AsyncIterator[Dict[str, Any]]:
         filter_dict = {"User.user_id": {"$in": user_ids}}
         return self._with_utc_user(self.find_all(filter_dict))
+
+    def find_all_users(self) -> AsyncIterator[Dict[str, Any]]:
+        return self._with_utc_user(self.find_all({}))
 
     async def count_users_by_type(self, user_type: str) -> int:
         filter_dict = {"User.user_type": user_type}

@@ -124,7 +124,12 @@ class UserMongoDBService(BaseMongoDBService):
         for user_obj in users_obj:
             try:
                 result.append(User(**user_obj["User"]))
-            except Exception:
+            except Exception as e:
+                self._logger.warning(
+                    "get_users: skipping malformed user document user_id=%s error=%s",
+                    user_obj.get("User", {}).get("user_id"),
+                    e,
+                )
                 continue
         return result
     
@@ -137,7 +142,13 @@ class UserMongoDBService(BaseMongoDBService):
         async for user_obj in users_obj:
             try:
                 result.append(User(**user_obj["User"]))
-            except Exception:
+            except Exception as e:
+                self._logger.warning(
+                    "get_users_by_type: skipping malformed user document user_type=%s user_id=%s error=%s",
+                    user_type,
+                    user_obj.get("User", {}).get("user_id"),
+                    e,
+                )
                 continue
         return result
     
