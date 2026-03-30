@@ -17,7 +17,7 @@
         "embedding_threshold": 0.8,
         "ner_labels": ["age", "bodypart", "condition", "demographic", "disease", "drug", "gender", "measurement", "procedure", "program", "symptom"],
         "ner_model": "gliner-community/gliner_medium-v2.5",
-        "ner_threshold": 0.5
+        "ner_threshold": 0.75
     },
     "llm_response": {
         "translation_and_rewrite_prompts": {
