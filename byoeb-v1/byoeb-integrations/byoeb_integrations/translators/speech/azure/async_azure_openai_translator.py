@@ -11,7 +11,17 @@ class AzureOpenAISpeechParamsEnum(Enum):
 
 class AsyncAzureOpenAISpeechTranslator(BaseSpeechTranslator):
     __DEFAULT_TEMPERATURE = 0
-    
+
+    # Script-anchoring prompts passed to Whisper to prevent it from drifting
+    # into a phonetically similar language (e.g. Marathi → Gujarati).
+    # Whisper uses the prompt to infer the expected script/language style.
+    __LANGUAGE_PROMPTS = {
+        "hi": "हिंदी",
+        "mr": "मराठी",
+        "te": "తెలుగు",
+        "en": "English",
+    }
+
     def __init__(
         self,
         model: str,
@@ -65,11 +75,13 @@ class AsyncAzureOpenAISpeechTranslator(BaseSpeechTranslator):
         )
         audio_file_like = io.BytesIO(audio_data)
         audio_file_like.name = "temp.wav"
+        script_prompt = self.__LANGUAGE_PROMPTS.get(source_language, "") if source_language else ""
         result = await self.__client.audio.transcriptions.create(
             file=audio_file_like,
             model=self.__model,
             language=source_language,
-            temperature=temperature
+            temperature=temperature,
+            prompt=script_prompt
         )
         return result.text
 
