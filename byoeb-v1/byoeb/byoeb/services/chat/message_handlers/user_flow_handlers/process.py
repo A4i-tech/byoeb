@@ -33,19 +33,15 @@ class ByoebUserProcess(Handler):
         super().__init__(successor)
         self._tracer = get_conversation_tracer()
 
-    def __augment(
-        self,
-        system_prompt,
-        user_prompt
-    ):
-        augmented_prompts = [
+    def build_augmented_prompts(self, system_prompt, user_prompt, conversation_history):
+        return [
             {"role": "system", "content": system_prompt},
+            *conversation_history,
             {"role": "user", "content": user_prompt}
         ]
-        return augmented_prompts
-    
+
     def _get_system_prompt(self, user_language: str) -> str:
-        cfg = bot_config["llm_response"]["translation_and_rewrite_prompts"]["system_prompt"]
+        cfg = bot_config["llm_response"]["translation_and_rewrite_prompts"]
         return "\n".join((
             cfg["task_description"],
             cfg["query_translate"][user_language],
@@ -54,10 +50,9 @@ class ByoebUserProcess(Handler):
             cfg["output"]
         ))
     
-    def _create_conversation_history(self, last_conversations: List[Dict[str, Any]]) -> str:
+    def _create_conversation_history(self, last_conversations: List[Dict[str, Any]]) -> list[dict[str, str]]:
         conversation_history = []
         curr_time = datetime.now(timezone.utc)
-        i = 1
         for conversation in last_conversations:
             conversation_time = conversation.get(constants.TIMESTAMP, None)
             if conversation_time is None or not isinstance(conversation_time, datetime):
@@ -71,8 +66,8 @@ class ByoebUserProcess(Handler):
             answer = conversation.get(constants.ANSWER, None)
             if question is None or answer is None:
                 continue
-            conversation_history.append(f"query{i}: {question} answer{i}: {answer}")
-            i+=1
+            conversation_history.append({"role": "user", "content": question})
+            conversation_history.append({"role": "assistant", "content": answer})
         return conversation_history
     
     @retry(
@@ -99,13 +94,10 @@ class ByoebUserProcess(Handler):
             return extracted_data[self.QUERY_EN], extracted_data[self.QUERY_EN_ADDCONTEXT], extracted_data[constants.QUERY_TYPE]
         # dependency injection
         from byoeb.chat_app.configuration.dependency_setup import llm_translate_and_rewrite_client
-        source_text = messages.message_context.message_source_text
+        user_prompt = messages.message_context.message_source_text
         conversation_history = self._create_conversation_history(messages.user.last_conversations)
-        conversation_history_str = ", ".join(conversation_history)
         system_prompt = self._get_system_prompt(messages.user.user_language)
-        template_user_prompt = bot_config["llm_response"]["translation_and_rewrite_prompts"]["user_prompt"]
-        user_prompt = template_user_prompt.replace("<QUERY>", source_text).replace("<CONVERSATION_HISTORY>", conversation_history_str)
-        augmented_prompts = self.__augment(system_prompt, user_prompt)
+        augmented_prompts = self.build_augmented_prompts(system_prompt, user_prompt, conversation_history)
         start_time = datetime.now(timezone.utc)
         from byoeb.observability.langfuse_client import observe_llm
         with observe_llm(
@@ -135,7 +127,7 @@ class ByoebUserProcess(Handler):
         end_time = datetime.now(timezone.utc)
         duration_seconds = (end_time - start_time).total_seconds()
         utils.log_to_text_file(f"Query rewritting and transcribe in {duration_seconds} seconds: {str(tokens)} {response_text}")
-        return query_en, query_en_addcontext, query_type, tokens
+        return query_en, query_en_addcontext, query_type, tokens, conversation_history
 
     async def annotate_audio_transcription(self, message: ByoebMessageContext, audio_message: Optional[MediaData] = None):
         msg_id = getattr(message.message_context, "message_id", None) or ""
@@ -195,6 +187,7 @@ class ByoebUserProcess(Handler):
             query_type = None
             query_en = None
             query_en_addcontext = None
+            conv_history = []
 
             if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
                 await self.annotate_audio_transcription(message)
@@ -217,7 +210,7 @@ class ByoebUserProcess(Handler):
                     rw_span.set_attribute("message_id", msg_id)
                     start_time = datetime.now(timezone.utc)
                     logger.info("[process] Processing normal message (not onboarding): '%s...'", (message.message_context.message_source_text or "")[:50])
-                    query_en, query_en_addcontext, query_type, tokens = await self.llm_translation_and_query_rewritting(message)
+                    query_en, query_en_addcontext, query_type, tokens, conv_history = await self.llm_translation_and_query_rewritting(message)
                     end_time = datetime.now(timezone.utc)
                     duration_seconds = (end_time - start_time).total_seconds()
                     rw_span.set_attribute("duration_ms", int(duration_seconds * 1000))
@@ -228,7 +221,6 @@ class ByoebUserProcess(Handler):
                     rw_span.set_attribute("llm.completion_tokens", ct)
                     if "total_tokens" in tokens and tokens["total_tokens"] is not None:
                         rw_span.set_attribute("llm.total_tokens", tokens["total_tokens"])
-                    rw_span.set_status(Status(StatusCode.OK))
                     AppInsightsLogHandler.getLogger("query_rewriting").info(f"Rewrote queries for {message.message_context.message_id} in {duration_seconds} using {tokens.get('completion_tokens')} completion and {tokens.get('prompt_tokens')} prompt tokens", extra={AppInsightsLogHandler.DETAILS: {
                         "message_id": message.message_context.message_id,
                         "time_taken": duration_seconds,
@@ -236,18 +228,20 @@ class ByoebUserProcess(Handler):
                         "prompt_tokens": tokens.get("prompt_tokens")
                     }})
 
-            # Set message_english_text - use query_en_addcontext if available, otherwise fallback to source text
-            if query_en_addcontext is not None:
-                message.message_context.message_english_text = query_en_addcontext
-            else:
-                message.message_context.message_english_text = message.message_context.message_source_text
-            message.message_context.additional_info = {
-                constants.QUERY_TYPE: query_type,
-                constants.QUERY_EN: query_en,
-                constants.CONV_HISTORY: self._create_conversation_history(message.user.last_conversations)
-            }
-            span.set_status(Status(StatusCode.OK))
-            return message
+        # Set message_english_text - use query_en_addcontext if available, otherwise fallback to source text
+        if query_en_addcontext is not None:
+            message.message_context.message_english_text = query_en_addcontext
+        else:
+            message.message_context.message_english_text = message.message_context.message_source_text
+
+        chunks = [conv_history[i:i + 2] for i in range(0, len(conv_history), 2)]
+        conv_history_legacy = [f"query{i}: {chunk[0]['content']} answer{i}: {chunk[1]['content']}" for i, chunk in enumerate(chunks, start=1)]
+        message.message_context.additional_info = {
+            constants.QUERY_TYPE: query_type,
+            constants.QUERY_EN: query_en,
+            constants.CONV_HISTORY: conv_history_legacy
+        }
+        return message
 
     async def handle(
         self,
