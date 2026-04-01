@@ -6,9 +6,6 @@ from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.core.callbacks import TokenCountingHandler
 from byoeb_core.llms.base import BaseLLM
 
-from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
-LlamaIndexInstrumentor().instrument()
-
 class AzureOpenAIParamsEnum(Enum):
     TEMPERATURE = "temperature"
 
