@@ -1,15 +1,11 @@
 import asyncio
-import json
 import hashlib
-import traceback
 import logging
 import byoeb.services.chat.constants as constants
 import byoeb.utils.utils as utils
 from datetime import datetime, timezone
-from pydantic import BaseModel, ValidationError
-from typing import Optional, List, Dict
-from opentelemetry import context as otel_context
-from opentelemetry.trace import Status, StatusCode
+from pydantic import BaseModel
+from typing import Optional, List
 
 from byoeb.models.message_category import MessageCategory
 from byoeb.factory import ChannelClientFactory
@@ -20,12 +16,6 @@ from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDB
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from byoeb.services.user.onboarding import handle_unknown_user
-from byoeb.observability.tracing import (
-    get_conversation_tracer,
-    parse_queue_payload_and_extract_context,
-    SPAN_CONSUME_MESSAGE,
-    SPAN_CREATE_CONVERSATIONS,
-)
 
 class Conversation(BaseModel):
     user_message: Optional[ByoebMessageContext]
@@ -51,7 +41,6 @@ class MessageConsmerService:
         self._channel_client_factory = channel_client_factory
         self._regular_user_type = bot_config["regular"]["user_type"]
         self._expert_user_types = bot_config["expert"]
-        self._tracer = get_conversation_tracer()
 
     # TODO: Hash can be used or better way to get user by phone number
     def __get_user(
@@ -88,7 +77,7 @@ class MessageConsmerService:
     async def __create_conversations(
         self,
         messages: List[ByoebMessageContext]
-    ) -> List[ByoebMessageContext]:
+    ) -> tuple[list[ByoebMessageContext], list[ByoebMessageContext]]:
         self._logger.info("[__create_conversations] ▶ start")
         conversations = []
         onboard_convs = []
@@ -268,27 +257,14 @@ class MessageConsmerService:
     ) -> List[ByoebMessageContext]:
         self._logger.info(f"[consume] Processing {len(messages)} raw message(s)")
         byoeb_messages: List[ByoebMessageContext] = []
-        trace_context_by_message_id: Dict[str, otel_context.Context] = {}
 
         for raw in messages:
-            try:
-                byoeb_message, extracted_ctx = parse_queue_payload_and_extract_context(raw)
-            except ValidationError as e:
-                self._logger.warning("[consume] payload validation failed, retrying raw: %s", e)
-                byoeb_message = ByoebMessageContext.model_validate(json.loads(raw))
-                extracted_ctx = None
-            byoeb_messages.append(byoeb_message)
-            if extracted_ctx is not None:
-                trace_context_by_message_id[byoeb_message.message_context.message_id] = extracted_ctx
+            byoeb_messages.append(ByoebMessageContext.model_validate_json(raw))
             self._logger.debug("raw=%s", raw)
         self._logger.debug("byoeb_messages=%s", byoeb_messages)
 
         start_time = datetime.now(timezone.utc).timestamp()
-        with self._tracer.start_as_current_span(SPAN_CREATE_CONVERSATIONS) as create_span:
-            conversations, onboard_convs = await self.__create_conversations(byoeb_messages)
-            create_span.set_attribute("conversation_count", len(conversations))
-            create_span.set_attribute("onboard_count", len(onboard_convs))
-            create_span.set_status(Status(StatusCode.OK))
+        conversations, onboard_convs = await self.__create_conversations(byoeb_messages)
         end_time = datetime.now(timezone.utc).timestamp()
 
         self._logger.info("[consume] conversations=%s onboard=%s create_time=%.3fs", len(conversations), len(onboard_convs), end_time - start_time)
@@ -306,24 +282,16 @@ class MessageConsmerService:
             self._logger.info("[consume] ← handle_unknown_user done")
 
         # build tasks: run each conversation in its extracted trace context when available
-        async def process_one(conv):
+        async def process_one(conv: ByoebMessageContext):
             msg_id = conv.message_context.message_id
-            user_id = getattr(conv.user, "user_id", None) or ""
-            ctx = trace_context_by_message_id.get(msg_id)
-            with self._tracer.start_as_current_span(
-                SPAN_CONSUME_MESSAGE,
-                context=ctx,
-            ) as span:
-                span.set_attribute("message_id", msg_id)
-                span.set_attribute("user_id", str(user_id))
-                conv.user.activity_timestamp = datetime.now(timezone.utc)
-                if conv.user.user_type in self._regular_user_type:
-                    self._logger.debug("[consume] queue user_flow msg_id=%s", msg_id)
-                    return await self.__process_byoebuser_conversation(conv)
-                elif self.__is_expert_user_type(conv.user.user_type):
-                    self._logger.debug("[consume] queue expert_flow msg_id=%s", msg_id)
-                    return await self.__process_byoebexpert_conversation(conv)
-                return None, None, None
+            conv.user.activity_timestamp = datetime.now(timezone.utc)
+            if conv.user.user_type in self._regular_user_type:
+                self._logger.debug("[consume] queue user_flow msg_id=%s", msg_id)
+                return await self.__process_byoebuser_conversation(conv)
+            elif self.__is_expert_user_type(conv.user.user_type):
+                self._logger.debug("[consume] queue expert_flow msg_id=%s", msg_id)
+                return await self.__process_byoebexpert_conversation(conv)
+            return None, None, None
 
         tasks = [process_one(conv) for conv in conversations]
         results = await asyncio.gather(*tasks) if tasks else []
