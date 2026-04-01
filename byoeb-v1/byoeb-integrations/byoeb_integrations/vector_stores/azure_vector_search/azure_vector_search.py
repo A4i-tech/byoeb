@@ -271,6 +271,37 @@ class AzureVectorStore(BaseVectorStore):
         logger.info(f"✅ Deleted {deleted} chunks from Azure index '{self.__index_name}'")
         return deleted
 
+    async def delete_chunks_by_source(self, source: str) -> int:
+        """
+        Delete all chunks whose metadata/source field matches the given value.
+        Paginates through the index in pages of 1000 to handle large document sets.
+        """
+        ids: List[str] = []
+        page_size = 1000
+        skip = 0
+
+        logger.info(f"Fetching chunk IDs for source '{source}' from index '{self.__index_name}'")
+        while True:
+            results = await self.search_client.search(
+                search_text="*",
+                filter=f"metadata/source eq '{source}'",
+                select=["id"],
+                top=page_size,
+                skip=skip,
+            )
+            page_ids = [result["id"] async for result in results]
+            ids.extend(page_ids)
+            if len(page_ids) < page_size:
+                break
+            skip += page_size
+
+        if not ids:
+            logger.info(f"No chunks found for source '{source}'")
+            return 0
+
+        logger.info(f"Deleting {len(ids)} chunks for source '{source}'")
+        return await self.delete_chunks(ids)
+
     async def retrieve_similar_chunks(self, text: str) -> List[Chunk]:
         return await self.retrieve_top_k_chunks(text=text, k=1, search_type=AzureVectorSearchType.DENSE.value, select=["id"], vector_field="text_vector_3072")
 

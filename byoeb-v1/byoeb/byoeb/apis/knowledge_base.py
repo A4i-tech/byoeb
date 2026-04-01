@@ -1,8 +1,9 @@
 from io import BytesIO
 import logging
+import os
 import tempfile
 from byoeb.kb_app.configuration.dependency_setup import amedia_storage, vector_store
-from byoeb.services.knowledge_base.kb_service import upload as kb_upload
+from byoeb.services.knowledge_base.kb_service import upload as kb_upload, remove as kb_remove
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
@@ -63,10 +64,20 @@ async def upload_file(file: UploadFile = File(description="Upload a .txt file", 
     if file.filename is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file must have a filename")
 
-    with tempfile.NamedTemporaryFile(prefix="ashabot-kb-app-") as tmp:
+    RAW_DOCUMENTS_FOLDER = "raw_documents"
+    blob_name = (
+        file.filename
+        if file.filename.startswith(f"{RAW_DOCUMENTS_FOLDER}/")
+        else f"{RAW_DOCUMENTS_FOLDER}/{file.filename}"
+    )
+
+    tmp = tempfile.NamedTemporaryFile(prefix="ashabot-kb-app-", delete=False)
+    try:
         tmp.write(await file.read())
-        tmp.seek(0)
-        code, _ = await amedia_storage.aupload_file(file.filename, tmp.name)
+        tmp.close()
+        code, _ = await amedia_storage.aupload_file(blob_name, tmp.name)
+    finally:
+        os.unlink(tmp.name)
 
     return Response(status_code=code)
 
@@ -92,6 +103,18 @@ async def index_file(files: set[str] = Query(description="Path to files to load"
     _logger.info(f"✅ Successfully loaded {count} documents into knowledge base")
     return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Loaded {count} documents"})
 
+@kb_vector_apis_router.delete("/index")
+async def deindex_files(files: set[str] = Query(description="Path to files whose chunks should be removed from the vector store")):
+    """
+    Remove all vector store chunks that were ingested from the given files.
+    Does not delete the source files from blob storage.
+    """
+    _logger.info(f"🗑️  Starting de-index for {len(files)} file(s): {files}")
+    results = await kb_remove(list(files))
+    total = sum(results.values())
+    _logger.info(f"✅ De-indexed {total} chunks across {len(files)} file(s)")
+    return JSONResponse(status_code=status.HTTP_200_OK, content={"deleted": results, "total": total})
+
 @kb_vector_apis_router.get("/search")
 async def search_chunks(
     query: str = Query(description="Query to search the storage for"),
@@ -101,7 +124,7 @@ async def search_chunks(
     """
     Query the store for a phrase.
     """
-    return await vector_store.aretrieve_top_k_chunks(text=query, k=k, search_type=search_type.value, select=["id", "text", "metadata", "related_questions"], vector_field="text_vector_3072")
+    return await vector_store.retrieve_top_k_chunks(text=query, k=k, search_type=search_type.value, select=["id", "text", "metadata", "related_questions"], vector_field="text_vector_3072")
 
 @kb_vector_apis_router.get("/metadata")
 async def get_metadata() -> VectorStoreMetadata:
