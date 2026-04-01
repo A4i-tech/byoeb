@@ -20,6 +20,7 @@ llama-index-vector-stores-chroma = "0.3.0"
 azure-search-documents = "11.5.2"
 byoeb-core = {path = "../byoeb-core", develop = true}
 pytest-mock = "^3.14.1"
+grapheme = "^0.6.0"
 
 
 [tool.poetry.group.dev.dependencies]
