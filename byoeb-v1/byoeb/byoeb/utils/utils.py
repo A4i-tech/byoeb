@@ -1,9 +1,10 @@
+from datetime import datetime, timezone
 import hashlib
 import json
 import logging
 import os
 import re
-from typing import Iterable, List, TypeVar
+from typing import Any, Iterable, List, TypeVar
 from urllib.parse import unquote
 
 from byoeb.constants.onboarding_text import ONBOARD_WELCOME_MESSAGE_DICT
@@ -153,3 +154,14 @@ def hash_dict(d):
         json.dumps(d, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
         .encode()
     ).hexdigest()
+
+
+def ensure_utc_dates(obj: Any) -> Any:
+    """Recursively ensure datetime values are UTC-aware so User model accepts them (e.g. from MongoDB)."""
+    if isinstance(obj, datetime):
+        return obj.replace(tzinfo=timezone.utc) if obj.tzinfo is None else obj
+    if isinstance(obj, dict):
+        return {k: ensure_utc_dates(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [ensure_utc_dates(v) for v in obj]
+    return obj

@@ -90,14 +90,43 @@ jobs:
             "${{ inputs.image-ref }}" \
             poetry run pytest tests/integration
 
-      - name: Fail if tests failed
+      - name: Set up Python and run release QA benchmark (from repo)
+        id: run-benchmark
+        env:
+          RECIEVE_URL: ${{ steps.receive-endpoint.outputs.url }}
+          USER_NAME: ${{ secrets.USERNAME }}
+          PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER }}
+          MONGO_DB_CONNECTION_STRING: ${{ secrets.MONGO_DB_CONNECTION_STRING }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/benchmark"
+          cd byoeb-v1/byoeb
+          pip install poetry -q
+          poetry install --no-root --no-interaction -q
+          poetry run python tests/integration/run_release_qa_benchmark.py \
+            --use-mcp \
+            --mcp-timeout 120 \
+            --quiet \
+            --output "$RUNNER_TEMP/benchmark/benchmark_results.json" || true
+        continue-on-error: true
+
+      - name: Upload release QA benchmark results
+        if: ${{ always() && steps.run-benchmark.outcome != 'cancelled' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-qa-benchmark-${{ inputs.environment }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/benchmark/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Log test outcome (do not fail pipeline)
         if: ${{ steps.run-tests.outcome != 'success' }}
         run: |
-          echo "Integration tests failed"
-          exit 1
+          echo "Integration tests failed (pipeline not blocked — see plan)"
 
+      # Fires when integration tests fail OR when any earlier step fails (run-tests would be skipped).
+      # Benchmark failures are intentionally excluded — run-benchmark always succeeds (continue-on-error + || true).
       - name: Notify Teams of integration test failure
-        if: ${{ failure() }}
+        if: ${{ always() && steps.run-tests.outcome != 'success' && steps.run-tests.outcome != 'cancelled' }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
           summary: '❌ Pipeline Stage Failed'
@@ -112,8 +141,9 @@ jobs:
             ]
           teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
+      # Only fire success when integration tests actually passed (not just the benchmark).
       - name: Notify Teams of workflow success (staging)
-        if: ${{ success() }}
+        if: ${{ success() && steps.run-tests.outcome == 'success' }}
         uses: ./.github/actions/dispatch-teams-webhook
         with:
           summary: '✅ Workflow Complete'

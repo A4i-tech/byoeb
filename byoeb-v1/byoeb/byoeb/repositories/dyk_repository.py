@@ -1,24 +1,52 @@
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, Dict, Iterable, List, Set
+from typing import AsyncIterator, Iterable, List, Optional, Set
+import uuid
 
 from byoeb.constants.user_enums import LanguageCode
-from byoeb.models.dyk import DykRecord
+from byoeb.models.dyk import DykRecord, DykEntry
 from byoeb.repositories.base_repository import BaseRepository
 
 class DykRepository(BaseRepository, ABC):
     """Repository interface for DYK-related database operations."""
 
     @abstractmethod
-    async def synchronize(self, records: Dict[LanguageCode, List[str]]) -> int:
+    async def add(self, entry: DykEntry):
+        """Persist a DYK entry (insert or replace if it already exists)."""
+        ...
+
+    @abstractmethod
+    async def delete(self, id: uuid.UUID):
+        """Remove a DYK entry from storage."""
+        ...
+
+    @abstractmethod
+    async def find(self, id: uuid.UUID) -> Optional[DykEntry]:
+        """Fetch a DYK entry by ID, returning None if not found."""
+        ...
+
+    @abstractmethod
+    async def find_by_language(self, lang: LanguageCode, offset: int, length: int) -> List[DykEntry]:
+        """Return entries that have content for the requested language."""
+        ...
+
+    @abstractmethod
+    async def find_available_languages(self) -> List[LanguageCode]:
+        """Return all languages for which DYKs exist."""
+        ...
+
+    @abstractmethod
+    async def select_next(self, user_id: str, lang: LanguageCode) -> Optional[uuid.UUID]:
+        """
+        Select a random DYK ID for the provided user and language directly within storage,
+        avoiding previously sent DYKs.
+        """
+        ...
+
+    @abstractmethod
+    async def synchronize(self) -> int:
         """
         Synchronize DYKs with the runtime, effectively dropping pending DYKs that
-        have an unknown language or an unknown DYK ID.
-
-        Args:
-            records (Dict[LanguageCode, List[str]]):
-                A mapping of language codes to lists of DYK IDs to be synchronized.
-                Each key represents a language, and each value is the list of DYK IDs
-                to retain.
+        have an unknown language or an unknown DYK ID based on the storage collection.
 
         Returns:
             int: The number of DYKs successfully synchronized.

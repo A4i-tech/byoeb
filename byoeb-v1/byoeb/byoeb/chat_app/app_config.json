@@ -35,7 +35,8 @@
         "mongo_db":
         {
             "provider_type": "azure_cosmos_mongo_db",
-            "dyk_collection": "ashadyks",
+            "dyk_queue_collection": "ashadykqueue",
+            "dyk_storage_collection": "ashadykstorage",
             "user_collection": "ashausers",
             "message_collection": "ashamessages",
             "jobs_collection": "ashajobs"
