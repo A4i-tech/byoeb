@@ -205,6 +205,11 @@ class ByoebUserProcess(Handler):
     ) -> Dict[str, Any]:
         with langfuse.start_as_current_observation(name="ASHABot", trace_context={"trace_id": langfuse.create_trace_id()}) as span:
             message = await self.handle_process_message_workflow(messages)
-            span.update(input=message.message_context.message_source_text, metadata={"user_language": message.user.user_language})
+            span.update(input=message.message_context.message_source_text, metadata={
+                "message_id": message.message_context.message_id,
+                "user_id": message.user.user_id,
+                "user_language": message.user.user_language,
+                "user_type": message.user.user_type,
+            })
             if self._successor:
                 return await self._successor.handle([message])
