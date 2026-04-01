@@ -53,13 +53,12 @@ async def create_user_db_queries(
 ):
     message_id = message.message_context.message_id
     user = (await user_db_service.get_users([user_id]))[0]
-    question = message.reply_context.reply_english_text
-    answer = consensus_en_response
     qa = {
             constants.TEXT_MESSAGE_ID: message_id,
             constants.TIMESTAMP: datetime.datetime.now(datetime.timezone.utc),
-            constants.QUESTION: question,
-            constants.ANSWER: answer
+            constants.QUESTION: message.reply_context.reply_source_text,
+            constants.QUESTION_REWRITTEN: message.reply_context.reply_english_text,
+            constants.ANSWER: consensus_en_response
         }
     user_db_query = user_db_service.user_activity_update_query(user, qa, skip_timestamp=True)
     user_db_queries = {

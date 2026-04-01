@@ -35,3 +35,6 @@ os.environ["APP_LOGGER_NAME"] = "test-logger"
 # Set a test connection string with database name if not already set
 if "MONGO_DB_CONNECTION_STRING" not in os.environ:
     os.environ["MONGO_DB_CONNECTION_STRING"] = "mongodb://localhost:27017/test-db"
+# RECIEVE_URL for integration tests (intentionally misspelled as per codebase convention)
+if "RECIEVE_URL" not in os.environ:
+    os.environ["RECIEVE_URL"] = "http://localhost:8000/receive"

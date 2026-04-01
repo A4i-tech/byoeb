@@ -1,23 +1,16 @@
 import logging
+import os
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
 import byoeb.services.chat.constants as constants
 from aiocache import Cache
-from datetime import datetime, timezone
+from pymongo.errors import BulkWriteError
+
 from byoeb_core.models.byoeb.user import User
 from byoeb.factory import MongoDBFactory
-from typing import List, Dict, Any, Optional
 from byoeb.services.databases.mongo_db.base import BaseMongoDBService
-import os
-
-
-def _ensure_utc_dates(obj: Any) -> Any:
-    """Recursively ensure datetime values are UTC-aware so User model accepts them (e.g. from MongoDB)."""
-    if isinstance(obj, datetime):
-        return obj.replace(tzinfo=timezone.utc) if obj.tzinfo is None else obj
-    if isinstance(obj, dict):
-        return {k: _ensure_utc_dates(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_ensure_utc_dates(v) for v in obj]
-    return obj
+from byoeb.utils.utils import ensure_utc_dates
 
 
 class UserMongoDBService(BaseMongoDBService):
@@ -101,7 +94,7 @@ class UserMongoDBService(BaseMongoDBService):
         """Get the user's last activity timestamp with caching."""
         cached_data = await self.cache.get(user_id)
         if cached_data is not None and isinstance(cached_data, dict):
-            user = User(**_ensure_utc_dates(cached_data))
+            user = User(**ensure_utc_dates(cached_data))
             activity_timestamp = user.activity_timestamp
             if activity_timestamp is None:
                 activity_timestamp = user.created_timestamp 
@@ -114,7 +107,7 @@ class UserMongoDBService(BaseMongoDBService):
         if user_obj is None:
             return None
 
-        user_data = _ensure_utc_dates(user_obj["User"])
+        user_data = ensure_utc_dates(user_obj["User"])
         user = User(**user_data)
         activity_timestamp = user.activity_timestamp
         if activity_timestamp is None:
@@ -131,7 +124,7 @@ class UserMongoDBService(BaseMongoDBService):
         result = []
         for user_obj in users_obj:
             try:
-                user_data = _ensure_utc_dates(user_obj["User"])
+                user_data = ensure_utc_dates(user_obj["User"])
                 result.append(User(**user_data))
             except Exception:
                 continue
@@ -203,6 +196,14 @@ class UserMongoDBService(BaseMongoDBService):
         repository_factory = await self._get_repository_factory()
         user_repository = await repository_factory.get_user_repository()
         if queries.get("create"):
-            await user_repository.insert_many(queries["create"])
+            try:
+                await user_repository.insert_many(queries["create"])
+            except BulkWriteError as e:
+                # Ignore duplicate key errors on _id to keep onboarding idempotent
+                write_errors = e.details.get("writeErrors") if hasattr(e, "details") else None
+                if write_errors and all(err.get("code") == 11000 for err in write_errors):
+                    self._logger.info("Ignoring duplicate user create during execute_queries: %s", e)
+                else:
+                    raise
         if queries.get("update"):
             await user_repository.bulk_update(queries["update"])

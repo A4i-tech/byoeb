@@ -139,19 +139,20 @@ class QueueConsumer:
         self._logger.info(f"Queue info: {self._az_storage_queue}")
 
         while True:
+            # Receive first; only create a span when there is actual work to avoid
+            # flooding tracing backends with empty-batch polls.
+            messages = await self.__areceive()
+
+            if not messages:
+                await asyncio.sleep(0.5)
+                continue
+
             with self._tracer.start_as_current_span("message_queue.batch_process", kind=trace.SpanKind.CONSUMER) as span:
                 try:
-                    messages = await self.__areceive()
-
                     span.set_attribute("messaging.system", "azure_storage_queue")
                     span.set_attribute("messaging.destination", self._queue_name)
                     span.set_attribute("messaging.destination_kind", "queue")
                     span.set_attribute("messaging.message_count", len(messages))
-
-                    if len(messages) == 0:
-                        span.set_attribute("messaging.empty_batch", True)
-                        await asyncio.sleep(0.5)
-                        continue
 
                     message_content = []
                     dlq_count = 0
