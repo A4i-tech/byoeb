@@ -207,9 +207,9 @@ class ByoebUserProcess(Handler):
             message = await self.handle_process_message_workflow(messages)
             span.update(input=message.message_context.message_source_text, metadata={
                 "message_id": message.message_context.message_id,
-                "user_id": message.user.user_id,
                 "user_language": message.user.user_language,
                 "user_type": message.user.user_type,
             })
+            span.update_trace(user_id=message.user.user_id)
             if self._successor:
                 return await self._successor.handle([message])
