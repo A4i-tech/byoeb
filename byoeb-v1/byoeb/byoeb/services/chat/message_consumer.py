@@ -259,7 +259,11 @@ class MessageConsmerService:
         byoeb_messages: List[ByoebMessageContext] = []
 
         for raw in messages:
-            byoeb_messages.append(ByoebMessageContext.model_validate_json(raw))
+            try:
+                byoeb_messages.append(ByoebMessageContext.model_validate_json(raw))
+            except Exception as e:
+                self._logger.error("[consume] Failed to parse queue message, skipping: %s | raw_preview=%s", e, raw[:200])
+                continue
             self._logger.debug("raw=%s", raw)
         self._logger.debug("byoeb_messages=%s", byoeb_messages)
 
