@@ -102,9 +102,9 @@ class MessageConsmerService:
             byoeb_users = await self._user_db_service.get_users(user_ids)
         except Exception as e:
             self._logger.exception(
-                "[__create_conversations] user lookup failed (database/network error): %s", e
+                "[__create_conversations] user lookup failed: %s", e
             )
-            raise
+            byoeb_users = []  # treat all as unknown; onboarding guard below handles them
         self._logger.debug("[__create_conversations] fetched_users=%s", len(byoeb_users))
 
         for m in messages:
