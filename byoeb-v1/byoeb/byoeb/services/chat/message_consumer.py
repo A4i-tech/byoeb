@@ -223,6 +223,7 @@ class MessageConsmerService:
 
             if (bot_message.message_category == constants.USER_TYPE
                 or bot_message.message_category == constants.LANGUAGE_SELECTION
+                or bot_message.message_category == constants.REGISTER_PROMPT
                 or bot_message.message_category == constants.CONSENT):
                 self._logger.info("[__create_conversations] onboarding_flow msg_id=%s bot_cat=%s -> onboard", m.message_context.message_id, bot_message.message_category)
                 onboard_convs.append(conversation)

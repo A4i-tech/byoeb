@@ -124,14 +124,15 @@ def create_register_prompt_message(message: ByoebMessageContext) -> ByoebMessage
     """Simple text reply asking user to send onboarding phrase to start registration."""
     return ByoebMessageContext(
         channel_type=message.channel_type,
-        message_category=user_const.LANGUAGE_SELECTION,
+        # Distinct from LANGUAGE_SELECTION so quoted replies are not parsed as language names.
+        message_category=user_const.REGISTER_PROMPT,
         user=message.user,
         message_context=MessageContext(
             message_type=MessageTypes.REGULAR_TEXT.value,
             message_source_text=REGISTER_PROMPT_TEXT,
             additional_info={},
         ),
-        reply_context=make_reply_context(message, "create_register_prompt_message"),
+        reply_context=None,
     )
 
 
@@ -326,6 +327,66 @@ async def handle_unknown_user(
                     channel_service.send_requests(requests),
                     timeout=ONBOARDING_SEND_REQUESTS_TIMEOUT_SECONDS,
                 )
+            elif message.reply_context.message_category == chat_const.REGISTER_PROMPT:
+                # Reply to register prompt (quoted message). Treat like a fresh guard: only
+                # language list if text is onboarding-like; otherwise re-send register prompt.
+                if is_onboarding_intent:
+                    logger.info("register_prompt reply is onboarding-like: %s", message)
+                    try:
+                        AppInsightsLogHandler.getLogger("onboarding_guard").info(
+                            "language_selection_sent",
+                            extra={
+                                AppInsightsLogHandler.DETAILS: {
+                                    "reason": "language_selection_after_register_prompt",
+                                    "message_id": message.message_context.message_id if message.message_context else None,
+                                    "phone_number_id": utils.mask_phone(getattr(message.user, "phone_number_id", "")),
+                                }
+                            },
+                        )
+                    except Exception as e:
+                        logger.warning("[onboarding_guard] telemetry failed: %s", e)
+                    byoeb_message = create_language_selection_message(message)
+                    requests = channel_service.prepare_requests(byoeb_message)
+                    responses, message_ids = await asyncio.wait_for(
+                        channel_service.send_requests(requests),
+                        timeout=ONBOARDING_SEND_REQUESTS_TIMEOUT_SECONDS,
+                    )
+                    convs = channel_service.create_conv(byoeb_message, responses)
+                    new_user = create_user(phone_number_id=message.user.phone_number_id)
+                    logger.info("Created new user %s", new_user.user_id)
+                    message_db_queries = {
+                        chat_const.CREATE: message_db_service.message_create_queries(convs)
+                    }
+                    user_db_queries = {
+                        chat_const.CREATE: [user_db_service.user_create_query(new_user)]
+                    }
+                    await message_db_service.execute_queries(message_db_queries)
+                    await user_db_service.execute_queries(user_db_queries)
+                else:
+                    logger.info(
+                        "reply to register_prompt not onboarding-like, re-sending register prompt: %s",
+                        utils.mask_message_preview(msg_text),
+                    )
+                    try:
+                        AppInsightsLogHandler.getLogger("onboarding_guard").info(
+                            "register_prompt_sent: reply to register prompt not onboarding-like",
+                            extra={
+                                AppInsightsLogHandler.DETAILS: {
+                                    "reason": "register_prompt_replied_not_onboarding_like",
+                                    "message_id": message.message_context.message_id if message.message_context else None,
+                                    "phone_number_id": utils.mask_phone(getattr(message.user, "phone_number_id", "")),
+                                    "message_preview": utils.mask_message_preview(msg_text),
+                                }
+                            },
+                        )
+                    except Exception as e:
+                        logger.warning("[onboarding_guard] telemetry failed: %s", e)
+                    byoeb_message = create_register_prompt_message(message)
+                    requests = channel_service.prepare_requests(byoeb_message)
+                    await asyncio.wait_for(
+                        channel_service.send_requests(requests),
+                        timeout=ONBOARDING_SEND_REQUESTS_TIMEOUT_SECONDS,
+                    )
             elif message.reply_context.message_category == chat_const.LANGUAGE_SELECTION:
                 logger.info("Language Selection")
                 text = message.message_context.message_source_text
