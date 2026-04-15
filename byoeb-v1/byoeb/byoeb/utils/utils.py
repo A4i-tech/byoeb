@@ -1,9 +1,10 @@
+from datetime import datetime, timezone
 import hashlib
 import json
 import logging
 import os
 import re
-from typing import Iterable, List, TypeVar
+from typing import Any, Iterable, List, TypeVar
 from urllib.parse import unquote
 
 from byoeb.constants.onboarding_text import ONBOARD_WELCOME_MESSAGE_DICT
@@ -15,6 +16,27 @@ from fastmcp.server.dependencies import get_http_request
 from pydantic import TypeAdapter, ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+def mask_phone(phone: str, visible_tail: int = 4) -> str:
+    """Mask phone number for logs/telemetry: show only last visible_tail chars, rest as asterisks."""
+    if not phone or not isinstance(phone, str):
+        return "****"
+    s = str(phone).strip()
+    if len(s) <= visible_tail:
+        return "*" * len(s) if s else "****"
+    return "*" * (len(s) - visible_tail) + s[-visible_tail:]
+
+
+def mask_message_preview(text: str, max_visible: int = 0) -> str:
+    """Redact message content for logs/telemetry. Returns [redacted] or [len=N] to avoid PII."""
+    if not text or not isinstance(text, str):
+        return "[redacted]"
+    n = len(text.strip())
+    if max_visible <= 0:
+        return "[len=%d]" % n
+    return "[len=%d]" % n
+
 
 def get_git_root_path():
     current_dir = os.path.abspath(__file__)
@@ -153,3 +175,14 @@ def hash_dict(d):
         json.dumps(d, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
         .encode()
     ).hexdigest()
+
+
+def ensure_utc_dates(obj: Any) -> Any:
+    """Recursively ensure datetime values are UTC-aware so User model accepts them (e.g. from MongoDB)."""
+    if isinstance(obj, datetime):
+        return obj.replace(tzinfo=timezone.utc) if obj.tzinfo is None else obj
+    if isinstance(obj, dict):
+        return {k: ensure_utc_dates(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [ensure_utc_dates(v) for v in obj]
+    return obj

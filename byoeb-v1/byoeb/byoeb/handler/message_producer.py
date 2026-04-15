@@ -1,6 +1,5 @@
 import json
 import logging
-import traceback
 import byoeb_integrations.channel.whatsapp.validate_message as wa_validator
 from byoeb.services.databases.mongo_db.message_db import MessageMongoDBService
 from typing import Any
@@ -86,10 +85,7 @@ class QueueProducerHandler:
             )
 
         try:
-            with self._tracer.start_as_current_span(SPAN_GET_PRODUCER):
-                self._logger.debug("[handle] → __get_or_create_message_producer(message_type=%s)", message_type)
-                message_producer_service = await self.__get_or_create_message_producer(message_type)
-                self._logger.debug("[handle] ← __get_or_create... out producer=%s", type(message_producer_service).__name__)
+            message_producer_service = await self.__get_or_create_message_producer(message_type)
         except Exception as e:
             self._logger.exception("[handle] ✖ producer init failed: %s", e)
             return ByoebResponseModel(

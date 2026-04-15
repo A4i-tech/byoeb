@@ -1,22 +1,12 @@
 
-import byoeb.services.user.utils as user_utils
 import hashlib
 from datetime import datetime, timezone
 from typing import List, Dict, Any
+
+import byoeb.services.user.utils as user_utils
 from byoeb_core.models.byoeb.user import User
 from byoeb.services.user.base import BaseUserService
 from byoeb.repositories.user_repository import UserRepository
-
-
-def _ensure_utc_dates(obj: Any) -> Any:
-    """Recursively ensure datetime values are UTC-aware so User model accepts them (e.g. from MongoDB)."""
-    if isinstance(obj, datetime):
-        return obj.replace(tzinfo=timezone.utc) if obj.tzinfo is None else obj
-    if isinstance(obj, dict):
-        return {k: _ensure_utc_dates(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_ensure_utc_dates(v) for v in obj]
-    return obj
 
 
 class UserService(BaseUserService):
@@ -227,11 +217,9 @@ class UserService(BaseUserService):
         self,
         user_ids: List[str],
     ) -> List[User]:
-        query = {"_id": {"$in": user_ids}}
         users_data: List[User] = []
-        async for document in self.__user_repository.find_all(query):
-            user_data = _ensure_utc_dates(document["User"])
-            users_data.append(User(**user_data))
+        async for document in self.__user_repository.find_users_by_ids(user_ids):
+            users_data.append(User(**document["User"]))
         return users_data
     
     async def aregister(

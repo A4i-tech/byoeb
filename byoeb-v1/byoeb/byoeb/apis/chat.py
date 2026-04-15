@@ -1,7 +1,7 @@
 import base64
+from datetime import datetime, timezone
 import logging
 import json
-import time
 import uuid
 from typing import Any, List, Dict, Literal, Set
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
@@ -185,8 +185,9 @@ def chat_mcps_router(mcp):
             qa = {
                 chat_constants.AUDIO_MESSAGE_ID: None,
                 chat_constants.TEXT_MESSAGE_ID: resp.message_context.message_id,
-                chat_constants.TIMESTAMP: str(int(time.time())),
-                chat_constants.QUESTION: processed_ctx.message_context.message_english_text,
+                chat_constants.TIMESTAMP: datetime.now(timezone.utc),
+                chat_constants.QUESTION: processed_ctx.message_context.message_source_text,
+                chat_constants.QUESTION_REWRITTEN: processed_ctx.message_context.message_english_text,
                 chat_constants.ANSWER: resp.message_context.message_english_text,
             } if not utils.is_idk(resp.message_context.message_english_text) else None
             update_query = dependency_setup.user_db_service.user_activity_update_query(user, qa)
