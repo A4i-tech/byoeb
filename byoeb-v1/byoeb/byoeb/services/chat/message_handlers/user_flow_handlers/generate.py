@@ -878,26 +878,18 @@ class ByoebUserGenerateResponse(Handler):
                 message_english = message.message_context.message_source_text
             
             user_language = message.user.user_language
-            if self.response_cache and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
-                cache_index = await self.response_cache.index(message_english)
-            else:
-                cache_index = None
-                cache_result = None
-
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
-            
             default_message_category = None
             cache_hit = False
-
             if self.response_cache and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
-                with langfuse.start_as_current_observation(as_type="span", name="cache", input=message_english) as span:
+                with langfuse.start_as_current_observation(as_type="span", name="cache-lookup", input=message_english) as span:
                     cache_index = await self.response_cache.index(message_english)
                     cache_result = await self.response_cache.lookup(cache_index)
                     span.update(output={
+                        "status": cache_result.status.name if cache_result is not None else None,
                         "hit": cache_result is not None and cache_result.value is not None and "answer" in cache_result.value and user_language in cache_result.value["answer"],
-                        "index": cache_index[1],
-                        "status": cache_result.status if cache_result is not None else None,
-                        "similarity": cache_result.similarity if cache_result is not None else None
+                        "hit_against_index": self.response_cache.hash(cache_result.index) if cache_result is not None else None,
+                        "hit_against_similarity": cache_result.similarity if cache_result is not None else None
                     })
             else:
                 cache_index = None
@@ -945,7 +937,14 @@ class ByoebUserGenerateResponse(Handler):
                     cache_val = cache_val or {}
                     cache_val["answer"] = cache_val.get("answer", {})
                     cache_val["answer"][user_language] = response_en, response_source, related_questions, tokens
-                    cache_result = await self.response_cache.store(cache_index, cache_val)
+                    with langfuse.start_as_current_observation(as_type="span", name="cache-store", input=message_english) as span:
+                        cache_result = await self.response_cache.store(cache_index, cache_val)
+                        if cache_result is not None:
+                            span.update(output={
+                                "status": cache_result.status.name,
+                                "index": self.response_cache.hash(cache_result.index),
+                                "similarity": cache_result.similarity
+                            })
                 else:
                     cache_result = None
 
