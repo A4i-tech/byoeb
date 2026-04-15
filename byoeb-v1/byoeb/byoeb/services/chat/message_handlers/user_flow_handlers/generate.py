@@ -26,8 +26,8 @@ from byoeb_integrations.embeddings.llama_index.openai import OpenAIEmbed
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorSearchType
 from byoeb_core.models.byoeb.user import User
 from byoeb.services.chat.message_handlers.base import Handler
-from byoeb.chat_app.configuration.dependency_setup import langfuse, llm_client
-from byoeb.chat_app.configuration.config import env_ashabot_message_cache_capacity, feature_flags
+from byoeb.chat_app.configuration.dependency_setup import langfuse, llm_client, teardown_callbacks
+from byoeb.chat_app.configuration.config import feature_flags
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from langfuse.media import LangfuseMedia
 from langfuse.api import MediaContentType
@@ -55,10 +55,6 @@ class ByoebUserGenerateResponse(Handler):
         ner_gen=create_gliner_ner(model_id=resp_cfg["ner_model"], threshold=resp_cfg["ner_threshold"], labels=resp_cfg["ner_labels"], teardown_executor=teardown_callbacks.append),
         capacity=resp_cfg["capacity"], logger=logger
     ) if env_config.env_openai_api_key and resp_cfg["capacity"] > 0 else None
-
-    def __init__(self, successor=None):
-        super().__init__(successor)
-        self._tracer = get_conversation_tracer()
 
     def __init__(self, successor=None):
         super().__init__(successor)
@@ -796,7 +792,6 @@ class ByoebUserGenerateResponse(Handler):
     async def handle_message_generate_workflow(self, messages: list[ByoebMessageContext]) -> list[ByoebMessageContext]:
         byoeb_messages = []
         message: ByoebMessageContext = messages[0].model_copy(deep=True)
-        msg_id = getattr(message.message_context, "message_id", None) or ""
         read_reciept_message = self.__create_read_reciept_message(message)
 
         if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
@@ -884,18 +879,7 @@ class ByoebUserGenerateResponse(Handler):
             
             user_language = message.user.user_language
             if self.response_cache and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
-                with self._tracer.start_as_current_span(SPAN_EMBEDDING) as emb_span:
-                    emb_span.set_attribute("message_id", msg_id)
-                    start_time = time.perf_counter()
-                    cache_index = await self.response_cache.index(message_english)
-                    end_time = time.perf_counter()
-                    emb_span.set_attribute("duration_ms", int((end_time - start_time) * 1000))
-                with self._tracer.start_as_current_span(SPAN_CACHE_QUERY) as cache_span:
-                    cache_span.set_attribute("message_id", msg_id)
-                    cache_result = await self.response_cache.lookup(cache_index)
-                    cache_span.set_attribute("cache_hit", cache_result is not None and cache_result.value is not None and "answer" in cache_result.value and user_language in cache_result.value["answer"])
-                    if cache_result and cache_result.similarity is not None:
-                        cache_span.set_attribute("score", cache_result.similarity)
+                cache_index = await self.response_cache.index(message_english)
             else:
                 cache_index = None
                 cache_result = None
@@ -905,17 +889,24 @@ class ByoebUserGenerateResponse(Handler):
             default_message_category = None
             cache_hit = False
 
-            if embedding_fn and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
+            if self.response_cache and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
                 with langfuse.start_as_current_observation(as_type="span", name="cache", input=message_english) as span:
-                    embedding = await embedding_fn.aget_text_embedding(message_english)
-                    cache_result = self.embedding_cache.query(embedding, 0.9)
-                    hit = cache_result[2] is not None and bool(cache_result[2])
-                    span.update(output={"hit": hit, "score": float(cache_result[0]) if hit and cache_result[0] is not None else None})
+                    cache_index = await self.response_cache.index(message_english)
+                    cache_result = await self.response_cache.lookup(cache_index)
+                    span.update(output={
+                        "hit": cache_result is not None and cache_result.value is not None and "answer" in cache_result.value and user_language in cache_result.value["answer"],
+                        "index": cache_index[1],
+                        "status": cache_result.status if cache_result is not None else None,
+                        "similarity": cache_result.similarity if cache_result is not None else None
+                    })
             else:
-                embedding = None
-                cache_result = None, None, None
+                cache_index = None
+                cache_result = None
 
-            cache_val = cache_result[2] if cache_result else None
+            query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
+            default_message_category = None
+            cache_hit = False
+            cache_val = cache_result.value if cache_result is not None else None
             if cache_val and "answer" in cache_val and user_language in cache_val["answer"]:
                 response_en, response_source, related_questions, tokens = cache_val["answer"][user_language]
                 cache_hit = True
@@ -923,23 +914,7 @@ class ByoebUserGenerateResponse(Handler):
                 start_time = time.perf_counter()
                 skip_cache = True
                 retrieved_chunks_related_questions = asyncio.create_task(self._retrieve_top_k_chunks_for_related_questions(message_english, k=10))
-                with self._tracer.start_as_current_span(SPAN_GENERATE_ANSWER) as ans_span:
-                    ans_span.set_attribute("message_id", msg_id)
-                    ans_start = time.perf_counter()
-                    response_en, response_source, tokens, retrieved_chunks = await self.agenerate_answer(user_language, message_english, query_type)
-                    ans_duration_ms = int((time.perf_counter() - ans_start) * 1000)
-                    pt, ct = tokens.get("prompt_tokens") or 0, tokens.get("completion_tokens") or 0
-                    ans_span.set_attribute("retrieval_chunk_count", len(retrieved_chunks))
-                    ans_span.set_attribute("rag.retrieval_chunk_count", len(retrieved_chunks))
-                    ans_span.set_attribute("rag.retrieval_duration_ms", ans_duration_ms)
-                    ans_span.set_attribute("duration_ms", ans_duration_ms)
-                    ans_span.set_attribute("prompt_tokens", pt)
-                    ans_span.set_attribute("completion_tokens", ct)
-                    ans_span.set_attribute("llm.prompt_tokens", pt)
-                    ans_span.set_attribute("llm.completion_tokens", ct)
-                    if tokens.get("total_tokens") is not None:
-                        ans_span.set_attribute("llm.total_tokens", tokens["total_tokens"])
-                    ans_span.set_attribute("idk", utils.is_idk(response_en))
+                response_en, response_source, tokens, retrieved_chunks = await self.agenerate_answer(user_language, message_english, query_type)
                 if not utils.is_idk(response_en):  # got answer on first try :)
                     skip_cache = False
                 else:
@@ -959,18 +934,14 @@ class ByoebUserGenerateResponse(Handler):
 
                 if utils.is_idk(response_en) and (FeatureFlag.QUERY_DISAMBIGUATION in feature_flags or message.user.test_user):
                     logger.debug("Query expansion was unsuccessful, assessing whether clarification is required...")
-                    with self._tracer.start_as_current_span(SPAN_NEEDS_CLARIFICATION) as clar_span:
-                        clar_span.set_attribute("message_id", msg_id)
-                        clar_start = time.perf_counter()
-                        clarification = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
-                        clar_span.set_attribute("clarification_asked", clarification is not None)
-                        clar_span.set_attribute("duration_ms", int((time.perf_counter() - clar_start) * 1000))
+                    clarification = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
                     if clarification:
                         default_message_category = MessageCategory.AUDIO_DISAMBIGUATION if message.message_context.message_type == MessageTypes.REGULAR_AUDIO else MessageCategory.TEXT_DISAMBIGUATION
                         response_en, response_source, tokens = clarification
 
                 related_questions = self.get_related_questions(message.user.user_language, await retrieved_chunks_related_questions, message.message_context.message_source_text)
-                if not skip_cache and embedding:
+                if not skip_cache and cache_index is not None:
+                    assert self.response_cache is not None
                     cache_val = cache_val or {}
                     cache_val["answer"] = cache_val.get("answer", {})
                     cache_val["answer"][user_language] = response_en, response_source, related_questions, tokens

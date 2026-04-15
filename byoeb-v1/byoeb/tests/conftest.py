@@ -38,3 +38,9 @@ if "MONGO_DB_CONNECTION_STRING" not in os.environ:
 # RECIEVE_URL for integration tests (intentionally misspelled as per codebase convention)
 if "RECIEVE_URL" not in os.environ:
     os.environ["RECIEVE_URL"] = "http://localhost:8000/receive"
+
+
+def pytest_sessionfinish(session, exitstatus):
+    import asyncio
+    from byoeb.chat_app.configuration.dependency_setup import teardown
+    asyncio.run(teardown())

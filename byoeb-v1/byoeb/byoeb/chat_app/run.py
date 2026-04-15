@@ -105,7 +105,6 @@ async def lifespan(app: FastAPI):
 
         try:
             await message_consumer.initialize()
-            asyncio.create_task(message_consumer.listen())
         except Exception as e:
             logger.error(f"Failed to initialize message consumer: {e}")
             logger.warning("Application will continue without message queue consumer")

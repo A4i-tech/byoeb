@@ -16,12 +16,6 @@ from byoeb.services.databases.mongo_db import UserMongoDBService, MessageMongoDB
 from byoeb_core.models.byoeb.message_context import ByoebMessageContext
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from byoeb.services.user.onboarding import handle_unknown_user
-from byoeb.observability.tracing import (
-    get_conversation_tracer,
-    parse_queue_payload_and_extract_context,
-    SPAN_CONSUME_MESSAGE,
-    SPAN_CREATE_CONVERSATIONS,
-)
 
 class Conversation(BaseModel):
     user_message: Optional[ByoebMessageContext]
@@ -47,7 +41,6 @@ class MessageConsmerService:
         self._channel_client_factory = channel_client_factory
         self._regular_user_type = bot_config["regular"]["user_type"]
         self._expert_user_types = bot_config["expert"]
-        self._tracer = get_conversation_tracer()
 
     # TODO: Hash can be used or better way to get user by phone number
     def __get_user(
@@ -313,7 +306,6 @@ class MessageConsmerService:
     ) -> List[ByoebMessageContext]:
         self._logger.info(f"[consume] Processing {len(messages)} raw message(s)")
         byoeb_messages: List[ByoebMessageContext] = []
-        trace_context_by_message_id: Dict[str, otel_context.Context] = {}
 
         for raw in messages:
             try:
@@ -325,11 +317,7 @@ class MessageConsmerService:
         self._logger.debug("byoeb_messages=%s", byoeb_messages)
 
         start_time = datetime.now(timezone.utc).timestamp()
-        with self._tracer.start_as_current_span(SPAN_CREATE_CONVERSATIONS) as create_span:
-            conversations, onboard_convs = await self.__create_conversations(byoeb_messages)
-            create_span.set_attribute("conversation_count", len(conversations))
-            create_span.set_attribute("onboard_count", len(onboard_convs))
-            create_span.set_status(Status(StatusCode.OK))
+        conversations, onboard_convs = await self.__create_conversations(byoeb_messages)
         end_time = datetime.now(timezone.utc).timestamp()
 
         self._logger.info("[consume] conversations=%s onboard=%s create_time=%.3fs", len(conversations), len(onboard_convs), end_time - start_time)

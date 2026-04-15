@@ -12,12 +12,6 @@ from byoeb_core.models.byoeb.message_context import ByoebMessageContext, Message
 from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.models.message_category import MessageCategory
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
-from byoeb.observability.tracing import (
-    get_conversation_tracer,
-    SPAN_PROCESS_WORKFLOW,
-    SPAN_AUDIO_TO_TEXT,
-    SPAN_QUERY_REWRITE,
-)
 
 from byoeb_core.models.whatsapp.requests.media_request import MediaData
 from langfuse.media import LangfuseMedia
@@ -155,7 +149,6 @@ class ByoebUserProcess(Handler):
         messages: List[ByoebMessageContext]
     ) -> ByoebMessageContext:
         message = messages[0].model_copy(deep=True)
-        msg_id = getattr(message.message_context, "message_id", None) or ""
 
         query_type = None
         query_en = None
@@ -164,8 +157,8 @@ class ByoebUserProcess(Handler):
         if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
             await self.annotate_audio_transcription(message)
 
-            if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value:
-                await self.annotate_audio_transcription(message)
+        # Check if this is an onboarding message BEFORE processing
+        is_onboarding_message = utils.is_onboard(message.message_context.message_source_text, message.user.user_language)
 
         # Skip LLM translation/rewriting for onboarding messages to prevent them from being sent to vector store/LLM
         # Also skip for AUDIO_IDK messages (they don't need translation/rewriting)
