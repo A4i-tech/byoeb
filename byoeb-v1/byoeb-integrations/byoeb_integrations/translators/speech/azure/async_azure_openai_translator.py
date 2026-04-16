@@ -1,8 +1,5 @@
 
 import io
-# DO NOT remove the import below, static analysis will mark this unused but we need
-# it for langfuse openai audio instrumentation
-import byoeb_integrations.langfuse_bindings  # noqa: F401
 from langfuse.openai import AsyncAzureOpenAI
 from openai.lib.azure import AsyncAzureADTokenProvider
 from enum import Enum

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-import base64
+import contextlib
 from contextvars import ContextVar
-from typing import Any
+import mimetypes
+from typing import Any, Generator
 
 import httpx
 from wrapt import wrap_function_wrapper
 
 from langfuse._client.get_client import get_client
+from langfuse.api import MediaContentType
 from langfuse.media import LangfuseMedia
 
 _AUDIO_CALL: ContextVar[dict[str, Any] | None] = ContextVar("langfuse_audio_call", default=None)
@@ -20,8 +22,7 @@ def _media(file: Any) -> LangfuseMedia | None:
         return None
 
     if isinstance(file, (bytes, bytearray)):
-        data = bytes(file)
-        name = "audio.wav"
+        data, name = bytes(file), "audio.wav"
     else:
         pos = file.tell() if hasattr(file, "tell") else None
         data = file.read()
@@ -29,11 +30,12 @@ def _media(file: Any) -> LangfuseMedia | None:
             file.seek(pos)
         name = getattr(file, "name", "audio.wav")
 
-    ext = name.rsplit(".", 1)[-1].lower() if "." in name else "wav"
-    mime = f"audio/{ext}" if ext in {"mp3", "wav", "m4a", "ogg", "flac", "webm"} else "audio/wav"
-    return LangfuseMedia(
-        base64_data_uri=f"data:{mime};base64,{base64.b64encode(data).decode('utf-8')}"
-    )
+    guessed, _ = mimetypes.guess_type(name)
+    try:
+        mime = MediaContentType(guessed)
+    except (ValueError, TypeError):
+        mime = MediaContentType.AUDIO_WAV
+    return LangfuseMedia(content_bytes=data, content_type=mime)
 
 
 def _usage_details(usage: Any) -> dict[str, Any] | None:
@@ -58,74 +60,6 @@ def _usage_details(usage: Any) -> dict[str, Any] | None:
         return result
 
     return {k: v for k, v in data.items() if v is not None}
-
-
-async def _async_request_hook(request: httpx.Request) -> None:
-    path = request.url.path
-    if "/audio/transcriptions" not in path and "/audio/translations" not in path:
-        return
-
-    if _OBS_KEY in request.extensions:
-        return
-
-    call = _AUDIO_CALL.get()
-    if call is None:
-        return
-
-    request.extensions[_OBS_KEY] = get_client().start_observation(
-        as_type="generation",
-        name="OpenAI-generation",
-        model=call["model"],
-        model_parameters=call["model_parameters"],
-        input=call["input"],
-        metadata={
-            "provider": call["provider"],
-            "endpoint": "translations" if "/audio/translations" in path else "transcriptions",
-            "attempt": int(request.headers.get("x-stainless-retry-count", "0")) + 1,
-            "path": path,
-            "method": request.method,
-        },
-    )
-
-
-async def _async_response_hook(response: httpx.Response) -> None:
-    path = response.request.url.path
-    if "/audio/transcriptions" not in path and "/audio/translations" not in path:
-        return
-
-    await response.aread()
-
-    generation = response.request.extensions[_OBS_KEY]
-    payload = response.json()
-    usage = _usage_details(payload.get("usage"))
-
-    update: dict[str, Any] = {
-        "output": payload.get("text", payload),
-        "metadata": {
-            "status_code": response.status_code,
-            "request_id": response.headers.get("x-request-id"),
-            "attempt": int(response.request.headers.get("x-stainless-retry-count", "0")) + 1,
-        },
-    }
-
-    if usage is not None:
-        update["usage_details"] = usage
-        update["usage"] = usage
-
-        cost = payload["usage"].get("cost") if isinstance(payload["usage"], dict) else getattr(payload["usage"], "cost", None)
-        if cost is not None:
-            update["cost_details"] = {"total": cost}
-
-    if response.status_code >= 400:
-        error = payload.get("error", payload)
-        update["level"] = "ERROR"
-        update["status_message"] = (
-            error.get("message", f"HTTP {response.status_code}")
-            if isinstance(error, dict)
-            else f"HTTP {response.status_code}"
-        )
-
-    generation.update(**update).end()
 
 
 def _sync_request_hook(request: httpx.Request) -> None:
@@ -155,14 +89,11 @@ def _sync_request_hook(request: httpx.Request) -> None:
         },
     )
 
+async def _async_request_hook(request: httpx.Request) -> None:
+    _sync_request_hook(request)
 
-def _sync_response_hook(response: httpx.Response) -> None:
-    path = response.request.url.path
-    if "/audio/transcriptions" not in path and "/audio/translations" not in path:
-        return
 
-    response.read()
-
+def _process_response_hook(response: httpx.Response) -> None:
     generation = response.request.extensions[_OBS_KEY]
     payload = response.json()
     usage = _usage_details(payload.get("usage"))
@@ -196,6 +127,24 @@ def _sync_response_hook(response: httpx.Response) -> None:
     generation.update(**update).end()
 
 
+async def _async_response_hook(response: httpx.Response) -> None:
+    path = response.request.url.path
+    if "/audio/transcriptions" not in path and "/audio/translations" not in path:
+        return
+
+    await response.aread()
+    _process_response_hook(response)
+
+
+def _sync_response_hook(response: httpx.Response) -> None:
+    path = response.request.url.path
+    if "/audio/transcriptions" not in path and "/audio/translations" not in path:
+        return
+
+    response.read()
+    _process_response_hook(response)
+
+
 def _post_init(wrapped: Any, instance: Any, args: Any, kwargs: Any) -> Any:
     result = wrapped(*args, **kwargs)
 
@@ -214,7 +163,8 @@ def _post_init(wrapped: Any, instance: Any, args: Any, kwargs: Any) -> Any:
     return result
 
 
-async def _async_audio_create(wrapped: Any, instance: Any, args: Any, kwargs: Any) -> Any:
+@contextlib.contextmanager
+def _audio_call_context(instance: Any, kwargs: Any) -> Generator[None, None, None]:
     model_parameters = {
         k: v
         for k, v in {
@@ -238,41 +188,22 @@ async def _async_audio_create(wrapped: Any, instance: Any, args: Any, kwargs: An
         }
     )
     try:
-        return await wrapped(*args, **kwargs)
+        yield
     finally:
         _AUDIO_CALL.reset(token)
+
+
+async def _async_audio_create(wrapped: Any, instance: Any, args: Any, kwargs: Any) -> Any:
+    with _audio_call_context(instance, kwargs):
+        return await wrapped(*args, **kwargs)
 
 
 def _sync_audio_create(wrapped: Any, instance: Any, args: Any, kwargs: Any) -> Any:
-    model_parameters = {
-        k: v
-        for k, v in {
-            "language": kwargs.get("language"),
-            "temperature": kwargs.get("temperature"),
-            "response_format": kwargs.get("response_format"),
-            "prompt": kwargs.get("prompt"),
-            "include": kwargs.get("include"),
-            "timestamp_granularities": kwargs.get("timestamp_granularities"),
-            "chunking_strategy": kwargs.get("chunking_strategy"),
-        }.items()
-        if v is not None
-    }
-
-    token = _AUDIO_CALL.set(
-        {
-            "provider": "azure" if "azure" in str(instance._client.base_url) else "openai",
-            "model": kwargs.get("model"),
-            "model_parameters": model_parameters or None,
-            "input": {"audio": _media(kwargs.get("file")), **model_parameters},
-        }
-    )
-    try:
+    with _audio_call_context(instance, kwargs):
         return wrapped(*args, **kwargs)
-    finally:
-        _AUDIO_CALL.reset(token)
 
 
-def register_audio_tracing() -> None:
+def register() -> None:
     wrap_function_wrapper("openai._client", "OpenAI.__init__", _post_init)
     wrap_function_wrapper("openai._client", "AsyncOpenAI.__init__", _post_init)
     wrap_function_wrapper("openai.lib.azure", "AzureOpenAI.__init__", _post_init)
@@ -282,6 +213,3 @@ def register_audio_tracing() -> None:
     wrap_function_wrapper("openai.resources.audio.transcriptions", "AsyncTranscriptions.create", _async_audio_create)
     wrap_function_wrapper("openai.resources.audio.translations", "Translations.create", _sync_audio_create)
     wrap_function_wrapper("openai.resources.audio.translations", "AsyncTranslations.create", _async_audio_create)
-
-
-register_audio_tracing()
