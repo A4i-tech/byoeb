@@ -74,7 +74,7 @@ async def _async_request_hook(request: httpx.Request) -> None:
 
     request.extensions[_OBS_KEY] = get_client().start_observation(
         as_type="generation",
-        name="openai-audio-transcription",
+        name="OpenAI-generation",
         model=call["model"],
         model_parameters=call["model_parameters"],
         input=call["input"],
@@ -142,7 +142,7 @@ def _sync_request_hook(request: httpx.Request) -> None:
 
     request.extensions[_OBS_KEY] = get_client().start_observation(
         as_type="generation",
-        name="openai-audio-transcription",
+        name="OpenAI-generation",
         model=call["model"],
         model_parameters=call["model_parameters"],
         input=call["input"],
