@@ -94,6 +94,9 @@ async def _async_request_hook(request: httpx.Request) -> None:
 
 
 def _process_response_hook(response: httpx.Response) -> None:
+    if _OBS_KEY not in response.request.extensions:
+        return
+
     generation = response.request.extensions[_OBS_KEY]
     payload = response.json()
     usage = _usage_details(payload.get("usage"))
