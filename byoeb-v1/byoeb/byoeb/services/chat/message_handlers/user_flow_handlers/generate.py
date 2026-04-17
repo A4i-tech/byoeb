@@ -895,9 +895,6 @@ class ByoebUserGenerateResponse(Handler):
                 cache_index = None
                 cache_result = None
 
-            query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
-            default_message_category = None
-            cache_hit = False
             cache_val = cache_result.value if cache_result is not None else None
             if cache_val and "answer" in cache_val and user_language in cache_val["answer"]:
                 response_en, response_source, related_questions, tokens = cache_val["answer"][user_language]
