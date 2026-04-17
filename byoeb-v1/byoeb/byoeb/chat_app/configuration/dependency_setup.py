@@ -6,7 +6,7 @@ import logging
 from typing import Awaitable
 
 _logger = logging.getLogger("flow")
-teardown_callbacks: list[Awaitable] = []
+teardown_tasks: list[Awaitable] = []
 
 
 # App logger (logger name is app identity, not environment-specific)
@@ -410,7 +410,7 @@ scheduler = AsyncIOScheduler(
     job_defaults={'coalesce': False, 'max_instances': 1}
 )
 
-teardown_callbacks.extend((
+teardown_tasks.extend((
     message_consumer.close(),
     channel_client_factory.close(),
     queue_producer_factory.close(),
@@ -432,9 +432,9 @@ async def teardown():
         scheduler.shutdown()
         _logger.info("Background job scheduler stopped")
 
-    global teardown_callbacks
+    global teardown_tasks
     try:
-        for coro in teardown_callbacks:
+        for coro in teardown_tasks:
             await coro
     finally:
-        teardown_callbacks.clear()
+        teardown_tasks.clear()

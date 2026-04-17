@@ -26,7 +26,7 @@ from byoeb_integrations.embeddings.llama_index.openai import OpenAIEmbed
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorSearchType
 from byoeb_core.models.byoeb.user import User
 from byoeb.services.chat.message_handlers.base import Handler
-from byoeb.chat_app.configuration.dependency_setup import langfuse, llm_client, teardown_callbacks
+from byoeb.chat_app.configuration.dependency_setup import langfuse, llm_client, teardown_tasks
 from byoeb.chat_app.configuration.config import feature_flags
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from langfuse.media import LangfuseMedia
@@ -52,7 +52,7 @@ class ByoebUserGenerateResponse(Handler):
         cache=DbmKVCache[ResponseCacheT](),
         emb_fn=OpenAIEmbed(model=resp_cfg["embedding_model"], dimensions=resp_cfg["embedding_dim"], api_key=env_config.env_openai_api_key).get_embedding_function(),
         emb_cache=LanceDBEmbeddingCache(dim=resp_cfg["embedding_dim"], threshold=resp_cfg["embedding_threshold"]),
-        ner_gen=create_gliner_ner(model_id=resp_cfg["ner_model"], threshold=resp_cfg["ner_threshold"], labels=resp_cfg["ner_labels"], teardown_executor=teardown_callbacks.append),
+        ner_gen=create_gliner_ner(model_id=resp_cfg["ner_model"], threshold=resp_cfg["ner_threshold"], labels=resp_cfg["ner_labels"], teardown_executor=teardown_tasks.append),
         capacity=resp_cfg["capacity"], logger=logger
     ) if env_config.env_openai_api_key and resp_cfg["capacity"] > 0 else None
 
