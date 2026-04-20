@@ -873,6 +873,8 @@ class ByoebUserGenerateResponse(Handler):
             
             user_language = message.user.user_language
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
+            if query_type is None:
+                raise ValueError("query_type must not be None")
             
             default_message_category = None
             cache_hit = False
