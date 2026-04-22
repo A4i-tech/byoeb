@@ -134,8 +134,20 @@ class WhatsAppService(BaseChannelService):
             auth_service.fetch_integrations_by_tenants(self.__client_type, list({uuid.UUID(str(tid)) for tid in set(recipient_to_tenant.values()) if tid is not None})),
             auth_service.fetch_integrations([req[self.__passover_integration_id] for req in requests if self.__passover_integration_id in req])
         )
-        integrations_to_client = {str(i.id): await self.__channel_client_factory.get(self.__client_type, i.identifier) for i in [*integrations1, *integrations2]}
-        tenant_to_client = {i.tenant_id: integrations_to_client[str(i.id)] for i in [*integrations1, *integrations2]}
+        all_integrations = [*integrations1, *integrations2]
+        integrations_to_client = {str(i.id): await self.__channel_client_factory.get(self.__client_type, i.identifier) for i in all_integrations}
+
+        # Build tenant→client map only for tenants with exactly one integration.
+        # Tenants with multiple integrations must use an explicit _byoeb_integration_id; a
+        # dict-overwrite fallback would silently pick the wrong integration.
+        tenant_integration_ids: dict = {}
+        for i in all_integrations:
+            tenant_integration_ids.setdefault(i.tenant_id, []).append(str(i.id))
+        tenant_to_client = {
+            tid: integrations_to_client[int_ids[0]]
+            for tid, int_ids in tenant_integration_ids.items()
+            if len(int_ids) == 1
+        }
 
         resolved_clients = []
         for request in requests:
@@ -144,6 +156,10 @@ class WhatsAppService(BaseChannelService):
             else:
                 tenant_id = recipient_to_tenant.get(request["to"])
                 client = tenant_to_client.get(tenant_id) if tenant_id else None
+                if client is None and tenant_id and tenant_id in {i.tenant_id for i in all_integrations}:
+                    raise Exception(
+                        f"Tenant has multiple WhatsApp integrations; explicit {self.__passover_integration_id} required for user: {request['to']}"
+                    )
             if client:
                 resolved_clients.append((client, request))
             else:

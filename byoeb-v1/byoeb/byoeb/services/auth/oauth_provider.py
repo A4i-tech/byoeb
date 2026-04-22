@@ -396,6 +396,23 @@ class OAuthProvider(AuthProvider):
             else:
                 location = f"{location}?auth_path={auth_path}"
             return RedirectResponse(location, status_code=302)
+        # CSRF protection: reject cross-origin POST requests.
+        # The OAuth login form on /login always sets Origin (same-origin form submit).
+        # An attacker-controlled page targeting this endpoint would have a different Origin.
+        # We only reject when Origin/Referer is present and does not match, to avoid breaking
+        # clients that suppress these headers for legitimate reasons.
+        from urllib.parse import urlparse
+        from byoeb.services.auth.dependencies import get_public_base_url
+        public_base = get_public_base_url()
+        public_origin = "{0.scheme}://{0.netloc}".format(urlparse(public_base))
+        request_origin = request.headers.get("origin")
+        request_referer = request.headers.get("referer", "")
+        source = request_origin or request_referer
+        if source and not source.startswith(public_origin):
+            return JSONResponse(
+                {"error": "invalid_request", "error_description": "Cross-origin request not allowed."},
+                status_code=403,
+            )
         form = await request.form()
         username = form.get("username")
         password = form.get("password")
