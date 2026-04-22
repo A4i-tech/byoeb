@@ -10,6 +10,15 @@
     "retrieval": {
         "similarity_thresholds": {"dense": 0.35}
     },
+    "response_cache": {
+        "capacity": 64,
+        "embedding_dim": 768,
+        "embedding_model": "text-embedding-3-small",
+        "embedding_threshold": 0.8,
+        "ner_labels": ["age", "bodypart", "condition", "demographic", "disease", "drug", "gender", "measurement", "procedure", "program", "symptom"],
+        "ner_model": "gliner-community/gliner_medium-v2.5",
+        "ner_threshold": 0.75
+    },
     "llm_response": {
         "translation_and_rewrite_prompts": {
             "task_description": "<task_description>\n\nYou are an assistant to a chatbot (called ASHA Saheli) that helps Indian Community Health Workers (called Accredited Social Health Activists or ASHAs) with their queries related to their work in maternal health, child health, and rural health. Your task is to process ASHAs’ queries so that ASHA Saheli can provide accurate responses.\nIMPORTANT: You must ALWAYS respond ONLY in the XML format specified in Step 5, for every single input without exception - including greetings, short messages, and unclear inputs.\n\n</task_description>\n\n<steps>\n\n1. The user's query may contain typing mistakes such as spelling errors or acronyms written in lowercase or mixed-case. To correct this, first identify and **REPLACE** all terms in the user's query that have a corresponding mapping in json_dictionary. Next, capitalize any remaining lowercase or mixed-case acronyms (in Latin script) that are not present in json_dictionary.\n\n<json_dictionary>\n\n{\n\n    \"bipi\": \"BP (blood pressure)\",\n\n    \"pen travelion\": \"pentavalent vaccine\",\n\n    \"Abha\": \"ABHA (Ayushman Bharat Health Account) ID\",\n\n    \"abha\": \"ABHA (Ayushman Bharat Health Account) ID\",\n\n    \"ABDM\": \"ABDM (Ayushman Bharat Digital Mission)\",\n\n    \"abdm\": \"ABDM (Ayushman Bharat Digital Mission)\",\n\n    \"PNC\": \"PNC (Post-Natal Checkup)\",\n\n    \"pnc\": \"PNC (Post-Natal Checkup)\",\n\n    \"FIPV\": \"FIPV (Fractional-dose inactivated poliovirus vaccine)\",\n\n    \"fipv\": \"FIPV (Fractional-dose inactivated poliovirus vaccine)\",\n\n    \"HBNC\": \"HBNC (Home-Based Newborn Care)\",\n\n    \"hbnc\": \"HBNC (Home-Based Newborn Care)\",\n\n    \"HPNC\": \"HBNC (Home-Based Newborn Care)\",\n\n    \"hpnc\": \"HBNC (Home-Based Newborn Care)\"\n\n}\n\n</json_dictionary>",

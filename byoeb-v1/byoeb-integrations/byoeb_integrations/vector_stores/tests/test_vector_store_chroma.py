@@ -1,22 +1,35 @@
 import os
 from typing import List
+import numpy as np
 import pytest
 from byoeb_core.models.vector_stores.chunk import Chunk
 from chromadb import Documents, EmbeddingFunction, Embeddings
 from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
 from byoeb_integrations.vector_stores.llama_index.llama_index_chroma_store import LlamaIndexChromaDBStore
 from llama_index.core.embeddings.mock_embed_model import MockEmbedding
-from llama_index.core.schema import TextNode
 
 os.environ["AZURE_OPENAI_API_KEY"] = "sk-xxxx"
 os.environ["CHROMA_TELEMETRY_DISABLED"] = "true"
 
 class MockEmbeddingFunction(EmbeddingFunction):
-    def __init__(self):
-        self.__embedding_fn = MockEmbedding(embed_dim=4)
+
+    def _embed(self, text: str):
+        rng = np.random.default_rng([ord(c) for c in text])
+        return rng.random(4).astype(np.float32)
 
     def __call__(self, input: Documents) -> Embeddings:
-        return [self.__embedding_fn.get_text_embedding(doc) for doc in input]
+        return [self._embed(doc) for doc in input]
+
+class MockEmbeddingModel(MockEmbedding):
+
+    def _embed(self, text: str):
+        rng = np.random.default_rng([ord(c) for c in text])
+        return list(rng.random(self.embed_dim))
+
+    async def _aget_text_embedding(self, text): return self._embed(text)
+    async def _aget_query_embedding(self, query): return self._embed(query)
+    def _get_query_embedding(self, query): return self._embed(query)
+    def _get_text_embedding(self, text): return self._embed(text)
 
 
 @pytest.mark.asyncio
@@ -34,7 +47,7 @@ async def test_chroma_vector_store_ops(tmp_path):
 
 @pytest.mark.asyncio
 async def test_llama_index_chroma_vector_store_ops(tmp_path):
-    embed_model = MockEmbedding(embed_dim=4)
+    embed_model = MockEmbeddingModel(embed_dim=4)
 
     chromavs = LlamaIndexChromaDBStore(str(tmp_path / "vdb"), "test", embedding_function=embed_model)
     async for _ in chromavs.add_chunks(["hello", "world"], [{"a": 1}, {"b": 2}], ["1", "2"]):

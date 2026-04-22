@@ -1,3 +1,4 @@
+from fnmatch import fnmatch
 from typing import Any, AsyncIterator, List, Literal, Set
 from byoeb.constants.user_enums import LanguageCode
 from fastmcp import Client
@@ -26,6 +27,9 @@ HTTP_TIMEOUT_S = 60
 def get_cache_hit(resp: Any) -> bool:
     return next((v for k, v in resp.additional_info if k == "Cache hit"), False)
 
+def get_cache_index(resp: Any) -> str | None:
+    return next((v for k, v in resp.additional_info if k == "Cache index"), None)
+
 def has_devanagari(text: str) -> bool:
     return any("\u0900" <= ch <= "\u097f" for ch in text)
 
@@ -46,13 +50,16 @@ async def test_repeated_query_hits_cache():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("lang,query,features", [
-    (LanguageCode.ENGLISH, "what is antara injection", ["purge"]),
-    (LanguageCode.HINDI, "antara injection kya hai", ["devanagari"]),
-    (LanguageCode.ENGLISH, "what is antara injection", ["hit"]),
-    (LanguageCode.HINDI, "antara injection kya hai", ["devanagari", "hit"]),
+@pytest.mark.parametrize("lang,query,features,expected_cache_index", [
+    (LanguageCode.ENGLISH, "what is antara injection", ["purge"], None),
+    (LanguageCode.HINDI, "antara injection kya hai", ["devanagari"], None),
+    (LanguageCode.ENGLISH, "what is antara injection", ["hit"], None),
+    (LanguageCode.HINDI, "antara injection kya hai", ["devanagari", "hit"], None),
+    (LanguageCode.ENGLISH, "what must be the ideal weight of a 3yr old boy and what if they are a girl", ["purge"], None),
+    (LanguageCode.ENGLISH, "what must be the ideal weight of a 3yr old boy and what if they are a girl", ["hit"], "id=*|age=3*|gender=boy|gender=girl"),
+    (LanguageCode.ENGLISH, "what must be the ideal weight of a 4yr old boy and what if they are a girl", [], "id=*|age=4*|gender=boy|gender=girl"),
 ])
-async def test_cached_response_respects_lang(lang: LanguageCode, query: str, features: set[str]):
+async def test_cached_response_respects_lang(lang: LanguageCode, query: str, features: set[str], expected_cache_index: str | None):
     if "purge" in features:
         requests.post(PURGE_URL, timeout=HTTP_TIMEOUT_S).raise_for_status()
 
@@ -75,3 +82,5 @@ async def test_cached_response_respects_lang(lang: LanguageCode, query: str, fea
 
     assert get_cache_hit(resp) == ("hit" in features)
     assert has_devanagari(resp.text) == ("devanagari" in features)
+    if expected_cache_index is not None:
+        assert fnmatch(get_cache_index(resp) or "unknown", expected_cache_index)

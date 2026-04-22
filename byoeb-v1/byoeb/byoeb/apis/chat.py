@@ -85,12 +85,11 @@ def chat_mcps_router(mcp):
                 self._items.append((info["description"], info["row_texts"]))
             return self
 
-        def add_cache_hit(self, info):
+        def add_cache(self, info):
+            if "cache_index" in info:
+                self._items.append(("Cache index", info["cache_index"]))
             if "cache_hit" in info:
                 self._items.append(("Cache hit", info["cache_hit"]))
-            return self
-
-        def add_cache_score(self, info):
             if "cache_score" in info:
                 self._items.append(("Cache score", info["cache_score"]))
             return self
@@ -177,8 +176,7 @@ def chat_mcps_router(mcp):
             additional_info = (AdditionalInfoBuilder()
                 .add_internal_query(resp)
                 .add_description_rows(info)
-                .add_cache_hit(info)
-                .add_cache_score(info)
+                .add_cache(info)
                 .add_history(features, resp)
                 .add_audio(features, info)
                 .build())

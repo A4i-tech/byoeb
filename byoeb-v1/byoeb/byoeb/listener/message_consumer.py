@@ -15,8 +15,9 @@ from byoeb_integrations.message_queue.azure.async_azure_storage_queue import Asy
 
 class QueueConsumer:
 
-    _az_storage_queue: BaseQueue = None
-    _dlq_client: BaseQueue = None
+    _az_storage_queue: BaseQueue | None = None
+    _dlq_client: BaseQueue | None = None
+    _listener: asyncio.Task | None = None
     def __init__(
         self,
         account_url: str,
@@ -37,6 +38,7 @@ class QueueConsumer:
         self._channel_client_factory = channel_client_factory
         self._tracer = trace.get_tracer(__name__)
         self._batch_message_consumer_logger = AppInsightsLogHandler.getLogger("batch_message_consumer")
+        self._running = True
     
     async def __create_azure_storage_queue_client(
         self,
@@ -90,12 +92,15 @@ class QueueConsumer:
         if self._az_storage_queue:
             self._logger.info("Queue already initialized")
             return
+
         if self._consumer_type == "azure_storage_queue":
             self._az_storage_queue = await self.__get_or_create_az_storage_queue_client()
             if isinstance(self._az_storage_queue, AsyncAzureStorageQueue):
                 self._logger.info(f"Azure storage queue client created: {self._az_storage_queue}")
         else:
             self._logger.error(f"Error initializing")
+
+        self._listener = asyncio.create_task(self._listen())
 
     async def __areceive(
         self
@@ -123,10 +128,9 @@ class QueueConsumer:
                 tasks.append(task)
             await asyncio.gather(*tasks)
 
-    async def listen(
+    async def _listen(
         self
     ):
-        await self.initialize()
         message_consumer_svc = MessageConsmerService(
             config=self._config,
             user_db_service=self._user_db_service,
@@ -137,7 +141,7 @@ class QueueConsumer:
         dlq_client = await self.__get_or_create_dead_letter_queue_client()
         self._logger.info(f"Queue info: {self._az_storage_queue}")
 
-        while True:
+        while self._running:
             # Receive first; only create a span when there is actual work to avoid
             # flooding tracing backends with empty-batch polls.
             messages = await self.__areceive()
@@ -230,14 +234,16 @@ class QueueConsumer:
 
                 await asyncio.sleep(0.5)
 
-    async def close(
-        self
-    ):
-        self._logger.info(self._az_storage_queue)
+    async def close(self):
+        self._running = False
+        if self._listener is not None:
+            await self._listener
+            self._listener = None
+        
         if isinstance(self._az_storage_queue, AsyncAzureStorageQueue):
             await self._az_storage_queue._close()
+        self._az_storage_queue = None
+
         if isinstance(self._dlq_client, AsyncAzureStorageQueue):
             await self._dlq_client._close()
-            self._logger.info("Closed the Azure storage queue client")
-        else:
-            self._logger.info("No queue client to close")
+        self._dlq_client = None
