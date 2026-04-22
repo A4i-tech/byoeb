@@ -211,7 +211,10 @@ class ByoebUserProcess(Handler):
             span.update(input=message.message_context.message_source_text, metadata={"message_id": message.message_context.message_id})
 
             tags = []
-            if message.user.user_language in LanguageCode: tags.append(LanguageCode(message.user.user_language).name.lower())
+            try:
+                tags.append(LanguageCode(message.user.user_language).name.lower())
+            except ValueError:
+                pass
             if message.user.user_type: tags.append(message.user.user_type)
             if message.message_context.message_type: tags.append(message.message_context.message_type)
             if message.message_context.additional_info:
