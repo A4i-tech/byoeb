@@ -99,6 +99,27 @@ class MongoAuthRepository(AuthRepository, MongoBaseRepository):
             {"$unset": {"refresh_token": "", "refresh_client_id": "", "refresh_scopes": "", "refresh_token_expires_at": ""}},
         )
 
+    async def rotate_refresh_token(
+        self,
+        username: str,
+        current_refresh_token: str,
+        new_refresh_token: str,
+        client_id: str | None,
+        scope: str | None,
+    ) -> bool:
+        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+        return await self.update_one(
+            {"username": username, "refresh_token": current_refresh_token},
+            {
+                "$set": {
+                    "refresh_token": new_refresh_token,
+                    "refresh_client_id": client_id,
+                    "refresh_scopes": scope,
+                    "refresh_token_expires_at": expires_at,
+                }
+            },
+        )
+
     async def update_user_roles_for_tenant(self, username: str, tenant_id: UUID, roles: list[str]) -> bool:
         return await self.update_one({"username": username, "tenants.tenant_id": tenant_id}, {"$set": {"tenants.$.roles": roles}})
 

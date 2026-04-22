@@ -170,11 +170,31 @@ class WhatsAppService(BaseChannelService):
         self,
         requests: List[Dict[str, Any]]
     ) -> Tuple[List[WhatsAppResponse], List[Optional[str]]]:
-        tasks = [client.asend_batch_messages([request], request["type"]) for client, request in await self._resolve_clients(requests)]
-        results = await asyncio.gather(*tasks)
-        responses = [response for result in results for response in result]
-        logging.getLogger(__name__).debug("WhatsApp responses %s", responses)
-        message_ids = [response.messages[0].id if response.messages and response.messages[0].id else None for response in responses]
+        resolved_clients = await self._resolve_clients(requests)
+        tasks = [client.asend_batch_messages([request], request["type"]) for client, request in resolved_clients]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        responses: List[WhatsAppResponse] = []
+        message_ids: List[Optional[str]] = []
+        logger = logging.getLogger(__name__)
+        for (_, request), result in zip(resolved_clients, results):
+            if isinstance(result, Exception):
+                logger.exception(
+                    "Failed to send WhatsApp request to '%s' with type '%s'.",
+                    request.get("to"),
+                    request.get("type"),
+                    exc_info=(type(result), result, result.__traceback__),
+                )
+                message_ids.append(None)
+                continue
+
+            responses.extend(result)
+            message_ids.extend(
+                response.messages[0].id if response.messages and response.messages[0].id else None
+                for response in result
+            )
+
+        logger.debug("WhatsApp responses %s", responses)
         return responses, message_ids
     
     def create_conv(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import secrets
 import uuid
 from datetime import datetime, timezone
@@ -30,6 +31,8 @@ from byoeb.services.auth.exceptions import (
 )
 from byoeb.services.auth.models import AuthPermission, AuthTenant, AuthUser, AshaTenantIntegration
 from byoeb.services.auth.security import AuthTokenService, TOKEN_SERVICE, TokenClaims, PASSWORD_CTX
+
+logger = logging.getLogger(__name__)
 
 
 class TokenDetails(BaseModel):
@@ -88,7 +91,13 @@ class AuthService:
             if not requested_scopes.issubset(granted_scopes):
                 raise InvalidTokenError("Invalid refresh token.")
         resolved_client_id = client_id if client_id is not None else user_doc.get("refresh_client_id")
-        return await self.issue_token_for_user(username, UUID(str(tenant_id)), client_id=resolved_client_id, scope=stored_scope)
+        return await self.issue_token_for_refresh(
+            username,
+            UUID(str(tenant_id)),
+            refresh_token,
+            client_id=resolved_client_id,
+            scope=stored_scope,
+        )
 
     async def find_user_doc_by_refresh_token(self, refresh_token: str, client_id: str | None = None) -> Optional[Dict[str, Any]]:
         user_doc = await self._repo.find_user_by_refresh_token(refresh_token, client_id)
@@ -101,12 +110,45 @@ class AuthService:
         return await self._repo.update_user_refresh_token(username, refresh_token, client_id, scope)
 
     async def issue_token_for_user(self, username: str, tenant_id: UUID, *, client_id: str | None = None, scope: str | None = None) -> TokenDetails:
-        refresh_token = secrets.token_urlsafe(48)
-        await self._repo.update_user_refresh_token(username, refresh_token, client_id=client_id, scope=scope)
         user = await self.get_user_by_username(username, tenant_id)
         permissions = await self.get_permissions_for_roles(tenant_id, user.roles)
-        access_token, ttl_seconds = self._token_service.create_access_token(username, tenant_id, permissions=permissions)
+        try:
+            access_token, ttl_seconds = self._token_service.create_access_token(username, tenant_id, permissions=permissions)
+        except Exception:
+            logger.exception("Failed to generate access token for user '%s' in tenant '%s'.", username, tenant_id)
+            raise
+        refresh_token = secrets.token_urlsafe(48)
+        await self._repo.update_user_refresh_token(username, refresh_token, client_id=client_id, scope=scope)
         return TokenDetails(access_token=access_token, refresh_token=refresh_token, expires_in=ttl_seconds)
+
+    async def issue_token_for_refresh(
+        self,
+        username: str,
+        tenant_id: UUID,
+        current_refresh_token: str,
+        *,
+        client_id: str | None = None,
+        scope: str | None = None,
+    ) -> TokenDetails:
+        user = await self.get_user_by_username(username, tenant_id)
+        permissions = await self.get_permissions_for_roles(tenant_id, user.roles)
+        try:
+            access_token, ttl_seconds = self._token_service.create_access_token(username, tenant_id, permissions=permissions)
+        except Exception:
+            logger.exception("Failed to generate rotated access token for user '%s' in tenant '%s'.", username, tenant_id)
+            raise
+
+        new_refresh_token = secrets.token_urlsafe(48)
+        rotated = await self._repo.rotate_refresh_token(
+            username,
+            current_refresh_token,
+            new_refresh_token,
+            client_id=client_id,
+            scope=scope,
+        )
+        if not rotated:
+            raise InvalidTokenError("Refresh token reuse detected.")
+        return TokenDetails(access_token=access_token, refresh_token=new_refresh_token, expires_in=ttl_seconds)
 
     async def find_oauth_client(self, client_id: str) -> OAuthClientInformationFull | None:
         return await self._repo.find_oauth_client(client_id)
@@ -143,7 +185,7 @@ class AuthService:
             raise TenantNotFoundError()
         if await self._repo.find_user_by_username(payload.username):
             raise UserAlreadyExistsError()
-        roles = [role.strip() for role in payload.roles]
+        roles = self._normalize_roles(payload.roles)
         await self._ensure_roles_defined(payload.tenant_id, roles)
         password_hash = PASSWORD_CTX.hash(payload.password)
         user_id = uuid.uuid4()
@@ -176,7 +218,7 @@ class AuthService:
         tenant_entry = self._find_tenant_entry(user_doc, tenant_id)
         updates: dict[str, object] = {}
         if roles is not None:
-            cleaned_roles = [role.strip() for role in roles]
+            cleaned_roles = self._normalize_roles(roles)
             await self._ensure_roles_defined(tenant_id, cleaned_roles)
             await self._repo.update_user_roles_for_tenant(username, tenant_id, cleaned_roles)
             tenant_entry["roles"] = cleaned_roles
@@ -253,6 +295,7 @@ class AuthService:
         if not user_doc:
             raise UserNotFoundError()
         tenant_entry = self._find_tenant_entry(user_doc, tenant_id)
+        role = self._normalize_roles([role])[0]
         await self._ensure_roles_defined(tenant_id, [role])
         roles = list(tenant_entry.get("roles", []))
         if role not in roles:
@@ -278,6 +321,7 @@ class AuthService:
         await self._ensure_tenant_exists(tenant_id)
         if any(entry.get("tenant_id") == tenant_id for entry in user_doc.get("tenants", [])):
             raise UserTenantConflictError()
+        roles = self._normalize_roles(roles)
         await self._ensure_roles_defined(tenant_id, roles)
         if not await self._repo.add_user_tenant(username, tenant_id, roles):
             raise UserNotFoundError()
@@ -394,6 +438,12 @@ class AuthService:
                     continue
             result[role] = role_perms
         return result
+
+    def _normalize_roles(self, roles: Iterable[str]) -> list[str]:
+        cleaned_roles = [role.strip() for role in roles]
+        if any(not role for role in cleaned_roles):
+            raise InvalidRoleAssignmentError("Role names must not be empty.")
+        return cleaned_roles
 
     async def resolve_integration(self, platform: str, identifier: str) -> Optional[AshaTenantIntegration]:
         doc = await self._repo.find_integration_by_identifier(platform, identifier)

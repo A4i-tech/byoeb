@@ -71,7 +71,11 @@ def _setup_logging():
 # Setup logging at module import time
 _setup_logging()
 
-asyncio.get_event_loop().set_debug(True)
+try:
+    asyncio.get_event_loop().set_debug(True)
+except RuntimeError:
+    pass
+
 def create_apps(is_prod: bool):
     """
     Creates and configures a FastAPI application.
@@ -84,6 +88,7 @@ def create_apps(is_prod: bool):
     if is_prod:
         kwargs["docs_url"] = None
         kwargs["redoc_url"] = None
+        kwargs["openapi_url"] = None
     app = FastAPI(lifespan=lifespan, **kwargs)
 
     register_auth_exception_handlers(app)

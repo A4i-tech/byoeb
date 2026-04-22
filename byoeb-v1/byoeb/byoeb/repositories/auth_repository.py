@@ -61,6 +61,17 @@ class AuthRepository(BaseRepository, ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def rotate_refresh_token(
+        self,
+        username: str,
+        current_refresh_token: str,
+        new_refresh_token: str,
+        client_id: str | None,
+        scope: str | None,
+    ) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
     async def update_user_roles_for_tenant(self, username: str, tenant_id: UUID, roles: list[str]) -> bool:
         raise NotImplementedError
 
