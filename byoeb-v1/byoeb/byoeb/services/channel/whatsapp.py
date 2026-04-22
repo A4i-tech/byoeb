@@ -21,6 +21,9 @@ from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime, timezone
 
 
+_logger = logging.getLogger(__name__)
+
+
 class WhatsAppService(BaseChannelService):
     __client_type = "whatsapp"
     __passover_integration_id = "_byoeb_integration_id"
@@ -119,6 +122,13 @@ class WhatsAppService(BaseChannelService):
         auth_service = await get_auth_service()
         integrations = await auth_service.fetch_integrations(list({iid for iid, _ in task_params}))
         clients = {str(i.id): await self.__channel_client_factory.get(self.__client_type, i.identifier) for i in integrations}
+        missing = [iid for iid, _ in task_params if iid not in clients]
+        if missing:
+            _logger.warning(
+                "amark_read: skipping %d message(s) — integration IDs not found: %s",
+                len(missing),
+                missing,
+            )
         await asyncio.gather(*[clients[iid].amark_as_read(msg_id) for iid, msg_id in task_params if iid in clients])
     
     async def _resolve_clients(self, requests: List[Dict[str, Any]]) -> List[tuple[AsyncWhatsAppClient, Dict[str, Any]]]:
@@ -157,12 +167,26 @@ class WhatsAppService(BaseChannelService):
                 tenant_id = recipient_to_tenant.get(request["to"])
                 client = tenant_to_client.get(tenant_id) if tenant_id else None
                 if client is None and tenant_id and tenant_id in {i.tenant_id for i in all_integrations}:
+                    tenant_ids = tenant_integration_ids.get(tenant_id, [])
+                    _logger.error(
+                        "_resolve_clients: tenant %s has %d WhatsApp integrations but no explicit %s provided for user %s; integration IDs: %s",
+                        tenant_id,
+                        len(tenant_ids),
+                        self.__passover_integration_id,
+                        request["to"],
+                        tenant_ids,
+                    )
                     raise Exception(
                         f"Tenant has multiple WhatsApp integrations; explicit {self.__passover_integration_id} required for user: {request['to']}"
                     )
             if client:
                 resolved_clients.append((client, request))
             else:
+                _logger.error(
+                    "_resolve_clients: no WhatsApp client found for user %s (tenant=%s)",
+                    request["to"],
+                    recipient_to_tenant.get(request["to"]),
+                )
                 raise Exception(f"No WhatsApp client found for user: {request['to']}")
         return resolved_clients
     

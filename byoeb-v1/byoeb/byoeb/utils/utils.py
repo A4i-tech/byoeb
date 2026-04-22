@@ -224,7 +224,7 @@ def auth_session(base_url: AnyHttpUrl, scopes: list[AuthPermission] | None = Non
         "response_types": ["code"],
         "token_endpoint_auth_method": "none",
         "scope": ",".join(scope.value for scope in scopes)
-    })
+    }, timeout=30)
     reg_resp.raise_for_status()
     reg = reg_resp.json()
 
@@ -249,7 +249,7 @@ def auth_session(base_url: AnyHttpUrl, scopes: list[AuthPermission] | None = Non
         'redirect_uri': redirect_uri,
         'client_id': reg['client_id'],
         'code_verifier': code_verifier
-    })
+    }, timeout=30)
     token_resp.raise_for_status()
     token = token_resp.json()
     session.headers["Authorization"] = f"{token['token_type']} {token['access_token']}"

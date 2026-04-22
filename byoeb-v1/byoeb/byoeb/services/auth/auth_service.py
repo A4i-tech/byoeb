@@ -90,7 +90,16 @@ class AuthService:
             granted_scopes = {entry for entry in str(stored_scope).split() if entry}
             if not requested_scopes.issubset(granted_scopes):
                 raise InvalidTokenError("Invalid refresh token.")
-        resolved_client_id = client_id if client_id is not None else user_doc.get("refresh_client_id")
+        stored_client_id = user_doc.get("refresh_client_id")
+        if client_id is not None and stored_client_id is not None and client_id != stored_client_id:
+            logger.warning(
+                "refresh_token: client_id mismatch for user '%s' — provided '%s', stored '%s'",
+                username,
+                client_id,
+                stored_client_id,
+            )
+            raise InvalidTokenError("Invalid refresh token.")
+        resolved_client_id = client_id if client_id is not None else stored_client_id
         return await self.issue_token_for_refresh(
             username,
             UUID(str(tenant_id)),
@@ -176,6 +185,7 @@ class AuthService:
             if expires_at.tzinfo is None:
                 expires_at = expires_at.replace(tzinfo=timezone.utc)
             if datetime.now(timezone.utc) > expires_at:
+                logger.warning("refresh_token: token expired at %s (now %s)", expires_at, datetime.now(timezone.utc))
                 raise InvalidTokenError("Refresh token expired.")
 
     async def register_user(self, tenant_id: UUID, payload) -> AuthUser:
