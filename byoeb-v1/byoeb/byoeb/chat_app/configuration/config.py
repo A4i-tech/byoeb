@@ -32,7 +32,7 @@ else:
     logger.warning("Environment file not found at %s", environment_path)
 
 # Environment variables
-env_app = os.getenv("APP_ENV")  # "PROD" in production
+env_app = os.getenv("APP_ENV", "LOCAL").lower()
 
 # OpenAI
 env_openai_api_key = os.getenv("OPENAI_API_KEY")

@@ -138,7 +138,7 @@ def convert_status_message(original_message) -> ByoebMessageStatus:
         incoming_timestamp=timestamp
     )
 
-def convert_whatsapp_to_byoeb_message(original_message, type):
+def convert_whatsapp_to_byoeb_message(original_message, type) -> ByoebMessageContext | ByoebMessageStatus | None:
     if type == "regular":
         return convert_regular_message(original_message)
     if type == "template":
@@ -147,4 +147,4 @@ def convert_whatsapp_to_byoeb_message(original_message, type):
         return convert_interactive_message(original_message)
     if type == "status":
         return convert_status_message(original_message)
-    return False
+    return None

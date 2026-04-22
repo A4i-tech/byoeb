@@ -141,13 +141,15 @@ class WhatsAppService(BaseChannelService):
         for request in requests:
             if self.__passover_integration_id in request and request[self.__passover_integration_id] in integrations_to_client:
                 client = integrations_to_client[request[self.__passover_integration_id]]
+                fid = "integration_id=" + str(request[self.__passover_integration_id] or "")
             else:
                 tenant_id = recipient_to_tenant.get(request["to"])
                 client = tenant_to_client.get(tenant_id) if tenant_id else None
+                fid = "tenant_id=" + str(tenant_id or "")
             if client:
                 resolved_clients.append((client, request))
             else:
-                raise Exception(f"No WhatsApp client found for user: {request['to']}")
+                raise Exception(f"No WhatsApp client found for user: %s (%s)" % (request['to'], fid))
         return resolved_clients
     
     async def send_requests(
@@ -160,7 +162,7 @@ class WhatsAppService(BaseChannelService):
         logging.getLogger(__name__).debug("WhatsApp responses %s", responses)
         message_ids = [response.messages[0].id if response.messages and response.messages[0].id else None for response in responses]
         return responses, message_ids
-    
+
     def create_conv(
         self,
         byoeb_user_message: ByoebMessageContext,

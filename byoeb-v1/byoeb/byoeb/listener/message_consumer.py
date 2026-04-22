@@ -200,6 +200,8 @@ class QueueConsumer:
                             self._logger.error(f"Error consuming messages: {e}")
                             consume_span.record_exception(e)
                             consume_span.set_status(Status(StatusCode.ERROR, str(e)))
+                            import traceback
+                            traceback.print_exc()
                             successfully_processed_messages = []
 
                     end_time = datetime.now()
