@@ -19,6 +19,7 @@ from byoeb.services.auth.exceptions import (
     PermissionDeniedError,
 )
 from byoeb.services.auth.models import AuthPermission, AuthUser, AshaTenantIntegration
+from byoeb.services.auth.security import TOKEN_SERVICE
 
 
 cookie_scheme = APIKeyCookie(name="asha_auth_token", auto_error=False)
@@ -47,8 +48,15 @@ async def get_current_user(auth_service: AuthServiceDep, token: AccessTokenDep) 
 
 def require_permissions(*required_permissions: AuthPermission):
     required = {perm.value for perm in required_permissions}
-    async def _require_permissions(auth_service: AuthServiceDep, user: AuthUser = Depends(get_current_user)) -> AuthUser:
-        granted = set(await auth_service.get_permissions_for_roles(user.tenant_id, user.roles))
+    async def _require_permissions(auth_service: AuthServiceDep, token: AccessTokenDep, user: AuthUser = Depends(get_current_user)) -> AuthUser:
+        granted: set[str]
+        if token:
+            claims = TOKEN_SERVICE.parse_access_token(token)
+            granted = set(claims.permissions or [])
+        else:
+            granted = set()
+        if not granted:
+            granted = set(await auth_service.get_permissions_for_roles(user.tenant_id, user.roles))
         if not granted.intersection(required):
             raise PermissionDeniedError()
         return user
@@ -57,12 +65,12 @@ def require_permissions(*required_permissions: AuthPermission):
 
 
 async def require_csrf_token(request: Request, csrf_header: Annotated[str | None, Header(alias="X-CSRF-Token")] = None) -> None:
-    if request.method not in {"POST", "PUT", "DELETE"}:
-        return
-    if request.cookies.get("asha_auth_token") is None:
+    if request.method not in {"POST", "PUT", "DELETE", "PATCH"}:
         return
     csrf_cookie = request.cookies.get("csrf_token")
-    if not csrf_cookie or not csrf_header or not hmac.compare_digest(csrf_cookie, csrf_header):
+    if not csrf_cookie:
+        return
+    if not csrf_header or not hmac.compare_digest(csrf_cookie, csrf_header):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid CSRF token")
 
 

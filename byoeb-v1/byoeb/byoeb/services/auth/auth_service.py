@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import secrets
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Optional
 from uuid import UUID
 
@@ -69,8 +69,8 @@ class AuthService:
         claims = self._token_service.parse_access_token(token)
         return await self.get_user_by_username(claims.username, claims.tenant_id), claims
 
-    async def refresh_token(self, refresh_token: str) -> TokenDetails:
-        user_doc = await self._repo.find_user_by_refresh_token(refresh_token)
+    async def refresh_token(self, refresh_token: str, client_id: str | None = None, scope: str | None = None) -> TokenDetails:
+        user_doc = await self.find_user_doc_by_refresh_token(refresh_token, client_id=client_id)
         if not user_doc:
             raise InvalidTokenError("Invalid refresh token.")
         username = user_doc.get("username")
@@ -79,10 +79,23 @@ class AuthService:
         tenant_id = next((entry.get("tenant_id") for entry in user_doc.get("tenants", []) if entry.get("tenant_id")), None)
         if not tenant_id:
             raise InvalidTokenError("Invalid refresh token.")
-        return await self.issue_token_for_user(username, UUID(str(tenant_id)))
+        stored_scope = user_doc.get("refresh_scopes")
+        if scope and not stored_scope:
+            raise InvalidTokenError("Invalid refresh token.")
+        if scope and stored_scope:
+            requested_scopes = {entry for entry in scope.split() if entry}
+            granted_scopes = {entry for entry in str(stored_scope).split() if entry}
+            if not requested_scopes.issubset(granted_scopes):
+                raise InvalidTokenError("Invalid refresh token.")
+        resolved_client_id = client_id if client_id is not None else user_doc.get("refresh_client_id")
+        return await self.issue_token_for_user(username, UUID(str(tenant_id)), client_id=resolved_client_id, scope=stored_scope)
 
     async def find_user_doc_by_refresh_token(self, refresh_token: str, client_id: str | None = None) -> Optional[Dict[str, Any]]:
-        return await self._repo.find_user_by_refresh_token(refresh_token, client_id)
+        user_doc = await self._repo.find_user_by_refresh_token(refresh_token, client_id)
+        if not user_doc:
+            return None
+        self._validate_refresh_token_expiry(user_doc)
+        return user_doc
 
     async def update_refresh_token(self, username: str, refresh_token: str, client_id: str | None, scope: str | None) -> bool:
         return await self._repo.update_user_refresh_token(username, refresh_token, client_id, scope)
@@ -90,7 +103,9 @@ class AuthService:
     async def issue_token_for_user(self, username: str, tenant_id: UUID, *, client_id: str | None = None, scope: str | None = None) -> TokenDetails:
         refresh_token = secrets.token_urlsafe(48)
         await self._repo.update_user_refresh_token(username, refresh_token, client_id=client_id, scope=scope)
-        access_token, ttl_seconds = self._token_service.create_access_token(username, tenant_id)
+        user = await self.get_user_by_username(username, tenant_id)
+        permissions = await self.get_permissions_for_roles(tenant_id, user.roles)
+        access_token, ttl_seconds = self._token_service.create_access_token(username, tenant_id, permissions=permissions)
         return TokenDetails(access_token=access_token, refresh_token=refresh_token, expires_in=ttl_seconds)
 
     async def find_oauth_client(self, client_id: str) -> OAuthClientInformationFull | None:
@@ -109,9 +124,17 @@ class AuthService:
         return await self._repo.delete_auth_code(code)
 
     async def revoke_refresh_token(self, refresh_token: str) -> None:
-        user_doc = await self._repo.find_user_by_refresh_token(refresh_token)
-        if user_doc and user_doc.get("username"):
-            await self._repo.update_user_refresh_token(user_doc["username"], "", client_id=None, scope=None)
+        await self._repo.clear_user_refresh_token(refresh_token)
+
+    def _validate_refresh_token_expiry(self, user_doc: dict[str, Any]) -> None:
+        expires_at = user_doc.get("refresh_token_expires_at")
+        if expires_at is None:
+            return
+        if isinstance(expires_at, datetime):
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) > expires_at:
+                raise InvalidTokenError("Refresh token expired.")
 
     async def register_user(self, tenant_id: UUID, payload) -> AuthUser:
         if payload.tenant_id != tenant_id:

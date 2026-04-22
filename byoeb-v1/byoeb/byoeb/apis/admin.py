@@ -6,11 +6,13 @@ import logging
 from typing import AsyncIterator
 from byoeb.models.experiment import QueryInput
 from datetime import datetime
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
 from byoeb.services.admin.message_process import process_message, clear_history as clear_user_history
+from byoeb.services.auth.dependencies import require_csrf_token, require_permissions
+from byoeb.services.auth.models import AuthPermission, AuthUser
 
 REGISTER_API_NAME = 'admin_apis'
 
@@ -36,7 +38,12 @@ async def experiment(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "experiment.html")
 
 @admin_apis_router.post("/asha_logs")
-async def asha_logs_form(start: datetime = Form(...), end: datetime = Form(...)) -> StreamingResponse:
+async def asha_logs_form(
+    start: datetime = Form(...),
+    end: datetime = Form(...),
+    _: AuthUser = Depends(require_permissions(AuthPermission.ADMIN_ACCESS)),
+    __: None = Depends(require_csrf_token),
+) -> StreamingResponse:
     start_unix = str(start.timestamp())
     end_unix = str(end.timestamp())
 

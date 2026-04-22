@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from uuid import UUID
 from pymongo.asynchronous.collection import AsyncCollection
@@ -85,9 +85,18 @@ class MongoAuthRepository(AuthRepository, MongoBaseRepository):
         return await self.update_one({"username": username}, {"$set": updates})
 
     async def update_user_refresh_token(self, username: str, refresh_token: str, client_id: str | None, scope: str | None) -> bool:
+        expires_at = None
+        if refresh_token:
+            expires_at = datetime.now(timezone.utc) + timedelta(days=30)
         return await self.update_one(
             {"username": username},
-            {"$set": {"refresh_token": refresh_token, "refresh_client_id": client_id, "refresh_scopes": scope}},
+            {"$set": {"refresh_token": refresh_token, "refresh_client_id": client_id, "refresh_scopes": scope, "refresh_token_expires_at": expires_at}},
+        )
+
+    async def clear_user_refresh_token(self, refresh_token: str) -> bool:
+        return await self.update_one(
+            {"refresh_token": refresh_token},
+            {"$unset": {"refresh_token": "", "refresh_client_id": "", "refresh_scopes": "", "refresh_token_expires_at": ""}},
         )
 
     async def update_user_roles_for_tenant(self, username: str, tenant_id: UUID, roles: list[str]) -> bool:

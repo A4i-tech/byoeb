@@ -436,10 +436,18 @@ class OAuthProvider(AuthProvider):
         return await asyncio.to_thread(self._server.create_token_response, oauth_request)
 
     def _token_generator(self, grant_type, client, user=None, scope=None, expires_in=None, include_refresh_token=True):
-        access_token, ttl_seconds = TOKEN_SERVICE.create_access_token(user.username, user.tenant_id)
+        granted_scope = scope
+        granted_permissions: list[str] | None = None
+        if user:
+            auth_service = self._helper.run_coroutine(get_auth_service())
+            granted_permissions = self._helper.run_coroutine(auth_service.get_permissions_for_roles(user.tenant_id, user.roles))
+            if scope:
+                allowed = set(granted_permissions)
+                granted_scope = " ".join([entry for entry in scope.split() if entry in allowed]) or None
+        access_token, ttl_seconds = TOKEN_SERVICE.create_access_token(user.username, user.tenant_id, permissions=granted_permissions)
         token = {"access_token": access_token, "token_type": "Bearer", "expires_in": ttl_seconds}
-        if scope:
-            token["scope"] = scope
+        if granted_scope:
+            token["scope"] = granted_scope
         if include_refresh_token:
             token["refresh_token"] = secrets.token_urlsafe(48)
         return token

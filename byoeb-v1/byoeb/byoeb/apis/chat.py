@@ -1,6 +1,5 @@
 import base64
 import logging
-import json
 import uuid
 from typing import Any, List, Dict, Literal, Set
 import byoeb.chat_app.configuration.dependency_setup as dependency_setup
@@ -29,6 +28,19 @@ CHAT_API_NAME = "chat_api"
 chat_apis_router = APIRouter(tags=["Chat"])
 _logger = logging.getLogger(CHAT_API_NAME)
 
+
+def _sanitize_wa_body(body: dict[str, Any]) -> dict[str, Any]:
+    try:
+        entry = body.get("entry", [{}])[0]
+        change = entry.get("changes", [{}])[0].get("value", {})
+        return {
+            "phone_number_id": change.get("metadata", {}).get("phone_number_id"),
+            "message_types": [message.get("type") for message in change.get("messages", [])],
+            "n_contacts": len(change.get("contacts", [])),
+        }
+    except Exception:
+        return {"raw": "[unparseable]"}
+
 # ---------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------
@@ -42,7 +54,7 @@ async def receive(
     Handles an incoming WhatsApp message from a user.
     The message is processed by the message_producer_handler.
     """
-    _logger.info(f"Received WhatsApp request: {json.dumps(body, ensure_ascii=False)}")
+    _logger.info("Received WhatsApp request: %s", _sanitize_wa_body(body))
     response = await dependency_setup.message_producer_handler.handle(body, str(integration.id))
     _logger.info(f"Handler response: {response}")
     return JSONResponse(

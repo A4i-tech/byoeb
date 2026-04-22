@@ -20,6 +20,7 @@ class TokenClaims(BaseModel):
     issued_at: int | None = Field(default=None, alias="iat")
     issuer: str | None = Field(default=None, alias="iss")
     audience: str | None = Field(default=None, alias="aud")
+    permissions: list[str] | None = Field(default=None)
 
 
 class AuthTokenService:
@@ -33,7 +34,7 @@ class AuthTokenService:
         self._leeway_seconds = leeway_seconds
         self._jwt = JsonWebToken([algorithm])
 
-    def create_access_token(self, subject: str, tenant_id: UUID) -> Tuple[str, int]:
+    def create_access_token(self, subject: str, tenant_id: UUID, permissions: list[str] | None = None) -> Tuple[str, int]:
         now = datetime.now(timezone.utc)
         expires_at = now + timedelta(seconds=self._ttl_seconds)
         payload: dict[str, Any] = {
@@ -46,6 +47,8 @@ class AuthTokenService:
             payload["iss"] = self._issuer
         if self._audience:
             payload["aud"] = self._audience
+        if permissions is not None:
+            payload["permissions"] = permissions
         token = self._jwt.encode({"alg": self._algorithm}, payload, self._secret)
         return token.decode("utf-8"), self._ttl_seconds
 
@@ -70,8 +73,11 @@ class AuthTokenService:
 
 
 secret = env_config.env_auth_token_secret or ""
-if not secret:
-    raise RuntimeError("AUTH_TOKEN_SECRET must be set for token signing.")
+if len(secret) < 32:
+    raise RuntimeError(
+        "AUTH_TOKEN_SECRET must be at least 32 characters. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+    )
 
 PASSWORD_CTX = CryptContext(schemes=["argon2"], deprecated="auto")
 TOKEN_SERVICE = AuthTokenService(

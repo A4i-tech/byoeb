@@ -110,7 +110,7 @@ class WhatsAppService(BaseChannelService):
                 (msg_id := message.message_context.message_id) and
                 (integration_id := message.message_context.additional_info.get(constants.INTEGRATION_ID))
             ):
-                task_params.append((integration_id, msg_id))
+                task_params.append((str(integration_id), msg_id))
 
         if not task_params:
             return
