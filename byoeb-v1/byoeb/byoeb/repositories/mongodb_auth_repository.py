@@ -25,7 +25,8 @@ class MongoAuthRepository(AuthRepository, MongoBaseRepository):
             self._oauth_code_collection.create_index("code", unique=True),
             self._oauth_code_collection.create_index("expires_at", expireAfterSeconds=0),
             self._integration_collection.create_index([("platform", 1), ("identifier", 1)], unique=True),
-            self._integration_collection.create_index("credentials.verification_token"),
+            self._integration_collection.create_index("credentials.verification_token", unique=True, sparse=True),
+            self._collection.create_index("refresh_token", unique=True, sparse=True),
         )
 
     async def find_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:

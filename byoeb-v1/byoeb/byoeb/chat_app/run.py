@@ -86,6 +86,9 @@ def create_apps(is_prod: bool):
 
     kwargs = {}
     if is_prod:
+        # Swagger UI (/docs), ReDoc (/redoc), and OpenAPI schema (/openapi.json) are
+        # intentionally disabled in production (APP_ENV=PROD) to reduce attack surface.
+        # Use a non-production environment or set APP_ENV != PROD to access API docs.
         kwargs["docs_url"] = None
         kwargs["redoc_url"] = None
         kwargs["openapi_url"] = None
