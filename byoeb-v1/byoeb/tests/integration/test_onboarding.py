@@ -133,11 +133,9 @@ def _validate_user(envs, auth_session, phone_number_id: str, user_type: UserType
     ("मराठी", "इतर", "होय", UserType.OTHERS),
     ("తెలుగు", "ఇతరులు", "అవును", UserType.OTHERS),
 ])
-async def test_whatsapp_onboarding_flow(language_display: str, user_type_choice: str, consent_yes_choice: str, expect_user_type: UserType, envs, auth_me, auth_session, whatsapp_webhook):
-    if not auth_me.phone_number_id:
-        pytest.skip("phone_number_id missing on /auth/me")
-    phone_number_id = auth_me.phone_number_id
-    username = auth_me.username
+async def test_whatsapp_onboarding_flow(language_display: str, user_type_choice: str, consent_yes_choice: str, expect_user_type: UserType, envs, auth_session, whatsapp_webhook):
+    phone_number_id = envs.test_user_phone_number_id
+    username = envs.auth_username
     context_id: str | None = None
     auth_session.delete(f"{envs.base_url}/delete_users", json=[phone_number_id], timeout=30).raise_for_status()
 
@@ -162,7 +160,7 @@ async def test_whatsapp_onboarding_flow(language_display: str, user_type_choice:
         time.sleep(1)  # ensure unique timestamp for each message
         if state == START:
             message_id = generate_message_id()
-            payload = _text_message_payload(message_id=message_id, timestamp=timestamp, text="hi", username=username, phone_number_id=phone_number_id, bot_phone_number_id=envs.whatsapp_phone_number_id)
+            payload = _text_message_payload(message_id=message_id, timestamp=timestamp, text="onboard-asha", username=username, phone_number_id=phone_number_id, bot_phone_number_id=envs.whatsapp_phone_number_id)
             whatsapp_webhook(payload)
             context_id = _wait_for_next_context_id(auth_session=auth_session, envs=envs, phone=phone_number_id, sent_timestamp=timestamp, reply_to_message_id=message_id, prompt_substring="Select your language")
             state = LANGUAGE_SELECTED

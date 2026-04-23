@@ -329,7 +329,7 @@ class MessageConsmerService:
                 messages=onboard_convs,
                 message_db_service=self._message_db_service,
                 user_db_service=self._user_db_service,
-                channel_factory=self._channel_client_factory
+                channel_factory=self._channel_service
             )
             self._logger.info("[consume] ← handle_unknown_user done")
 

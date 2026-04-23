@@ -27,7 +27,11 @@ class IntegrationTestEnvs(BaseSettings):
     # must match auth-tenant-id's configured whatsapp integration. used to generate
     # hmac signature for whatsapp webhooks when invoking POST /receive endpoint.
     whatsapp_app_secret: str
-    whatsapp_phone_number_id: str
+    whatsapp_phone_number_id: str  # bot's phone number ID (15 digits, in webhook metadata)
+
+    # 11-13 digit phone number used as the test user's WhatsApp number.
+    # Must pass PhoneNumberId validation (^\d{11,13}$). Defaults to a safe test number.
+    test_user_phone_number_id: str = "919000000001"
 
 
 @pytest.fixture(scope="session")
@@ -51,21 +55,25 @@ def whatsapp_webhook(envs):
 
 
 @pytest.fixture(scope="session")
-def auth_access_token(envs):
-    headers = {"Content-Type": "application/x-www-form-urlencoded", "X-Tenant-ID": str(envs.auth_tenant_id)}
-    response = requests.post(f"{envs.base_url}/auth/token/issue", headers=headers, data={"username": envs.auth_username, "password": envs.auth_password})
-    response.raise_for_status()
-    token = response.cookies.get("asha_auth_token")
+def auth_access_token(envs, auth_session):
+    token = auth_session.cookies.get("asha_auth_token")
     if not token: raise RuntimeError("Auth cookie not set by /auth/token/issue.")
     return token
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def auth_session(envs):
+    import time as _time
     session = requests.Session()
     headers = {"Content-Type": "application/x-www-form-urlencoded", "X-Tenant-ID": str(envs.auth_tenant_id)}
-    response = session.post(f"{envs.base_url}/auth/token/issue", headers=headers, data={"username": envs.auth_username, "password": envs.auth_password})
-    response.raise_for_status()
+    for attempt in range(6):
+        response = session.post(f"{envs.base_url}/auth/token/issue", headers=headers, data={"username": envs.auth_username, "password": envs.auth_password})
+        if response.status_code == 429:
+            retry_after = int(response.headers.get("Retry-After", 60))
+            _time.sleep(retry_after)
+            continue
+        response.raise_for_status()
+        break
     csrf_token = session.cookies.get("csrf_token")
     if not csrf_token: raise RuntimeError("CSRF cookie not set by /auth/token/issue.")
     session.headers.update({"X-CSRF-Token": csrf_token})
@@ -81,11 +89,11 @@ def auth_me(auth_session, envs) -> AuthUser:
 
 
 @pytest.fixture
-def temp_user(envs, auth_session, auth_me):
+def temp_user(envs, auth_session):
     @contextmanager
     def _create_temp_user(user_type: UserType = UserType.ASHA, test_user: bool = False, lang: LanguageCode = LanguageCode.ENGLISH, **kwargs):
         payload = {
-            "phone_number_id": auth_me.phone_number_id,
+            "phone_number_id": envs.test_user_phone_number_id,
             "user_location": {"district": "Pytest District"},
             "user_type": user_type.value,
             "user_language": lang.value,

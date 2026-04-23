@@ -1,9 +1,9 @@
 from byoeb.constants.user_enums import LanguageCode, UserType
 
 
-def test_get_users_endpoint(auth_me, temp_user):
+def test_get_users_endpoint(envs, temp_user):
     with temp_user(user_type=UserType.ASHA, lang=LanguageCode.ENGLISH) as user:
-        assert user.phone_number_id == auth_me.phone_number_id
+        assert user.phone_number_id == envs.test_user_phone_number_id
         assert user.user_type == UserType.ASHA.value
 
 
