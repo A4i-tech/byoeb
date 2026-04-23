@@ -27,7 +27,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Literal
 
+import requests
+
 from pydantic import BaseModel, TypeAdapter, ValidationError, field_validator
+from byoeb.utils.utils import auth_session
+from byoeb.services.auth.models import AuthPermission
 
 # Paths: script lives in tests/integration
 _CURRENT_DIR = Path(__file__).resolve().parent
@@ -140,8 +144,8 @@ def mask_mongo_connection_string(conn_str: Optional[str]) -> str:
 
 def run_one_question_mcp(
     base_url: str,
+    token: str,
     question: str,
-    phone_number_id: str,
     timeout: int = 60,
 ) -> Dict[str, Any]:
     """Run one question via MCP asha_chat tool; return same result shape as run_one_question."""
@@ -154,11 +158,11 @@ def run_one_question_mcp(
         "status": "unknown",
         "error": None,
     }
-    mcp_url = base_url.rstrip("/") + "/mcp?phone_number=" + str(phone_number_id)
+    mcp_url = base_url.rstrip("/") + "/mcp"
 
     async def _call_mcp() -> Dict[str, Any]:
         from fastmcp import Client
-        async with Client(mcp_url) as client:
+        async with Client(mcp_url, auth=token) as client:
             r = await client.call_tool("asha_chat", {"message": question})
             return r
 
@@ -202,7 +206,7 @@ def run_one_question_mcp(
     return result
 
 
-def main() -> int:
+def main(session: Optional[requests.Session] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Run release QA benchmark: curated positive/negative questions, report metrics (always exit 0)."
     )
@@ -221,6 +225,18 @@ def main() -> int:
         "--phone",
         default=os.getenv("PHONE_NUMBER_ID", DEFAULT_PHONE_NUMBER_ID),
         help="Phone number ID for test user",
+    )
+    parser.add_argument(
+        "--tenant-id",
+        help="Tenant ID of an authenticated user",
+    )
+    parser.add_argument(
+        "--username",
+        help="Username of an authenticated user",
+    )
+    parser.add_argument(
+        "--password",
+        help="Password of an authenticated user",
     )
     parser.add_argument(
         "--output", "-o",
@@ -271,6 +287,7 @@ def main() -> int:
         help="Timeout in seconds for each MCP call; overrides --timeout when provided",
     )
     args = parser.parse_args()
+
     # Let --mcp-timeout override --timeout if explicitly supplied
     if args.mcp_timeout is not None:
         args.timeout = args.mcp_timeout
@@ -278,8 +295,6 @@ def main() -> int:
     base_url = args.base_url
     if not base_url.startswith("http"):
         base_url = "http://" + base_url
-    if base_url.endswith("/receive"):
-        base_url = base_url.replace("/receive", "").rstrip("/")
 
     if not args.set_path.is_file():
         print(f"Benchmark set not found: {args.set_path}", file=sys.stderr)
@@ -304,11 +319,14 @@ def main() -> int:
         print(f"Mode:        {mode}")
         print(f"Loaded {len(items)} items ({len(positive_items)} positive, {len(negative_items)} negative)")
         print(f"Base URL:    {base_url}")
-        print(f"PHONE_NUMBER_ID: {args.phone}")
-        print(f"User name:   {USER_NAME}")
         db_conn = os.getenv("MONGO_DB_CONNECTION_STRING")
         print(f"Database (MONGO_DB_CONNECTION_STRING): {mask_mongo_connection_string(db_conn)}")
         print()
+
+    headers = {"Content-Type": "application/x-www-form-urlencoded", "X-Tenant-ID": str(args.tenant_id)}
+    response = requests.post(f"{base_url}/auth/token/issue", headers=headers, data={"username": args.username, "password": args.password})
+    response.raise_for_status()
+    token = response.cookies.get("asha_auth_token")
 
     results: List[Dict[str, Any]] = []
     for i, item in enumerate(items, 1):
@@ -316,7 +334,7 @@ def main() -> int:
         expected = item["expected"]
         if not args.quiet:
             print(f"[{i}/{len(items)}] {q[:70]}{'...' if len(q) > 70 else ''}")
-        res = run_one_question_mcp(base_url, q, args.phone, timeout=args.timeout)
+        res = run_one_question_mcp(base_url, token, q, timeout=args.timeout)
         res["expected"] = expected
         res["category"] = item.get("category", "")
         res["passed"] = (
