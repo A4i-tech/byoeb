@@ -122,7 +122,16 @@ class ByoebUserProcess(Handler):
                     raise ValueError("media_info missing for audio message; cannot run speech-to-text")
                 media_id = media_info.media_id
                 with langfuse.start_as_current_observation(as_type="span", name="audio-download"):
-                    channel_client = await channel_client_factory.get(message.channel_type)
+                    from byoeb.services.auth.auth_service import get_auth_service
+                    from byoeb.services.chat import constants as chat_constants
+                    integration_id = (message.message_context.additional_info or {}).get(chat_constants.INTEGRATION_ID)
+                    if not integration_id:
+                        raise ValueError("integration_id missing from message additional_info; cannot download audio")
+                    auth_service = await get_auth_service()
+                    integrations = await auth_service.fetch_integrations([integration_id])
+                    if not integrations:
+                        raise ValueError(f"No integration found for integration_id={integration_id}")
+                    channel_client = await channel_client_factory.get(message.channel_type, integrations[0].identifier)
                     _, audio_message, err = await channel_client.adownload_media(media_id)
                 if err or audio_message is None:
                     raise RuntimeError("failed to download audio for speech-to-text")
