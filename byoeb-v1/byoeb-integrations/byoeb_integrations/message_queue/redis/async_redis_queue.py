@@ -37,8 +37,16 @@ class AsyncRedisQueue(BaseQueue):
         return instance
 
     async def send_message(self, message: Any, **kwargs) -> Any:
+        """Send a pre-serialized string message to the queue.
+
+        Args:
+            message: Must be a string (e.g. JSON). Non-string values will raise TypeError
+                     to prevent silent data corruption from str() coercion.
+        """
+        if not isinstance(message, str):
+            raise TypeError(f"message must be a str, got {type(message).__name__}")
         client = await self._get_client()
-        await client.lpush(self.__queue_name, str(message))
+        await client.lpush(self.__queue_name, message)
 
     async def receive_message(self, **kwargs) -> List[_RedisMessage]:
         """Returns a list with one message, or [] on timeout."""
