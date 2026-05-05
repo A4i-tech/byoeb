@@ -79,8 +79,11 @@ class LocalFileStorage(BaseMediaStorage):
     async def adelete_file(self, file_name: str) -> Any:
         # Silently no-ops if file does not exist (idempotent), unlike Azure which raises on missing blob.
         path = self._path(file_name)
-        def _delete():
+        def _delete() -> bool:
             if os.path.exists(path):
                 os.remove(path)
-        await asyncio.to_thread(_delete)
-        self.__logger.info("Deleted file %s", file_name)
+                return True
+            return False
+        deleted = await asyncio.to_thread(_delete)
+        if deleted:
+            self.__logger.info("Deleted file %s", file_name)
