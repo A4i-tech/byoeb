@@ -78,3 +78,12 @@ async def test_get_file_properties_nonexistent_returns_none():
         store = LocalFileStorage(storage_dir=storage_dir)
         result = await store.aget_file_properties("no_such_file.txt")
         assert result is None
+
+@pytest.mark.asyncio
+async def test_path_traversal_raises():
+    from byoeb_integrations.media_storage.local.local_file_storage import LocalFileStorage
+
+    with tempfile.TemporaryDirectory() as storage_dir:
+        store = LocalFileStorage(storage_dir=storage_dir)
+        with pytest.raises(ValueError, match="escape storage_dir"):
+            await store.adownload_file("../sensitive_file")
