@@ -97,18 +97,24 @@ message_producer_handler = QueueProducerHandler(
 
 # message consumer
 from byoeb.listener.message_consumer import QueueConsumer
-# Require environment variable for queue account URL to prevent accidental production access
-if not env_config.env_azure_storage_queue_account_url:
-    raise ValueError(
-        "AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable must be set. "
-    )
-# Environment variable is required (validated at startup in config.py)
-queue_name = env_config.env_azure_queue_bot
+_queue_provider = env_config.env_queue_provider
+
+if _queue_provider == "redis":
+    _queue_name = app_config["message_queue"]["redis"]["queue_bot"]
+    _account_url = None
+else:
+    if not env_config.env_azure_storage_queue_account_url:
+        raise ValueError(
+            "AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable must be set. "
+        )
+    _queue_name = env_config.env_azure_queue_bot
+    _account_url = env_config.env_azure_storage_queue_account_url
+
 message_consumer = QueueConsumer(
     config=app_config,
-    account_url=env_config.env_azure_storage_queue_account_url,
-    queue_name=queue_name,
-    consuemr_type=app_config["app"]["queue_provider"],
+    account_url=_account_url,
+    queue_name=_queue_name,
+    consuemr_type=_queue_provider,
     user_db_service=user_db_service,
     message_db_service=message_db_service,
     channel_service=whatsapp_service

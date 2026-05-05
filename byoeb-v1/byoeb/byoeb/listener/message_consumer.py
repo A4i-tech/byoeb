@@ -68,13 +68,32 @@ class QueueConsumer:
                 credentials=default_credential
             )
     
+    async def __get_or_create_redis_queue_client(self) -> BaseQueue:
+        from byoeb_integrations.message_queue.redis.async_redis_queue import AsyncRedisQueue
+        from byoeb.chat_app.configuration.config import env_redis_url
+        queue_name = self._config["message_queue"]["redis"]["queue_bot"]
+        return await AsyncRedisQueue.aget_or_create(
+            queue_name=queue_name,
+            redis_url=env_redis_url
+        )
+
     async def __get_or_create_dead_letter_queue_client(
         self
     ) -> BaseQueue:
-        # Environment variable is required (validated at startup in config.py)
-        from byoeb.chat_app.configuration.config import env_azure_queue_dead_letter
-        dlq_name = env_azure_queue_dead_letter
-        self._dlq_client = await self.__create_azure_storage_queue_client(dlq_name)
+        if self._dlq_client:
+            return self._dlq_client
+        if self._consumer_type == "redis":
+            from byoeb_integrations.message_queue.redis.async_redis_queue import AsyncRedisQueue
+            from byoeb.chat_app.configuration.config import env_redis_url
+            dlq_name = self._config["message_queue"]["redis"]["dead_letter_queue"]
+            self._dlq_client = await AsyncRedisQueue.aget_or_create(
+                queue_name=dlq_name,
+                redis_url=env_redis_url
+            )
+        else:
+            from byoeb.chat_app.configuration.config import env_azure_queue_dead_letter
+            dlq_name = env_azure_queue_dead_letter
+            self._dlq_client = await self.__create_azure_storage_queue_client(dlq_name)
         return self._dlq_client
     
     async def __get_or_create_az_storage_queue_client(
@@ -94,6 +113,9 @@ class QueueConsumer:
             self._az_storage_queue = await self.__get_or_create_az_storage_queue_client()
             if isinstance(self._az_storage_queue, AsyncAzureStorageQueue):
                 self._logger.info(f"Azure storage queue client created: {self._az_storage_queue}")
+        elif self._consumer_type == "redis":
+            self._az_storage_queue = await self.__get_or_create_redis_queue_client()
+            self._logger.info("Redis queue client created: %s", self._az_storage_queue)
         else:
             self._logger.error(f"Error initializing")
 
@@ -101,7 +123,7 @@ class QueueConsumer:
         self
     ) -> list:
         messages = []
-        if isinstance(self._az_storage_queue, AsyncAzureStorageQueue):
+        if self._az_storage_queue:
             msgs = await self._az_storage_queue.receive_message(
                 visibility_timeout=self._config["message_queue"]["azure"]["visibility_timeout"],
                 messages_per_page=self._config["message_queue"]["azure"]["messages_per_page"],
@@ -109,17 +131,17 @@ class QueueConsumer:
             )
             async for msg in msgs:
                 messages.append(msg)
-        
+
         return messages
 
     async def __delete_message(
         self,
         messages: list,
     ):
-        if isinstance(self._az_storage_queue, AsyncAzureStorageQueue):
+        if self._az_storage_queue:
             tasks = []
             for message in messages:
-                task  = self._az_storage_queue.delete_message(message)
+                task = self._az_storage_queue.delete_message(message)
                 tasks.append(task)
             await asyncio.gather(*tasks)
 
