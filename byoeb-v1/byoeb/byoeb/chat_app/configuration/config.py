@@ -58,19 +58,26 @@ env_azure_queue_status = os.getenv("AZURE_QUEUE_STATUS")
 env_azure_queue_bot = os.getenv("AZURE_QUEUE_BOT")
 env_azure_queue_dead_letter = os.getenv("AZURE_QUEUE_DEAD_LETTER")
 
-# Validate that queue names are set (fail fast if not configured)
-if not env_azure_queue_status:
-    raise ValueError(
-        "AZURE_QUEUE_STATUS environment variable must be set in keys.env. "
-    )
-if not env_azure_queue_bot:
-    raise ValueError(
-        "AZURE_QUEUE_BOT environment variable must be set in keys.env. "
-    )
-if not env_azure_queue_dead_letter:
-    raise ValueError(
-        "AZURE_QUEUE_DEAD_LETTER environment variable must be set in keys.env. "
-    )
+# Queue / storage backend selection
+env_queue_provider = os.getenv("QUEUE_PROVIDER", "azure_storage_queue")
+env_redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+env_storage_backend = os.getenv("STORAGE_BACKEND", "azure")
+env_local_storage_path = os.getenv("LOCAL_STORAGE_PATH", "./local_media_storage")
+
+# Azure queue names only required when using Azure queue provider
+if env_queue_provider != "redis":
+    if not env_azure_queue_status:
+        raise ValueError(
+            "AZURE_QUEUE_STATUS environment variable must be set in keys.env. "
+        )
+    if not env_azure_queue_bot:
+        raise ValueError(
+            "AZURE_QUEUE_BOT environment variable must be set in keys.env. "
+        )
+    if not env_azure_queue_dead_letter:
+        raise ValueError(
+            "AZURE_QUEUE_DEAD_LETTER environment variable must be set in keys.env. "
+        )
 
 # Azure Cognitive Services
 env_azure_cognitive_key = os.getenv("AZURE_COGNITIVE_KEY")
