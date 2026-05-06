@@ -37,24 +37,19 @@ class QueueConsumer:
         self._channel_service = channel_service
         self._tracer = trace.get_tracer(__name__)
         self._batch_message_consumer_logger = AppInsightsLogHandler.getLogger("batch_message_consumer")
-    
+
     async def __create_azure_storage_queue_client(
         self,
         queue_name: str
     ) -> BaseQueue:
-        """Create an Azure Storage Queue client with connection string or managed identity fallback."""
         from byoeb.chat_app.configuration.config import env_azure_storage_connection_string
-        
+
         if env_azure_storage_connection_string:
-            # Use connection string if available
             return await AsyncAzureStorageQueue.aget_or_create(
                 connection_string=env_azure_storage_connection_string,
                 queue_name=queue_name
             )
         else:
-            # Fallback to managed identity (for backward compatibility)
-            # Use DefaultAzureCredential - requires service account to be added in the cloud
-            # or explicit access via AZ CLI, so is very safe
             from azure.identity import DefaultAzureCredential
             if not self._account_url:
                 raise ValueError(
@@ -67,7 +62,7 @@ class QueueConsumer:
                 queue_name=queue_name,
                 credentials=default_credential
             )
-    
+
     async def __get_or_create_redis_queue_client(self) -> BaseQueue:
         from byoeb_integrations.message_queue.redis.async_redis_queue import AsyncRedisQueue
         from byoeb.chat_app.configuration.config import env_redis_url
@@ -95,14 +90,14 @@ class QueueConsumer:
             dlq_name = env_azure_queue_dead_letter
             self._dlq_client = await self.__create_azure_storage_queue_client(dlq_name)
         return self._dlq_client
-    
+
     async def __get_or_create_az_storage_queue_client(
         self,
     ) -> BaseQueue:
         if not self._az_storage_queue:
             self._az_storage_queue = await self.__create_azure_storage_queue_client(self._queue_name)
         return self._az_storage_queue
-    
+
     async def initialize(
         self
     ):
@@ -123,7 +118,12 @@ class QueueConsumer:
         self
     ) -> list:
         messages = []
-        if self._az_storage_queue:
+        if not self._az_storage_queue:
+            return messages
+        if self._consumer_type == "redis":
+            msgs = await self._az_storage_queue.receive_message()
+            messages.extend(msgs)
+        else:
             msgs = await self._az_storage_queue.receive_message(
                 visibility_timeout=self._config["message_queue"]["azure"]["visibility_timeout"],
                 messages_per_page=self._config["message_queue"]["azure"]["messages_per_page"],
@@ -131,7 +131,6 @@ class QueueConsumer:
             )
             async for msg in msgs:
                 messages.append(msg)
-
         return messages
 
     async def __delete_message(
@@ -170,7 +169,7 @@ class QueueConsumer:
 
             with self._tracer.start_as_current_span("message_queue.batch_process", kind=trace.SpanKind.CONSUMER) as span:
                 try:
-                    span.set_attribute("messaging.system", "azure_storage_queue")
+                    span.set_attribute("messaging.system", self._consumer_type or "unknown")
                     span.set_attribute("messaging.destination", self._queue_name)
                     span.set_attribute("messaging.destination_kind", "queue")
                     span.set_attribute("messaging.message_count", len(messages))
@@ -179,7 +178,9 @@ class QueueConsumer:
                     dlq_count = 0
 
                     for message in messages:
-                        if message.dequeue_count > queue_retry_count:
+                        # Redis messages have no dequeue_count (BRPOP is atomic, no redelivery)
+                        dequeue_count = getattr(message, 'dequeue_count', 0)
+                        if dequeue_count > queue_retry_count:
                             await dlq_client.send_message(message.content)
                             await self.__delete_message([message])
                             dlq_count += 1
@@ -199,14 +200,14 @@ class QueueConsumer:
                             consume_span.set_attribute("messaging.batch_size", len(message_content))
 
                             successfully_processed_messages = await message_consumer_svc.consume(message_content) or []
-                            
+
                             self._logger.info(f"consume() returned {len(successfully_processed_messages)} successfully processed messages")
 
                             self._logger.info(f"Successfully processed {len(successfully_processed_messages)} messages")
                             utils.log_to_text_file(f"Successfully processed {len(successfully_processed_messages)} messages")
 
                             consume_span.set_attribute("messaging.processed_count", len(successfully_processed_messages))
-                            consume_span.set_attribute("messaging.success_rate", 
+                            consume_span.set_attribute("messaging.success_rate",
                                 len(successfully_processed_messages) / len(message_content) if message_content else 0)
                             consume_span.set_status(Status(StatusCode.OK))
 
@@ -256,10 +257,9 @@ class QueueConsumer:
         self
     ):
         self._logger.info(self._az_storage_queue)
-        if isinstance(self._az_storage_queue, AsyncAzureStorageQueue):
+        if self._az_storage_queue is not None:
             await self._az_storage_queue._close()
-        if isinstance(self._dlq_client, AsyncAzureStorageQueue):
+            self._logger.info("Closed queue client: %s", self._consumer_type)
+        if self._dlq_client is not None:
             await self._dlq_client._close()
-            self._logger.info("Closed the Azure storage queue client")
-        else:
-            self._logger.info("No queue client to close")
+            self._logger.info("Closed DLQ client: %s", self._consumer_type)

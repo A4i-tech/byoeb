@@ -14,13 +14,12 @@ class QueueProviderType(Enum):
 
 
 class QueueProducerFactory:
-    _queues = {}
-    _locks = {}
-
     def __init__(self, config, scope):
         self._logger = logging.getLogger(self.__class__.__name__)
         self._config = config
         self._scope = scope
+        self._queues = {}
+        self._locks = {}
 
     async def __create_azure_storage_queue_client(self, queue_name: str) -> BaseQueue:
         from byoeb_integrations.message_queue.azure.async_azure_storage_queue import AsyncAzureStorageQueue
