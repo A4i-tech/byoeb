@@ -349,38 +349,41 @@ byoeb_expert_generate_response = ByoebExpertGenerateResponse(successor=byoeb_exp
 byoeb_expert_process = ByoebExpertProcess(successor=byoeb_expert_generate_response)
 
 from byoeb_core.media_storage.base import BaseMediaStorage
-from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
-from azure.identity import DefaultAzureCredential
 
-# Require environment variables for storage URLs to prevent accidental production access
-if not env_config.env_azure_storage_blob_account_url:
-    raise ValueError(
-        "AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set. "
+if env_config.env_storage_backend == "local":
+    from byoeb_integrations.media_storage.local.local_file_storage import LocalFileStorage
+    media_storage: BaseMediaStorage = LocalFileStorage(
+        storage_dir=env_config.env_local_storage_path
     )
-if not env_config.env_azure_storage_container_name:
-    raise ValueError(
-        "AZURE_STORAGE_CONTAINER_NAME environment variable must be set. "
-    )
-
-container_name = env_config.env_azure_storage_container_name
-account_url = env_config.env_azure_storage_blob_account_url
-
-if env_config.env_azure_storage_connection_string:
-    media_storage: BaseMediaStorage = AsyncAzureBlobStorage(
-        container_name=container_name,
-        account_url=None,
-        credentials=None,
-        connection_string=env_config.env_azure_storage_connection_string
-    )
-elif account_url:
-    media_storage: BaseMediaStorage = AsyncAzureBlobStorage(
-        container_name=container_name,
-        account_url=account_url,
-        credentials=DefaultAzureCredential()
-    )
+    _logger.info("Using local file storage at %s", env_config.env_local_storage_path)
 else:
-    media_storage = None
-    _logger.warning("Azure Blob Storage not configured. Media storage disabled.")
+    from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
+    from azure.identity import DefaultAzureCredential
+
+    if not env_config.env_azure_storage_blob_account_url:
+        raise ValueError("AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set.")
+    if not env_config.env_azure_storage_container_name:
+        raise ValueError("AZURE_STORAGE_CONTAINER_NAME environment variable must be set.")
+
+    container_name = env_config.env_azure_storage_container_name
+    account_url = env_config.env_azure_storage_blob_account_url
+
+    if env_config.env_azure_storage_connection_string:
+        media_storage: BaseMediaStorage = AsyncAzureBlobStorage(
+            container_name=container_name,
+            account_url=None,
+            credentials=None,
+            connection_string=env_config.env_azure_storage_connection_string
+        )
+    elif account_url:
+        media_storage: BaseMediaStorage = AsyncAzureBlobStorage(
+            container_name=container_name,
+            account_url=account_url,
+            credentials=DefaultAzureCredential()
+        )
+    else:
+        media_storage = None
+        _logger.warning("Azure Blob Storage not configured. Media storage disabled.")
 
 # Scheduler configuration
 from apscheduler.schedulers.asyncio import AsyncIOScheduler

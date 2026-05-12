@@ -16,15 +16,6 @@ logger = logging.getLogger(__name__)
 # Optional secondary storage for monthly analysis
 amedia_storage_analysis: BaseMediaStorage = None
 
-# Require environment variables to prevent accidental production access
-if not env_config.env_azure_storage_blob_account_url:
-    raise ValueError(
-        "AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set. "
-    )
-if not env_config.env_azure_storage_container_name:
-    raise ValueError(
-        "AZURE_STORAGE_CONTAINER_NAME environment variable must be set. "
-    )
 if not env_config.env_azure_openai_endpoint:
     raise ValueError(
         "AZURE_OPENAI_ENDPOINT environment variable must be set. "
@@ -34,8 +25,6 @@ if not env_config.env_azure_openai_deployment_name:
         "AZURE_OPENAI_DEPLOYMENT_NAME environment variable must be set. "
     )
 
-account_url = env_config.env_azure_storage_blob_account_url
-container_name = env_config.env_azure_storage_container_name
 model = app_config["embeddings"]["azure"]["model"]
 deployment_name = env_config.env_azure_openai_deployment_name
 aoai_endpoint = env_config.env_azure_openai_endpoint
@@ -80,39 +69,54 @@ else:
         api_version=api_version
     )
 
-if env_config.env_azure_storage_connection_string:
-    amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
-        container_name=container_name,
-        account_url=None,
-        credentials=None,
-        connection_string=env_config.env_azure_storage_connection_string
+if env_config.env_storage_backend == "local":
+    from byoeb_integrations.media_storage.local.local_file_storage import LocalFileStorage
+    amedia_storage: BaseMediaStorage = LocalFileStorage(
+        storage_dir=env_config.env_local_storage_path
     )
-    logger.info("Azure Storage API key set. Enabling Azure Blob Storage.")
+    logger.info("Using local file storage at %s", env_config.env_local_storage_path)
 else:
-    amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
-        container_name=container_name,
-        account_url=account_url,
-        credentials=DefaultAzureCredential()
-    )
+    if not env_config.env_azure_storage_blob_account_url:
+        raise ValueError("AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set.")
+    if not env_config.env_azure_storage_container_name:
+        raise ValueError("AZURE_STORAGE_CONTAINER_NAME environment variable must be set.")
 
-# Secondary client for monthly analysis
-# Use environment variable if set, otherwise optional (no fallback to prevent production access)
-analysis_container = env_config.env_azure_storage_analysis_container_name
-if analysis_container:
+    account_url = env_config.env_azure_storage_blob_account_url
+    container_name = env_config.env_azure_storage_container_name
+
     if env_config.env_azure_storage_connection_string:
-        amedia_storage_analysis = AsyncAzureBlobStorage(
-            container_name=analysis_container,
+        amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
+            container_name=container_name,
             account_url=None,
             credentials=None,
             connection_string=env_config.env_azure_storage_connection_string
         )
+        logger.info("Azure Storage API key set. Enabling Azure Blob Storage.")
     else:
-        amedia_storage_analysis = AsyncAzureBlobStorage(
-            container_name=analysis_container,
+        amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
+            container_name=container_name,
             account_url=account_url,
             credentials=DefaultAzureCredential()
         )
-    logger.info("Azure Blob Storage (analysis) enabled for container: %s", analysis_container)
+
+    # Secondary client for monthly analysis
+    # Use environment variable if set, otherwise optional (no fallback to prevent production access)
+    analysis_container = env_config.env_azure_storage_analysis_container_name
+    if analysis_container:
+        if env_config.env_azure_storage_connection_string:
+            amedia_storage_analysis = AsyncAzureBlobStorage(
+                container_name=analysis_container,
+                account_url=None,
+                credentials=None,
+                connection_string=env_config.env_azure_storage_connection_string
+            )
+        else:
+            amedia_storage_analysis = AsyncAzureBlobStorage(
+                container_name=analysis_container,
+                account_url=account_url,
+                credentials=DefaultAzureCredential()
+            )
+        logger.info("Azure Blob Storage (analysis) enabled for container: %s", analysis_container)
 
 # Vector Store Type Configuration - use environment variable if set, otherwise fallback to app_config.json
 # Default to "azure_vector_search" if not specified (for backward compatibility)
