@@ -31,6 +31,9 @@ scratch/
 # the .env file
 *.env
 
+# local env overrides (contain real secrets, never commit)
+.env.local
+
 # the .env file in any subdirectory
 **/.env
 **/**/.env
