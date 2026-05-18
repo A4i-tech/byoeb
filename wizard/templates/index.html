@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AshaBot Setup Wizard</title>
+<style>
+  :root {
+    --wa-green:      #25D366;
+    --wa-dark-green: #128C7E;
+    --wa-darker:     #075E54;
+    --bg:            #f0f2f5;
+    --white:         #ffffff;
+    --border:        #e5e7eb;
+    --text:          #111827;
+    --muted:         #6b7280;
+    --muted2:        #9ca3af;
+    --danger:        #ef4444;
+    --radius:        12px;
+    --shadow:        0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 0 64px;
+  }
+
+  /* Top bar */
+  .topbar {
+    width: 100%;
+    background: var(--wa-darker);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .topbar-icon {
+    width: 38px; height: 38px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .topbar-icon svg { width: 20px; height: 20px; color: #fff; }
+  .topbar-title { color: #fff; font-size: 17px; font-weight: 600; }
+  .topbar-sub   { color: rgba(255,255,255,0.7); font-size: 12.5px; margin-top: 1px; }
+
+  /* Progress */
+  .progress-wrap {
+    width: 100%; max-width: 640px;
+    padding: 0 16px; margin-bottom: 20px;
+  }
+  .steps {
+    display: flex; justify-content: space-between; position: relative;
+  }
+  .steps::before {
+    content: '';
+    position: absolute; top: 18px; left: 18px; right: 18px;
+    height: 2px; background: var(--border); z-index: 0;
+  }
+  .step-dot {
+    display: flex; flex-direction: column; align-items: center; gap: 5px; z-index: 1;
+  }
+  .step-dot .dot {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--white); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    transition: all 0.25s;
+  }
+  .step-dot .dot svg { width: 15px; height: 15px; }
+  .step-dot .label   { font-size: 11px; color: var(--muted2); white-space: nowrap; font-weight: 500; }
+  .step-dot.active .dot   { background: var(--wa-green); border-color: var(--wa-green); color: #fff; box-shadow: 0 0 0 4px rgba(37,211,102,0.15); }
+  .step-dot.active .label { color: var(--wa-dark-green); font-weight: 600; }
+  .step-dot.done .dot     { background: var(--wa-darker); border-color: var(--wa-darker); color: #fff; }
+  .step-dot.done .label   { color: var(--wa-darker); }
+
+  /* Card */
+  .card {
+    background: var(--white); border-radius: var(--radius);
+    box-shadow: var(--shadow); width: 100%; max-width: 640px;
+    padding: 32px; margin: 0 16px;
+  }
+  .step-view { display: none; }
+  .step-view.active { display: block; }
+
+  .step-title {
+    font-size: 19px; font-weight: 700;
+    color: var(--wa-darker); margin-bottom: 4px;
+  }
+  .step-desc {
+    color: var(--muted); font-size: 13.5px;
+    margin-bottom: 26px; line-height: 1.5;
+  }
+
+  /* Form */
+  .field { margin-bottom: 18px; }
+  label.field-label {
+    display: block; font-size: 13px; font-weight: 600;
+    margin-bottom: 6px; color: var(--text);
+  }
+  .hint { font-weight: 400; color: var(--muted); margin-left: 4px; }
+
+  input[type=text], input[type=password], input[type=url] {
+    width: 100%; background: #fafafa;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    color: var(--text); padding: 10px 14px; font-size: 14px;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus {
+    border-color: var(--wa-green);
+    box-shadow: 0 0 0 3px rgba(37,211,102,0.12); background: #fff;
+  }
+  input::placeholder { color: var(--muted2); }
+
+  /* Radio cards */
+  .radio-group { display: flex; flex-direction: column; gap: 10px; }
+  .radio-card {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: #fafafa; border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  }
+  .radio-card:hover { border-color: var(--wa-green); background: #f6fef9; }
+  .radio-card.selected {
+    border-color: var(--wa-green); background: #f0fdf4;
+    box-shadow: 0 0 0 3px rgba(37,211,102,0.1);
+  }
+  .radio-card input[type=radio] { display: none; }
+  .radio-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid var(--border); flex-shrink: 0; margin-top: 2px;
+    transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+    background: #fff;
+  }
+  .radio-card.selected .radio-dot { border-color: var(--wa-dark-green); background: var(--wa-dark-green); }
+  .radio-card.selected .radio-dot::after {
+    content: ''; width: 8px; height: 8px; border-radius: 50%; background: #fff;
+  }
+  .radio-label { font-size: 14px; font-weight: 600; color: var(--text); }
+  .radio-desc  { font-size: 12.5px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  .badge {
+    display: inline-block; font-size: 10.5px; font-weight: 700;
+    padding: 2px 7px; border-radius: 99px; margin-left: 6px; vertical-align: middle;
+  }
+  .badge-green { background: #dcfce7; color: var(--wa-darker); }
+
+  /* Sub-panels */
+  .sub-panel {
+    margin-top: 14px; padding: 16px;
+    background: #f8fffe; border: 1px solid #d1fae5;
+    border-radius: 8px; display: none;
+  }
+  .sub-panel.visible { display: block; }
+  .sub-panel .field:last-child { margin-bottom: 0; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 22px 0; }
+  .section-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--muted); margin-bottom: 14px;
+  }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 10px; margin-top: 28px; justify-content: flex-end; }
+  .btn {
+    padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; border: none; transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--wa-green); color: #fff; box-shadow: 0 2px 8px rgba(37,211,102,0.3); }
+  .btn-primary:hover { background: var(--wa-dark-green); }
+  .btn-ghost { background: transparent; border: 1.5px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+  .btn-success { background: var(--wa-darker); color: #fff; box-shadow: 0 2px 8px rgba(7,94,84,0.25); }
+  .btn-success:hover { opacity: 0.9; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Summary */
+  .summary-table { width: 100%; border-collapse: collapse; }
+  .summary-table tr { border-bottom: 1px solid var(--border); }
+  .summary-table tr:last-child { border-bottom: none; }
+  .summary-table td { padding: 11px 4px; font-size: 14px; }
+  .summary-key { color: var(--muted); width: 140px; font-weight: 500; }
+  .summary-val { font-weight: 600; color: var(--text); }
+
+  /* Log */
+  #log-box {
+    background: #1e2227; border-radius: 8px; padding: 14px 16px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+    font-size: 12px; line-height: 1.65; height: 240px;
+    overflow-y: auto; margin: 16px 0; color: #9ca3af; display: none;
+  }
+  .log-ok  { color: #4ade80; }
+  .log-err { color: #f87171; }
+  .log-dim { color: #4b5563; }
+
+  /* Banners */
+  .banner {
+    border-radius: 8px; padding: 14px 18px;
+    font-size: 13.5px; line-height: 1.6; margin: 14px 0;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .banner svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+  .banner-content { flex: 1; }
+  .banner.success { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+  .banner.error   { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+  .banner.warning { background: #fffbeb; border: 1px solid #f59e0b; color: #92400e; }
+  .url-link { color: var(--wa-dark-green); text-decoration: none; font-weight: 600; }
+  .url-link:hover { text-decoration: underline; }
+
+  .spinner { display: inline-block; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  code {
+    background: #f3f4f6; padding: 2px 6px; border-radius: 4px;
+    font-size: 12px; font-family: monospace; color: var(--wa-darker);
+  }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-icon">
+    <!-- message-circle icon -->
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  </div>
+  <div>
+    <div class="topbar-title">AshaBot Setup Wizard</div>
+    <div class="topbar-sub">Configure and launch your BYOEB WhatsApp bot</div>
+  </div>
+</div>
+
+<!-- Progress -->
+<div class="progress-wrap">
+  <div class="steps">
+    <div class="step-dot active" id="sdot-1"><div class="dot">1</div><span class="label">Queue</span></div>
+    <div class="step-dot"        id="sdot-2"><div class="dot">2</div><span class="label">Vector Store</span></div>
+    <div class="step-dot"        id="sdot-3"><div class="dot">3</div><span class="label">Storage &amp; DB</span></div>
+    <div class="step-dot"        id="sdot-4"><div class="dot">4</div><span class="label">WhatsApp</span></div>
+    <div class="step-dot"        id="sdot-5"><div class="dot">5</div><span class="label">Admin</span></div>
+    <div class="step-dot"        id="sdot-6">
+      <div class="dot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <span class="label">Launch</span>
+    </div>
+  </div>
+</div>
+
+<!-- Card -->
+<div class="card">
+
+  <!-- Step 1: Queue -->
+  <div class="step-view active" id="step-1">
+    <div class="step-title">Message Queue</div>
+    <div class="step-desc">Handles messages between WhatsApp and your bot workers.</div>
+
+    <div class="field">
+      <div class="radio-group">
+        <label class="radio-card selected" onclick="selectRadio('queue','kafka',this)">
+          <input type="radio" name="queue" value="kafka" checked>
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">Kafka<span class="badge badge-green">Recommended</span></div>
+            <div class="radio-desc">Included in Docker — no extra accounts or setup needed</div>
+          </div>
+        </label>
+        <label class="radio-card" onclick="selectRadio('queue','azure_storage_queue',this)">
+          <input type="radio" name="queue" value="azure_storage_queue">
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">Azure Storage Queue</div>
+            <div class="radio-desc">Use if you already have an Azure subscription</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="sub-panel visible" id="kafka-panel">
+      <div class="section-label">Kafka settings</div>
+      <div class="field">
+        <label class="field-label">Bootstrap servers <span class="hint">default: kafka:9092</span></label>
+        <input type="text" id="kafka_bootstrap_servers" value="kafka:9092">
+      </div>
+      <div class="field">
+        <label class="field-label">Consumer group <span class="hint">default: byoeb</span></label>
+        <input type="text" id="kafka_consumer_group" value="byoeb">
+      </div>
+      <div class="field">
+        <label class="field-label">Bot topic</label>
+        <input type="text" id="kafka_topic_bot" value="byoeb-bot">
+      </div>
+      <div class="field">
+        <label class="field-label">Status topic</label>
+        <input type="text" id="kafka_topic_status" value="byoeb-status">
+      </div>
+      <div class="field">
+        <label class="field-label">Dead-letter topic</label>
+        <input type="text" id="kafka_topic_dlq" value="byoeb-dlq">
+      </div>
+    </div>
+
+    <div class="sub-panel" id="azure-queue-panel">
+      <div class="section-label">Azure Queue settings</div>
+      <div class="field">
+        <label class="field-label">Storage queue account URL</label>
+        <input type="url" id="azure_storage_queue_account_url" placeholder="https://xxx.queue.core.windows.net">
+      </div>
+      <div class="field">
+        <label class="field-label">Bot queue name</label>
+        <input type="text" id="azure_queue_bot" placeholder="byoeb-bot">
+      </div>
+      <div class="field">
+        <label class="field-label">Status queue name</label>
+        <input type="text" id="azure_queue_status" placeholder="byoeb-status">
+      </div>
+      <div class="field">
+        <label class="field-label">Dead-letter queue name</label>
+        <input type="text" id="azure_queue_dead_letter" placeholder="byoeb-dlq">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="goTo(2)">
+        Next
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 2: Vector Store -->
+  <div class="step-view" id="step-2">
+    <div class="step-title">Vector Store</div>
+    <div class="step-desc">Stores your knowledge base embeddings for RAG-based responses.</div>
+
+    <div class="field">
+      <div class="radio-group">
+        <label class="radio-card selected" onclick="selectRadio('vector_store','llama_index_chroma',this); showVsPanel('chroma')">
+          <input type="radio" name="vector_store" value="llama_index_chroma" checked>
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">ChromaDB<span class="badge badge-green">Easiest</span></div>
+            <div class="radio-desc">Runs embedded inside Python — no extra container or account</div>
+          </div>
+        </label>
+        <label class="radio-card" onclick="selectRadio('vector_store','qdrant',this); showVsPanel('qdrant')">
+          <input type="radio" name="vector_store" value="qdrant">
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">Qdrant</div>
+            <div class="radio-desc">High-performance vector search — in-memory, Docker, or Cloud</div>
+          </div>
+        </label>
+        <label class="radio-card" onclick="selectRadio('vector_store','azure_vector_search',this); showVsPanel('azure_search')">
+          <input type="radio" name="vector_store" value="azure_vector_search">
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">Azure AI Search</div>
+            <div class="radio-desc">Managed cloud service — requires Azure subscription</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="sub-panel" id="vs-qdrant-panel">
+      <div class="section-label">Qdrant mode</div>
+      <div class="radio-group" style="margin-bottom:16px">
+        <label class="radio-card selected" onclick="selectRadio('qdrant_mode','memory',this); showQdrantMode('memory')">
+          <input type="radio" name="qdrant_mode" value="memory" checked>
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">In-memory</div>
+            <div class="radio-desc">No extra container. Data is lost when bot restarts. Good for testing.</div>
+          </div>
+        </label>
+        <label class="radio-card" onclick="selectRadio('qdrant_mode','docker',this); showQdrantMode('docker')">
+          <input type="radio" name="qdrant_mode" value="docker">
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">Docker<span class="badge badge-green">Persistent</span></div>
+            <div class="radio-desc">Data saved to disk. Qdrant runs as a separate container.</div>
+          </div>
+        </label>
+        <label class="radio-card" onclick="selectRadio('qdrant_mode','cloud',this); showQdrantMode('cloud')">
+          <input type="radio" name="qdrant_mode" value="cloud">
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">Qdrant Cloud</div>
+            <div class="radio-desc">Fully managed — provide your cluster URL and API key.</div>
+          </div>
+        </label>
+      </div>
+      <div id="qdrant-cloud-fields" style="display:none">
+        <div class="field">
+          <label class="field-label">Qdrant Cloud URL</label>
+          <input type="url" id="qdrant_url" placeholder="https://xyz.qdrant.tech">
+        </div>
+        <div class="field">
+          <label class="field-label">Qdrant API key</label>
+          <input type="password" id="qdrant_api_key" placeholder="Enter API key">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Collection name <span class="hint">default: byoeb-kb</span></label>
+        <input type="text" id="qdrant_collection_name" value="byoeb-kb">
+      </div>
+    </div>
+
+    <div class="sub-panel" id="vs-azure_search-panel">
+      <div class="section-label">Azure AI Search settings</div>
+      <div class="field">
+        <label class="field-label">Search service name</label>
+        <input type="text" id="azure_search_service_name" placeholder="my-search-service">
+      </div>
+      <div class="field">
+        <label class="field-label">Index name</label>
+        <input type="text" id="azure_search_index_name" placeholder="byoeb-index">
+      </div>
+      <div class="field">
+        <label class="field-label">API key</label>
+        <input type="password" id="azure_search_api_key" placeholder="Enter API key">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" onclick="goTo(3)">
+        Next
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 3: Storage & DB -->
+  <div class="step-view" id="step-3">
+    <div class="step-title">Storage &amp; Database</div>
+    <div class="step-desc">Where to store media files, voice messages, and conversation data.</div>
+
+    <div class="section-label">File storage</div>
+    <div class="radio-group" style="margin-bottom:14px">
+      <label class="radio-card selected" onclick="selectRadio('storage_backend','local',this); showStoragePanel('local')">
+        <input type="radio" name="storage_backend" value="local" checked>
+        <div class="radio-dot"></div>
+        <div>
+          <div class="radio-label">Local (inside Docker)<span class="badge badge-green">Easiest</span></div>
+          <div class="radio-desc">Files stored on your machine. Perfect for local development.</div>
+        </div>
+      </label>
+      <label class="radio-card" onclick="selectRadio('storage_backend','azure',this); showStoragePanel('azure')">
+        <input type="radio" name="storage_backend" value="azure">
+        <div class="radio-dot"></div>
+        <div>
+          <div class="radio-label">Azure Blob Storage</div>
+          <div class="radio-desc">Cloud storage — requires Azure account.</div>
+        </div>
+      </label>
+    </div>
+
+    <div class="sub-panel visible" id="storage-local-panel">
+      <div class="field">
+        <label class="field-label">Storage path inside container</label>
+        <input type="text" id="local_storage_path" value="/app/local_media_storage">
+      </div>
+    </div>
+    <div class="sub-panel" id="storage-azure-panel">
+      <div class="field">
+        <label class="field-label">Blob account URL</label>
+        <input type="url" id="azure_storage_blob_account_url" placeholder="https://xxx.blob.core.windows.net">
+      </div>
+      <div class="field">
+        <label class="field-label">Container name</label>
+        <input type="text" id="azure_storage_container_name" placeholder="byoeb-media">
+      </div>
+    </div>
+
+    <hr class="divider">
+    <div class="section-label">Database</div>
+    <div class="field">
+      <label class="field-label">MongoDB URI <span class="hint">default for Docker</span></label>
+      <input type="text" id="mongo_uri" value="mongodb://mongodb:27017/byoeb">
+    </div>
+
+    <hr class="divider">
+    <div class="section-label">AI / LLM</div>
+    <div class="field">
+      <label class="field-label">OpenAI API key</label>
+      <input type="password" id="openai_api_key" placeholder="sk-…">
+    </div>
+    <div class="field">
+      <label class="field-label">OpenAI Org ID <span class="hint">optional</span></label>
+      <input type="text" id="openai_org_id" placeholder="org-…">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(2)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" onclick="goTo(4)">
+        Next
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 4: WhatsApp -->
+  <div class="step-view" id="step-4">
+    <div class="step-title">WhatsApp Credentials</div>
+    <div class="step-desc">Find these in your <strong>Meta for Developers</strong> app &rarr; WhatsApp &rarr; API Setup.</div>
+
+    <div class="field">
+      <label class="field-label">WhatsApp token</label>
+      <input type="password" id="whatsapp_token" placeholder="EAAxxxxxxxxxxxxxxx">
+    </div>
+    <div class="field">
+      <label class="field-label">Phone Number ID</label>
+      <input type="text" id="whatsapp_phone_id" placeholder="1234567890">
+    </div>
+    <div class="field">
+      <label class="field-label">Webhook verify token <span class="hint">you choose this</span></label>
+      <input type="text" id="whatsapp_verify_token" value="byoeb-verify">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(3)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" onclick="goTo(5)">
+        Next
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 5: Admin -->
+  <div class="step-view" id="step-5">
+    <div class="step-title">Admin Panel</div>
+    <div class="step-desc">Set up your administrator login. Your password is stored as a <strong>bcrypt hash</strong> — never in plaintext.</div>
+
+    <div class="field">
+      <label class="field-label">Admin username</label>
+      <input type="text" id="admin_username" value="admin">
+    </div>
+    <div class="field">
+      <label class="field-label">Admin password <span class="hint">min 8 characters</span></label>
+      <input type="password" id="admin_password" placeholder="Choose a strong password">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(4)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" onclick="buildSummary(); goTo(6)">
+        Review &amp; Launch
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 6: Launch -->
+  <div class="step-view" id="step-6">
+    <div class="step-title">Review &amp; Launch</div>
+    <div class="step-desc">Confirm your settings, generate <code>.env.local</code>, then start AshaBot.</div>
+
+    <table class="summary-table" id="summary-rows"></table>
+
+    <hr class="divider">
+
+    <div id="no-docker-warn" class="banner warning" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div class="banner-content">
+        Docker Desktop is not running. Please start it, then come back.<br>
+        <a class="url-link" href="https://docs.docker.com/get-docker/" target="_blank">Install Docker Desktop &rarr;</a>
+      </div>
+    </div>
+
+    <div id="log-box"></div>
+    <div id="launch-status"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(5)" id="back-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" id="gen-btn" onclick="doGenerate()">Generate .env.local</button>
+      <button class="btn btn-success" id="launch-btn" style="display:none" onclick="doLaunch()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Start with Docker
+      </button>
+    </div>
+  </div>
+
+</div><!-- .card -->
+
+<script>
+let currentStep = 1;
+const answers = {};
+
+function goTo(n) {
+  document.getElementById('step-' + currentStep).classList.remove('active');
+  currentStep = n;
+  document.getElementById('step-' + n).classList.add('active');
+  for (let i = 1; i <= 6; i++) {
+    const dot = document.getElementById('sdot-' + i);
+    dot.classList.remove('active','done');
+    if (i < n) dot.classList.add('done');
+    if (i === n) dot.classList.add('active');
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function selectRadio(name, value, el) {
+  el.closest('.radio-group').querySelectorAll('.radio-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  el.querySelector('input[type=radio]').checked = true;
+  answers[name] = value;
+  if (name === 'queue') {
+    toggle('kafka-panel', value === 'kafka');
+    toggle('azure-queue-panel', value === 'azure_storage_queue');
+  }
+}
+
+function toggle(id, show) {
+  const el = document.getElementById(id);
+  if (show) el.classList.add('visible'); else el.classList.remove('visible');
+}
+
+function showVsPanel(vs) {
+  ['chroma','qdrant','azure_search'].forEach(k => {
+    const el = document.getElementById('vs-' + k + '-panel');
+    if (el) el.classList.remove('visible');
+  });
+  const t = document.getElementById('vs-' + vs + '-panel');
+  if (t) t.classList.add('visible');
+}
+
+function showQdrantMode(mode) {
+  document.getElementById('qdrant-cloud-fields').style.display = mode === 'cloud' ? 'block' : 'none';
+}
+
+function showStoragePanel(b) {
+  toggle('storage-local-panel', b === 'local');
+  toggle('storage-azure-panel', b === 'azure');
+}
+
+function collectAnswers() {
+  ['kafka_bootstrap_servers','kafka_consumer_group','kafka_topic_bot','kafka_topic_status','kafka_topic_dlq',
+   'azure_storage_queue_account_url','azure_queue_bot','azure_queue_status','azure_queue_dead_letter',
+   'qdrant_url','qdrant_api_key','qdrant_collection_name',
+   'azure_search_service_name','azure_search_index_name','azure_search_api_key',
+   'local_storage_path','azure_storage_blob_account_url','azure_storage_container_name',
+   'mongo_uri','openai_api_key','openai_org_id',
+   'whatsapp_token','whatsapp_phone_id','whatsapp_verify_token',
+   'admin_username','admin_password',
+  ].forEach(id => { const el = document.getElementById(id); if (el) answers[id] = el.value; });
+  ['queue','vector_store','storage_backend','qdrant_mode'].forEach(name => {
+    const c = document.querySelector(`input[name="${name}"]:checked`);
+    if (c) answers[name] = c.value;
+  });
+}
+
+function buildSummary() {
+  collectAnswers();
+  const vs = answers.vector_store + (answers.qdrant_mode ? ` (${answers.qdrant_mode})` : '');
+  const rows = [
+    ['Queue', answers.queue],
+    ['Vector store', vs],
+    ['Storage', answers.storage_backend],
+    ['MongoDB URI', answers.mongo_uri],
+    ['WhatsApp Phone ID', answers.whatsapp_phone_id || '—'],
+    ['Admin user', answers.admin_username],
+  ];
+  document.getElementById('summary-rows').innerHTML = rows.map(([k,v]) =>
+    `<tr><td class="summary-key">${k}</td><td class="summary-val">${v}</td></tr>`
+  ).join('');
+  fetch('/api/docker-check').then(r => r.json()).then(d => {
+    document.getElementById('no-docker-warn').style.display = d.available ? 'none' : 'block';
+  }).catch(() => {});
+}
+
+function doGenerate() {
+  collectAnswers();
+  const btn = document.getElementById('gen-btn');
+  btn.textContent = 'Generating…'; btn.disabled = true;
+  fetch('/api/generate', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(answers)
+  }).then(r => r.json()).then(d => {
+    if (!d.ok) {
+      showStatus('error', d.error);
+      btn.textContent = 'Generate .env.local'; btn.disabled = false;
+      return;
+    }
+    showStatus('success', `.env.local written to <code>${d.env_path}</code>`);
+    btn.style.display = 'none';
+    document.getElementById('back-btn').style.display = 'none';
+    if (d.docker_available) {
+      document.getElementById('launch-btn').style.display = 'inline-flex';
+    } else {
+      showStatus('warning', 'Docker is not running. Start Docker Desktop then refresh this page.');
+    }
+  });
+}
+
+function doLaunch() {
+  collectAnswers();
+  const btn = document.getElementById('launch-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner">&#8635;</span> Launching…';
+  document.getElementById('log-box').style.display = 'block';
+  document.getElementById('log-box').innerHTML = '';
+
+  const es = new EventSource('/api/stream');
+  es.onmessage = e => {
+    const data = JSON.parse(e.data);
+    if (typeof data !== 'string') return;
+    if (data === '__DONE_OK__') {
+      es.close();
+      showStatus('success',
+        '<strong>AshaBot is up and running.</strong><br><br>' +
+        'Admin panel: <a class="url-link" href="http://localhost:8000/admin" target="_blank">localhost:8000/admin</a><br>' +
+        'KB API docs: <a class="url-link" href="http://localhost:8001/docs" target="_blank">localhost:8001/docs</a><br><br>' +
+        '<strong>WhatsApp webhook:</strong> run <code>ngrok http 8000</code> and paste the URL in Meta developer console.'
+      );
+      btn.style.display = 'none';
+    } else if (data === '__DONE_ERR__') {
+      es.close();
+      showStatus('error', 'Docker Compose failed — see log above for details.');
+      btn.disabled = false;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><polygon points="5 3 19 12 5 21 5 3"/></svg> Retry';
+    } else {
+      appendLog(data);
+    }
+  };
+
+  fetch('/api/launch', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(answers)
+  });
+}
+
+function appendLog(line) {
+  const box = document.getElementById('log-box');
+  const cls = (line.includes('error')||line.includes('Error')) ? 'log-err'
+             : (line.includes('Started')||line.includes('done')) ? 'log-ok'
+             : line.startsWith('  ') ? 'log-dim' : '';
+  box.innerHTML += `<div class="${cls}">${esc(line)}</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+function showStatus(type, html) {
+  const icons = {
+    success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    error:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  };
+  document.getElementById('launch-status').innerHTML =
+    `<div class="banner ${type}">${icons[type]}<div class="banner-content">${html}</div></div>`;
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
