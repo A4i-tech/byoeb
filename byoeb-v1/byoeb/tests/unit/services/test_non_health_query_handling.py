@@ -1,13 +1,13 @@
 """
-Unit tests for non_health_related query handling.
+Unit tests for off_topic query handling.
 
 Verifies:
-1. bot_config has non_health_related templates in audio.idk and text.idk for all languages
-2. bot_config query_classify prompt includes non_health_related class
-3. ByoebUserGenerateResponse returns guided message for non_health_related WITHOUT calling RAG
+1. bot_config has off_topic templates in audio.idk and text.idk for all languages
+2. bot_config query_classify prompt includes off_topic class
+3. ByoebUserGenerateResponse returns guided message for off_topic WITHOUT calling RAG
 """
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, ANY
+from unittest.mock import AsyncMock, patch
 
 from byoeb_core.models.byoeb.user import User
 from byoeb_core.models.byoeb.message_context import (
@@ -22,40 +22,44 @@ from byoeb.chat_app.configuration.dependency_setup import byoeb_user_generate_re
 
 
 _EXPECTED_LANGUAGES = ["en", "hi", "mr", "te"]
-_NON_HEALTH_KEY = "non_health_related"
+_OFF_TOPIC_KEY = "off_topic"
 
 
 # ─── bot_config validation ────────────────────────────────────────────────────
 
-class TestBotConfigNonHealthTemplate:
-    def test_text_idk_has_non_health_related(self):
+class TestBotConfigOffTopicTemplate:
+    def test_text_idk_has_off_topic(self):
         text_idk = bot_config["template_messages"]["user"]["text"]["idk"]
-        assert _NON_HEALTH_KEY in text_idk, "text.idk missing non_health_related"
+        assert _OFF_TOPIC_KEY in text_idk, "text.idk missing off_topic"
 
-    def test_audio_idk_has_non_health_related(self):
+    def test_audio_idk_has_off_topic(self):
         audio_idk = bot_config["template_messages"]["user"]["audio"]["idk"]
-        assert _NON_HEALTH_KEY in audio_idk, "audio.idk missing non_health_related"
+        assert _OFF_TOPIC_KEY in audio_idk, "audio.idk missing off_topic"
 
     @pytest.mark.parametrize("lang", _EXPECTED_LANGUAGES)
-    def test_text_idk_non_health_has_all_languages(self, lang):
-        template = bot_config["template_messages"]["user"]["text"]["idk"][_NON_HEALTH_KEY]
-        assert lang in template, f"text.idk.non_health_related missing language: {lang}"
-        assert template[lang].strip(), f"text.idk.non_health_related[{lang}] is empty"
+    def test_text_idk_off_topic_has_all_languages(self, lang):
+        template = bot_config["template_messages"]["user"]["text"]["idk"][_OFF_TOPIC_KEY]
+        assert lang in template, f"text.idk.off_topic missing language: {lang}"
+        assert template[lang].strip(), f"text.idk.off_topic[{lang}] is empty"
 
     @pytest.mark.parametrize("lang", _EXPECTED_LANGUAGES)
-    def test_audio_idk_non_health_has_all_languages(self, lang):
-        template = bot_config["template_messages"]["user"]["audio"]["idk"][_NON_HEALTH_KEY]
-        assert lang in template, f"audio.idk.non_health_related missing language: {lang}"
-        assert template[lang].strip(), f"audio.idk.non_health_related[{lang}] is empty"
+    def test_audio_idk_off_topic_has_all_languages(self, lang):
+        template = bot_config["template_messages"]["user"]["audio"]["idk"][_OFF_TOPIC_KEY]
+        assert lang in template, f"audio.idk.off_topic missing language: {lang}"
+        assert template[lang].strip(), f"audio.idk.off_topic[{lang}] is empty"
 
-    def test_expert_routing_has_non_health_related(self):
-        assert _NON_HEALTH_KEY in bot_config["expert"], "expert routing missing non_health_related"
+    def test_expert_routing_has_off_topic(self):
+        assert _OFF_TOPIC_KEY in bot_config["expert"], "expert routing missing off_topic"
 
-    def test_query_classify_prompt_includes_non_health_related(self):
+    def test_query_classify_prompt_includes_off_topic(self):
         prompt = bot_config["llm_response"]["translation_and_rewrite_prompts"]["query_classify"]
-        assert "non_health_related" in prompt, "query_classify prompt does not include non_health_related"
-        assert "4c" in prompt, "query_classify prompt missing 4c (non_health_related)"
+        assert "off_topic" in prompt, "query_classify prompt does not include off_topic"
+        assert "4c" in prompt, "query_classify prompt missing 4c (off_topic)"
         assert "4d" in prompt, "query_classify prompt missing 4d (incomprehensible)"
+
+    def test_query_classify_prompt_has_prefer_asha_work_related_rule(self):
+        prompt = bot_config["llm_response"]["translation_and_rewrite_prompts"]["query_classify"]
+        assert "prefer" in prompt.lower(), "query_classify prompt missing prefer-asha_work_related decision rule"
 
 
 # ─── early return unit test ───────────────────────────────────────────────────
@@ -77,17 +81,17 @@ def _make_user(user_language: str = "en") -> User:
     )
 
 
-def _make_non_health_message(user: User, text: str = "Who won the IPL?") -> ByoebMessageContext:
+def _make_off_topic_message(user: User, text: str = "Who won the IPL?") -> ByoebMessageContext:
     return ByoebMessageContext(
         channel_type="whatsapp",
         message_category="user_to_bot",
         user=user,
         message_context=MessageContext(
-            message_id="msg-non-health-1",
+            message_id="msg-off-topic-1",
             message_type=MessageTypes.REGULAR_TEXT.value,
             message_source_text=text,
             message_english_text=text,
-            additional_info={constants.QUERY_TYPE: _NON_HEALTH_KEY},
+            additional_info={constants.QUERY_TYPE: _OFF_TOPIC_KEY},
         ),
         reply_context=ReplyContext(),
     )
@@ -101,13 +105,13 @@ def _dummy_message() -> ByoebMessageContext:
     )
 
 
-class TestNonHealthEarlyReturn:
-    """Verify non_health_related skips RAG and returns guided message."""
+class TestOffTopicEarlyReturn:
+    """Verify off_topic skips RAG and returns guided message."""
 
     async def test_does_not_call_rag(self):
         handler = byoeb_user_generate_response
         user = _make_user("en")
-        message = _make_non_health_message(user)
+        message = _make_off_topic_message(user)
 
         with (
             patch.object(
@@ -141,9 +145,9 @@ class TestNonHealthEarlyReturn:
             return _dummy_message()
 
         user = _make_user(lang)
-        message = _make_non_health_message(user)
-        expected_source = bot_config["template_messages"]["user"]["text"]["idk"][_NON_HEALTH_KEY][lang]
-        expected_en = bot_config["template_messages"]["user"]["text"]["idk"][_NON_HEALTH_KEY]["en"]
+        message = _make_off_topic_message(user)
+        expected_source = bot_config["template_messages"]["user"]["text"]["idk"][_OFF_TOPIC_KEY][lang]
+        expected_en = bot_config["template_messages"]["user"]["text"]["idk"][_OFF_TOPIC_KEY]["en"]
 
         with (
             patch.object(
@@ -165,5 +169,5 @@ class TestNonHealthEarlyReturn:
         assert captured.get("response_en") == expected_en, (
             f"[{lang}] response_en mismatch: got {captured.get('response_en')!r}"
         )
-        assert captured.get("query_type") == _NON_HEALTH_KEY
+        assert captured.get("query_type") == _OFF_TOPIC_KEY
         assert captured.get("related_questions") == []

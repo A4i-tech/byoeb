@@ -52,7 +52,7 @@ class ByoebUserGenerateResponse(Handler):
     _asha_work_related = "asha_work_related"
     _small_talk = "small_talk"
     _incomprehensible = "incomprehensible"
-    _non_health_related = "non_health_related"
+    _off_topic = "off_topic"
     embedding_cache = EmbeddingCache("message-consumer", dim=768, capacity=embedding_cap)
 
     def __init__(self, successor=None):
@@ -878,13 +878,13 @@ class ByoebUserGenerateResponse(Handler):
             if query_type is None:
                 raise ValueError("query_type must not be None")
 
-            if query_type == self._non_health_related:
+            if query_type == self._off_topic:
                 modality = self.AUDIO_MODALITY if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value else self.TEXT_MODALITY
-                non_health_template = bot_config["template_messages"]["user"][modality]["idk"][self._non_health_related]
+                off_topic_template = bot_config["template_messages"]["user"][modality]["idk"][self._off_topic]
                 byoeb_user_message = await self.__create_user_message(
                     message=message,
-                    response_en=bot_config["template_messages"]["user"]["text"]["idk"][self._non_health_related]["en"],
-                    response_source=non_health_template[user_language],
+                    response_en=bot_config["template_messages"]["user"]["text"]["idk"][self._off_topic]["en"],
+                    response_source=off_topic_template[user_language],
                     query_type=query_type,
                     related_questions=[],
                 )
