@@ -4,7 +4,6 @@ import byoeb.kb_app.configuration.config as env_config
 from byoeb.kb_app.configuration.config import app_config
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
-from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 from byoeb_integrations.llms.llama_index.llama_index_openai import AsyncLLamaIndexOpenAILLM
 from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
@@ -16,22 +15,6 @@ logger = logging.getLogger(__name__)
 # Optional secondary storage for monthly analysis
 amedia_storage_analysis: BaseMediaStorage = None
 
-if not env_config.env_azure_openai_endpoint:
-    raise ValueError(
-        "AZURE_OPENAI_ENDPOINT environment variable must be set. "
-    )
-if not env_config.env_azure_openai_deployment_name:
-    raise ValueError(
-        "AZURE_OPENAI_DEPLOYMENT_NAME environment variable must be set. "
-    )
-
-model = app_config["embeddings"]["azure"]["model"]
-deployment_name = env_config.env_azure_openai_deployment_name
-aoai_endpoint = env_config.env_azure_openai_endpoint
-cognitive_services_endpoint = app_config["app"]["azure_cognitive_endpoint"]
-api_version = app_config["embeddings"]["azure"]["api_version"]
-default_credential = DefaultAzureCredential()
-
 llm_client = AsyncLLamaIndexOpenAILLM(
     model=app_config["llms"]["openai"]["model"],
     api_key=env_config.env_openai_api_key,
@@ -39,35 +22,59 @@ llm_client = AsyncLLamaIndexOpenAILLM(
     organization=env_config.env_openai_org_id
 )
 
-# Azure OpenAI Embed - try API key first, fallback to token provider
-if env_config.env_azure_openai_key:
-    # Use Azure OpenAI specific key if available
-    azure_openai_embed = AzureOpenAIEmbed(
-        model=model,
-        deployment_name=deployment_name,
-        azure_endpoint=aoai_endpoint,
-        api_key=env_config.env_azure_openai_key,
-        api_version=api_version
-    )
-elif env_config.env_azure_cognitive_key:
-    # Fallback to cognitive key if Azure OpenAI key not available
-    azure_openai_embed = AzureOpenAIEmbed(
-        model=model,
-        deployment_name=deployment_name,
-        azure_endpoint=aoai_endpoint,
-        api_key=env_config.env_azure_cognitive_key,
-        api_version=api_version
-    )
+# Embeddings — Azure OpenAI if configured, else fall back to standard OpenAI
+_azure_openai_enabled = bool(
+    env_config.env_azure_openai_endpoint
+    and env_config.env_azure_openai_deployment_name
+)
+
+if _azure_openai_enabled:
+    from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
+    _model = app_config["embeddings"]["azure"]["model"]
+    _deployment_name = env_config.env_azure_openai_deployment_name
+    _aoai_endpoint = env_config.env_azure_openai_endpoint
+    _api_version = app_config["embeddings"]["azure"]["api_version"]
+    if env_config.env_azure_openai_key:
+        azure_openai_embed = AzureOpenAIEmbed(
+            model=_model,
+            deployment_name=_deployment_name,
+            azure_endpoint=_aoai_endpoint,
+            api_key=env_config.env_azure_openai_key,
+            api_version=_api_version,
+        )
+    elif env_config.env_azure_cognitive_key:
+        azure_openai_embed = AzureOpenAIEmbed(
+            model=_model,
+            deployment_name=_deployment_name,
+            azure_endpoint=_aoai_endpoint,
+            api_key=env_config.env_azure_cognitive_key,
+            api_version=_api_version,
+        )
+    else:
+        _default_credential = DefaultAzureCredential()
+        _token_provider = get_bearer_token_provider(
+            _default_credential, "https://cognitiveservices.azure.com/.default"
+        )
+        azure_openai_embed = AzureOpenAIEmbed(
+            model=_model,
+            deployment_name=_deployment_name,
+            azure_endpoint=_aoai_endpoint,
+            token_provider=_token_provider,
+            api_version=_api_version,
+        )
+    logger.info("Using Azure OpenAI embeddings: endpoint=%s", _aoai_endpoint)
 else:
-    # Last resort: use token provider with default credentials
-    azure_openai_token_provider = get_bearer_token_provider(default_credential, "https://cognitiveservices.azure.com/.default")
-    azure_openai_embed = AzureOpenAIEmbed(
-        model=model,
-        deployment_name=deployment_name,
-        azure_endpoint=aoai_endpoint,
-        token_provider=azure_openai_token_provider,
-        api_version=api_version
+    if not env_config.env_openai_api_key:
+        raise ValueError(
+            "Either AZURE_OPENAI_ENDPOINT+AZURE_OPENAI_DEPLOYMENT_NAME or "
+            "OPENAI_API_KEY must be set for embeddings."
+        )
+    from byoeb_integrations.embeddings.llama_index.openai import OpenAIEmbed
+    azure_openai_embed = OpenAIEmbed(
+        model="text-embedding-3-small",
+        api_key=env_config.env_openai_api_key,
     )
+    logger.info("Azure OpenAI not configured — using standard OpenAI embeddings (text-embedding-3-small)")
 
 if env_config.env_storage_backend == "local":
     from byoeb_integrations.media_storage.local.local_file_storage import LocalFileStorage

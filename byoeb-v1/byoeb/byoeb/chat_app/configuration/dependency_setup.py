@@ -172,47 +172,55 @@ else:
 
 # vector store
 import os
-from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
 from byoeb_core.vector_stores.base import BaseVectorStore
 
-# Require environment variables for Azure OpenAI endpoint and deployment to prevent accidental production access
-if not env_config.env_azure_openai_endpoint:
-    raise ValueError(
-        "AZURE_OPENAI_ENDPOINT environment variable must be set. "
-    )
-if not env_config.env_azure_openai_deployment_name:
-    raise ValueError(
-        "AZURE_OPENAI_DEPLOYMENT_NAME environment variable must be set. "
-    )
-azure_openai_endpoint = env_config.env_azure_openai_endpoint
-azure_openai_deployment_name = env_config.env_azure_openai_deployment_name
+# Embeddings — Azure OpenAI if configured, else fall back to standard OpenAI
+_azure_openai_enabled = bool(
+    env_config.env_azure_openai_endpoint
+    and env_config.env_azure_openai_deployment_name
+)
 
-# Azure OpenAI Embed - try API key first, fallback to token provider
-if env_config.env_azure_openai_key:
-    _logger.info("Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
-    azure_openai_key = env_config.env_azure_openai_key
-    azure_openai_embed = AzureOpenAIEmbed(
-        model=app_config["embeddings"]["azure"]["model"],
-        deployment_name=azure_openai_deployment_name,
-        azure_endpoint=azure_openai_endpoint,
-        api_key=azure_openai_key,
-        api_version=app_config["embeddings"]["azure"]["api_version"]
-    )
+if _azure_openai_enabled:
+    from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
+    _aoai_endpoint = env_config.env_azure_openai_endpoint
+    _aoai_deployment = env_config.env_azure_openai_deployment_name
+    if env_config.env_azure_openai_key:
+        _logger.info("Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
+        azure_openai_embed = AzureOpenAIEmbed(
+            model=app_config["embeddings"]["azure"]["model"],
+            deployment_name=_aoai_deployment,
+            azure_endpoint=_aoai_endpoint,
+            api_key=env_config.env_azure_openai_key,
+            api_version=app_config["embeddings"]["azure"]["api_version"],
+        )
+    else:
+        from azure.identity import get_bearer_token_provider, DefaultAzureCredential
+        _logger.warning("Azure OpenAI key not set. Using DefaultAzureCredential for embeddings.")
+        _token_provider = get_bearer_token_provider(
+            DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
+        )
+        azure_openai_embed = AzureOpenAIEmbed(
+            model=app_config["embeddings"]["azure"]["model"],
+            deployment_name=_aoai_deployment,
+            azure_endpoint=_aoai_endpoint,
+            token_provider=_token_provider,
+            api_version=app_config["embeddings"]["azure"]["api_version"],
+        )
+    _logger.info("Using Azure OpenAI embeddings: endpoint=%s", _aoai_endpoint)
 else:
-    from azure.identity import get_bearer_token_provider, DefaultAzureCredential
-    _logger.warning("Azure OpenAI Embed key not set. Defaulting to DefaultAzureCredential for Azure OpenAI Embed")
-    token_provider = get_bearer_token_provider(
-        DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
+    if not env_config.env_openai_api_key:
+        raise ValueError(
+            "Either AZURE_OPENAI_ENDPOINT+AZURE_OPENAI_DEPLOYMENT_NAME or "
+            "OPENAI_API_KEY must be set for embeddings."
+        )
+    from byoeb_integrations.embeddings.llama_index.openai import OpenAIEmbed
+    azure_openai_embed = OpenAIEmbed(
+        model="text-embedding-3-small",
+        api_key=env_config.env_openai_api_key,
     )
-    azure_openai_embed = AzureOpenAIEmbed(
-        model=app_config["embeddings"]["azure"]["model"],
-        deployment_name=azure_openai_deployment_name,
-        azure_endpoint=azure_openai_endpoint,
-        token_provider=token_provider,
-        api_version=app_config["embeddings"]["azure"]["api_version"]
-    )
+    _logger.info("Azure OpenAI not configured — using standard OpenAI embeddings (text-embedding-3-small)")
 
 # Vector Store Type Configuration - use environment variable if set, otherwise fallback to app_config.json
 # Default to "azure_vector_search" if not specified (for backward compatibility)
