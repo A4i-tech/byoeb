@@ -79,7 +79,7 @@
             "messages_per_page": 5,
             "visibility_timeout": 180,
             "time_to_live": 604800
-        },
+        }
     },
     "translators": {
         "speech": [
