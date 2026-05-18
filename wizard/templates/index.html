@@ -225,6 +225,17 @@
     background: #f3f4f6; padding: 2px 6px; border-radius: 4px;
     font-size: 12px; font-family: monospace; color: var(--wa-darker);
   }
+
+  /* Validation */
+  input.invalid {
+    border-color: var(--danger) !important;
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.12) !important;
+  }
+  .field-error {
+    display: flex; align-items: center; gap: 5px;
+    color: var(--danger); font-size: 12px; margin-top: 5px; font-weight: 500;
+  }
+  .field-error svg { width: 13px; height: 13px; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -334,7 +345,7 @@
     </div>
 
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="goTo(2)">
+      <button class="btn btn-primary" onclick="next(2)">
         Next
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
@@ -440,7 +451,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Back
       </button>
-      <button class="btn btn-primary" onclick="goTo(3)">
+      <button class="btn btn-primary" onclick="next(3)">
         Next
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
@@ -512,7 +523,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Back
       </button>
-      <button class="btn btn-primary" onclick="goTo(4)">
+      <button class="btn btn-primary" onclick="next(4)">
         Next
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
@@ -542,7 +553,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Back
       </button>
-      <button class="btn btn-primary" onclick="goTo(5)">
+      <button class="btn btn-primary" onclick="next(5)">
         Next
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
@@ -568,7 +579,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Back
       </button>
-      <button class="btn btn-primary" onclick="buildSummary(); goTo(6)">
+      <button class="btn btn-primary" onclick="next(6)">
         Review &amp; Launch
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
@@ -613,6 +624,137 @@
 <script>
 let currentStep = 1;
 const answers = {};
+
+// ── Error icon SVG ─────────────────────────────────────────────
+const ERR_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+
+// ── Field validation helpers ────────────────────────────────────
+function fieldErr(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('invalid');
+  // remove existing error
+  const existing = el.parentNode.querySelector('.field-error');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.className = 'field-error';
+  div.innerHTML = ERR_ICON + msg;
+  el.parentNode.appendChild(div);
+  // auto-clear on input
+  el.addEventListener('input', () => clearErr(id), { once: true });
+}
+
+function clearErr(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('invalid');
+  const e = el.parentNode.querySelector('.field-error');
+  if (e) e.remove();
+}
+
+function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+function isUrl(s) { try { new URL(s); return true; } catch { return false; } }
+function isHostPort(s) { return /^[a-zA-Z0-9._-]+(:\d+)?(,[a-zA-Z0-9._-]+(:\d+)?)*$/.test(s.trim()); }
+function isNumeric(s) { return /^\d+$/.test(s.trim()); }
+
+// ── Per-step validation ─────────────────────────────────────────
+function validateStep(n) {
+  let ok = true;
+  function require(id, label) {
+    if (!val(id)) { fieldErr(id, `${label} is required`); ok = false; }
+  }
+  function requireUrl(id, label) {
+    const v = val(id);
+    if (!v) { fieldErr(id, `${label} is required`); ok = false; }
+    else if (!isUrl(v)) { fieldErr(id, `${label} must be a valid URL (https://…)`); ok = false; }
+  }
+
+  const queue = document.querySelector('input[name="queue"]:checked')?.value;
+  const vs    = document.querySelector('input[name="vector_store"]:checked')?.value;
+  const qmode = document.querySelector('input[name="qdrant_mode"]:checked')?.value;
+  const store = document.querySelector('input[name="storage_backend"]:checked')?.value;
+
+  if (n === 1) {
+    if (queue === 'kafka') {
+      const bs = val('kafka_bootstrap_servers');
+      if (!bs) { fieldErr('kafka_bootstrap_servers', 'Bootstrap servers is required'); ok = false; }
+      else if (!isHostPort(bs)) { fieldErr('kafka_bootstrap_servers', 'Must be host:port format (e.g. kafka:9092)'); ok = false; }
+      require('kafka_consumer_group', 'Consumer group');
+      require('kafka_topic_bot',      'Bot topic');
+      require('kafka_topic_status',   'Status topic');
+      require('kafka_topic_dlq',      'Dead-letter topic');
+    } else {
+      requireUrl('azure_storage_queue_account_url', 'Account URL');
+      require('azure_queue_bot',        'Bot queue name');
+      require('azure_queue_status',     'Status queue name');
+      require('azure_queue_dead_letter','Dead-letter queue name');
+    }
+  }
+
+  if (n === 2) {
+    if (vs === 'qdrant') {
+      if (qmode === 'cloud') {
+        requireUrl('qdrant_url',     'Qdrant Cloud URL');
+        require('qdrant_api_key',    'API key');
+      }
+      require('qdrant_collection_name', 'Collection name');
+    }
+    if (vs === 'azure_vector_search') {
+      require('azure_search_service_name', 'Search service name');
+      require('azure_search_index_name',   'Index name');
+      require('azure_search_api_key',      'API key');
+    }
+  }
+
+  if (n === 3) {
+    if (store === 'local') {
+      require('local_storage_path', 'Storage path');
+    } else {
+      requireUrl('azure_storage_blob_account_url', 'Blob account URL');
+      require('azure_storage_container_name',       'Container name');
+    }
+    const mongoUri = val('mongo_uri');
+    if (!mongoUri) { fieldErr('mongo_uri', 'MongoDB URI is required'); ok = false; }
+    else if (!mongoUri.startsWith('mongodb://') && !mongoUri.startsWith('mongodb+srv://')) {
+      fieldErr('mongo_uri', 'Must start with mongodb:// or mongodb+srv://'); ok = false;
+    }
+    const apiKey = val('openai_api_key');
+    if (!apiKey) { fieldErr('openai_api_key', 'OpenAI API key is required'); ok = false; }
+    else if (!apiKey.startsWith('sk-')) { fieldErr('openai_api_key', 'OpenAI API key must start with sk-'); ok = false; }
+  }
+
+  if (n === 4) {
+    require('whatsapp_token', 'WhatsApp token');
+    const phoneId = val('whatsapp_phone_id');
+    if (!phoneId) { fieldErr('whatsapp_phone_id', 'Phone Number ID is required'); ok = false; }
+    else if (!isNumeric(phoneId)) { fieldErr('whatsapp_phone_id', 'Phone Number ID must contain only digits'); ok = false; }
+    require('whatsapp_verify_token', 'Verify token');
+  }
+
+  if (n === 5) {
+    const username = val('admin_username');
+    if (!username) { fieldErr('admin_username', 'Username is required'); ok = false; }
+    else if (username.length < 3) { fieldErr('admin_username', 'Username must be at least 3 characters'); ok = false; }
+    const password = val('admin_password');
+    if (!password) { fieldErr('admin_password', 'Password is required'); ok = false; }
+    else if (password.length < 8) { fieldErr('admin_password', 'Password must be at least 8 characters'); ok = false; }
+  }
+
+  return ok;
+}
+
+// ── Navigation (with validation gate) ──────────────────────────
+function next(target) {
+  if (!validateStep(currentStep)) {
+    // scroll to first error
+    const first = document.querySelector('#step-' + currentStep + ' .invalid');
+    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  if (target === 6) buildSummary();
+  goTo(target);
+}
 
 function goTo(n) {
   document.getElementById('step-' + currentStep).classList.remove('active');
