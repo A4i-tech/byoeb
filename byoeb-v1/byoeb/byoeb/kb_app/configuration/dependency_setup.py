@@ -220,8 +220,25 @@ elif vector_store_type == "llama_index_chroma":
         collection_name,
     )
 
+elif vector_store_type == "qdrant":
+    from byoeb_integrations.vector_stores.qdrant.llama_index_qdrant_store import LlamaIndexQdrantStore
+    embedding_function = azure_openai_embed.get_embedding_function()
+    vector_store = LlamaIndexQdrantStore(
+        collection_name=env_config.env_qdrant_collection_name,
+        embedding_function=embedding_function,
+        location=env_config.env_qdrant_location,
+        host=env_config.env_qdrant_host,
+        port=env_config.env_qdrant_port,
+        url=env_config.env_qdrant_url,
+        api_key=env_config.env_qdrant_api_key,
+    )
+    logger.info(
+        "Initialized Qdrant Vector Store: collection=%s",
+        env_config.env_qdrant_collection_name,
+    )
+
 else:
     raise ValueError(
         f"Invalid vector_store type: {vector_store_type}. "
-        f"Supported types: 'azure_vector_search', 'chroma', 'llama_index_chroma'"
+        f"Supported types: 'azure_vector_search', 'chroma', 'llama_index_chroma', 'qdrant'"
     )

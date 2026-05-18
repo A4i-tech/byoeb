@@ -51,10 +51,17 @@ env_azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
 env_azure_openai_deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
 
 # Vector Store Type (optional - will fallback to app_config.json if not set)
-# Options: "azure_vector_search", "chroma", "llama_index_chroma"
+# Options: "azure_vector_search", "chroma", "llama_index_chroma", "qdrant"
 env_vector_store_type = os.getenv("VECTOR_STORE_TYPE")
 # ChromaDB persist directory (optional - for local ChromaDB stores)
 env_persist_directory = os.getenv("PERSIST_DIRECTORY")
+# Qdrant (only needed when VECTOR_STORE_TYPE=qdrant)
+env_qdrant_location = os.getenv("QDRANT_LOCATION", ":memory:")
+env_qdrant_host = os.getenv("QDRANT_HOST")
+env_qdrant_port = int(os.getenv("QDRANT_PORT", "6333"))
+env_qdrant_url = os.getenv("QDRANT_URL")
+env_qdrant_api_key = os.getenv("QDRANT_API_KEY")
+env_qdrant_collection_name = os.getenv("QDRANT_COLLECTION_NAME", "byoeb-kb")
 # Storage backend selection
 env_storage_backend = os.getenv("STORAGE_BACKEND", "azure")
 env_local_storage_path = os.getenv("LOCAL_STORAGE_PATH", "./local_media_storage")
