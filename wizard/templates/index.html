@@ -519,7 +519,7 @@
     </div>
 
     <hr class="divider">
-    <div class="section-label">Azure Cognitive Services <span class="hint">required — speech &amp; text translation</span></div>
+    <div class="section-label">Azure Cognitive Services <span class="hint">optional — enables speech &amp; multilingual translation; leave blank for text-only English mode</span></div>
     <div class="field">
       <label class="field-label">Azure region</label>
       <input type="text" id="azure_cognitive_region" placeholder="e.g. eastus">
@@ -764,9 +764,7 @@ function validateStep(n) {
     const apiKey = val('openai_api_key');
     if (!apiKey) { fieldErr('openai_api_key', 'OpenAI API key is required'); ok = false; }
     else if (!apiKey.startsWith('sk-')) { fieldErr('openai_api_key', 'OpenAI API key must start with sk-'); ok = false; }
-    require('azure_cognitive_region',                 'Azure region');
-    require('azure_cognitive_text_to_text_resource',  'Text translation resource name');
-    require('azure_cognitive_text_to_speech_resource','Speech resource name');
+    // Azure Cognitive optional — app degrades gracefully (text-only mode) without it
   }
 
   if (n === 4) {
