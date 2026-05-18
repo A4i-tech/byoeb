@@ -110,7 +110,7 @@ def ask_all() -> dict:
     ).ask()
 
     # ── LLM ─────────────────────────────────────────────────────────────────
-    console.rule("[bold]5. LLM (OpenAI)[/bold]")
+    console.rule("[bold]5. LLM (OpenAI)[/bold]")  # noqa: keep numbering
     answers["openai_api_key"] = questionary.password(
         "OpenAI API key:",
         validate=lambda v: len(v) > 10 or "API key seems too short",
@@ -119,8 +119,31 @@ def ask_all() -> dict:
         "OpenAI org ID:", default="", instruction="(leave blank if none)"
     ).ask()
 
+    # ── Azure Cognitive Services ─────────────────────────────────────────────
+    console.rule("[bold]6. Azure Cognitive Services[/bold]")
+    console.print("[dim]Required for speech-to-text, text-to-speech and translation.[/dim]")
+    answers["azure_cognitive_region"] = questionary.text(
+        "Azure region:", default="eastus",
+        instruction="(e.g. eastus, westeurope)",
+    ).ask()
+    answers["azure_cognitive_text_to_text_resource"] = questionary.text(
+        "Text translation resource name:",
+        instruction="(Azure Translator resource name, e.g. my-translator)",
+    ).ask()
+    answers["azure_cognitive_text_to_speech_resource"] = questionary.text(
+        "Speech resource name:",
+        instruction="(Azure Speech resource name, e.g. my-speech)",
+    ).ask()
+    answers["azure_cognitive_key"] = questionary.password(
+        "Azure Cognitive Services key:", instruction="(leave blank to use managed identity)"
+    ).ask()
+    answers["azure_cognitive_endpoint"] = questionary.text(
+        "Cognitive endpoint:", default="",
+        instruction="(optional base URL override, e.g. https://eastus.api.cognitive.microsoft.com/)"
+    ).ask()
+
     # ── WhatsApp ─────────────────────────────────────────────────────────────
-    console.rule("[bold]6. WhatsApp[/bold]")
+    console.rule("[bold]7. WhatsApp[/bold]")
     answers["whatsapp_token"] = questionary.password("WhatsApp Cloud API access token:").ask()
     answers["whatsapp_phone_id"] = questionary.text("WhatsApp phone number ID:").ask()
     answers["whatsapp_verify_token"] = questionary.text(
@@ -128,7 +151,7 @@ def ask_all() -> dict:
     ).ask()
 
     # ── Admin panel ──────────────────────────────────────────────────────────
-    console.rule("[bold]7. Admin Panel[/bold]")
+    console.rule("[bold]8. Admin Panel[/bold]")
     answers["admin_username"] = questionary.text("Admin username:", default="admin").ask()
     answers["admin_password"] = questionary.password(
         "Admin password (min 8 chars):",

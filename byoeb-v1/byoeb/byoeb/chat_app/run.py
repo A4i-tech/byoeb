@@ -117,6 +117,51 @@ def create_apps(is_prod: bool):
     app.mount("/", mcp_app)
     return app, mcp_app
 
+async def _seed_admin_user():
+    """Create default tenant + admin user on first boot if ADMIN_USERNAME/ADMIN_PASSWORD are set."""
+    from byoeb.chat_app.configuration.config import env_admin_username, env_admin_password
+    if not env_admin_username or not env_admin_password:
+        return
+    try:
+        import uuid
+        from pydantic import BaseModel
+        from byoeb.services.auth.auth_service import get_auth_service
+
+        auth = await get_auth_service()
+
+        # Find or create the default tenant
+        # Access _tenant_collection directly to find any existing tenant
+        existing_tenant = await auth._repo._tenant_collection.find_one({})
+        if existing_tenant:
+            tenant_id = existing_tenant["_id"]
+            logger.info("Admin seed: using existing tenant %s", tenant_id)
+        else:
+            t = await auth.create_tenant("default")
+            tenant_id = t.id
+            logger.info("Admin seed: created default tenant %s", tenant_id)
+
+        # Skip if admin user already exists
+        if await auth._repo.find_user_by_username(env_admin_username):
+            logger.info("Admin seed: user '%s' already exists — skipping", env_admin_username)
+            return
+
+        class _Payload(BaseModel):
+            username: str
+            password: str
+            tenant_id: uuid.UUID
+            roles: list[str] = ["admin"]
+            phone_number_id: str | None = None
+
+        await auth.register_user(tenant_id, _Payload(
+            username=env_admin_username,
+            password=env_admin_password,
+            tenant_id=tenant_id,
+        ))
+        logger.info("Admin seed: created user '%s' in tenant %s", env_admin_username, tenant_id)
+    except Exception as exc:
+        logger.warning("Admin seed failed (non-fatal): %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     with tempfile.TemporaryDirectory(prefix="ashabot-") as tempdir:
@@ -143,6 +188,8 @@ async def lifespan(app: FastAPI):
             logger.warning("Application will continue without message queue consumer")
             import traceback
             logger.error(traceback.format_exc())
+
+        await _seed_admin_user()
 
         setup_scheduled_jobs()
         start_scheduler()

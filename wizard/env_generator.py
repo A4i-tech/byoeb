@@ -115,8 +115,16 @@ AUTH_TOKEN_AUDIENCE=byoeb
 
 # --- Admin Panel ---
 ADMIN_USERNAME={answers.get('admin_username', 'admin')}
+ADMIN_PASSWORD={answers.get('admin_password', '')}
 ADMIN_PASSWORD_HASH={admin_hash}
 ADMIN_SECRET_KEY={admin_secret}
+
+# --- Azure Cognitive Services ---
+AZURE_COGNITIVE_REGION={answers.get('azure_cognitive_region', '')}
+AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE={answers.get('azure_cognitive_text_to_text_resource', '')}
+AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE={answers.get('azure_cognitive_text_to_speech_resource', '')}
+AZURE_COGNITIVE_KEY={answers.get('azure_cognitive_key', '')}
+AZURE_COGNITIVE_ENDPOINT={answers.get('azure_cognitive_endpoint', '')}
 
 # --- App ---
 APP_ENV=LOCAL

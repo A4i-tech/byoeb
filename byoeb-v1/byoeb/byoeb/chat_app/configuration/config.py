@@ -41,6 +41,10 @@ env_openai_org_id = os.getenv("OPENAI_ORG_ID")
 # Azure cosmos db
 env_mongo_db_connection_string = os.getenv("MONGO_DB_CONNECTION_STRING")
 
+# Admin seed (set by wizard on first-time setup)
+env_admin_username = os.getenv("ADMIN_USERNAME")
+env_admin_password = os.getenv("ADMIN_PASSWORD")
+
 # Logger
 env_appinsights_connection_string = os.getenv("APPINSIGHTS_CONNECTION_STRING")
 env_app_logger_name = os.getenv("APP_LOGGER_NAME")

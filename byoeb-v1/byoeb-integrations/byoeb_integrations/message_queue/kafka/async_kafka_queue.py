@@ -25,6 +25,26 @@ class AsyncKafkaQueue(BaseQueue):
         self.__consumer: AIOKafkaConsumer | None = None
 
     # ------------------------------------------------------------------
+    # Factory
+    # ------------------------------------------------------------------
+
+    @classmethod
+    async def aget_or_create(
+        cls,
+        queue_name: str,
+        bootstrap_servers: str = "localhost:9092",
+        consumer_group: str = "byoeb",
+        **kwargs,
+    ) -> "AsyncKafkaQueue":
+        """Create and return a new AsyncKafkaQueue instance (Kafka auto-creates topics)."""
+        return cls(
+            topic=queue_name,
+            bootstrap_servers=bootstrap_servers,
+            consumer_group=consumer_group,
+            **kwargs,
+        )
+
+    # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
