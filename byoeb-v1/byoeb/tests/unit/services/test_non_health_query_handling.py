@@ -59,7 +59,7 @@ class TestBotConfigOffTopicTemplate:
 
     def test_query_classify_prompt_has_prefer_asha_work_related_rule(self):
         prompt = bot_config["llm_response"]["translation_and_rewrite_prompts"]["query_classify"]
-        assert "prefer" in prompt.lower(), "query_classify prompt missing prefer-asha_work_related decision rule"
+        assert "plausible" in prompt.lower(), "query_classify prompt missing asha_work_related fallback decision rule"
 
 
 # ─── early return unit test ───────────────────────────────────────────────────

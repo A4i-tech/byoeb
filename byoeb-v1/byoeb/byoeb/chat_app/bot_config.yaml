@@ -158,7 +158,7 @@ llm_response:
     query_classify: |-
       4. Classify query_en_addcontext as <query_type>asha_work_related</query_type>, <query_type>small_talk</query_type>, or <query_type>incomprehensible</query_type>, following the below rules:
 
-      4a. query_en_addcontext is <query_type>asha_work_related</query_type> if it is an **INTELLIGIBLE** question related to ASHAs’ work in maternal health, child health, and rural health in general.
+      4a. query_en_addcontext is <query_type>asha_work_related</query_type> if it is an **INTELLIGIBLE** question related to ASHAs’ work in maternal health, child health, rural health, mental health, nutrition, or community wellbeing.
 
       <eg_asha_work_related>
 
@@ -167,6 +167,8 @@ llm_response:
       <eg2>What are the benefits of Ayushman card?</eg2>
 
       <eg3>How to fill the ASHA diary?</eg3>
+
+      <eg4>Which activities help in a child’s mental development?</eg4>
 
       </eg_asha_work_related>
 
@@ -188,7 +190,7 @@ llm_response:
 
       </eg_small_talk>
 
-      4c. query_en_addcontext is <query_type>off_topic</query_type> if it is **INTELLIGIBLE** but NOT related to ASHAs' work, maternal health, child health, or rural health.
+      4c. query_en_addcontext is <query_type>off_topic</query_type> if it is **INTELLIGIBLE** but clearly and completely unrelated to any aspect of health, wellness, maternal care, child development, mental health, nutrition, or community welfare.
 
       <eg_off_topic>
 
@@ -216,7 +218,7 @@ llm_response:
 
       </eg_incomprehensible>
 
-      **Decision rule**: When uncertain whether a query is asha_work_related or off_topic, always prefer <query_type>asha_work_related</query_type>. Missing a health query is worse than answering an off-topic one.
+      **Decision rule**: Always default to <query_type>asha_work_related</query_type> if the query has any plausible connection to health, wellness, nutrition, mental health, maternal care, child development, or community welfare. Only use off_topic if the query is clearly and completely unrelated to health or ASHA's work. Missing a health query is far worse than answering an off-topic one.
     output: |-
       5. Output query_en, query_en_addcontext, and query_type in XML format. Do **NOT** generate any other opening or closing explanations or code. Sample output:
 
