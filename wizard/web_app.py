@@ -79,6 +79,11 @@ def api_launch():
 def api_stream():
     """SSE endpoint — streams docker compose log lines."""
     def _generate():
+        # If already finished (e.g. browser reconnected after done), replay result immediately
+        if _launch_status["done"]:
+            sentinel = "__DONE_OK__" if _launch_status["success"] else "__DONE_ERR__"
+            yield f"data: {json.dumps(sentinel)}\n\n"
+            return
         while True:
             try:
                 line = _log_queue.get(timeout=30)
