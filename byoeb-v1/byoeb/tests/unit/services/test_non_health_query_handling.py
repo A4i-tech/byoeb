@@ -6,7 +6,6 @@ Verifies:
 2. bot_config query_classify prompt includes non_health_related class
 3. ByoebUserGenerateResponse returns guided message for non_health_related WITHOUT calling RAG
 """
-import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, ANY
 
@@ -105,10 +104,7 @@ def _dummy_message() -> ByoebMessageContext:
 class TestNonHealthEarlyReturn:
     """Verify non_health_related skips RAG and returns guided message."""
 
-    def _run(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
-
-    def test_does_not_call_rag(self):
+    async def test_does_not_call_rag(self):
         handler = byoeb_user_generate_response
         user = _make_user("en")
         message = _make_non_health_message(user)
@@ -130,12 +126,13 @@ class TestNonHealthEarlyReturn:
                 new=AsyncMock(),
             ) as mock_rag,
         ):
-            self._run(handler.handle_message_generate_workflow([message]))
+            await handler.handle_message_generate_workflow([message])
 
         mock_rag.assert_not_called()
         mock_create.assert_called_once()
 
-    def test_response_source_is_template_for_user_language(self):
+    @pytest.mark.parametrize("lang", _EXPECTED_LANGUAGES)
+    async def test_response_source_is_template_for_user_language(self, lang):
         handler = byoeb_user_generate_response
         captured = {}
 
@@ -143,32 +140,30 @@ class TestNonHealthEarlyReturn:
             captured.update(kwargs)
             return _dummy_message()
 
-        for lang in _EXPECTED_LANGUAGES:
-            captured.clear()
-            user = _make_user(lang)
-            message = _make_non_health_message(user)
-            expected_source = bot_config["template_messages"]["user"]["text"]["idk"][_NON_HEALTH_KEY][lang]
-            expected_en = bot_config["template_messages"]["user"]["text"]["idk"][_NON_HEALTH_KEY]["en"]
+        user = _make_user(lang)
+        message = _make_non_health_message(user)
+        expected_source = bot_config["template_messages"]["user"]["text"]["idk"][_NON_HEALTH_KEY][lang]
+        expected_en = bot_config["template_messages"]["user"]["text"]["idk"][_NON_HEALTH_KEY]["en"]
 
-            with (
-                patch.object(
-                    handler,
-                    "_ByoebUserGenerateResponse__create_read_reciept_message",
-                    return_value=_dummy_message(),
-                ),
-                patch.object(
-                    handler,
-                    "_ByoebUserGenerateResponse__create_user_message",
-                    new=AsyncMock(side_effect=capture_create_user_message),
-                ),
-            ):
-                self._run(handler.handle_message_generate_workflow([message]))
+        with (
+            patch.object(
+                handler,
+                "_ByoebUserGenerateResponse__create_read_reciept_message",
+                return_value=_dummy_message(),
+            ),
+            patch.object(
+                handler,
+                "_ByoebUserGenerateResponse__create_user_message",
+                new=AsyncMock(side_effect=capture_create_user_message),
+            ),
+        ):
+            await handler.handle_message_generate_workflow([message])
 
-            assert captured.get("response_source") == expected_source, (
-                f"[{lang}] response_source mismatch: got {captured.get('response_source')!r}"
-            )
-            assert captured.get("response_en") == expected_en, (
-                f"[{lang}] response_en mismatch: got {captured.get('response_en')!r}"
-            )
-            assert captured.get("query_type") == _NON_HEALTH_KEY
-            assert captured.get("related_questions") == []
+        assert captured.get("response_source") == expected_source, (
+            f"[{lang}] response_source mismatch: got {captured.get('response_source')!r}"
+        )
+        assert captured.get("response_en") == expected_en, (
+            f"[{lang}] response_en mismatch: got {captured.get('response_en')!r}"
+        )
+        assert captured.get("query_type") == _NON_HEALTH_KEY
+        assert captured.get("related_questions") == []
