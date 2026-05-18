@@ -22,9 +22,9 @@ services:
     build:
       context: ./byoeb-v1
       dockerfile: Dockerfile
-    command: poetry run python3 -m byoeb.kb_app.run --host 0.0.0.0 --port 8001
+    command: poetry run python3 -m byoeb.kb_app.run
     ports:
-      - "8001:8001"
+      - "8001:5000"
     env_file:
       - .env.local
     volumes:
