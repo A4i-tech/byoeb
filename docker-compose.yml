@@ -47,6 +47,19 @@ services:
       timeout: 5s
       retries: 5
 
+  qdrant:
+    image: qdrant/qdrant:v1.9.0
+    profiles: [qdrant]
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl -sf http://localhost:6333/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   kafka:
     image: apache/kafka:3.7.0
     ports:
@@ -74,5 +87,6 @@ services:
 volumes:
   mongo_data:
   kafka_data:
+  qdrant_data:
   local_media:
   vector_db:

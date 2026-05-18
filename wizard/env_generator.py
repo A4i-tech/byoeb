@@ -1,7 +1,7 @@
 """Generate .env.local from wizard answers."""
 import os
 import secrets
-from passlib.hash import bcrypt
+import bcrypt as _bcrypt
 
 
 def _kafka_block(a: dict) -> str:
@@ -74,7 +74,9 @@ def generate_env(answers: dict, output_dir: str = ".") -> str:
 
     storage_block = _storage_block(answers)
 
-    admin_hash = bcrypt.hash(answers["admin_password"])
+    admin_hash = _bcrypt.hashpw(
+        answers["admin_password"].encode("utf-8"), _bcrypt.gensalt()
+    ).decode("utf-8")
     admin_secret = secrets.token_hex(32)
     auth_secret = secrets.token_hex(32)
 
