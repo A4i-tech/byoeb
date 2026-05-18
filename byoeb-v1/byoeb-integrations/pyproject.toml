@@ -20,7 +20,7 @@ llama-index-vector-stores-chroma = "0.5.5"
 azure-search-documents = "11.5.2"
 byoeb-core = {path = "../byoeb-core", develop = true}
 qdrant-client = {version = "^1.9.0", optional = true}
-llama-index-vector-stores-qdrant = {version = "^0.3.0", optional = true}
+llama-index-vector-stores-qdrant = {version = "^0.8.0", optional = true}
 pytest-mock = "^3.14.1"
 grapheme = "^0.6.0"
 langfuse = "3.14.5"
