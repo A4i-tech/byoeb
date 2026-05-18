@@ -52,6 +52,7 @@ class ByoebUserGenerateResponse(Handler):
     _asha_work_related = "asha_work_related"
     _small_talk = "small_talk"
     _incomprehensible = "incomprehensible"
+    _non_health_related = "non_health_related"
     embedding_cache = EmbeddingCache("message-consumer", dim=768, capacity=embedding_cap)
 
     def __init__(self, successor=None):
@@ -876,88 +877,99 @@ class ByoebUserGenerateResponse(Handler):
             query_type = message.message_context.additional_info.get(constants.QUERY_TYPE)
             if query_type is None:
                 raise ValueError("query_type must not be None")
-            
-            default_message_category = None
-            cache_hit = False
 
-            if embedding_fn and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
-                cache_key = message.message_context.message_source_text or message_english
-                with langfuse.start_as_current_observation(as_type="span", name="cache", input=cache_key) as span:
-                    embedding = await embedding_fn.aget_text_embedding(cache_key)
-                    cache_result = self.embedding_cache.query(embedding, 0.9)
-                    hit = cache_result[2] is not None and bool(cache_result[2])
-                    span.update(output={"hit": hit, "score": float(cache_result[0]) if hit and cache_result[0] is not None else None})
+            if query_type == self._non_health_related:
+                modality = self.AUDIO_MODALITY if message.message_context.message_type == MessageTypes.REGULAR_AUDIO.value else self.TEXT_MODALITY
+                non_health_template = bot_config["template_messages"]["user"][modality]["idk"][self._non_health_related]
+                byoeb_user_message = await self.__create_user_message(
+                    message=message,
+                    response_en=bot_config["template_messages"]["user"]["text"]["idk"][self._non_health_related]["en"],
+                    response_source=non_health_template[user_language],
+                    query_type=query_type,
+                    related_questions=[],
+                )
             else:
-                embedding = None
-                cache_result = None, None, None
+                default_message_category = None
+                cache_hit = False
 
-            cache_val = cache_result[2] if cache_result else None
-            if cache_val and "answer" in cache_val and user_language in cache_val["answer"]:
-                response_en, response_source, related_questions, tokens = cache_val["answer"][user_language]
-                cache_hit = True
-            else:
-                start_time = time.perf_counter()
-                skip_cache = True
-                retrieved_chunks_related_questions = asyncio.create_task(self._retrieve_top_k_chunks_for_related_questions(message_english, k=10))
-                response_en, response_source, tokens, retrieved_chunks = await self.agenerate_answer(user_language, message_english, query_type)
-                if not utils.is_idk(response_en):  # got answer on first try :)
-                    skip_cache = False
+                if embedding_fn and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
+                    cache_key = message.message_context.message_source_text or message_english
+                    with langfuse.start_as_current_observation(as_type="span", name="cache", input=cache_key) as span:
+                        embedding = await embedding_fn.aget_text_embedding(cache_key)
+                        cache_result = self.embedding_cache.query(embedding, 0.9)
+                        hit = cache_result[2] is not None and bool(cache_result[2])
+                        span.update(output={"hit": hit, "score": float(cache_result[0]) if hit and cache_result[0] is not None else None})
                 else:
-                    query_expansion_search_ops = [(None, AzureVectorSearchType.HYBRID.value, 3), (None, AzureVectorSearchType.DENSE.value, 3)]
-                    query_expansions_queries = await self.agenerate_expansion_queries(message_english, retrieved_chunks)
-                    for q in query_expansions_queries:
-                        try:
-                            response_en2, response_source2, tokens2, retrieved_chunks2 = await self.agenerate_answer(user_language, q, self._asha_work_related, query_expansion_search_ops)
-                        except Exception as e:
-                            utils.log_to_text_file(f"Query expansion failed for query '{q}': {e}")
-                            continue
-                        retrieved_chunks = list({c.chunk_id: c for c in retrieved_chunks + retrieved_chunks2}.values())
-                        if not utils.is_idk(response_en2):
-                            skip_cache = False
-                            response_en, response_source, tokens = response_en2, response_source2, tokens2
-                            break
-
-                if utils.is_idk(response_en) and (FeatureFlag.QUERY_DISAMBIGUATION in feature_flags or message.user.test_user):
-                    logger.debug("Query expansion was unsuccessful, assessing whether clarification is required...")
-                    clarification = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
-                    if clarification:
-                        default_message_category = MessageCategory.AUDIO_DISAMBIGUATION if message.message_context.message_type == MessageTypes.REGULAR_AUDIO else MessageCategory.TEXT_DISAMBIGUATION
-                        response_en, response_source, tokens = clarification
-
-                related_questions = self.get_related_questions(message.user.user_language, await retrieved_chunks_related_questions, message.message_context.message_source_text)
-                if not skip_cache and embedding:
-                    cache_val = cache_val or {}
-                    cache_val["answer"] = cache_val.get("answer", {})
-                    cache_val["answer"][user_language] = response_en, response_source, related_questions, tokens
-                    miss_thresh = cache_result[0] if cache_result is not None else None
-                    try:
-                        cache_result = self.embedding_cache.store(embedding, cache_val)
-                        cache_result = miss_thresh, *cache_result[1:]
-                    except Exception as e:
-                        logger.warning("Embedding cache store failed: %s. Continuing without cache.", e)
-                        cache_result = None, None, None
-                else:
+                    embedding = None
                     cache_result = None, None, None
 
-                end_time = time.perf_counter()
-                AppInsightsLogHandler.getLogger("generate_answer_and_related_questions").info(f"Generated related questions for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
-                    "message_id": message.message_context.message_id,
-                    "time_taken": end_time - start_time,
-                    **tokens
-                }})
-            
-            byoeb_user_message = await self.__create_user_message(
-                message=message,
-                response_en=response_en,
-                response_source=response_source,
-                query_type=query_type,
-                emoji=self.USER_PENDING_EMOJI,
-                status=constants.PENDING,
-                related_questions=related_questions,
-                cache_details=cache_result,
-                cache_hit=cache_hit,
-                default_message_category=default_message_category
-            )
+                cache_val = cache_result[2] if cache_result else None
+                if cache_val and "answer" in cache_val and user_language in cache_val["answer"]:
+                    response_en, response_source, related_questions, tokens = cache_val["answer"][user_language]
+                    cache_hit = True
+                else:
+                    start_time = time.perf_counter()
+                    skip_cache = True
+                    retrieved_chunks_related_questions = asyncio.create_task(self._retrieve_top_k_chunks_for_related_questions(message_english, k=10))
+                    response_en, response_source, tokens, retrieved_chunks = await self.agenerate_answer(user_language, message_english, query_type)
+                    if not utils.is_idk(response_en):  # got answer on first try :)
+                        skip_cache = False
+                    else:
+                        query_expansion_search_ops = [(None, AzureVectorSearchType.HYBRID.value, 3), (None, AzureVectorSearchType.DENSE.value, 3)]
+                        query_expansions_queries = await self.agenerate_expansion_queries(message_english, retrieved_chunks)
+                        for q in query_expansions_queries:
+                            try:
+                                response_en2, response_source2, tokens2, retrieved_chunks2 = await self.agenerate_answer(user_language, q, self._asha_work_related, query_expansion_search_ops)
+                            except Exception as e:
+                                utils.log_to_text_file(f"Query expansion failed for query '{q}': {e}")
+                                continue
+                            retrieved_chunks = list({c.chunk_id: c for c in retrieved_chunks + retrieved_chunks2}.values())
+                            if not utils.is_idk(response_en2):
+                                skip_cache = False
+                                response_en, response_source, tokens = response_en2, response_source2, tokens2
+                                break
+
+                    if utils.is_idk(response_en) and (FeatureFlag.QUERY_DISAMBIGUATION in feature_flags or message.user.test_user):
+                        logger.debug("Query expansion was unsuccessful, assessing whether clarification is required...")
+                        clarification = await self.needs_clarification(message_english, query_type, user_language, retrieved_chunks)
+                        if clarification:
+                            default_message_category = MessageCategory.AUDIO_DISAMBIGUATION if message.message_context.message_type == MessageTypes.REGULAR_AUDIO else MessageCategory.TEXT_DISAMBIGUATION
+                            response_en, response_source, tokens = clarification
+
+                    related_questions = self.get_related_questions(message.user.user_language, await retrieved_chunks_related_questions, message.message_context.message_source_text)
+                    if not skip_cache and embedding:
+                        cache_val = cache_val or {}
+                        cache_val["answer"] = cache_val.get("answer", {})
+                        cache_val["answer"][user_language] = response_en, response_source, related_questions, tokens
+                        miss_thresh = cache_result[0] if cache_result is not None else None
+                        try:
+                            cache_result = self.embedding_cache.store(embedding, cache_val)
+                            cache_result = miss_thresh, *cache_result[1:]
+                        except Exception as e:
+                            logger.warning("Embedding cache store failed: %s. Continuing without cache.", e)
+                            cache_result = None, None, None
+                    else:
+                        cache_result = None, None, None
+
+                    end_time = time.perf_counter()
+                    AppInsightsLogHandler.getLogger("generate_answer_and_related_questions").info(f"Generated related questions for {message.message_context.message_id} in {end_time - start_time}s", extra={AppInsightsLogHandler.DETAILS: {
+                        "message_id": message.message_context.message_id,
+                        "time_taken": end_time - start_time,
+                        **tokens
+                    }})
+
+                byoeb_user_message = await self.__create_user_message(
+                    message=message,
+                    response_en=response_en,
+                    response_source=response_source,
+                    query_type=query_type,
+                    emoji=self.USER_PENDING_EMOJI,
+                    status=constants.PENDING,
+                    related_questions=related_questions,
+                    cache_details=cache_result,
+                    cache_hit=cache_hit,
+                    default_message_category=default_message_category
+                )
         logger.info("Created user message")
         byoeb_expert_message = None
         # byoeb_expert_message = self.__create_expert_verification_message(
