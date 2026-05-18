@@ -99,26 +99,32 @@ message_producer_handler = QueueProducerHandler(
 from byoeb.listener.message_consumer import QueueConsumer
 _queue_provider = env_config.env_queue_provider
 
-if _queue_provider == "redis":
-    _queue_name = app_config["message_queue"]["redis"]["queue_bot"]
-    _account_url = None
-else:
+if _queue_provider == "kafka":
+    message_consumer = QueueConsumer(
+        config=app_config,
+        queue_provider="kafka",
+        bootstrap_servers=env_config.env_kafka_bootstrap_servers,
+        consumer_group=env_config.env_kafka_consumer_group,
+        topic=env_config.env_kafka_topic_bot,
+        dlq_topic=env_config.env_kafka_topic_dead_letter,
+        user_db_service=user_db_service,
+        message_db_service=message_db_service,
+        channel_service=whatsapp_service,
+    )
+elif _queue_provider == "azure_storage_queue":
     if not env_config.env_azure_storage_queue_account_url:
-        raise ValueError(
-            "AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable must be set. "
-        )
-    _queue_name = env_config.env_azure_queue_bot
-    _account_url = env_config.env_azure_storage_queue_account_url
-
-message_consumer = QueueConsumer(
-    config=app_config,
-    account_url=_account_url,
-    queue_name=_queue_name,
-    consuemr_type=_queue_provider,
-    user_db_service=user_db_service,
-    message_db_service=message_db_service,
-    channel_service=whatsapp_service
-)
+        raise ValueError("AZURE_STORAGE_QUEUE_ACCOUNT_URL must be set for azure_storage_queue provider")
+    message_consumer = QueueConsumer(
+        config=app_config,
+        queue_provider="azure_storage_queue",
+        account_url=env_config.env_azure_storage_queue_account_url,
+        queue_name=env_config.env_azure_queue_bot,
+        user_db_service=user_db_service,
+        message_db_service=message_db_service,
+        channel_service=whatsapp_service,
+    )
+else:
+    raise ValueError(f"Unknown QUEUE_PROVIDER: {_queue_provider}")
 
 # user handler
 users_handler = UsersHandler(

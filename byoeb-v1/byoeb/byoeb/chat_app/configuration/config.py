@@ -59,13 +59,20 @@ env_azure_queue_bot = os.getenv("AZURE_QUEUE_BOT")
 env_azure_queue_dead_letter = os.getenv("AZURE_QUEUE_DEAD_LETTER")
 
 # Queue / storage backend selection
-env_queue_provider = os.getenv("QUEUE_PROVIDER", "azure_storage_queue")
-env_redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+# QUEUE_PROVIDER: "kafka" (default local) | "azure_storage_queue" (production)
+env_queue_provider = os.getenv("QUEUE_PROVIDER", "kafka")
 env_storage_backend = os.getenv("STORAGE_BACKEND", "azure")
 env_local_storage_path = os.getenv("LOCAL_STORAGE_PATH", "./local_media_storage")
 
+# Kafka
+env_kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+env_kafka_consumer_group = os.getenv("KAFKA_CONSUMER_GROUP", "byoeb")
+env_kafka_topic_bot = os.getenv("KAFKA_TOPIC_BOT", "byoeb-bot")
+env_kafka_topic_status = os.getenv("KAFKA_TOPIC_STATUS", "byoeb-status")
+env_kafka_topic_dead_letter = os.getenv("KAFKA_TOPIC_DEAD_LETTER", "byoeb-dlq")
+
 # Azure queue names only required when using Azure queue provider
-if env_queue_provider != "redis":
+if env_queue_provider == "azure_storage_queue":
     if not env_azure_queue_status:
         raise ValueError(
             "AZURE_QUEUE_STATUS environment variable must be set in keys.env. "

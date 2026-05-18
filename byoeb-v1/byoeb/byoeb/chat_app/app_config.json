@@ -80,11 +80,6 @@
             "visibility_timeout": 180,
             "time_to_live": 604800
         },
-        "redis": {
-            "queue_bot": "byoeb-bot-queue",
-            "queue_status": "byoeb-status-queue",
-            "dead_letter_queue": "byoeb-dlq"
-        }
     },
     "translators": {
         "speech": [

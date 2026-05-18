@@ -14,7 +14,7 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-      redis:
+      kafka:
         condition: service_healthy
     restart: on-failure
 
@@ -47,20 +47,32 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
+  kafka:
+    image: apache/kafka:3.7.0
     ports:
-      - "6379:6379"
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: "byoeb-local-cluster"
     volumes:
-      - redis_data:/data
+      - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 15s
+      timeout: 10s
       retries: 5
+      start_period: 30s
 
 volumes:
   mongo_data:
-  redis_data:
+  kafka_data:
   local_media:
   vector_db:

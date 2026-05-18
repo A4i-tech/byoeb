@@ -19,7 +19,6 @@ pymongo = "^4.15.2"
 llama-index-vector-stores-chroma = "0.5.5"
 azure-search-documents = "11.5.2"
 byoeb-core = {path = "../byoeb-core", develop = true}
-redis = {version = "^5.2.0", extras = ["hiredis"]}
 pytest-mock = "^3.14.1"
 grapheme = "^0.6.0"
 langfuse = "3.14.5"
