@@ -1,15 +1,21 @@
 """Flask-based web setup wizard for AshaBot / BYOEB."""
 import json
 import os
+import pathlib
 import queue
 import subprocess
 import threading
+import time
 import webbrowser
 
+import requests
 from flask import Flask, Response, render_template, request, jsonify
 
 from wizard.env_generator import generate_env
 from wizard.compose_helper import _compose_command, _docker_available
+
+# Folder with bundled sample documents (relative to repo root, i.e. cwd when wizard runs)
+_SAMPLE_KB_DIR = pathlib.Path("sample_kb")
 
 app = Flask(__name__, template_folder="templates")
 app.secret_key = os.urandom(24)
@@ -99,6 +105,79 @@ def api_stream():
 @app.get("/api/docker-check")
 def api_docker_check():
     return jsonify({"available": _docker_available()})
+
+
+@app.get("/api/sample-docs")
+def api_sample_docs():
+    """List sample KB documents shipped with the repo."""
+    docs = []
+    if _SAMPLE_KB_DIR.is_dir():
+        descriptions = {
+            "app_faq.txt":              "AshaBot app FAQ — PIN reset, features, how to use",
+            "immunization_schedule.txt":"India national immunization schedule (all vaccines & ages)",
+            "dengue_chikungunya.txt":   "Dengue & chikungunya — symptoms, prevention, treatment",
+            "tuberculosis_faq.txt":     "Tuberculosis FAQ — causes, symptoms, treatment",
+            "iron_folic_acid_faq.txt":  "Weekly Iron & Folic Acid (WIFS) FAQ — anaemia, supplements",
+            "safe_motherhood.txt":      "Safe motherhood guide — ANC, delivery, postnatal care",
+        }
+        for f in sorted(_SAMPLE_KB_DIR.iterdir()):
+            if f.suffix == ".txt":
+                docs.append({
+                    "name": f.name,
+                    "size": f.stat().st_size,
+                    "description": descriptions.get(f.name, ""),
+                })
+    return jsonify(docs)
+
+
+@app.post("/api/seed-kb")
+def api_seed_kb():
+    """Upload selected sample docs to KB service and trigger indexing."""
+    body = request.get_json(force=True)
+    selected = body.get("files", [])          # list of filenames from sample_kb/
+    kb_url = body.get("kb_url", "http://localhost:8001")
+
+    results = []
+    uploaded = []
+
+    # 1. Upload each file
+    for name in selected:
+        path = _SAMPLE_KB_DIR / name
+        if not path.exists():
+            results.append({"file": name, "ok": False, "error": "not found"})
+            continue
+        try:
+            with open(path, "rb") as fh:
+                resp = requests.post(
+                    f"{kb_url}/storage/file",
+                    files={"file": (name, fh, "text/plain")},
+                    timeout=30,
+                )
+            if resp.status_code in (200, 201, 204):
+                uploaded.append(name)
+                results.append({"file": name, "ok": True, "stage": "uploaded"})
+            else:
+                results.append({"file": name, "ok": False, "error": f"HTTP {resp.status_code}: {resp.text[:200]}"})
+        except Exception as exc:
+            results.append({"file": name, "ok": False, "error": str(exc)})
+
+    # 2. Index all successfully uploaded files
+    indexed = 0
+    if uploaded:
+        try:
+            params = [("files", f) for f in uploaded]
+            resp = requests.get(f"{kb_url}/vector/index", params=params, timeout=120)
+            if resp.status_code == 200:
+                indexed = len(uploaded)
+                for r in results:
+                    if r.get("ok"):
+                        r["stage"] = "indexed"
+        except Exception as exc:
+            for r in results:
+                if r.get("ok"):
+                    r["index_error"] = str(exc)
+
+    return jsonify({"ok": True, "results": results, "indexed": indexed})
 
 
 # ---------------------------------------------------------------------------

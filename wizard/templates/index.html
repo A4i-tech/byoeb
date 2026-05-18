@@ -518,6 +518,29 @@
       <input type="text" id="openai_org_id" placeholder="org-…">
     </div>
 
+    <hr class="divider">
+    <div class="section-label">Azure Cognitive Services <span class="hint">required — speech &amp; text translation</span></div>
+    <div class="field">
+      <label class="field-label">Azure region</label>
+      <input type="text" id="azure_cognitive_region" placeholder="e.g. eastus">
+    </div>
+    <div class="field">
+      <label class="field-label">Text translation resource name</label>
+      <input type="text" id="azure_cognitive_text_to_text_resource" placeholder="e.g. my-translator">
+    </div>
+    <div class="field">
+      <label class="field-label">Speech resource name <span class="hint">for voice messages</span></label>
+      <input type="text" id="azure_cognitive_text_to_speech_resource" placeholder="e.g. my-speech">
+    </div>
+    <div class="field">
+      <label class="field-label">API key <span class="hint">optional — leave blank to use managed identity</span></label>
+      <input type="password" id="azure_cognitive_key" placeholder="Azure Cognitive Services key">
+    </div>
+    <div class="field">
+      <label class="field-label">Cognitive endpoint <span class="hint">optional — base URL override</span></label>
+      <input type="text" id="azure_cognitive_endpoint" placeholder="https://&lt;region&gt;.api.cognitive.microsoft.com/">
+    </div>
+
     <div class="btn-row">
       <button class="btn btn-ghost" onclick="goTo(2)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -605,6 +628,25 @@
 
     <div id="log-box"></div>
     <div id="launch-status"></div>
+
+    <!-- Seed KB panel — shown after successful launch -->
+    <div id="seed-kb-panel" style="display:none; margin-top:20px;">
+      <hr class="divider">
+      <div class="section-label">Seed Knowledge Base <span class="hint">optional — give the bot instant domain knowledge</span></div>
+      <p style="font-size:13px;color:#555;margin:0 0 14px;">Select documents to upload and index. The bot will be able to answer questions from them immediately.</p>
+      <div id="sample-doc-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+        <div style="color:#888;font-size:13px;">Loading sample documents…</div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label class="field-label" style="margin-bottom:6px;display:block;">Upload your own files <span class="hint">.txt, .csv, .md, .json</span></label>
+        <input type="file" id="custom-kb-files" multiple accept=".txt,.csv,.md,.json" style="font-size:13px;">
+      </div>
+      <div id="seed-status" style="margin-bottom:12px;"></div>
+      <button class="btn btn-primary" onclick="doSeedKB()" id="seed-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload &amp; Index Selected
+      </button>
+    </div>
 
     <div class="btn-row">
       <button class="btn btn-ghost" onclick="goTo(5)" id="back-btn">
@@ -722,6 +764,9 @@ function validateStep(n) {
     const apiKey = val('openai_api_key');
     if (!apiKey) { fieldErr('openai_api_key', 'OpenAI API key is required'); ok = false; }
     else if (!apiKey.startsWith('sk-')) { fieldErr('openai_api_key', 'OpenAI API key must start with sk-'); ok = false; }
+    require('azure_cognitive_region',                 'Azure region');
+    require('azure_cognitive_text_to_text_resource',  'Text translation resource name');
+    require('azure_cognitive_text_to_speech_resource','Speech resource name');
   }
 
   if (n === 4) {
@@ -810,6 +855,8 @@ function collectAnswers() {
    'azure_search_service_name','azure_search_index_name','azure_search_api_key',
    'local_storage_path','azure_storage_blob_account_url','azure_storage_container_name',
    'mongo_uri','openai_api_key','openai_org_id',
+   'azure_cognitive_region','azure_cognitive_text_to_text_resource','azure_cognitive_text_to_speech_resource',
+   'azure_cognitive_key','azure_cognitive_endpoint',
    'whatsapp_token','whatsapp_phone_id','whatsapp_verify_token',
    'admin_username','admin_password',
   ].forEach(id => { const el = document.getElementById(id); if (el) answers[id] = el.value; });
@@ -828,6 +875,7 @@ function buildSummary() {
     ['Storage', answers.storage_backend],
     ['MongoDB URI', answers.mongo_uri],
     ['WhatsApp Phone ID', answers.whatsapp_phone_id || '—'],
+    ['Azure region', answers.azure_cognitive_region || '—'],
     ['Admin user', answers.admin_username],
   ];
   document.getElementById('summary-rows').innerHTML = rows.map(([k,v]) =>
@@ -882,6 +930,7 @@ function doLaunch() {
         '<strong>WhatsApp webhook:</strong> run <code>ngrok http 8000</code> and paste the URL in Meta developer console.'
       );
       btn.style.display = 'none';
+      loadSampleDocs();
     } else if (data === '__DONE_ERR__') {
       es.close();
       showStatus('error', 'Docker Compose failed — see log above for details.');
@@ -895,6 +944,84 @@ function doLaunch() {
   fetch('/api/launch', {
     method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(answers)
   });
+}
+
+function loadSampleDocs() {
+  document.getElementById('seed-kb-panel').style.display = 'block';
+  fetch('/api/sample-docs').then(r => r.json()).then(docs => {
+    const list = document.getElementById('sample-doc-list');
+    if (!docs.length) { list.innerHTML = '<div style="color:#888;font-size:13px;">No sample documents found.</div>'; return; }
+    list.innerHTML = docs.map(d => `
+      <label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;cursor:pointer;background:#fff;">
+        <input type="checkbox" class="sample-doc-cb" value="${esc(d.name)}" checked style="margin-top:2px;accent-color:var(--wa-dark-green);">
+        <div>
+          <div style="font-weight:500;font-size:13px;">${esc(d.name)}</div>
+          <div style="font-size:12px;color:#777;margin-top:2px;">${esc(d.description)} &nbsp;·&nbsp; ${(d.size/1024).toFixed(1)} KB</div>
+        </div>
+      </label>`).join('');
+  }).catch(() => {
+    document.getElementById('sample-doc-list').innerHTML = '<div style="color:#e53935;font-size:13px;">Could not load sample documents.</div>';
+  });
+}
+
+async function doSeedKB() {
+  const btn = document.getElementById('seed-btn');
+  const statusEl = document.getElementById('seed-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner">&#8635;</span> Uploading…';
+  statusEl.innerHTML = '';
+
+  const selected = [...document.querySelectorAll('.sample-doc-cb:checked')].map(cb => cb.value);
+  const customFiles = document.getElementById('custom-kb-files').files;
+
+  // Upload custom files first via KB service directly
+  const customUploaded = [];
+  for (const file of customFiles) {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    try {
+      const r = await fetch('http://localhost:8001/storage/file', { method: 'POST', body: fd });
+      if (r.ok) customUploaded.push(file.name);
+    } catch(e) { /* KB not reachable — handled below */ }
+  }
+
+  // Seed sample docs via wizard backend
+  let results = [], indexed = 0;
+  try {
+    const r = await fetch('/api/seed-kb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: selected, kb_url: 'http://localhost:8001' })
+    });
+    const data = await r.json();
+    results = data.results || [];
+    indexed = data.indexed || 0;
+  } catch(e) {
+    statusEl.innerHTML = '<div class="banner error"><div class="banner-content">Could not reach wizard backend: ' + esc(String(e)) + '</div></div>';
+    btn.disabled = false; btn.innerHTML = 'Upload &amp; Index Selected'; return;
+  }
+
+  // Index custom-uploaded files too
+  if (customUploaded.length) {
+    try {
+      const params = customUploaded.map(f => 'files=' + encodeURIComponent(f)).join('&');
+      await fetch('http://localhost:8001/vector/index?' + params);
+      indexed += customUploaded.length;
+    } catch(e) {}
+  }
+
+  const ok = results.filter(r => r.ok).length + customUploaded.length;
+  const fail = results.filter(r => !r.ok).length;
+  const failMsgs = results.filter(r => !r.ok).map(r => `<li>${esc(r.file)}: ${esc(r.error)}</li>`).join('');
+
+  if (ok > 0 && fail === 0) {
+    statusEl.innerHTML = `<div class="banner success"><div class="banner-content"><strong>${indexed} document${indexed!==1?'s':''} indexed</strong> — the bot can answer questions from them now.</div></div>`;
+  } else if (ok > 0) {
+    statusEl.innerHTML = `<div class="banner warning"><div class="banner-content">${indexed} indexed, ${fail} failed:<ul style="margin:4px 0 0 16px">${failMsgs}</ul></div></div>`;
+  } else {
+    statusEl.innerHTML = `<div class="banner error"><div class="banner-content">All uploads failed:<ul style="margin:4px 0 0 16px">${failMsgs}</ul></div></div>`;
+  }
+  btn.disabled = false; btn.innerHTML = 'Upload &amp; Index Selected';
 }
 
 function appendLog(line) {
