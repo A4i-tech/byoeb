@@ -5,6 +5,7 @@ regular:
 expert:
   asha_work_related: anm
   small_talk: anm
+  non_health_related: anm
   incomprehensible: anm
 retrieval:
   similarity_thresholds:
@@ -187,7 +188,23 @@ llm_response:
 
       </eg_small_talk>
 
-      4c. query_en_addcontext is <query_type>incomprehensible</query_type> if it is neither <query_type>asha_work_related</query_type> nor <query_type>small_talk</query_type>.
+      4c. query_en_addcontext is <query_type>non_health_related</query_type> if it is **INTELLIGIBLE** but NOT related to ASHAs' work, maternal health, child health, or rural health.
+
+      <eg_non_health_related>
+
+      <eg1>What is the capital of India?</eg1>
+
+      <eg2>How to make biryani?</eg2>
+
+      <eg3>Who won the IPL?</eg3>
+
+      <eg4>How to get a driving license?</eg4>
+
+      <eg5>What is the weather today?</eg5>
+
+      </eg_non_health_related>
+
+      4d. query_en_addcontext is <query_type>incomprehensible</query_type> if it is gibberish, a phone number, or a URL that cannot be interpreted as a meaningful question.
 
       <eg_incomprehensible>
 
@@ -207,7 +224,7 @@ llm_response:
 
       <query_en_addcontext>Content of query_en_addcontext</query_en_addcontext>
 
-      <query_type>asha_work_related OR small_talk OR incomprehensible</query_type>
+      <query_type>asha_work_related OR small_talk OR non_health_related OR incomprehensible</query_type>
 
       </output>
 
