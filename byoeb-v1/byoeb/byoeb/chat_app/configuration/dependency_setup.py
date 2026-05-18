@@ -132,30 +132,43 @@ users_handler = UsersHandler(
     mongo_db_facory=mongo_db_factory
 )
 
-# Text translator
-from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
-# TODO: factory implementation
-if not env_config.env_azure_cognitive_region: raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE environment variable must be set to use text-to-text service")
-if not env_config.env_azure_cognitive_text_to_text_resource: raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE environment variable must be set to use text-to-text service")
-if env_config.env_azure_cognitive_key:
-    _logger.info("Azure Cognitive Services key set. Enabling Azure text translator.")
-    text_translator = AsyncAzureTextTranslator(
-        key=env_config.env_azure_cognitive_key,
-        region=env_config.env_azure_cognitive_region,
-        resource_id=env_config.env_azure_cognitive_text_to_text_resource,
-    )
-else:
-    from azure.identity import get_bearer_token_provider, DefaultAzureCredential
-    _logger.warning("Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure text translator")
-    text_translator = AsyncAzureTextTranslator(
-    credential=DefaultAzureCredential(),
-    region=env_config.env_azure_cognitive_region,
-    resource_id=env_config.env_azure_cognitive_text_to_text_resource,
+# Text + Speech translators — optional, requires AZURE_COGNITIVE_REGION
+_azure_cognitive_enabled = bool(
+    env_config.env_azure_cognitive_region
+    and env_config.env_azure_cognitive_text_to_text_resource
 )
 
-# Speech translator
-from byoeb.services.chat.translator import TranslatorAdapter
-speech_translator = TranslatorAdapter(app_config["translators"]["speech"], app_config["app"]["azure_cognitive_endpoint"])
+text_translator = None
+speech_translator = None
+
+if _azure_cognitive_enabled:
+    from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
+    if env_config.env_azure_cognitive_key:
+        _logger.info("Azure Cognitive Services key set. Enabling text + speech translators.")
+        text_translator = AsyncAzureTextTranslator(
+            key=env_config.env_azure_cognitive_key,
+            region=env_config.env_azure_cognitive_region,
+            resource_id=env_config.env_azure_cognitive_text_to_text_resource,
+        )
+    else:
+        from azure.identity import DefaultAzureCredential
+        _logger.warning("Azure Cognitive key not set. Using DefaultAzureCredential for text translator.")
+        text_translator = AsyncAzureTextTranslator(
+            credential=DefaultAzureCredential(),
+            region=env_config.env_azure_cognitive_region,
+            resource_id=env_config.env_azure_cognitive_text_to_text_resource,
+        )
+    from byoeb.services.chat.translator import TranslatorAdapter
+    speech_translator = TranslatorAdapter(
+        app_config["translators"]["speech"],
+        app_config["app"]["azure_cognitive_endpoint"]
+    )
+    _logger.info("Azure Cognitive Services enabled — speech and text translation active.")
+else:
+    _logger.warning(
+        "AZURE_COGNITIVE_REGION or AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE not set. "
+        "Running in text-only mode — voice messages and translation disabled."
+    )
 
 # vector store
 import os

@@ -157,7 +157,8 @@ async def lifespan(app: FastAPI):
         await channel_client_factory.close()
         await message_consumer.close()
         await queue_producer_factory.close()
-        await text_translator._close()
+        if text_translator is not None:
+            await text_translator._close()
         logger.info("FastAPI app is shutting down. Closing all clients")
 
 app, mcp_app = create_apps(env_app == "PROD")
