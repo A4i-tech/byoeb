@@ -32,7 +32,9 @@ def test_bot_to_user_sources_category_value():
 
 def test_create_view_sources_message_structure():
     incoming = _make_incoming_message(language="hi", phone_number_id="91000000001")
-    msg = byoeb_user_generate_response._ByoebUserGenerateResponse__create_view_sources_message(incoming)
+    msg = byoeb_user_generate_response._ByoebUserGenerateResponse__create_view_sources_message(
+        incoming, ["chunk-1"], ["guide.pdf · p.3 · Iron supplements"]
+    )
 
     assert msg.message_category == MessageCategory.BOT_TO_USER_SOURCES.value
     assert msg.channel_type == "whatsapp"
@@ -43,7 +45,9 @@ def test_create_view_sources_message_structure():
 
 def test_create_view_sources_message_has_button_title():
     incoming = _make_incoming_message()
-    msg = byoeb_user_generate_response._ByoebUserGenerateResponse__create_view_sources_message(incoming)
+    msg = byoeb_user_generate_response._ByoebUserGenerateResponse__create_view_sources_message(
+        incoming, ["chunk-1"], []
+    )
 
     button_titles = msg.message_context.additional_info.get("button_titles", [])
     assert len(button_titles) == 1
@@ -52,10 +56,21 @@ def test_create_view_sources_message_has_button_title():
 
 def test_create_view_sources_message_inherits_user():
     incoming = _make_incoming_message(user_id="custom_user", language="mr")
-    msg = byoeb_user_generate_response._ByoebUserGenerateResponse__create_view_sources_message(incoming)
+    msg = byoeb_user_generate_response._ByoebUserGenerateResponse__create_view_sources_message(
+        incoming, ["c1", "c2"], ["doc.pdf · p.1"]
+    )
 
     assert msg.user.user_id == "custom_user"
     assert msg.user.user_language == "mr"
+
+
+def test_create_view_sources_message_stores_summaries():
+    incoming = _make_incoming_message()
+    summaries = ["nutrition_guide.pdf · p.3 · Iron supplements", "anc.pdf · p.7"]
+    msg = byoeb_user_generate_response._ByoebUserGenerateResponse__create_view_sources_message(
+        incoming, ["c1", "c2"], summaries
+    )
+    assert msg.message_context.additional_info.get("source_summaries") == summaries
 
 
 # ---------------------------------------------------------------------------
@@ -125,3 +140,53 @@ def test_source_chunk_ids_condition_false_when_empty_chunks():
         and bool(retrieved_chunks)
     )
     assert should_set is False
+
+
+# ---------------------------------------------------------------------------
+# _format_source_summaries
+# ---------------------------------------------------------------------------
+
+def test_format_source_summaries_deduplicates():
+    from byoeb_core.models.vector_stores.chunk import Chunk, Chunk_metadata
+    from byoeb.services.chat.message_handlers.user_flow_handlers.generate import ByoebUserGenerateResponse
+
+    def make_chunk(filename, page=None, section=None):
+        meta = Chunk_metadata(source=filename, source_filename=filename, page_number=page, section_heading=section)
+        return Chunk(chunk_id="x", text="t", similarity=0.9, metadata=meta)
+
+    chunks = [
+        make_chunk("guide.pdf", page=3, section="Iron"),
+        make_chunk("guide.pdf", page=3, section="Iron"),  # duplicate
+        make_chunk("anc.pdf", page=7),
+    ]
+    summaries = ByoebUserGenerateResponse._format_source_summaries(chunks)
+    assert len(summaries) == 2
+    assert any("guide.pdf" in s for s in summaries)
+    assert any("anc.pdf" in s for s in summaries)
+
+
+def test_format_source_summaries_no_metadata():
+    from byoeb_core.models.vector_stores.chunk import Chunk
+    from byoeb.services.chat.message_handlers.user_flow_handlers.generate import ByoebUserGenerateResponse
+
+    chunks = [Chunk(chunk_id="x", text="t", similarity=0.9, metadata=None)]
+    summaries = ByoebUserGenerateResponse._format_source_summaries(chunks)
+    assert summaries == []
+
+
+# ---------------------------------------------------------------------------
+# __build_sources_response_text
+# ---------------------------------------------------------------------------
+
+def test_build_sources_response_text_with_summaries():
+    text = byoeb_user_generate_response._ByoebUserGenerateResponse__build_sources_response_text(
+        ["guide.pdf · p.3 · Iron supplements", "anc.pdf · p.7"]
+    )
+    assert "guide.pdf" in text
+    assert "anc.pdf" in text
+    assert "1." in text
+
+
+def test_build_sources_response_text_empty():
+    text = byoeb_user_generate_response._ByoebUserGenerateResponse__build_sources_response_text([])
+    assert "No source information" in text
