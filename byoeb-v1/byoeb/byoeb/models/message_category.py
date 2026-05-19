@@ -10,7 +10,6 @@ class MessageCategory(Enum):
 
     BOT_TO_USER = "bot_to_asha"
     BOT_TO_USER_RESPONSE = "bot_to_asha_response"
-    BOT_TO_USER_SOURCES = "bot_to_user_sources"
     BOT_TO_EXPERT = "bot_to_anm"
     BOT_TO_EXPERT_RESPONSE = "bot_to_anm_response"
     BOT_TO_EXPERT_VERIFICATION = "bot_to_anm_verification"

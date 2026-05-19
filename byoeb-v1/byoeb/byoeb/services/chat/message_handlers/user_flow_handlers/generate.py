@@ -579,53 +579,6 @@ class ByoebUserGenerateResponse(Handler):
         )
         return new_expert_verification_message
 
-    @staticmethod
-    def _format_source_summaries(chunks: List[Chunk]) -> list[str]:
-        seen: set[str] = set()
-        summaries: list[str] = []
-        for chunk in chunks:
-            if not chunk.metadata:
-                continue
-            filename = chunk.metadata.source_filename or chunk.metadata.source or "unknown"
-            parts = [filename]
-            if chunk.metadata.page_number is not None:
-                parts.append(f"p.{chunk.metadata.page_number}")
-            if chunk.metadata.section_heading:
-                parts.append(chunk.metadata.section_heading)
-            label = " · ".join(parts)
-            if label not in seen:
-                seen.add(label)
-                summaries.append(label)
-        return summaries
-
-    def __create_view_sources_message(
-        self,
-        incoming_message: ByoebMessageContext,
-        source_chunk_ids: list[str],
-        source_summaries: list[str],
-    ) -> ByoebMessageContext:
-        return ByoebMessageContext(
-            channel_type=incoming_message.channel_type,
-            message_category=MessageCategory.BOT_TO_USER_SOURCES.value,
-            user=User(
-                user_id=incoming_message.user.user_id,
-                user_language=incoming_message.user.user_language,
-                user_type=self._regular_user_types[0],
-                phone_number_id=incoming_message.user.phone_number_id,
-                last_conversations=incoming_message.user.last_conversations,
-            ),
-            message_context=MessageContext(
-                message_type=MessageTypes.INTERACTIVE_BUTTON.value,
-                message_source_text="View the sources used to answer your question",
-                message_english_text="View the sources used to answer your question",
-                additional_info={
-                    constants.BUTTON_TITLES: ["📄 View Sources"],
-                    constants.SOURCE_CHUNK_IDS: source_chunk_ids,
-                    constants.SOURCE_SUMMARIES: source_summaries,
-                },
-            ),
-        )
-
     def filter_retrieved_chunks(self, retrieved_chunks: Iterable[Chunk], thresholds: dict[str, float]) -> Iterable[Chunk]:
         return [
             chunk for chunk in retrieved_chunks
@@ -831,42 +784,12 @@ class ByoebUserGenerateResponse(Handler):
 
         return valid_questions[:3]
 
-    def __build_sources_response_text(self, source_summaries: list[str]) -> str:
-        if not source_summaries:
-            return "No source information available for this response."
-        lines = ["📄 *Sources used to answer your question:*", ""]
-        for i, s in enumerate(source_summaries, 1):
-            lines.append(f"{i}. {s}")
-        return "\n".join(lines)
-
     async def handle_message_generate_workflow(self, messages: list[ByoebMessageContext]) -> list[ByoebMessageContext]:
         byoeb_messages = []
         message: ByoebMessageContext = messages[0].model_copy(deep=True)
         read_reciept_message = self.__create_read_reciept_message(message)
 
-        if message.reply_context.message_category == MessageCategory.BOT_TO_USER_SOURCES.value:
-            logger.info("[generate] Handling View Sources request")
-            source_summaries = (message.reply_context.additional_info or {}).get(constants.SOURCE_SUMMARIES, [])
-            response_text = self.__build_sources_response_text(source_summaries)
-            byoeb_user_message = ByoebMessageContext(
-                channel_type=message.channel_type,
-                message_category=MessageCategory.BOT_TO_USER_RESPONSE.value,
-                user=User(
-                    user_id=message.user.user_id,
-                    user_language=message.user.user_language,
-                    user_type=self._regular_user_types[0],
-                    phone_number_id=message.user.phone_number_id,
-                    last_conversations=message.user.last_conversations,
-                ),
-                message_context=MessageContext(
-                    message_type=MessageTypes.REGULAR_TEXT.value,
-                    message_source_text=response_text,
-                    message_english_text=response_text,
-                    additional_info={constants.QUERY_TYPE: "asha_work_related"},
-                ),
-                reply_context=self.__create_reply_context(message),
-            )
-        elif message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
+        if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
             related_questions = message.reply_context.additional_info.get(constants.RELATED_QUESTIONS)
             byoeb_user_message = await self.__create_user_message(
                 message=message,
@@ -1034,12 +957,6 @@ class ByoebUserGenerateResponse(Handler):
                 cache_hit=cache_hit,
                 default_message_category=default_message_category
             )
-            if not cache_hit and not utils.is_idk(response_en) and retrieved_chunks:
-                source_chunk_ids = [c.chunk_id for c in retrieved_chunks if c.chunk_id]
-                if source_chunk_ids:
-                    byoeb_user_message.source_chunk_ids = source_chunk_ids
-                    _source_summaries = self._format_source_summaries(retrieved_chunks)
-                    byoeb_user_message.message_context.additional_info[constants.SOURCE_SUMMARIES] = _source_summaries
         logger.info("Created user message")
         byoeb_expert_message = None
         # byoeb_expert_message = self.__create_expert_verification_message(
@@ -1059,11 +976,6 @@ class ByoebUserGenerateResponse(Handler):
         if byoeb_user_message is not None:
             byoeb_messages.append(byoeb_user_message)
             logger.debug("[GENERATE] Added user message to list")
-            if byoeb_user_message.source_chunk_ids:
-                _summaries = (byoeb_user_message.message_context.additional_info or {}).get(constants.SOURCE_SUMMARIES, [])
-                view_sources_msg = self.__create_view_sources_message(message, byoeb_user_message.source_chunk_ids, _summaries)
-                byoeb_messages.append(view_sources_msg)
-                logger.debug("[GENERATE] Added view sources button to list")
         if byoeb_expert_message is not None:
             byoeb_messages.append(byoeb_expert_message)
             logger.debug("[GENERATE] Added expert message to list")

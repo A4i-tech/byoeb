@@ -261,17 +261,6 @@ class ByoebUserSendResponse(Handler):
             len(expert_responses) if expert_responses else 0,
         )
 
-        sources_messages = [
-            m for m in messages
-            if m.message_category == MessageCategory.BOT_TO_USER_SOURCES.value
-        ]
-        for src_msg in sources_messages:
-            try:
-                await self.__handle_user(channel_service, src_msg)
-                self._logger.debug("[send] Sent view-sources button message")
-            except Exception as e:
-                self._logger.warning("[send] Failed to send view-sources button: %s", e)
-
         # byoeb_user_verification_status = byoeb_expert_message.message_context.additional_info.get(verification_status)
         self._logger.debug("[send] extracting additional_info fields (ROW_TEXTS, QUERY_TYPE, STATUS)")
         related_questions = byoeb_user_message.message_context.additional_info.get(constants.ROW_TEXTS)

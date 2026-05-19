@@ -44,4 +44,3 @@ class ByoebMessageContext(BaseModel):
     cross_conversation_context: Optional[Dict[str, Any]] = Field(default=None, description="Context of the cross-conversation message")
     incoming_timestamp: Optional[int] = Field(default=None, description="Timestamp when the message was received", examples=[1633028300])
     outgoing_timestamp: Optional[int] = Field(default=None, description="Timestamp when the message was sent", examples=[1633028301])
-    source_chunk_ids: Optional[List[str]] = Field(default=None, description="IDs of vector store chunks used to generate this response")

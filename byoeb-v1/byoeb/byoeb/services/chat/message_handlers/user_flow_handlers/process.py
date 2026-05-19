@@ -171,11 +171,9 @@ class ByoebUserProcess(Handler):
         is_onboarding_message = utils.is_onboard(message.message_context.message_source_text, message.user.user_language)
 
         # Skip LLM translation/rewriting for onboarding messages to prevent them from being sent to vector store/LLM
-        # Also skip for AUDIO_IDK and BOT_TO_USER_SOURCES messages (they don't need translation/rewriting)
+        # Also skip for AUDIO_IDK messages (they don't need translation/rewriting)
         if message.reply_context.message_category == MessageCategory.AUDIO_IDK.value:
             pass
-        elif message.reply_context.message_category == MessageCategory.BOT_TO_USER_SOURCES.value:
-            logger.info("[process] Skipping translation for View Sources request")
         elif is_onboarding_message:
             logger.info("[process] Detected onboarding message: '%s...'", (message.message_context.message_source_text or "")[:50])
             source_text = message.message_context.message_source_text
