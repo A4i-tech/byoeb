@@ -1,1 +1,2 @@
 git+https://github.com/KhushiBaby/byoeb.git@rash598/reboot_ashabotv1_dev#subdirectory=byoeb-v1/byoeb
+omni-ingest @ git+https://github.com/A4i-tech/OmniIngest.git@main

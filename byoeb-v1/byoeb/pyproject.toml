@@ -32,6 +32,7 @@ lancedb = "^0.26.0"
 lance-namespace = "0.6.1"
 grapheme = "^0.6.0"
 pandas = "^3.0.2"
+omni-ingest = {git = "https://github.com/A4i-tech/OmniIngest.git", branch = "main"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
