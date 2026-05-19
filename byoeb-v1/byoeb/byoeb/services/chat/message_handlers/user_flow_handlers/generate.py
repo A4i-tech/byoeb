@@ -579,6 +579,28 @@ class ByoebUserGenerateResponse(Handler):
         )
         return new_expert_verification_message
 
+    def __create_view_sources_message(
+        self,
+        incoming_message: ByoebMessageContext,
+    ) -> ByoebMessageContext:
+        return ByoebMessageContext(
+            channel_type=incoming_message.channel_type,
+            message_category=MessageCategory.BOT_TO_USER_SOURCES.value,
+            user=User(
+                user_id=incoming_message.user.user_id,
+                user_language=incoming_message.user.user_language,
+                user_type=self._regular_user_types[0],
+                phone_number_id=incoming_message.user.phone_number_id,
+                last_conversations=incoming_message.user.last_conversations,
+            ),
+            message_context=MessageContext(
+                message_type=MessageTypes.INTERACTIVE_BUTTON.value,
+                message_source_text="View the sources used to answer your question",
+                message_english_text="View the sources used to answer your question",
+                additional_info={constants.BUTTON_TITLES: ["📄 View Sources"]},
+            ),
+        )
+
     def filter_retrieved_chunks(self, retrieved_chunks: Iterable[Chunk], thresholds: dict[str, float]) -> Iterable[Chunk]:
         return [
             chunk for chunk in retrieved_chunks
@@ -957,6 +979,10 @@ class ByoebUserGenerateResponse(Handler):
                 cache_hit=cache_hit,
                 default_message_category=default_message_category
             )
+            if not cache_hit and not utils.is_idk(response_en) and retrieved_chunks:
+                source_chunk_ids = [c.chunk_id for c in retrieved_chunks if c.chunk_id]
+                if source_chunk_ids:
+                    byoeb_user_message.source_chunk_ids = source_chunk_ids
         logger.info("Created user message")
         byoeb_expert_message = None
         # byoeb_expert_message = self.__create_expert_verification_message(
@@ -976,6 +1002,10 @@ class ByoebUserGenerateResponse(Handler):
         if byoeb_user_message is not None:
             byoeb_messages.append(byoeb_user_message)
             logger.debug("[GENERATE] Added user message to list")
+            if byoeb_user_message.source_chunk_ids:
+                view_sources_msg = self.__create_view_sources_message(message)
+                byoeb_messages.append(view_sources_msg)
+                logger.debug("[GENERATE] Added view sources button to list")
         if byoeb_expert_message is not None:
             byoeb_messages.append(byoeb_expert_message)
             logger.debug("[GENERATE] Added expert message to list")
