@@ -203,7 +203,10 @@ class ChromaDBVectorStore(BaseVectorStore):
                         chunk_metadata = Chunk_metadata(
                             source=metadata.get("source", "unknown"),
                             creation_timestamp=metadata.get("creation_timestamp"),
-                            update_timestamp=metadata.get("update_timestamp")
+                            update_timestamp=metadata.get("update_timestamp"),
+                            source_filename=metadata.get("source_filename"),
+                            page_number=metadata.get("page_number"),
+                            section_heading=metadata.get("section_heading"),
                         )
                     except Exception as e:
                         logger.warning(f"Error creating Chunk_metadata: {e}, using raw metadata")

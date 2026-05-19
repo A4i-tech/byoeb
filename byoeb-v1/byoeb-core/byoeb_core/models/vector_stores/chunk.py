@@ -18,6 +18,9 @@ class Chunk_metadata(BaseModel):
         default={},
         description="Additional metadata associated with the chunk"
     )
+    source_filename: Optional[str] = Field(default=None, description="Human-readable source file name")
+    page_number: Optional[int] = Field(default=None, description="1-indexed page number (PDFs)")
+    section_heading: Optional[str] = Field(default=None, description="Nearest section heading in document")
 class Chunk(BaseModel):
     # Mandatory fields
     chunk_id: str = Field(..., description="Unique identifier for the chunk")
