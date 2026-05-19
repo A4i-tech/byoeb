@@ -1,0 +1,15 @@
+pipeline_id: byoeb_kb_v2
+domain_profile: health_byoeb
+input_modality: text
+description: "BYOEB health KB ingestion v2 — enriched chunk metadata for source attribution"
+steps:
+  - agent: markdown_cleaning
+
+  - agent: chunking
+    config:
+      chunk_size: 300
+      overlap: 50
+
+  - agent: embedding
+
+  - agent: lineage
