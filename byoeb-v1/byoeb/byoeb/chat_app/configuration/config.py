@@ -2,6 +2,7 @@ import asyncio
 import os
 import json
 import logging
+import yaml
 from byoeb.constants.feature_enums import FeatureFlag
 from dotenv import load_dotenv
 
@@ -17,11 +18,10 @@ with open(app_config_path, 'r', encoding="utf-8") as file:
 
 app_tempdir: asyncio.Future[str] = asyncio.Future()
 
-bot_config_path = os.path.join(current_dir, '..', 'bot_config.json')
+bot_config_path = os.path.join(current_dir, '..', 'bot_config.yaml')
 bot_config_path = os.path.normpath(bot_config_path)
-bot_config = None
 with open(bot_config_path, 'r', encoding="utf-8") as file:
-    bot_config = json.load(file)
+    bot_config = yaml.safe_load(file)
 
 environment_path = os.path.join(current_dir, '../../..', 'keys.env')
 environment_path = os.path.normpath(environment_path)
