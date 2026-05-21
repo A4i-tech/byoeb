@@ -32,6 +32,15 @@ byoeb_package_dir = script_dir.parent
 byoeb_parent_dir = byoeb_package_dir.parent
 sys.path.insert(0, str(byoeb_parent_dir))
 
+repo_root = Path(__file__).resolve().parents[3] if len(Path(__file__).resolve().parents) >= 4 else byoeb_parent_dir
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+
+try:
+    from src.utils import get_llm_response  # type: ignore
+except Exception:
+    get_llm_response = None
+
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
 # Reuse existing Azure Blob client configuration
 from byoeb.kb_app.configuration.dependency_setup import amedia_storage, amedia_storage_analysis
@@ -780,6 +789,13 @@ def analyze_idk(df: pd.DataFrame) -> dict:
         'user_id', 'phone_number_id', 'log_date', 'message_category',
         'query_source', 'query_en', 'rewritten_query', 'idk_cause', 'asha_theme'
     ]].copy()
+    # Derive a single 'category' label per IDK row:
+    # - For "Domain knowledge gaps": use the more specific asha_theme
+    # - For other causes ("Missing details", "Query misinterpretation"): use idk_cause directly
+    idk_queries_dump['category'] = idk_queries_dump.apply(
+        lambda row: row['asha_theme'] if row['idk_cause'] == 'Domain knowledge gaps' else row['idk_cause'],
+        axis=1
+    )
     
     # Breakdowns by language and geography (only if meaningful differences)
     breakdowns = {}
@@ -2308,6 +2324,16 @@ async def main() -> None:
         response_time_output_path = str(output_dir / f"monthly_logs_{month_str}_response_times.xlsx")
         summary_output_path = str(output_dir / f"monthly_logs_{month_str}_summary.md")
     
+    # Always save the IDK categorization sheet (all IDKs with a blank 'category' column)
+    if not idk_analysis['idk_queries'].empty:
+        try:
+            save_to_excel(idk_analysis['idk_queries'], idk_output_path)
+            print(f"Saved IDK categorization sheet: {idk_output_path}")
+        except (OSError, RuntimeError) as e:
+            print(f"Warning: Failed to save IDK categorization sheet: {e}")
+    else:
+        print("\nNote: No IDK queries found; IDK categorization sheet not created.")
+
     # Save Excel files only if --save-excel flag is set
     if args.save_excel:
         # Save main logs
@@ -2316,15 +2342,7 @@ async def main() -> None:
             print(f"Saved main logs: {output_path}")
         except (OSError, RuntimeError) as e:
             print(f"Warning: Failed to save main logs: {e}")
-        
-        # Save IDK queries dump
-        if not idk_analysis['idk_queries'].empty:
-            try:
-                save_to_excel(idk_analysis['idk_queries'], idk_output_path)
-                print(f"Saved IDK queries: {idk_output_path}")
-            except (OSError, RuntimeError) as e:
-                print(f"Warning: Failed to save IDK queries dump: {e}")
-        
+
         # Save response time data
         if not response_time_analysis['response_time_data'].empty:
             try:
@@ -2333,7 +2351,7 @@ async def main() -> None:
             except (OSError, RuntimeError) as e:
                 print(f"Warning: Failed to save response time data: {e}")
     else:
-        print("\nNote: Excel files not saved (use --save-excel to save them).")
+        print("\nNote: Main logs and response time Excel files not saved (use --save-excel to save them).")
 
     # Save markdown summary (executive + detailed tables)
     try:

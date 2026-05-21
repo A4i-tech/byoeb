@@ -881,8 +881,9 @@ class ByoebUserGenerateResponse(Handler):
             cache_hit = False
 
             if embedding_fn and (FeatureFlag.CACHE_MESSAGES in feature_flags or message.user.test_user):
-                with langfuse.start_as_current_observation(as_type="span", name="cache", input=message_english) as span:
-                    embedding = await embedding_fn.aget_text_embedding(message_english)
+                cache_key = message.message_context.message_source_text or message_english
+                with langfuse.start_as_current_observation(as_type="span", name="cache", input=cache_key) as span:
+                    embedding = await embedding_fn.aget_text_embedding(cache_key)
                     cache_result = self.embedding_cache.query(embedding, 0.9)
                     hit = cache_result[2] is not None and bool(cache_result[2])
                     span.update(output={"hit": hit, "score": float(cache_result[0]) if hit and cache_result[0] is not None else None})

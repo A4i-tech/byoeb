@@ -28,7 +28,13 @@ class AsyncLLamaIndexOpenAILLM(BaseLLM):
             raise ValueError("model must be provided")
         if api_version is None:
             raise ValueError("api_version must be provided")
-        
+
+        # Register model if not known to this llama_index version (e.g. gpt-4.1-mini)
+        from llama_index.llms.openai.utils import ALL_AVAILABLE_MODELS, CHAT_MODELS
+        if model not in ALL_AVAILABLE_MODELS:
+            ALL_AVAILABLE_MODELS[model] = 128000
+            CHAT_MODELS[model] = 128000
+
         client = OpenAI(
             model=model,
             api_key=api_key,

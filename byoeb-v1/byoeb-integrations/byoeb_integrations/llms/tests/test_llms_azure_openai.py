@@ -24,7 +24,7 @@ LLM_API_VERSION = "2024-06-01"  # example API version
 OPENAI_API_KEY = "sk-dummy-key-00000000000000000000000000000000"
 OPENAI_API_VERSION = "2024-06-01"
 OPENAI_ORG_ID = "org_dummy_123"
-OPENAI_MODEL = "gpt-4o-mini"
+OPENAI_MODEL = "gpt-4.1-mini"
 
 token_provider = get_bearer_token_provider(
     AzureCliCredential(), AZURE_COGNITIVE_ENDPOINT

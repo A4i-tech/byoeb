@@ -1,7 +1,7 @@
 llm_response:
   consensus:
     system_prompt: "Please verify the answer"
-    user_propmt: "Is the answer correct?"
+    user_prompt: "Is the answer correct?"
 
 template_messages:
   expert:
