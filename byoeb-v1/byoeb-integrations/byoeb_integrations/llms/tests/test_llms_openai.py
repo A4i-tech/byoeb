@@ -10,7 +10,7 @@ load_dotenv(test_environment_path)
 API_KEY = "sk-dummy-key-00000000000000000000000000000000"
 API_VERSION = "2024-06-01"
 ORGANIZATION = "org_dummy_123"
-MODEL = "gpt-4o-mini"
+MODEL = "gpt-4.1-mini"
 
 @pytest.fixture
 def llm_llama(mocker):
