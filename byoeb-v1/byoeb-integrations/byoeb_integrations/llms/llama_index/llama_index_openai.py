@@ -6,9 +6,11 @@ from byoeb_core.llms.base import BaseLLM
 
 class OpenAIParamsEnum(Enum):
     TEMPERATURE = "temperature"
+    SEED = "seed"
 
 class AsyncLLamaIndexOpenAILLM(BaseLLM):
     __DEFAULT_TEMPERATURE = 0
+    __DEFAULT_SEED = 42
 
     def __init__(
         self,
@@ -23,6 +25,10 @@ class AsyncLLamaIndexOpenAILLM(BaseLLM):
         temperature = kwargs.get(
             OpenAIParamsEnum.TEMPERATURE.value,
             self.__DEFAULT_TEMPERATURE
+        )
+        seed = kwargs.get(
+            OpenAIParamsEnum.SEED.value,
+            self.__DEFAULT_SEED
         )
         if model is None:
             raise ValueError("model must be provided")
@@ -42,6 +48,7 @@ class AsyncLLamaIndexOpenAILLM(BaseLLM):
             reuse_client=reuse_client,
             temperature=temperature,
             organization=organization,
+            seed=seed,
         )
         self.__client = client
     

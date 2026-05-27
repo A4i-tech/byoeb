@@ -9,9 +9,11 @@ logger = logging.getLogger(__name__)
 
 class AzureOpenAIParamsEnum(Enum):
     TEMPERATURE = "temperature"
+    SEED = "seed"
 
 class AsyncAzureOpenAILLM(BaseLLM):
     __DEFAULT_TEMPERATURE = 0
+    __DEFAULT_SEED = 42
 
     def __init__(
         self,
@@ -43,25 +45,28 @@ class AsyncAzureOpenAILLM(BaseLLM):
             )
         else:
             raise ValueError("Either token_provider or api_key must be provided")
-        
+
         self.__model = model
         self.__client = client
-    
+        self.__seed = kwargs.get(AzureOpenAIParamsEnum.SEED.value, self.__DEFAULT_SEED)
+
     async def generate_response(
         self,
         prompts: list,
         **kwargs
     ) -> Any:
-        logger.debug("Thread ID: %s, Variable Address: %s, client address: %s", 
+        logger.debug("Thread ID: %s, Variable Address: %s, client address: %s",
                      threading.get_ident(), id(prompts), id(self.__client))
         temperature = kwargs.get(
             AzureOpenAIParamsEnum.TEMPERATURE.value,
             self.__DEFAULT_TEMPERATURE
         )
+        seed = kwargs.get(AzureOpenAIParamsEnum.SEED.value, self.__seed)
         response = await self.__client.chat.completions.create(
             model = self.__model,
             messages=prompts,
             temperature=temperature,
+            seed=seed,
         )
         return response, response.choices[0].message.content.strip()
     
