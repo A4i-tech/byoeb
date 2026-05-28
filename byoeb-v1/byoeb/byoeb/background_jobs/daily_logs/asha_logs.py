@@ -1,12 +1,10 @@
 from typing import Any, AsyncIterator, Optional, Union
 from datetime import datetime
 from byoeb.chat_app.configuration.config import app_config
-from byoeb.chat_app.configuration.dependency_setup import user_db_service
-from byoeb.factory import MongoDBFactory
+from byoeb.chat_app.configuration.dependency_setup import user_db_service, mongo_db_factory
 from byoeb.models.message_category import MessageCategory
 from motor.motor_asyncio import AsyncIOMotorCollection
 
-SINGLETON = "singleton"
 db_provider = app_config["app"]["db_provider"]
 message_collection_name = app_config["databases"]["mongo_db"]["message_collection"]
 
@@ -17,10 +15,11 @@ async def get_user_infos(batch, user_info_dict):
         user_id = user.get("user_id")
         if user_id and user_id not in user_info_dict:
             user_ids.add(user_id)
-    user_info_list = await user_db_service.get_users(list(user_ids))
 
-    # Update the passed-in dictionary instead of overwriting it
-    user_info_dict.update({user.user_id: user for user in user_info_list})
+    # Skip DB call if all users already cached
+    if user_ids:
+        user_info_list = await user_db_service.get_users(list(user_ids))
+        user_info_dict.update({user.user_id: user for user in user_info_list})
 
     return user_info_dict
 
@@ -115,7 +114,7 @@ async def fetch_and_process_user_messages(start_timestamp: int, end_timestamp: i
     cursor = message_collection.find(query, _PROJECTION)
     user_info_dict = {}
     while True:
-        batch = await cursor.to_list(length=1000)
+        batch = await cursor.to_list(length=5000)
         if not batch:
             break
         user_info_dict = await get_user_infos(batch, user_info_dict)
@@ -125,7 +124,6 @@ async def fetch_and_process_user_messages(start_timestamp: int, end_timestamp: i
                 yield row
 
 async def fetch_daily_logs(start_timestamp: int, end_timestamp: int) -> AsyncIterator[dict[str, Any]]:
-    mongo_db_factory = MongoDBFactory(config=app_config, scope=SINGLETON)
     mongo_db = await mongo_db_factory.get(db_provider)
     message_collection = mongo_db.get_collection(message_collection_name)
     async for row in fetch_and_process_user_messages(
