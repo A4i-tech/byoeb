@@ -44,8 +44,8 @@ async def asha_logs_form(
     _: AuthUser = Depends(require_permissions(AuthPermission.ADMIN_ACCESS)),
     __: None = Depends(require_csrf_token),
 ) -> StreamingResponse:
-    start_unix = str(start.timestamp())
-    end_unix = str(end.timestamp())
+    start_unix = int(start.timestamp())
+    end_unix = int(end.timestamp())
 
     async def stream_csv() -> AsyncIterator[bytes]:
         buffer = io.StringIO()

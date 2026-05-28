@@ -85,38 +85,53 @@ def extract_fields(entry, user_info_dict) -> Optional[dict[str, Any]]:
         "log_date": day
     }
 
-async def fetch_and_process_user_messages(start_timestamp: str, end_timestamp: str, message_category: list[str], message_collection: AsyncIOMotorCollection) -> AsyncIterator[dict[str, Any]]:
+_PROJECTION = {
+    "message_data.user.user_id": 1,
+    "message_data.incoming_timestamp": 1,
+    "message_data.outgoing_timestamp": 1,
+    "message_data.message_category": 1,
+    "message_data.message_context.additional_info": 1,
+    "message_data.message_context.message_english_text": 1,
+    "message_data.message_context.message_source_text": 1,
+    "message_data.reply_context.reply_type": 1,
+    "message_data.reply_context.reply_source_text": 1,
+    "message_data.reply_context.reply_english_text": 1,
+    "message_data.reply_context.additional_info": 1,
+}
+
+_MESSAGE_CATEGORIES = [
+    MessageCategory.AUDIO_IDK.value,
+    MessageCategory.TEXT_IDK.value,
+    MessageCategory.AUDIO_DISAMBIGUATION.value,
+    MessageCategory.TEXT_DISAMBIGUATION.value,
+    MessageCategory.BOT_TO_USER_RESPONSE.value,
+]
+
+async def fetch_and_process_user_messages(start_timestamp: int, end_timestamp: int, message_category: list[str], message_collection: AsyncIOMotorCollection) -> AsyncIterator[dict[str, Any]]:
     query = {
-        "timestamp": {"$gte": start_timestamp, "$lte": end_timestamp},
+        "message_data.incoming_timestamp": {"$gte": start_timestamp, "$lte": end_timestamp},
         "message_data.message_category": {"$in": message_category}
     }
-    cursor = message_collection.find(query).sort("message_data.incoming_timestamp", -1)
+    cursor = message_collection.find(query, _PROJECTION)
     user_info_dict = {}
     while True:
         batch = await cursor.to_list(length=1000)
         if not batch:
             break
-        # Process each batch
         user_info_dict = await get_user_infos(batch, user_info_dict)
         for entry in batch:
             row = extract_fields(entry['message_data'], user_info_dict)
             if row is not None:
                 yield row
 
-async def fetch_daily_logs(start_timestamp: str, end_timestamp: str) -> AsyncIterator[dict[str, Any]]:
+async def fetch_daily_logs(start_timestamp: int, end_timestamp: int) -> AsyncIterator[dict[str, Any]]:
     mongo_db_factory = MongoDBFactory(config=app_config, scope=SINGLETON)
     mongo_db = await mongo_db_factory.get(db_provider)
     message_collection = mongo_db.get_collection(message_collection_name)
     async for row in fetch_and_process_user_messages(
         start_timestamp=start_timestamp,
         end_timestamp=end_timestamp,
-        message_category=[
-            MessageCategory.AUDIO_IDK.value,
-            MessageCategory.TEXT_IDK.value,
-            MessageCategory.AUDIO_DISAMBIGUATION.value,
-            MessageCategory.TEXT_DISAMBIGUATION.value,
-            MessageCategory.BOT_TO_USER_RESPONSE.value
-        ],
-        message_collection=message_collection
+        message_category=_MESSAGE_CATEGORIES,
+        message_collection=message_collection,
     ):
         yield row
