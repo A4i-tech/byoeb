@@ -38,14 +38,16 @@ def test_uses_registry_image_not_build(tmp_path):
 
 def test_both_app_services_present(tmp_path):
     path = generate_app_compose(ANSWERS_KAFKA_CHROMA, output_dir=str(tmp_path))
-    data = yaml.safe_load(open(path))
+    with open(path) as f:
+        data = yaml.safe_load(f)
     assert "byoeb-chat" in data["services"]
     assert "byoeb-kb" in data["services"]
 
 
 def test_kafka_service_present(tmp_path):
     path = generate_app_compose(ANSWERS_KAFKA_CHROMA, output_dir=str(tmp_path))
-    data = yaml.safe_load(open(path))
+    with open(path) as f:
+        data = yaml.safe_load(f)
     assert "kafka" in data["services"]
     listeners = data["services"]["kafka"]["environment"]["KAFKA_ADVERTISED_LISTENERS"]
     assert "kafka:9092" in listeners
@@ -53,22 +55,33 @@ def test_kafka_service_present(tmp_path):
 
 def test_mongodb_service_present(tmp_path):
     path = generate_app_compose(ANSWERS_KAFKA_CHROMA, output_dir=str(tmp_path))
-    data = yaml.safe_load(open(path))
+    with open(path) as f:
+        data = yaml.safe_load(f)
     assert "mongodb" in data["services"]
 
 
 def test_qdrant_service_only_when_docker_mode(tmp_path):
     path_no_qdrant = generate_app_compose(ANSWERS_KAFKA_CHROMA, output_dir=str(tmp_path))
-    data_no = yaml.safe_load(open(path_no_qdrant))
+    with open(path_no_qdrant) as f:
+        data_no = yaml.safe_load(f)
     assert "qdrant" not in data_no["services"]
 
     path_qdrant = generate_app_compose(ANSWERS_QDRANT_DOCKER, output_dir=str(tmp_path))
-    data_yes = yaml.safe_load(open(path_qdrant))
+    with open(path_qdrant) as f:
+        data_yes = yaml.safe_load(f)
     assert "qdrant" in data_yes["services"]
 
 
 def test_env_file_referenced(tmp_path):
     path = generate_app_compose(ANSWERS_KAFKA_CHROMA, output_dir=str(tmp_path))
-    data = yaml.safe_load(open(path))
+    with open(path) as f:
+        data = yaml.safe_load(f)
     chat = data["services"]["byoeb-chat"]
     assert ".env.local" in (chat.get("env_file") or [])
+
+
+def test_qdrant_volume_in_volumes_block(tmp_path):
+    path = generate_app_compose(ANSWERS_QDRANT_DOCKER, output_dir=str(tmp_path))
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    assert "qdrant_data" in (data.get("volumes") or {})
