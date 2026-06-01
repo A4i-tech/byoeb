@@ -185,6 +185,7 @@ jobs:
           tags: |
             type=raw,value=${{ steps.target.outputs.tag_prefix }}-{{sha}}
             type=raw,value=${{ steps.target.outputs.tag_prefix }}-latest
+            type=raw,value=latest,enable=${{ github.ref_name == 'a4i/main' }}
 
       - name: Capture image reference
         id: image-info
