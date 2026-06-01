@@ -1,4 +1,6 @@
 """Print next steps and optionally launch docker compose after .env.local is generated."""
+import os
+import pathlib
 import subprocess
 import sys
 import time
@@ -32,16 +34,49 @@ def _docker_available() -> bool:
         return False
 
 
-def _compose_command(answers: dict) -> list[str]:
-    """Build the docker compose command list."""
+def _is_in_docker() -> bool:
+    """Return True when this process is running inside a Docker container."""
+    return (
+        pathlib.Path("/.dockerenv").exists()
+        or os.environ.get("RUNNING_IN_DOCKER", "") == "1"
+    )
+
+
+def _compose_command(answers: dict, in_docker: bool | None = None) -> list[str]:
+    """
+    Build the docker compose command list.
+
+    When running inside Docker (in_docker=True), the wizard container has the
+    host Docker socket mounted. Docker interprets paths from the HOST perspective,
+    so we must pass HOST_PWD (set in docker-compose.wizard.yml via ${PWD}) and
+    reference the generated docker-compose.app.yml by its HOST path.
+
+    Outside Docker (normal dev / git-clone flow), we run against the
+    docker-compose.yml already present in the working directory and use
+    --build to compile from source.
+    """
+    if in_docker is None:
+        in_docker = _is_in_docker()
+
     profiles = []
     if answers.get("vector_store") == "qdrant" and answers.get("qdrant_mode") == "docker":
         profiles.append("qdrant")
 
     cmd = ["docker", "compose"]
+
+    if in_docker:
+        host_pwd = os.environ.get("HOST_PWD", "/workspace")
+        cmd += ["-f", f"{host_pwd}/docker-compose.app.yml"]
+        cmd += ["--project-directory", host_pwd]
+
     for p in profiles:
         cmd += ["--profile", p]
-    cmd += ["up", "--build", "-d"]
+
+    if in_docker:
+        cmd += ["up", "--pull", "always", "-d"]
+    else:
+        cmd += ["up", "--build", "-d"]
+
     return cmd
 
 
