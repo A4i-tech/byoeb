@@ -51,7 +51,7 @@ echo  Close it when you are done.
 echo.
 
 :: Open browser after short delay
-start "" cmd /c "timeout /t 15 /nobreak >nul && start http://localhost:5001"
+start "" /b powershell -WindowStyle Hidden -Command "Start-Sleep 15; Start-Process 'http://localhost:5001'"
 
 docker compose -f docker-compose.wizard.yml up
 
