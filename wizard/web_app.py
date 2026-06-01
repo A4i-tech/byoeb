@@ -12,7 +12,8 @@ import requests
 from flask import Flask, Response, render_template, request, jsonify
 
 from wizard.env_generator import generate_env
-from wizard.compose_helper import _compose_command, _docker_available
+from wizard.compose_helper import _compose_command, _docker_available, _is_in_docker
+from wizard.compose_generator import generate_app_compose
 
 # Folder with bundled sample documents (relative to repo root, i.e. cwd when wizard runs)
 _SAMPLE_KB_DIR = pathlib.Path("sample_kb")
@@ -40,15 +41,21 @@ def index():
 
 @app.post("/api/generate")
 def api_generate():
-    """Write .env.local from submitted answers. Return path + docker status."""
+    """Write .env.local + docker-compose.app.yml from submitted answers."""
     answers = request.get_json(force=True)
+
+    # When running inside the wizard Docker container, write to the mounted
+    # host directory so Docker (via socket) can read the files by HOST path.
+    output_dir = "/workspace" if _is_in_docker() else "."
+
     try:
-        path = generate_env(answers, output_dir=".")
+        env_path = generate_env(answers, output_dir=output_dir)
+        generate_app_compose(answers, output_dir=output_dir)
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
 
     docker_ok = _docker_available()
-    return jsonify({"ok": True, "env_path": path, "docker_available": docker_ok})
+    return jsonify({"ok": True, "env_path": env_path, "docker_available": docker_ok})
 
 
 @app.post("/api/launch")
