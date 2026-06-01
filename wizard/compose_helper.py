@@ -65,9 +65,11 @@ def _compose_command(answers: dict, in_docker: bool | None = None) -> list[str]:
     cmd = ["docker", "compose"]
 
     if in_docker:
-        host_pwd = os.environ.get("HOST_PWD", "/workspace")
-        cmd += ["-f", f"{host_pwd}/docker-compose.app.yml"]
-        cmd += ["--project-directory", host_pwd]
+        # Inside the wizard container, /workspace is the bind-mounted host directory.
+        # Use the container-side path so the Linux Docker CLI can read the file
+        # directly — HOST_PWD would be a Windows path and break on Linux Docker CLI.
+        cmd += ["-f", "/workspace/docker-compose.app.yml"]
+        cmd += ["--project-directory", "/workspace"]
 
     for p in profiles:
         cmd += ["--profile", p]
