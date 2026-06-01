@@ -33,7 +33,7 @@ cd "$WORKSPACE"
 # Download compose file
 echo "[3/4] Downloading wizard..."
 curl -fsSL -o docker-compose.wizard.yml \
-    https://raw.githubusercontent.com/A4i-tech/byoeb/a4i/main/docker-compose.wizard.yml
+    https://github.com/A4i-tech/byoeb/releases/download/v1.0.0-local-setup/docker-compose.wizard.yml
 echo "       Downloaded."
 
 # Launch
