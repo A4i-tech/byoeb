@@ -271,7 +271,7 @@
 </div>
 
 <!-- Progress -->
-<div class="progress-wrap" id="progress-wrap">
+<div class="progress-wrap" id="progress-wrap" style="display:none">
   <div class="steps">
     <div class="step-dot active" id="sdot-1"><div class="dot">1</div><span class="label">Queue</span></div>
     <div class="step-dot"        id="sdot-2"><div class="dot">2</div><span class="label">Vector Store</span></div>
@@ -301,7 +301,9 @@
         <div style="display:flex;align-items:flex-start;gap:14px">
           <div class="radio-dot" id="mode-dot-basic"></div>
           <div style="flex:1">
-            <div style="font-size:15px;font-weight:700;color:var(--wa-darker)">&#9889; Quick Setup <span class="badge badge-green">Recommended</span></div>
+            <div style="font-size:15px;font-weight:700;color:var(--wa-darker);display:flex;align-items:center;gap:7px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;color:var(--wa-dark-green)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Quick Setup <span class="badge badge-green">Recommended</span></div>
             <div style="font-size:13px;color:var(--muted);margin-top:4px;line-height:1.5">Enter only your OpenAI key and WhatsApp credentials. Everything else is configured automatically with sensible defaults.</div>
             <div style="margin-top:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px">
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin-bottom:8px">Defaults used</div>
@@ -321,7 +323,9 @@
         <div style="display:flex;align-items:flex-start;gap:14px">
           <div class="radio-dot" id="mode-dot-advanced"></div>
           <div>
-            <div style="font-size:15px;font-weight:700;color:var(--wa-darker)">&#9881;&#65039; Advanced Setup</div>
+            <div style="font-size:15px;font-weight:700;color:var(--wa-darker);display:flex;align-items:center;gap:7px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;color:var(--muted)"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
+              Advanced Setup</div>
             <div style="font-size:13px;color:var(--muted);margin-top:4px;line-height:1.5">Configure every option — queue, vector store, storage, Azure Cognitive Services, and more. Best for production or custom deployments.</div>
           </div>
         </div>
