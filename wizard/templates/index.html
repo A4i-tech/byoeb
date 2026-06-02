@@ -1142,6 +1142,19 @@ function doLaunch() {
 
 function loadSampleDocs() {
   document.getElementById('seed-kb-panel').style.display = 'block';
+  // Disable seed button and poll until KB service is ready
+  const seedBtn = document.getElementById('seed-btn');
+  const seedStatus = document.getElementById('seed-status');
+  seedBtn.disabled = true;
+  seedStatus.innerHTML = '<div class="banner warning"><div class="banner-content"><span class="spinner">&#8635;</span> KB app is starting — upload will be available once it\'s ready…</div></div>';
+  (function pollKB() {
+    fetch('http://localhost:8001/health', { signal: AbortSignal.timeout(3000) })
+      .then(r => { if (r.ok || r.status < 500) {
+        seedBtn.disabled = false;
+        seedStatus.innerHTML = '';
+      } else { setTimeout(pollKB, 3000); } })
+      .catch(() => setTimeout(pollKB, 3000));
+  })();
   fetch('/api/sample-docs').then(r => r.json()).then(docs => {
     const list = document.getElementById('sample-doc-list');
     if (!docs.length) { list.innerHTML = '<div style="color:#888;font-size:13px;">No sample documents found.</div>'; return; }
