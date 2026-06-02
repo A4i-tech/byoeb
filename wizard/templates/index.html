@@ -1081,7 +1081,7 @@ function buildSummary() {
 }
 
 function doGenerate() {
-  collectAnswers();
+  if (wizardMode !== 'basic') collectAnswers();
   const btn = document.getElementById('gen-btn');
   btn.textContent = 'Generating…'; btn.disabled = true;
   fetch('/api/generate', {
@@ -1104,7 +1104,7 @@ function doGenerate() {
 }
 
 function doLaunch() {
-  collectAnswers();
+  if (wizardMode !== 'basic') collectAnswers();
   const btn = document.getElementById('launch-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner">&#8635;</span> Launching…';
