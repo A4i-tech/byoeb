@@ -143,6 +143,10 @@ def api_seed_kb():
     body = request.get_json(force=True)
     selected = body.get("files", [])          # list of filenames from sample_kb/
     kb_url = body.get("kb_url", "http://localhost:8001")
+    # Inside the wizard container, localhost refers to the container itself.
+    # Use host.docker.internal to reach the KB service mapped on the host.
+    if _is_in_docker():
+        kb_url = "http://host.docker.internal:8001"
 
     results = []
     uploaded = []
