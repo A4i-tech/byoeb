@@ -1,5 +1,6 @@
 import base64
 import logging
+_chat_logger = logging.getLogger("asha_chat_debug")
 import uuid
 from datetime import datetime, timezone
 from typing import Any, List, Dict, Literal, Set
@@ -182,11 +183,14 @@ def chat_mcps_router(mcp):
         processed_ctx = await dependency_setup.byoeb_user_process.handle_process_message_workflow([byoeb_message])
         responses = await dependency_setup.byoeb_user_generate_response.handle_message_generate_workflow([processed_ctx]) or []
 
+        _chat_logger.warning("[asha_chat_debug] responses count=%d categories=%s", len(responses), [r.message_category for r in responses])
+
         preferred_categories = {
             MessageCategory.BOT_TO_USER_RESPONSE.value, MessageCategory.TEXT_IDK.value, MessageCategory.AUDIO_IDK.value,
             MessageCategory.AUDIO_DISAMBIGUATION.value, MessageCategory.TEXT_DISAMBIGUATION.value
         }
         for resp in responses:
+            _chat_logger.warning("[asha_chat_debug] resp cat=%s src_text_none=%s", resp.message_category, resp.message_context is None or resp.message_context.message_source_text is None)
             if resp.message_context is None or resp.message_context.message_source_text is None:
                 continue
             if resp.message_category not in preferred_categories:
