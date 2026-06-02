@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from typing import List
@@ -79,6 +80,26 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         """Async implementation using run_in_executor to avoid blocking the event loop."""
         import asyncio
         from functools import partial
+
+        # Generate related questions for each chunk if llm_client is provided
+        llm_client = kwargs.pop("llm_client", None)
+        languages_translation_prompts = kwargs.pop("languages_translation_prompts", {})
+        if llm_client:
+            from byoeb_integrations.vector_stores.related_questions import aget_related_questions
+            metadata = list(metadata)  # ensure mutable
+            for i, text in enumerate(data_chunks):
+                try:
+                    related_qs = await aget_related_questions(
+                        text=text,
+                        llm_client=llm_client,
+                        languages_translation_prompts=languages_translation_prompts,
+                        vector_store=self,
+                    )
+                    metadata[i] = dict(metadata[i])
+                    metadata[i]["related_questions"] = json.dumps(related_qs)
+                except Exception as e:
+                    logger.warning("Failed to generate related questions for chunk: %s", e)
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -132,11 +153,18 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         nodes = retriever.retrieve(text)
         chunk_list: List[Chunk] = []
         for node in nodes:
+            raw_meta = dict(node.node.metadata or {})
+            related_qs_raw = raw_meta.pop("related_questions", None)
+            try:
+                related_qs = json.loads(related_qs_raw) if isinstance(related_qs_raw, str) else (related_qs_raw or {})
+            except Exception:
+                related_qs = {}
             chunk = Chunk(
                 chunk_id=node.node.node_id,
                 text=node.node.text,
-                metadata=node.node.metadata,
-                similarity=node.score
+                metadata=raw_meta,
+                similarity=node.score,
+                related_questions=related_qs,
             )
             chunk_list.append(chunk)
         return chunk_list
@@ -152,11 +180,18 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         nodes = await retriever.aretrieve(text)
         chunk_list: List[Chunk] = []
         for node in nodes:
+            raw_meta = dict(node.node.metadata or {})
+            related_qs_raw = raw_meta.pop("related_questions", None)
+            try:
+                related_qs = json.loads(related_qs_raw) if isinstance(related_qs_raw, str) else (related_qs_raw or {})
+            except Exception:
+                related_qs = {}
             chunk = Chunk(
                 chunk_id=node.node.node_id,
                 text=node.node.text,
-                metadata=node.node.metadata,
-                similarity=node.score
+                metadata=raw_meta,
+                similarity=node.score,
+                related_questions=related_qs,
             )
             chunk_list.append(chunk)
         return chunk_list
