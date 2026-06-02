@@ -1148,11 +1148,11 @@ function loadSampleDocs() {
   seedBtn.disabled = true;
   seedStatus.innerHTML = '<div class="banner warning"><div class="banner-content"><span class="spinner">&#8635;</span> KB app is starting — upload will be available once it\'s ready…</div></div>';
   (function pollKB() {
-    fetch('http://localhost:8001/health', { signal: AbortSignal.timeout(3000) })
-      .then(r => { if (r.ok || r.status < 500) {
-        seedBtn.disabled = false;
-        seedStatus.innerHTML = '';
-      } else { setTimeout(pollKB, 3000); } })
+    fetch('/api/kb-health', { signal: AbortSignal.timeout(4000) })
+      .then(r => r.json()).then(d => {
+        if (d.available) { seedBtn.disabled = false; seedStatus.innerHTML = ''; }
+        else { setTimeout(pollKB, 3000); }
+      })
       .catch(() => setTimeout(pollKB, 3000));
   })();
   fetch('/api/sample-docs').then(r => r.json()).then(docs => {

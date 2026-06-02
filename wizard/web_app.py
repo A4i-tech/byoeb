@@ -114,6 +114,17 @@ def api_docker_check():
     return jsonify({"available": _docker_available()})
 
 
+@app.get("/api/kb-health")
+def api_kb_health():
+    """Proxy KB health check — avoids browser CORS issues across ports."""
+    kb_base = "http://host.docker.internal:8001" if _is_in_docker() else "http://localhost:8001"
+    try:
+        resp = requests.get(f"{kb_base}/docs", timeout=3)
+        return jsonify({"available": resp.status_code < 500})
+    except Exception:
+        return jsonify({"available": False})
+
+
 @app.get("/api/sample-docs")
 def api_sample_docs():
     """List sample KB documents shipped with the repo."""
