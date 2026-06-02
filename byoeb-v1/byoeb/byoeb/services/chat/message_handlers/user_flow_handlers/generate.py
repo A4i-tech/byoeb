@@ -431,6 +431,7 @@ class ByoebUserGenerateResponse(Handler):
                 except Exception as e:
                     logger.warning("Embedding cache update failed: %s. Continuing without cache update.", e)
 
+        media_info = media_info or {}  # guard: speech_translator absent returns None
         utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
         description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
         message_type = None
