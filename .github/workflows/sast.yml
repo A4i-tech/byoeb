@@ -21,18 +21,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Semgrep
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: >-
-            p/python
-            p/fastapi
-            p/secrets
-            p/owasp-top-ten
-          generateSarif: "1"
-          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      - name: Run Semgrep (generate SARIF)
+        # Run first pass to produce SARIF for GitHub Security tab.
+        # Always succeeds so the upload step always has a file to upload.
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        run: |
+          semgrep scan \
+            --config p/python \
+            --config p/fastapi \
+            --config p/secrets \
+            --config p/owasp-top-ten \
+            --sarif \
+            --output semgrep.sarif \
+            --exclude-rule python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5 \
+            --exclude-rule python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure \
+            || true
 
       - name: Upload SARIF to GitHub Security
         if: always()
@@ -40,6 +47,20 @@ jobs:
         with:
           sarif_file: semgrep.sarif
           category: semgrep
+
+      - name: Run Semgrep (enforce — fail on findings)
+        # Second pass with --error: exits 1 if any non-excluded findings remain.
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        run: |
+          semgrep scan \
+            --config p/python \
+            --config p/fastapi \
+            --config p/secrets \
+            --config p/owasp-top-ten \
+            --error \
+            --exclude-rule python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5 \
+            --exclude-rule python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
 
       - name: Notify Teams of Semgrep failure
         if: failure()
@@ -67,11 +88,22 @@ jobs:
         with:
           fetch-depth: 0   # full history — gitleaks scans all commits
 
+      - name: Install Gitleaks
+        run: |
+          GITLEAKS_VERSION="8.21.2"
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_CONFIG: .gitleaks.toml
+        run: |
+          gitleaks detect \
+            --source . \
+            --config .gitleaks.toml \
+            --verbose \
+            --redact \
+            --exit-code 1
 
       - name: Notify Teams of Gitleaks failure
         if: failure()

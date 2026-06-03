@@ -39,7 +39,7 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         if self.vector_store_index is not None:
             return self.vector_store_index
         self.collection = self.chromadb.get_or_create_collection()
-        os.chmod(self.__persist_directory, 0o777)
+        os.chmod(self.__persist_directory, 0o755)
         self.vector_store = ChromaVectorStore(chroma_collection=self.collection)
         self.vector_store_index = VectorStoreIndex.from_vector_store(
             vector_store=self.vector_store,

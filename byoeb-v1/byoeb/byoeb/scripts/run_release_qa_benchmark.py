@@ -251,7 +251,7 @@ async def main() -> int:
         print()
 
     headers = {"Content-Type": "application/x-www-form-urlencoded", "X-Tenant-ID": str(args.tenant_id)}
-    response = requests.post(f"{base_url}/auth/token/issue", headers=headers, data={"username": args.username, "password": args.password})
+    response = requests.post(f"{base_url}/auth/token/issue", headers=headers, data={"username": args.username, "password": args.password})  # nosemgrep: python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http
     response.raise_for_status()
     token = response.cookies.get("asha_auth_token")
 

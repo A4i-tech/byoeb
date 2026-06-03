@@ -6,3 +6,13 @@ byoeb-v1/byoeb-core/tests/
 data/
 migrations/
 *.migration.py
+
+# Pre-existing GitHub Actions workflow files — shell injection findings
+# (yaml.github-actions.security.run-shell-injection) are tracked as separate
+# tech debt (see issue #372 notes). These files pre-date SAST adoption.
+.github/actions/dispatch-teams-webhook/action.yml
+.github/workflows/ci-cd-pipeline.yml
+.github/workflows/deploy-azure-webapp.yml
+.github/workflows/deploy-render.yml
+.github/workflows/integration-tests.yml
+.github/workflows/unit-tests.yml
