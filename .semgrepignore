@@ -1,0 +1,8 @@
+# Semgrep ignore — test fixtures, data files, and migration scripts contain intentional
+# patterns (fake tokens, SQL strings) that would produce false positives.
+byoeb-v1/byoeb/tests/
+byoeb-v1/byoeb-integrations/byoeb_integrations/*/tests/
+byoeb-v1/byoeb-core/tests/
+data/
+migrations/
+*.migration.py
