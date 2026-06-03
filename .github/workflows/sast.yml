@@ -1,0 +1,88 @@
+name: SAST
+
+on:
+  workflow_call:
+    secrets:
+      SEMGREP_APP_TOKEN:
+        description: "Optional Semgrep Cloud token — enables managed rules and dashboard upload"
+        required: false
+      TEAMS_WEBHOOK_URL:
+        required: false
+
+jobs:
+  semgrep:
+    name: Semgrep (SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # required to upload SARIF
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/python
+            p/fastapi
+            p/secrets
+            p/owasp-top-ten
+          generateSarif: "1"
+          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+      - name: Notify Teams of Semgrep failure
+        if: failure()
+        uses: ./.github/actions/dispatch-teams-webhook
+        with:
+          summary: "❌ SAST (Semgrep) Failed"
+          activity-title: "❌ SAST (Semgrep) Failed"
+          theme-color: "FF0000"
+          facts: |
+            [
+              {"name": "Stage", "value": "SAST — Semgrep"},
+              {"name": "Actor", "value": "${{ github.actor }}"}
+            ]
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
+  gitleaks:
+    name: Gitleaks (secret scanning)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history — gitleaks scans all commits
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+      - name: Notify Teams of Gitleaks failure
+        if: failure()
+        uses: ./.github/actions/dispatch-teams-webhook
+        with:
+          summary: "❌ Secret Scanning (Gitleaks) Failed"
+          activity-title: "❌ Secret Scanning (Gitleaks) Failed"
+          theme-color: "FF0000"
+          facts: |
+            [
+              {"name": "Stage", "value": "Secret Scanning — Gitleaks"},
+              {"name": "Actor", "value": "${{ github.actor }}"}
+            ]
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
