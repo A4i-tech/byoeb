@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "a4i/main", "a4i/staging" ]
+    branches: [ "a4i/main", "a4i/staging", "nikunj/add-sast-gitleaks-semgrep" ]
   pull_request:
     branches: [ "a4i/main", "a4i/staging" ]
   workflow_dispatch:
