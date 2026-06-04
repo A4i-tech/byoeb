@@ -1275,10 +1275,27 @@ async function doSeedKB() {
   btn.disabled = false; btn.innerHTML = 'Upload &amp; Index Selected';
 }
 
+let _pullStatus = {}; // track pull progress per layer without spamming DOM
 function appendLog(line) {
+  // Suppress repetitive Docker pull progress lines to avoid freezing the browser
+  if (/^\s*[0-9a-f]+\s+(Downloading|Waiting|Verifying Checksum|Extracting)/.test(line)) {
+    // Update a single summary line instead
+    const box = document.getElementById('log-box');
+    let summary = box.querySelector('.pull-summary');
+    if (!summary) {
+      summary = document.createElement('div');
+      summary.className = 'pull-summary log-dim';
+      box.appendChild(summary);
+    }
+    summary.textContent = line.trim();
+    return;
+  }
   const box = document.getElementById('log-box');
+  // Remove pull summary once we get a real line
+  const old = box.querySelector('.pull-summary');
+  if (old) old.remove();
   const cls = (line.includes('error')||line.includes('Error')) ? 'log-err'
-             : (line.includes('Started')||line.includes('done')) ? 'log-ok'
+             : (line.includes('Started')||line.includes('Healthy')||line.includes('done')||line.includes('Pull complete')) ? 'log-ok'
              : line.startsWith('  ') ? 'log-dim' : '';
   box.innerHTML += `<div class="${cls}">${esc(line)}</div>`;
   box.scrollTop = box.scrollHeight;
