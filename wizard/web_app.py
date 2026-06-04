@@ -137,14 +137,22 @@ def api_setup_mcp_user():
     chat_base = "http://host.docker.internal:8000" if _is_in_docker() else "http://localhost:8000"
 
     try:
-        # 1. Get admin token + CSRF via cookie session
+        # 1. Get admin token + CSRF via cookie session (retry — admin seed takes time after healthcheck)
         sess = requests.Session()
-        r = sess.post(f"{chat_base}/auth/token/issue", data={
-            "username": admin_username,
-            "password": admin_password,
-        }, timeout=10)
-        if r.status_code != 200:
-            return jsonify({"ok": False, "error": f"Admin login failed: {r.status_code}"}), 400
+        r = None
+        for attempt in range(10):
+            try:
+                r = sess.post(f"{chat_base}/auth/token/issue", data={
+                    "username": admin_username,
+                    "password": admin_password,
+                }, timeout=10)
+                if r.status_code == 200:
+                    break
+            except Exception:
+                pass
+            time.sleep(3)
+        if r is None or r.status_code != 200:
+            return jsonify({"ok": False, "error": f"Admin login failed after retries (status {r.status_code if r else 'no response'})"}), 400
 
         csrf_token = sess.cookies.get("csrf_token", "")
 

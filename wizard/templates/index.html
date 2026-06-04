@@ -1154,7 +1154,7 @@ function doLaunch() {
 async function setupMcpUser() {
   document.getElementById('mcp-panel').style.display = 'block';
   // Wait a moment for chat app to be fully ready
-  await new Promise(r => setTimeout(r, 3000));
+  // No fixed wait — backend retries until chat app admin login succeeds
   try {
     const r = await fetch('/api/setup-mcp-user', {
       method: 'POST',
