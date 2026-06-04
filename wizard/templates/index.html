@@ -745,6 +745,16 @@
     <div id="log-box"></div>
     <div id="launch-status"></div>
 
+    <!-- MCP connection panel — shown after successful launch -->
+    <div id="mcp-panel" style="display:none; margin-top:20px;">
+      <hr class="divider">
+      <div class="section-label">Connect via MCP Inspector</div>
+      <p style="font-size:13px;color:#555;margin:0 0 12px;">Use MCP Inspector to chat with AshaBot directly — no WhatsApp needed. A test user has been created for you.</p>
+      <div id="mcp-details" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;font-size:13px;">
+        <div style="color:#888;font-size:13px;">Setting up MCP user…</div>
+      </div>
+    </div>
+
     <!-- Seed KB panel — shown after successful launch -->
     <div id="seed-kb-panel" style="display:none; margin-top:20px;">
       <hr class="divider">
@@ -1124,6 +1134,7 @@ function doLaunch() {
         '<strong>WhatsApp webhook:</strong> run <code>ngrok http 8000</code> and paste the URL in Meta developer console.'
       );
       btn.style.display = 'none';
+      setupMcpUser();
       loadSampleDocs();
     } else if (data === '__DONE_ERR__') {
       es.close();
@@ -1138,6 +1149,39 @@ function doLaunch() {
   fetch('/api/launch', {
     method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(answers)
   });
+}
+
+async function setupMcpUser() {
+  document.getElementById('mcp-panel').style.display = 'block';
+  // Wait a moment for chat app to be fully ready
+  await new Promise(r => setTimeout(r, 3000));
+  try {
+    const r = await fetch('/api/setup-mcp-user', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        admin_username: answers.admin_username || 'admin',
+        admin_password: answers.admin_password || '',
+      })
+    });
+    const d = await r.json();
+    const panel = document.getElementById('mcp-details');
+    if (d.ok) {
+      panel.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <tr><td style="color:#555;padding:4px 0;width:120px">MCP URL</td><td><code style="user-select:all">${esc(d.mcp_url)}</code></td></tr>
+          <tr><td style="color:#555;padding:4px 0">Username</td><td><code style="user-select:all">${esc(d.mcp_username)}</code></td></tr>
+          <tr><td style="color:#555;padding:4px 0">Password</td><td><code style="user-select:all">${esc(d.mcp_password)}</code></td></tr>
+        </table>
+        <div style="margin-top:10px;font-size:12px;color:#666">
+          Start MCP Inspector: <code>npx @modelcontextprotocol/inspector</code> → connect to above URL → login with above credentials.
+        </div>`;
+    } else {
+      panel.innerHTML = `<div style="color:#c00">Could not auto-create MCP user: ${esc(d.error || 'unknown error')}. Create manually via Admin panel.</div>`;
+    }
+  } catch(e) {
+    document.getElementById('mcp-details').innerHTML = `<div style="color:#c00">MCP user setup failed: ${esc(String(e))}</div>`;
+  }
 }
 
 function loadSampleDocs() {

@@ -125,6 +125,74 @@ def api_kb_health():
         return jsonify({"available": False})
 
 
+@app.post("/api/setup-mcp-user")
+def api_setup_mcp_user():
+    """
+    After containers are healthy, auto-create a test ASHA user + MCP auth user.
+    Returns MCP connection URL and credentials.
+    """
+    body = request.get_json(force=True) or {}
+    admin_username = body.get("admin_username", os.environ.get("ADMIN_USERNAME", "admin"))
+    admin_password = body.get("admin_password", os.environ.get("ADMIN_PASSWORD", ""))
+    chat_base = "http://host.docker.internal:8000" if _is_in_docker() else "http://localhost:8000"
+
+    try:
+        # 1. Get admin token + CSRF via cookie session
+        sess = requests.Session()
+        r = sess.post(f"{chat_base}/auth/token/issue", data={
+            "username": admin_username,
+            "password": admin_password,
+        }, timeout=10)
+        if r.status_code != 200:
+            return jsonify({"ok": False, "error": f"Admin login failed: {r.status_code}"}), 400
+
+        csrf_token = sess.cookies.get("csrf_token", "")
+
+        # 2. Get tenant ID from /auth/me
+        me = sess.get(f"{chat_base}/auth/me", timeout=5).json()
+        tenant_id = (me.get("tenants") or [{}])[0].get("tenant_id")
+        if not tenant_id:
+            return jsonify({"ok": False, "error": "Could not determine tenant ID"}), 400
+
+        # 3. Create ASHA user record
+        mcp_phone = "91000000001"
+        mcp_username = "mcpuser"
+        mcp_password = admin_password  # reuse admin password for simplicity
+
+        sess.post(f"{chat_base}/register_users",
+            json=[{
+                "phone_number_id": mcp_phone,
+                "user_location": {"district": "Local"},
+                "user_type": "asha",
+                "user_language": "en",
+            }],
+            headers={"X-CSRF-Token": csrf_token},
+            timeout=10,
+        )
+
+        # 4. Create auth user (ignore error if already exists)
+        sess.post(f"{chat_base}/auth/users",
+            json={
+                "username": mcp_username,
+                "password": mcp_password,
+                "tenant_id": tenant_id,
+                "roles": ["admin"],
+                "phone_number_id": mcp_phone,
+            },
+            headers={"X-CSRF-Token": csrf_token},
+            timeout=10,
+        )
+
+        return jsonify({
+            "ok": True,
+            "mcp_url": "http://127.0.0.1:8000/mcp",
+            "mcp_username": mcp_username,
+            "mcp_password": mcp_password,
+        })
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
 @app.get("/api/sample-docs")
 def api_sample_docs():
     """List sample KB documents shipped with the repo."""
