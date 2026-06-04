@@ -158,7 +158,7 @@ def api_setup_mcp_user():
 
         # 2. Get tenant ID from /auth/me
         me = sess.get(f"{chat_base}/auth/me", timeout=5).json()
-        tenant_id = (me.get("tenants") or [{}])[0].get("tenant_id")
+        tenant_id = me.get("tenant_id")
         if not tenant_id:
             return jsonify({"ok": False, "error": "Could not determine tenant ID"}), 400
 
