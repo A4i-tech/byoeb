@@ -193,7 +193,7 @@ def api_setup_mcp_user():
 
         return jsonify({
             "ok": True,
-            "mcp_url": "http://127.0.0.1:8000/mcp",
+            "mcp_url": f"http://127.0.0.1:8000/mcp?phone_number={mcp_phone}",
             "mcp_username": mcp_username,
             "mcp_password": mcp_password,
         })
