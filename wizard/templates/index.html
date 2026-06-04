@@ -1275,60 +1275,62 @@ async function doSeedKB() {
   btn.disabled = false; btn.innerHTML = 'Upload &amp; Index Selected';
 }
 
-let _pullStartTime = null;
-let _pullTimerInterval = null;
+// Track real Docker pull layer states
+const _layers = {}; // hash → state: 'waiting'|'downloading'|'done'
 
-function _showPullProgress(line) {
-  // Show/update pull progress banner
+function _updatePullBanner() {
+  const total = Object.keys(_layers).length;
+  const done  = Object.values(_layers).filter(s => s === 'done').length;
+  const dl    = Object.values(_layers).filter(s => s === 'downloading').length;
+
   let banner = document.getElementById('pull-progress-banner');
   if (!banner) {
     const box = document.getElementById('log-box');
     banner = document.createElement('div');
     banner.id = 'pull-progress-banner';
-    banner.style.cssText = 'padding:10px 0 6px;';
+    banner.style.cssText = 'padding:10px 0 8px;';
     banner.innerHTML = `
-      <div style="font-size:12px;color:#9ca3af;margin-bottom:6px" id="pull-progress-label">
-        <span class="spinner" style="display:inline-block;margin-right:6px">&#8635;</span>
-        <span id="pull-progress-text">Downloading Docker images…</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:12px;color:#9ca3af">
+          <span class="spinner" style="display:inline-block;margin-right:5px">&#8635;</span>
+          <span id="pull-status-text">Pulling Docker images…</span>
+        </div>
+        <div style="font-size:12px;color:#4ade80;font-weight:600" id="pull-count-text"></div>
       </div>
-      <div style="background:#374151;border-radius:4px;height:4px;overflow:hidden">
-        <div id="pull-progress-bar" style="height:100%;background:linear-gradient(90deg,#25D366,#128C7E);width:30%;border-radius:4px;animation:pullpulse 1.5s ease-in-out infinite"></div>
+      <div style="background:#374151;border-radius:3px;height:5px;overflow:hidden">
+        <div id="pull-progress-bar" style="height:100%;background:var(--wa-green);border-radius:3px;transition:width 0.4s ease;width:0%"></div>
       </div>
-      <div style="font-size:11px;color:#4b5563;margin-top:4px" id="pull-progress-note">First run may take 5–10 minutes — images are ~1.5 GB</div>`;
+      <div style="font-size:11px;color:#4b5563;margin-top:5px">First run downloads ~1.5 GB — takes 5–10 minutes on average connection</div>`;
     box.appendChild(banner);
-
-    // Add pulse animation if not already added
-    if (!document.getElementById('pull-pulse-style')) {
-      const s = document.createElement('style');
-      s.id = 'pull-pulse-style';
-      s.textContent = '@keyframes pullpulse{0%{width:20%;opacity:0.8}50%{width:70%;opacity:1}100%{width:20%;opacity:0.8}}';
-      document.head.appendChild(s);
-    }
-
-    _pullStartTime = Date.now();
-    _pullTimerInterval = setInterval(() => {
-      const el = document.getElementById('pull-progress-text');
-      if (!el) { clearInterval(_pullTimerInterval); return; }
-      const secs = Math.floor((Date.now() - _pullStartTime) / 1000);
-      const m = Math.floor(secs / 60), s = secs % 60;
-      el.textContent = `Downloading Docker images… ${m > 0 ? m + 'm ' : ''}${s}s elapsed`;
-    }, 1000);
   }
+
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const bar = document.getElementById('pull-progress-bar');
+  const countEl = document.getElementById('pull-count-text');
+  const statusEl = document.getElementById('pull-status-text');
+  if (bar) bar.style.width = pct + '%';
+  if (countEl) countEl.textContent = total > 0 ? `${done} / ${total} layers` : '';
+  if (statusEl) statusEl.textContent = dl > 0
+    ? `Downloading ${dl} layer${dl > 1 ? 's' : ''}…`
+    : done === total && total > 0 ? 'Starting containers…' : 'Pulling Docker images…';
 }
 
 function _hidePullProgress() {
   const banner = document.getElementById('pull-progress-banner');
   if (banner) banner.remove();
-  if (_pullTimerInterval) { clearInterval(_pullTimerInterval); _pullTimerInterval = null; }
 }
 
 function appendLog(line) {
-  // Suppress repetitive Docker pull progress lines to avoid freezing the browser
-  if (/^\s*[0-9a-f]+\s+(Downloading|Waiting|Verifying Checksum|Extracting)/.test(line)) {
-    _showPullProgress(line);
+  const m = line.match(/^\s*([0-9a-f]+)\s+(Downloading|Waiting|Verifying Checksum|Extracting|Pull complete|Already exists)/);
+  if (m) {
+    const [, hash, state] = m;
+    const prev = _layers[hash];
+    _layers[hash] = (state === 'Pull complete' || state === 'Already exists') ? 'done'
+                  : state === 'Downloading' ? 'downloading' : 'waiting';
+    _updatePullBanner();
     return;
   }
-  // Real line — hide pull progress if visible
+  // Real line — hide pull progress
   _hidePullProgress();
   const box = document.getElementById('log-box');
   const cls = (line.includes('error')||line.includes('Error')) ? 'log-err'
