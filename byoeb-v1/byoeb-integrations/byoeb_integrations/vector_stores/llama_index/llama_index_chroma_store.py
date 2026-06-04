@@ -89,37 +89,16 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
             metadata = list(metadata)  # ensure mutable
             for i, text in enumerate(data_chunks):
                 try:
-                    # During indexing the store is empty, so passing vector_store would find
-                    # no related chunks and produce empty questions. Instead, pass the chunk
-                    # text itself as context via a custom system_prompt.
-                    indexing_system_prompt = (
-                        "You generate three related questions that a user might want to ask next, "
-                        "based on the following knowledge base text.\n\n"
-                        "Rules:\n"
-                        "1. Each question MUST be answerable using ONLY the provided text.\n"
-                        "2. For each question, quote the exact span of text that answers it.\n"
-                        "3. Each question MUST be DISTINCT.\n"
-                        "4. Respond only in the XML format shown in the example.\n\n"
-                        "<example>\n"
-                        "<related_questions>\n"
-                        '<q id="eid_0"><source>exact span</source><question>Question?</question></q>\n'
-                        "</related_questions>\n"
-                        "</example>\n\n"
-                        "<related_chunks>\n"
-                        f"{text}\n"
-                        "</related_chunks>"
-                    )
                     related_qs = await aget_related_questions(
                         text=text,
                         llm_client=llm_client,
                         languages_translation_prompts=languages_translation_prompts,
-                        system_prompt=indexing_system_prompt,
+                        vector_store=self,
                     )
                     metadata[i] = dict(metadata[i])
                     metadata[i]["related_questions"] = json.dumps(related_qs)
-                    logger.info("Generated related questions for chunk %d: %s", i, list(related_qs.keys()))
                 except Exception as e:
-                    logger.warning("Failed to generate related questions for chunk %d: %s", i, e)
+                    logger.warning("Failed to generate related questions for chunk: %s", e)
 
         try:
             loop = asyncio.get_running_loop()
