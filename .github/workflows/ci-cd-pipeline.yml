@@ -279,3 +279,21 @@ jobs:
       environment: production
       deployment-url: ${{ needs.deploy-production.outputs['service-url'] }}
     secrets: inherit
+
+  # PR-only: GitHub dependency review (flags new HIGH+ vulns introduced by this diff)
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: always
