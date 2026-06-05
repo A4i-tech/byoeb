@@ -1,0 +1,89 @@
+name: Dependency Scan
+
+on:
+  workflow_call:
+    inputs:
+      directory:
+        description: "Relative path to the Poetry project"
+        required: true
+        type: string
+
+jobs:
+  dependency-scan:
+    runs-on: ubuntu-latest
+
+    env:
+      POETRY_VIRTUALENVS_IN_PROJECT: "true"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "poetry"
+          cache-dependency-path: |
+            ${{ inputs.directory }}/pyproject.toml
+
+      - name: Cache poetry.lock
+        uses: actions/cache@v4
+        with:
+          path: ${{ inputs.directory }}/poetry.lock
+          key: lock-${{ runner.os }}-${{ hashFiles(format('{0}/pyproject.toml', inputs.directory)) }}
+          restore-keys: |
+            lock-${{ runner.os }}-
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.directory }}
+        run: poetry lock --no-interaction --no-ansi && poetry install --no-interaction
+
+      - name: Run pip-audit
+        working-directory: ${{ inputs.directory }}
+        run: >
+          poetry run pip-audit
+          --strict
+          --format markdown
+          --output pip-audit-report.md
+          --vulnerability-service osv
+
+      - name: Annotate vulnerabilities (warn only)
+        if: ${{ failure() }}
+        working-directory: ${{ inputs.directory }}
+        run: |
+          if [ -f pip-audit-report.md ]; then
+            echo "::warning::pip-audit found vulnerabilities in ${{ inputs.directory }} — see artifact"
+          fi
+
+      - name: Set artifact name
+        if: always()
+        id: artifact-name
+        run: echo "name=pip-audit-report-$(basename '${{ inputs.directory }}')" >> $GITHUB_OUTPUT
+
+      - name: Upload pip-audit report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact-name.outputs.name }}
+          path: ${{ inputs.directory }}/pip-audit-report.md
+          if-no-files-found: ignore
+
+      - name: Notify Teams of dependency scan failure
+        if: ${{ failure() && github.event_name != 'pull_request' }}
+        uses: ./.github/actions/dispatch-teams-webhook
+        with:
+          summary: '❌ Pipeline Stage Failed'
+          activity-title: '❌ Pipeline Stage Failed'
+          theme-color: 'FF0000'
+          facts: |
+            [
+              {
+                "name": "Stage",
+                "value": "Dependency Scan (${{ inputs.directory }})"
+              }
+            ]
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
