@@ -1,5 +1,5 @@
 name: Dependency Scan
-
+# Scans Python deps for CVEs using pip-audit across all three Poetry packages
 on:
   workflow_call:
     inputs:
