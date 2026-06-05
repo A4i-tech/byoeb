@@ -42,6 +42,7 @@ jobs:
         working-directory: ${{ inputs.directory }}
         run: poetry lock --no-interaction --no-ansi && poetry install --no-interaction
 
+      # CVE-2025-69872 (diskcache): no upstream fix available as of 2026-06-05 — revisit when a fix is released
       - name: Run pip-audit
         working-directory: ${{ inputs.directory }}
         run: >
@@ -51,6 +52,7 @@ jobs:
           --format markdown
           --output pip-audit-report.md
           --vulnerability-service osv
+          --ignore-vuln CVE-2025-69872
 
       - name: Annotate vulnerabilities (warn only)
         if: ${{ failure() }}
