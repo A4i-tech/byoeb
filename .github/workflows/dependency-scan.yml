@@ -47,6 +47,7 @@ jobs:
         run: >
           poetry run pip-audit
           --strict
+          --skip-editable
           --format markdown
           --output pip-audit-report.md
           --vulnerability-service osv
