@@ -42,7 +42,9 @@ jobs:
         working-directory: ${{ inputs.directory }}
         run: poetry lock --no-interaction --no-ansi && poetry install --no-interaction
 
-      # CVE-2025-69872 (diskcache): no upstream fix available as of 2026-06-05 — revisit when a fix is released
+      # Ignored CVEs (no upstream fix available as of 2026-06-05 — revisit when fixes are released):
+      # CVE-2025-69872 (diskcache 5.6.3): no fix version
+      # CVE-2025-64340, CVE-2026-27124, CVE-2026-32871 (fastmcp 2.x): fixed in fastmcp 3.x (major breaking change — tracked separately)
       - name: Run pip-audit
         working-directory: ${{ inputs.directory }}
         run: >
@@ -53,6 +55,9 @@ jobs:
           --output pip-audit-report.md
           --vulnerability-service osv
           --ignore-vuln CVE-2025-69872
+          --ignore-vuln CVE-2025-64340
+          --ignore-vuln CVE-2026-27124
+          --ignore-vuln CVE-2026-32871
 
       - name: Annotate vulnerabilities (warn only)
         if: ${{ failure() }}
