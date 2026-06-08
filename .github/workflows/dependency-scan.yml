@@ -30,18 +30,11 @@ jobs:
           cache-dependency-path: |
             ${{ inputs.directory }}/pyproject.toml
 
-      - name: Cache poetry.lock
-        uses: actions/cache@v4
-        with:
-          path: ${{ inputs.directory }}/poetry.lock
-          key: lock-${{ runner.os }}-${{ hashFiles(format('{0}/pyproject.toml', inputs.directory)) }}
-          restore-keys: |
-            lock-${{ runner.os }}-
-
       - name: Install dependencies
         working-directory: ${{ inputs.directory }}
+        # poetry check --lock: fail if poetry.lock is out of sync with pyproject.toml (prevents silent drift)
         # --no-root: skip installing the project itself as editable so pip-audit doesn't error on it
-        run: poetry lock --no-interaction --no-ansi && poetry install --no-interaction --no-root
+        run: poetry check --lock && poetry install --no-interaction --no-root
 
       # CVE-2025-69872 (diskcache 5.6.3): no upstream fix available as of 2026-06-05 — revisit when a fix is released
       - name: Run pip-audit

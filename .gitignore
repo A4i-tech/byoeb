@@ -6,6 +6,7 @@
 
 #poetry
 *.lock
+!poetry.lock
 
 # any mp3/oggclear
  audio files
