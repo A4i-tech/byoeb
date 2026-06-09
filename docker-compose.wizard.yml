@@ -24,6 +24,9 @@ services:
       # Docker Compose always sets PWD in the environment when interpolating.
       HOST_PWD: ${PWD}
       RUNNING_IN_DOCKER: "1"
+    extra_hosts:
+      # Required on Linux — host.docker.internal is automatic on macOS/Windows only
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/')"]
       interval: 5s
