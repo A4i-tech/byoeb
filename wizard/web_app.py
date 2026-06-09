@@ -24,6 +24,8 @@ app.secret_key = os.urandom(24)
 # shared state for SSE streaming
 _log_queue: queue.Queue = queue.Queue()
 _launch_status = {"done": False, "success": False}
+# port assignments resolved at compose-generation time (may differ from defaults if ports were in use)
+_ports = {"chat": 8000, "kb": 8001, "mongodb": 27017, "kafka": 9092}
 
 
 # ---------------------------------------------------------------------------
@@ -50,12 +52,14 @@ def api_generate():
 
     try:
         env_path = generate_env(answers, output_dir=output_dir)
-        generate_app_compose(answers, output_dir=output_dir)
+        _, resolved_ports = generate_app_compose(answers, output_dir=output_dir)
+        global _ports
+        _ports = resolved_ports
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
 
     docker_ok = _docker_available()
-    return jsonify({"ok": True, "env_path": env_path, "docker_available": docker_ok})
+    return jsonify({"ok": True, "env_path": env_path, "docker_available": docker_ok, "ports": _ports})
 
 
 @app.post("/api/launch")
@@ -117,7 +121,8 @@ def api_docker_check():
 @app.get("/api/kb-health")
 def api_kb_health():
     """Proxy KB health check — avoids browser CORS issues across ports."""
-    kb_base = "http://host.docker.internal:8001" if _is_in_docker() else "http://localhost:8001"
+    kb_port = _ports.get("kb", 8001)
+    kb_base = f"http://host.docker.internal:{kb_port}" if _is_in_docker() else f"http://localhost:{kb_port}"
     try:
         resp = requests.get(f"{kb_base}/docs", timeout=3)
         return jsonify({"available": resp.status_code < 500})
@@ -134,7 +139,8 @@ def api_setup_mcp_user():
     body = request.get_json(force=True) or {}
     admin_username = body.get("admin_username", os.environ.get("ADMIN_USERNAME", "admin"))
     admin_password = body.get("admin_password", os.environ.get("ADMIN_PASSWORD", ""))
-    chat_base = "http://host.docker.internal:8000" if _is_in_docker() else "http://localhost:8000"
+    chat_port = _ports.get("chat", 8000)
+    chat_base = f"http://host.docker.internal:{chat_port}" if _is_in_docker() else f"http://localhost:{chat_port}"
 
     try:
         # 1. Get admin token + CSRF via cookie session (retry — admin seed takes time after healthcheck)
@@ -193,7 +199,7 @@ def api_setup_mcp_user():
 
         return jsonify({
             "ok": True,
-            "mcp_url": f"http://127.0.0.1:8000/mcp?phone_number={mcp_phone}",
+            "mcp_url": f"http://127.0.0.1:{chat_port}/mcp?phone_number={mcp_phone}",
             "mcp_username": mcp_username,
             "mcp_password": mcp_password,
         })
@@ -229,11 +235,12 @@ def api_seed_kb():
     """Upload selected sample docs to KB service and trigger indexing."""
     body = request.get_json(force=True)
     selected = body.get("files", [])          # list of filenames from sample_kb/
-    kb_url = body.get("kb_url", "http://localhost:8001")
+    kb_port = _ports.get("kb", 8001)
+    kb_url = body.get("kb_url", f"http://localhost:{kb_port}")
     # Inside the wizard container, localhost refers to the container itself.
     # Use host.docker.internal to reach the KB service mapped on the host.
     if _is_in_docker():
-        kb_url = "http://host.docker.internal:8001"
+        kb_url = f"http://host.docker.internal:{kb_port}"
 
     results = []
     uploaded = []
