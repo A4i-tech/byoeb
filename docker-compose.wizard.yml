@@ -11,6 +11,7 @@
 services:
   wizard:
     image: ghcr.io/a4i-tech/byoeb-wizard:latest
+    pull_policy: always
     ports:
       - "5001:5001"
     volumes:
