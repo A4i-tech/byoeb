@@ -118,19 +118,17 @@ def create_apps(is_prod: bool):
     return app, mcp_app
 
 async def _seed_admin_user():
-    """Create default tenant + admin user on first boot if ADMIN_USERNAME/ADMIN_PASSWORD are set."""
-    from byoeb.chat_app.configuration.config import env_admin_username, env_admin_password
-    if not env_admin_username or not env_admin_password:
+    """Create default tenant + admin user on first boot if ADMIN_USERNAME/ADMIN_PASSWORD_HASH are set."""
+    from byoeb.chat_app.configuration.config import env_admin_username, env_admin_password_hash
+    if not env_admin_username or not env_admin_password_hash:
         return
     try:
         import uuid
-        from pydantic import BaseModel
         from byoeb.services.auth.auth_service import get_auth_service
 
         auth = await get_auth_service()
 
         # Find or create the default tenant
-        # Access _tenant_collection directly to find any existing tenant
         existing_tenant = await auth._repo._tenant_collection.find_one({})
         if existing_tenant:
             tenant_id = existing_tenant["_id"]
@@ -145,18 +143,15 @@ async def _seed_admin_user():
             logger.info("Admin seed: user '%s' already exists — skipping", env_admin_username)
             return
 
-        class _Payload(BaseModel):
-            username: str
-            password: str
-            tenant_id: uuid.UUID
-            roles: list[str] = ["admin"]
-            phone_number_id: str | None = None
-
-        await auth.register_user(tenant_id, _Payload(
-            username=env_admin_username,
-            password=env_admin_password,
-            tenant_id=tenant_id,
-        ))
+        # Insert pre-hashed password directly — plaintext never held in memory from env
+        user_id = uuid.uuid4()
+        await auth._repo.insert_one({
+            "_id": user_id,
+            "username": env_admin_username,
+            "tenants": [{"tenant_id": tenant_id, "roles": ["admin"]}],
+            "phone_number_id": None,
+            "password_hash": env_admin_password_hash,
+        })
         logger.info("Admin seed: created user '%s' in tenant %s", env_admin_username, tenant_id)
     except Exception as exc:
         logger.warning("Admin seed failed (non-fatal): %s", exc)

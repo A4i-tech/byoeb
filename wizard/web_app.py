@@ -3,6 +3,7 @@ import json
 import os
 import pathlib
 import queue
+import secrets
 import subprocess
 import threading
 import time
@@ -41,10 +42,40 @@ def index():
 # API
 # ---------------------------------------------------------------------------
 
+_VALID_QUEUES = {"kafka", "azure_storage_queue"}
+_VALID_VECTOR_STORES = {"llama_index_chroma", "qdrant", "azure_vector_search"}
+_VALID_STORAGE_BACKENDS = {"local", "azure"}
+_VALID_QDRANT_MODES = {"memory", "docker", "cloud"}
+
+
+def _validate_answers(answers: dict) -> str | None:
+    """Return error string if answers fail server-side validation, else None."""
+    if not answers.get("openai_api_key", "").startswith("sk-"):
+        return "openai_api_key must start with 'sk-'"
+    if answers.get("queue") not in _VALID_QUEUES:
+        return f"queue must be one of {_VALID_QUEUES}"
+    if answers.get("vector_store") not in _VALID_VECTOR_STORES:
+        return f"vector_store must be one of {_VALID_VECTOR_STORES}"
+    if answers.get("storage_backend") not in _VALID_STORAGE_BACKENDS:
+        return f"storage_backend must be one of {_VALID_STORAGE_BACKENDS}"
+    if answers.get("vector_store") == "qdrant" and answers.get("qdrant_mode") not in _VALID_QDRANT_MODES:
+        return f"qdrant_mode must be one of {_VALID_QDRANT_MODES}"
+    phone = str(answers.get("whatsapp_phone_id", ""))
+    if phone and not phone.isdigit():
+        return "whatsapp_phone_id must be numeric"
+    if not answers.get("admin_password", ""):
+        return "admin_password is required"
+    return None
+
+
 @app.post("/api/generate")
 def api_generate():
     """Write .env.local + docker-compose.app.yml from submitted answers."""
     answers = request.get_json(force=True)
+
+    err = _validate_answers(answers)
+    if err:
+        return jsonify({"ok": False, "error": err}), 400
 
     # When running inside the wizard Docker container, write to the mounted
     # host directory so Docker (via socket) can read the files by HOST path.
@@ -171,7 +202,7 @@ def api_setup_mcp_user():
         # 3. Create ASHA user record
         mcp_phone = "91000000001"
         mcp_username = "mcpuser"
-        mcp_password = admin_password  # reuse admin password for simplicity
+        mcp_password = secrets.token_urlsafe(16)  # random — independent of admin credentials
 
         sess.post(f"{chat_base}/register_users",
             json=[{

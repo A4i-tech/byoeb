@@ -115,7 +115,6 @@ AUTH_TOKEN_AUDIENCE=byoeb
 
 # --- Admin Panel ---
 ADMIN_USERNAME={answers.get('admin_username', 'admin')}
-ADMIN_PASSWORD={answers.get('admin_password', '')}
 ADMIN_PASSWORD_HASH={admin_hash}
 ADMIN_SECRET_KEY={admin_secret}
 
