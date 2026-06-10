@@ -20,13 +20,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683   # v4.2.2
 
       - name: Install Semgrep
         run: pip --default-timeout=30 install semgrep==1.76.0
 
-      - name: Run Semgrep (generate SARIF)
-        # Runs without --error so SARIF is always written even when findings exist.
+      - name: Run Semgrep
+        # Single pass: --sarif + --output + --error together.
+        # Semgrep writes the SARIF file before applying --error exit code,
+        # so findings are captured even when the step exits non-zero.
         # Excluded rules are false positives for this codebase:
         #   insecure-hash-algorithms-md5 — MD5 used for non-crypto deterministic ID
         #     generation from phone numbers, not as a cryptographic signature
@@ -42,34 +44,22 @@ jobs:
             --config p/owasp-top-ten \
             --sarif \
             --output semgrep.sarif \
+            --error \
             --exclude-rule python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5 \
-            --exclude-rule python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure \
-            || true
+            --exclude-rule python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
 
       - name: Restrict SARIF file permissions
+        if: always()
         # Limit read access to owner only before uploading.
         # Relevant on self-hosted runners with shared workspaces.
         run: chmod 600 semgrep.sarif
 
       - name: Upload SARIF to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2550a134d1a8d0845ed5b9462de6e   # v3.28.18
         with:
           sarif_file: semgrep.sarif
           category: semgrep
-
-      - name: Run Semgrep (enforce — fail on findings)
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-        run: |
-          semgrep scan \
-            --config p/python \
-            --config p/fastapi \
-            --config p/secrets \
-            --config p/owasp-top-ten \
-            --error \
-            --exclude-rule python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5 \
-            --exclude-rule python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
 
       - name: Notify Teams of Semgrep failure
         if: failure()
@@ -91,10 +81,11 @@ jobs:
     timeout-minutes: 10   # prevents indefinite hang on binary download or scan
     permissions:
       contents: read
+      security-events: write   # required to upload SARIF
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683   # v4.2.2
         with:
           fetch-depth: 0   # full history required — gitleaks scans all commits for secrets
 
@@ -119,7 +110,16 @@ jobs:
             --source . \
             --config .gitleaks.toml \
             --redact \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
             --exit-code 1
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2550a134d1a8d0845ed5b9462de6e   # v3.28.18
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks
 
       - name: Notify Teams of Gitleaks failure
         if: failure()
