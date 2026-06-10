@@ -22,11 +22,11 @@ def _find_free_port(preferred: int, max_attempts: int = 20) -> int:
         return s.getsockname()[1]
 
 
-def generate_app_compose(answers: dict, output_dir: str = ".") -> str:
+def generate_app_compose(answers: dict, output_dir: str = ".") -> tuple:
     """
     Write docker-compose.app.yml to output_dir.
     Uses published registry images so no source code (git clone) is needed.
-    Returns the absolute path of the written file.
+    Returns (absolute_path, ports) where ports maps service names to resolved host ports.
     """
     include_qdrant = (
         answers.get("vector_store") == "qdrant"

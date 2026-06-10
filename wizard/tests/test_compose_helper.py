@@ -12,22 +12,20 @@ def test_compose_command_default_no_docker():
     assert cmd == ["docker", "compose", "up", "--build", "-d"]
 
 
-def test_compose_command_in_docker_uses_host_pwd():
-    """Inside Docker: uses HOST_PWD and references docker-compose.app.yml."""
+def test_compose_command_in_docker_uses_workspace_path():
+    """Inside Docker: uses /workspace path, not HOST_PWD (avoids Windows path issues on Linux Docker CLI)."""
     answers = {"queue": "kafka", "vector_store": "llama_index_chroma"}
-    with patch.dict(os.environ, {"HOST_PWD": "/host/mydir"}):
-        cmd = _compose_command(answers, in_docker=True)
+    cmd = _compose_command(answers, in_docker=True)
     assert "-f" in cmd
-    assert "/host/mydir/docker-compose.app.yml" in cmd
+    assert "/workspace/docker-compose.app.yml" in cmd
     assert "--project-directory" in cmd
-    assert "/host/mydir" in cmd
+    assert "/workspace" in cmd
 
 
 def test_compose_command_in_docker_no_build_flag():
     """Inside Docker: uses --pull always, NOT --build (images are pre-built)."""
     answers = {"queue": "kafka", "vector_store": "llama_index_chroma"}
-    with patch.dict(os.environ, {"HOST_PWD": "/host/mydir"}):
-        cmd = _compose_command(answers, in_docker=True)
+    cmd = _compose_command(answers, in_docker=True)
     assert "--build" not in cmd
     assert "--pull" in cmd
 
