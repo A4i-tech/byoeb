@@ -12,6 +12,7 @@ migrations/
 # tech debt (see issue #372 notes). These files pre-date SAST adoption.
 .github/actions/dispatch-teams-webhook/action.yml
 .github/workflows/ci-cd-pipeline.yml
+.github/workflows/dependency-scan.yml
 .github/workflows/deploy-azure-webapp.yml
 .github/workflows/deploy-render.yml
 .github/workflows/integration-tests.yml
