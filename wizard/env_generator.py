@@ -1,4 +1,5 @@
 """Generate .env.local from wizard answers."""
+import base64
 import os
 import secrets
 import bcrypt as _bcrypt
@@ -74,9 +75,11 @@ def generate_env(answers: dict, output_dir: str = ".") -> str:
 
     storage_block = _storage_block(answers)
 
-    admin_hash = _bcrypt.hashpw(
-        answers["admin_password"].encode("utf-8"), _bcrypt.gensalt()
-    ).decode("utf-8")
+    # Base64-encode the bcrypt hash to avoid '$' chars that docker compose
+    # env_file interpolation would mangle (even with $$ escaping).
+    admin_hash = base64.b64encode(
+        _bcrypt.hashpw(answers["admin_password"].encode("utf-8"), _bcrypt.gensalt())
+    ).decode("ascii")
     admin_secret = secrets.token_hex(32)
     auth_secret = secrets.token_hex(32)
 

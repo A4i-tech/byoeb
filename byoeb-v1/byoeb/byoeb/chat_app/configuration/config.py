@@ -42,9 +42,14 @@ env_openai_org_id = os.getenv("OPENAI_ORG_ID")
 env_mongo_db_connection_string = os.getenv("MONGO_DB_CONNECTION_STRING")
 
 # Admin seed (set by wizard on first-time setup)
-# ADMIN_PASSWORD_HASH (bcrypt) is used directly — plaintext never stored in env
+# ADMIN_PASSWORD_HASH is base64-encoded bcrypt to survive docker compose env_file $ interpolation
+import base64 as _b64
 env_admin_username = os.getenv("ADMIN_USERNAME")
-env_admin_password_hash = os.getenv("ADMIN_PASSWORD_HASH")
+_admin_hash_b64 = os.getenv("ADMIN_PASSWORD_HASH", "")
+try:
+    env_admin_password_hash = _b64.b64decode(_admin_hash_b64).decode("utf-8") if _admin_hash_b64 else None
+except Exception:
+    env_admin_password_hash = None
 
 # Logger
 env_appinsights_connection_string = os.getenv("APPINSIGHTS_CONNECTION_STRING")
