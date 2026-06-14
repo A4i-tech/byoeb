@@ -1153,8 +1153,28 @@ function doLaunch() {
 
 async function setupMcpUser() {
   document.getElementById('mcp-panel').style.display = 'block';
-  // Wait a moment for chat app to be fully ready
-  // No fixed wait — backend retries until chat app admin login succeeds
+  const panel = document.getElementById('mcp-details');
+
+  // Poll until chat app is reachable before attempting MCP user creation.
+  // docker compose up -d exits before containers finish starting, so we
+  // must wait here rather than relying on backend retries alone.
+  await new Promise(resolve => {
+    (function pollChat() {
+      fetch('/api/chat-health', { signal: AbortSignal.timeout(4000) })
+        .then(r => r.json()).then(d => {
+          if (d.available) { resolve(); }
+          else {
+            panel.innerHTML = '<div style="color:#888;font-size:13px;"><span class="spinner">&#8635;</span> Chat app is starting — please wait…</div>';
+            setTimeout(pollChat, 3000);
+          }
+        })
+        .catch(() => {
+          panel.innerHTML = '<div style="color:#888;font-size:13px;"><span class="spinner">&#8635;</span> Chat app is starting — please wait…</div>';
+          setTimeout(pollChat, 3000);
+        });
+    })();
+  });
+
   try {
     const r = await fetch('/api/setup-mcp-user', {
       method: 'POST',

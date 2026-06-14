@@ -161,6 +161,18 @@ def api_kb_health():
         return jsonify({"available": False})
 
 
+@app.get("/api/chat-health")
+def api_chat_health():
+    """Proxy chat app health check — avoids browser CORS issues across ports."""
+    chat_port = _ports.get("chat", 8000)
+    chat_base = f"http://host.docker.internal:{chat_port}" if _is_in_docker() else f"http://localhost:{chat_port}"
+    try:
+        resp = requests.get(f"{chat_base}/docs", timeout=3)
+        return jsonify({"available": resp.status_code < 500})
+    except Exception:
+        return jsonify({"available": False})
+
+
 @app.post("/api/setup-mcp-user")
 def api_setup_mcp_user():
     """
