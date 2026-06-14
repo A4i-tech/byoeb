@@ -248,7 +248,7 @@ def api_setup_mcp_user():
 
         return jsonify({
             "ok": True,
-            "mcp_url": f"http://127.0.0.1:{chat_port}/mcp?phone_number={mcp_phone}",
+            "mcp_url": f"http://127.0.0.1:{chat_port}/mcp",
             "mcp_username": mcp_username,
             "mcp_password": mcp_password,
         })
