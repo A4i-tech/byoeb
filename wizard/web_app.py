@@ -190,7 +190,7 @@ def api_setup_mcp_user():
         sess = requests.Session()
         r = None
         last_exc = None
-        for attempt in range(10):
+        for attempt in range(15):
             try:
                 r = sess.post(f"{chat_base}/auth/token/issue", data={
                     "username": admin_username,
@@ -198,6 +198,10 @@ def api_setup_mcp_user():
                 }, timeout=10)
                 if r.status_code == 200:
                     break
+                if r.status_code == 429:
+                    # Rate limited — wait out the full window before retrying
+                    time.sleep(65)
+                    continue
             except Exception as e:
                 last_exc = e
             time.sleep(3)

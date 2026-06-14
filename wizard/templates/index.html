@@ -1175,6 +1175,9 @@ async function setupMcpUser() {
     })();
   });
 
+  const panel = document.getElementById('mcp-details');
+  panel.innerHTML = '<div style="color:#888;font-size:13px;"><span class="spinner">&#8635;</span> Creating MCP user… (may take up to 2 minutes on first run)</div>';
+
   try {
     const r = await fetch('/api/setup-mcp-user', {
       method: 'POST',
@@ -1185,7 +1188,6 @@ async function setupMcpUser() {
       })
     });
     const d = await r.json();
-    const panel = document.getElementById('mcp-details');
     if (d.ok) {
       panel.innerHTML = `
         <table style="width:100%;border-collapse:collapse;font-size:13px">
