@@ -320,7 +320,7 @@ def api_seed_kb():
     if uploaded:
         try:
             params = [("files", f) for f in uploaded]
-            resp = requests.get(f"{kb_url}/vector/index", params=params, timeout=120)
+            resp = requests.get(f"{kb_url}/vector/index", params=params, timeout=600)
             if resp.status_code == 200:
                 indexed = len(uploaded)
                 for r in results:
