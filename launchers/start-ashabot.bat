@@ -4,7 +4,7 @@ title AshaBot Setup Wizard
 
 echo.
 echo  ==========================================
-echo   AshaBot Setup Wizard — Starting...
+echo   AshaBot Setup Wizard - Starting...
 echo  ==========================================
 echo.
 
