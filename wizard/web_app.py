@@ -189,6 +189,7 @@ def api_setup_mcp_user():
         # 1. Get admin token + CSRF via cookie session (retry — admin seed takes time after healthcheck)
         sess = requests.Session()
         r = None
+        last_exc = None
         for attempt in range(10):
             try:
                 r = sess.post(f"{chat_base}/auth/token/issue", data={
@@ -197,11 +198,12 @@ def api_setup_mcp_user():
                 }, timeout=10)
                 if r.status_code == 200:
                     break
-            except Exception:
-                pass
+            except Exception as e:
+                last_exc = e
             time.sleep(3)
         if r is None or r.status_code != 200:
-            return jsonify({"ok": False, "error": f"Admin login failed after retries (status {r.status_code if r else 'no response'})"}), 400
+            detail = f"status {r.status_code}" if r is not None else f"no response (last error: {last_exc!r}, url: {chat_base}/auth/token/issue)"
+            return jsonify({"ok": False, "error": f"Admin login failed after retries ({detail})"}), 400
 
         csrf_token = sess.cookies.get("csrf_token", "")
 
