@@ -2,7 +2,8 @@
 import base64
 import os
 import secrets
-import bcrypt as _bcrypt
+from passlib.context import CryptContext as _CryptContext
+_PWD_CTX = _CryptContext(schemes=["argon2"], deprecated="auto")
 
 
 def _kafka_block(a: dict) -> str:
@@ -75,10 +76,10 @@ def generate_env(answers: dict, output_dir: str = ".") -> str:
 
     storage_block = _storage_block(answers)
 
-    # Base64-encode the bcrypt hash to avoid '$' chars that docker compose
-    # env_file interpolation would mangle (even with $$ escaping).
+    # Hash with argon2 (matches app's PASSWORD_CTX), then base64-encode to
+    # avoid '$' chars being mangled by docker compose env_file interpolation.
     admin_hash = base64.b64encode(
-        _bcrypt.hashpw(answers["admin_password"].encode("utf-8"), _bcrypt.gensalt())
+        _PWD_CTX.hash(answers["admin_password"]).encode("utf-8")
     ).decode("ascii")
     admin_secret = secrets.token_hex(32)
     auth_secret = secrets.token_hex(32)
