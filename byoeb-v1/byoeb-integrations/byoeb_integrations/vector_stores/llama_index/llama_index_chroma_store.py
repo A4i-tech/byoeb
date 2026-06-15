@@ -40,7 +40,8 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         if self.vector_store_index is not None:
             return self.vector_store_index
         self.collection = self.chromadb.get_or_create_collection()
-        os.chmod(self.__persist_directory, 0o755)  # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions — 0o755 is correct for directories (execute bit required to enter/list)
+        # 0o755 required: execute bit needed to enter/list directory (chroma persists here)
+        os.chmod(self.__persist_directory, 0o755)  # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions
         self.vector_store = ChromaVectorStore(chroma_collection=self.collection)
         self.vector_store_index = VectorStoreIndex.from_vector_store(
             vector_store=self.vector_store,
