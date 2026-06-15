@@ -7,6 +7,10 @@ data/
 migrations/
 *.migration.py
 
+# wizard/ is a local-only setup tool (runs on developer machine, not deployed).
+# HTTP to localhost and 0.0.0.0 binding are intentional; findings are false positives.
+wizard/
+
 # Pre-existing GitHub Actions workflow files — shell injection findings
 # (yaml.github-actions.security.run-shell-injection) are tracked as separate
 # tech debt (see issue #372 notes). These files pre-date SAST adoption.
