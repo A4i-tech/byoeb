@@ -268,25 +268,16 @@ def _parse_feature_flags(raw: Optional[str]) -> set[FeatureFlag]:
 
 
 def log_optional_env_status(s: ChatAppSettings) -> None:
-    """Log INFO for each optional field that is not configured. Helps operators diagnose missing config."""
-    optional_fields = {
-        "OPENAI_API_KEY": s.openai_api_key,
-        "OPENAI_ORG_ID": s.openai_org_id,
-        "APPINSIGHTS_CONNECTION_STRING": s.appinsights_connection_string,
-        "APP_LOGGER_NAME": s.app_logger_name,
-        "AZURE_STORAGE_CONNECTION_STRING": s.azure_storage_connection_string,
-        "AZURE_STORAGE_BLOB_ACCOUNT_URL": s.azure_storage_blob_account_url,
-        "AZURE_COGNITIVE_KEY": s.azure_cognitive_key,
-        "AZURE_COGNITIVE_REGION": s.azure_cognitive_region,
-        "AZURE_OPENAI_KEY": s.azure_openai_key,
-        "AZURE_OPENAI_ENDPOINT": s.azure_openai_endpoint,
-        "AZURE_SEARCH_API_KEY": s.azure_search_api_key,
-        "AUTH_TOKEN_SECRET": s.auth_token_secret,
-        "PUBLIC_BASE_URL": s.public_base_url,
-    }
-    not_set = [k for k, v in optional_fields.items() if v is None]
-    if not_set:
-        logger.info("Optional env vars not configured: %s", ", ".join(not_set))
+    """Log INFO for each unset optional field, including its description."""
+    for field_name, field_info in s.model_fields.items():
+        if field_info.is_required():
+            continue
+        if field_info.default is not None:
+            continue
+        if getattr(s, field_name) is None:
+            env_var = field_name.upper()
+            desc = field_info.description or ""
+            logger.info("Optional env var not set: %s — %s", env_var, desc)
 
 
 # ── instantiate settings (fail fast here if required vars are missing) ─────────
