@@ -1,5 +1,5 @@
 # Use an official Python runtime
-FROM python:3.11-slim-bullseye
+FROM python:3.11-slim-bookworm
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \

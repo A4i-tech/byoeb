@@ -315,6 +315,8 @@ class ByoebUserGenerateResponse(Handler):
         user: User
     ):
         from byoeb.chat_app.configuration.dependency_setup import speech_translator
+        if speech_translator is None:
+            return None
         with langfuse.start_as_current_observation(as_type="span", name="text-to-speech", input=message_source_text) as span:
             translated_audio_message = await speech_translator.atext_to_speech(
                 input_text=message_source_text,
@@ -340,6 +342,9 @@ class ByoebUserGenerateResponse(Handler):
                 response_text=response_text,
                 query_type=query_type,
             )
+
+        if text_translator is None:
+            return response_text, None, True
 
         with langfuse.start_as_current_observation(as_type="span", name="translation", input=response_text) as span:
             source_text = await text_translator.atranslate_text(
@@ -426,6 +431,7 @@ class ByoebUserGenerateResponse(Handler):
                 except Exception as e:
                     logger.warning("Embedding cache update failed: %s. Continuing without cache update.", e)
 
+        media_info = media_info or {}  # guard: speech_translator absent returns None
         utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
         description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
         message_type = None
@@ -840,6 +846,8 @@ class ByoebUserGenerateResponse(Handler):
             # If translation fails, use a simple fallback
             try:
                 from byoeb.chat_app.configuration.dependency_setup import text_translator
+                if text_translator is None:
+                    raise RuntimeError("text_translator not configured")
                 response_en = await text_translator.atranslate_text(
                     input_text=response_text,
                     source_language=user_language,

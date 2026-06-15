@@ -1,0 +1,51 @@
+Know Your Child’s Immunization Schedule (India)
+
+Row-by-row schedule (each line is one vaccine entry with age, vaccine, route, and notes).
+
+AT BIRTH
+- Age: At Birth | Vaccine: BCG | Route: Injection (upper arm) | Notes: Single dose; protects against tuberculosis
+- Age: At Birth | Vaccine: OPV – 0 dose | Route: Oral | Notes: First OPV dose; next at 6w, 10w, 14w; protects against polio
+- Age: At Birth | Vaccine: Hepatitis B (birth dose) | Route: Injection | Notes: Single dose; protects against hepatitis B
+
+6 WEEKS
+- Age: 6 Weeks | Vaccine: OPV – 1 | Route: Oral | Notes: Second OPV dose; next at 10w & 14w
+- Age: 6 Weeks | Vaccine: Pentavalent – 1 | Route: Injection | Notes: 1st of 3 doses (6w, 10w, 14w); protects Diphtheria, Pertussis, Tetanus, Hep B, Hib
+- Age: 6 Weeks | Vaccine: RVV – 1 (Rotavirus) | Route: Oral | Notes: 1st of 3 doses (6w, 10w, 14w); protects against rotavirus diarrhea
+- Age: 6 Weeks | Vaccine: PCV – 1* | Route: Injection | Notes: 1st of 2 doses; 2nd at 14w; protects against infections like pneumonia/meningitis/septicemia
+- Age: 6 Weeks | Vaccine: fIPV – 1 | Route: Injection | Notes: 1st of 2 doses; 2nd at 14w; protects against polio
+
+10 WEEKS
+- Age: 10 Weeks | Vaccine: Pentavalent – 2 | Route: Injection | Notes: 2nd dose; last at 14w
+- Age: 10 Weeks | Vaccine: OPV – 2 | Route: Oral | Notes: 3rd OPV dose; last at 14w
+- Age: 10 Weeks | Vaccine: RVV – 2 (Rotavirus) | Route: Oral | Notes: 2nd dose; last at 14w
+
+14 WEEKS
+- Age: 14 Weeks | Vaccine: Pentavalent – 3 | Route: Injection | Notes: Final pentavalent dose
+- Age: 14 Weeks | Vaccine: OPV – 3 | Route: Oral | Notes: Final primary OPV dose
+- Age: 14 Weeks | Vaccine: RVV – 3 (Rotavirus) | Route: Oral | Notes: Final rotavirus dose
+- Age: 14 Weeks | Vaccine: PCV – 2 | Route: Injection | Notes: 2nd PCV dose
+- Age: 14 Weeks | Vaccine: fIPV – 2 | Route: Injection | Notes: Final fIPV dose
+
+9–12 MONTHS
+- Age: 9–12 Months | Vaccine: MR – 1 (Measles & Rubella) | Route: Injection | Notes: 1st of 2 doses; 2nd at 16–24 months
+- Age: 9–12 Months | Vaccine: JE – 1** | Route: Injection | Notes: 1st of 2 doses; 2nd at 16–24 months
+- Age: 9–12 Months | Vaccine: PCV Booster* | Route: Injection | Notes: Single booster dose
+
+16–24 MONTHS
+- Age: 16–24 Months | Vaccine: MR – 2 | Route: Injection | Notes: 2nd MR dose
+- Age: 16–24 Months | Vaccine: JE – 2** | Route: Injection | Notes: Final JE dose
+- Age: 16–24 Months | Vaccine: DPT Booster – 1 | Route: Injection | Notes: 1st of 2 boosters; 2nd at 5–6 years
+- Age: 16–24 Months | Vaccine: OPV Booster | Route: Oral | Notes: Single booster dose
+
+5–6 YEARS
+- Age: 5–6 Years | Vaccine: DPT Booster – 2 | Route: Injection | Notes: 2nd DPT booster dose
+
+10 YEARS
+- Age: 10 Years | Vaccine: Td (Tetanus & adult Diphtheria) | Route: Injection | Notes: Single dose
+
+16 YEARS
+- Age: 16 Years | Vaccine: Td (Tetanus & adult Diphtheria) | Route: Injection | Notes: Single dose
+
+Notes
+- * PCV schedule may be shown with asterisks in some references (as in the source table).
+- ** JE vaccines are marked with double-asterisks in the source table.

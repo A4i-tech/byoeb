@@ -6,7 +6,7 @@ import logging
 from typing import AsyncIterator
 from byoeb.models.experiment import QueryInput
 from datetime import datetime
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from byoeb.background_jobs.daily_logs.asha_logs import fetch_daily_logs
@@ -77,8 +77,15 @@ async def experiment_form(input: QueryInput) -> JSONResponse:
 
 @admin_apis_router.post("/clear_history")
 async def clear_history(request: Request) -> JSONResponse:
-    data = await request.json()
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Request body must be valid JSON")
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Request body must be a JSON object")
     phone_number_id = data.get("phone_number_id")
+    if not phone_number_id:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="phone_number_id is required")
     clear_user_history(phone_number_id)
     return JSONResponse(content={"status": "cleared"}, status_code=200)
 
