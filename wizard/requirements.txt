@@ -1,0 +1,5 @@
+questionary>=2.0.1
+rich>=13.7.0
+passlib[argon2]>=1.7.4
+flask>=3.0.0
+requests>=2.31.0

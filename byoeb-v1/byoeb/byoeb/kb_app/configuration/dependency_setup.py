@@ -4,7 +4,6 @@ import byoeb.kb_app.configuration.config as env_config
 from byoeb.kb_app.configuration.config import app_config
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
-from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 from byoeb_integrations.llms.llama_index.llama_index_openai import AsyncLLamaIndexOpenAILLM
 from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
@@ -16,33 +15,6 @@ logger = logging.getLogger(__name__)
 # Optional secondary storage for monthly analysis
 amedia_storage_analysis: BaseMediaStorage = None
 
-# Require environment variables to prevent accidental production access
-if not env_config.env_azure_storage_blob_account_url:
-    raise ValueError(
-        "AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set. "
-    )
-if not env_config.env_azure_storage_container_name:
-    raise ValueError(
-        "AZURE_STORAGE_CONTAINER_NAME environment variable must be set. "
-    )
-if not env_config.env_azure_openai_endpoint:
-    raise ValueError(
-        "AZURE_OPENAI_ENDPOINT environment variable must be set. "
-    )
-if not env_config.env_azure_openai_deployment_name:
-    raise ValueError(
-        "AZURE_OPENAI_DEPLOYMENT_NAME environment variable must be set. "
-    )
-
-account_url = env_config.env_azure_storage_blob_account_url
-container_name = env_config.env_azure_storage_container_name
-model = app_config["embeddings"]["azure"]["model"]
-deployment_name = env_config.env_azure_openai_deployment_name
-aoai_endpoint = env_config.env_azure_openai_endpoint
-cognitive_services_endpoint = app_config["app"]["azure_cognitive_endpoint"]
-api_version = app_config["embeddings"]["azure"]["api_version"]
-default_credential = DefaultAzureCredential()
-
 llm_client = AsyncLLamaIndexOpenAILLM(
     model=app_config["llms"]["openai"]["model"],
     api_key=env_config.env_openai_api_key,
@@ -50,69 +22,108 @@ llm_client = AsyncLLamaIndexOpenAILLM(
     organization=env_config.env_openai_org_id
 )
 
-# Azure OpenAI Embed - try API key first, fallback to token provider
-if env_config.env_azure_openai_key:
-    # Use Azure OpenAI specific key if available
-    azure_openai_embed = AzureOpenAIEmbed(
-        model=model,
-        deployment_name=deployment_name,
-        azure_endpoint=aoai_endpoint,
-        api_key=env_config.env_azure_openai_key,
-        api_version=api_version
-    )
-elif env_config.env_azure_cognitive_key:
-    # Fallback to cognitive key if Azure OpenAI key not available
-    azure_openai_embed = AzureOpenAIEmbed(
-        model=model,
-        deployment_name=deployment_name,
-        azure_endpoint=aoai_endpoint,
-        api_key=env_config.env_azure_cognitive_key,
-        api_version=api_version
-    )
-else:
-    # Last resort: use token provider with default credentials
-    azure_openai_token_provider = get_bearer_token_provider(default_credential, "https://cognitiveservices.azure.com/.default")
-    azure_openai_embed = AzureOpenAIEmbed(
-        model=model,
-        deployment_name=deployment_name,
-        azure_endpoint=aoai_endpoint,
-        token_provider=azure_openai_token_provider,
-        api_version=api_version
-    )
+# Embeddings — Azure OpenAI if configured, else fall back to standard OpenAI
+_azure_openai_enabled = bool(
+    env_config.env_azure_openai_endpoint
+    and env_config.env_azure_openai_deployment_name
+)
 
-if env_config.env_azure_storage_connection_string:
-    amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
-        container_name=container_name,
-        account_url=None,
-        credentials=None,
-        connection_string=env_config.env_azure_storage_connection_string
-    )
-    logger.info("Azure Storage API key set. Enabling Azure Blob Storage.")
+if _azure_openai_enabled:
+    from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
+    _model = app_config["embeddings"]["azure"]["model"]
+    _deployment_name = env_config.env_azure_openai_deployment_name
+    _aoai_endpoint = env_config.env_azure_openai_endpoint
+    _api_version = app_config["embeddings"]["azure"]["api_version"]
+    if env_config.env_azure_openai_key:
+        azure_openai_embed = AzureOpenAIEmbed(
+            model=_model,
+            deployment_name=_deployment_name,
+            azure_endpoint=_aoai_endpoint,
+            api_key=env_config.env_azure_openai_key,
+            api_version=_api_version,
+        )
+    elif env_config.env_azure_cognitive_key:
+        azure_openai_embed = AzureOpenAIEmbed(
+            model=_model,
+            deployment_name=_deployment_name,
+            azure_endpoint=_aoai_endpoint,
+            api_key=env_config.env_azure_cognitive_key,
+            api_version=_api_version,
+        )
+    else:
+        _default_credential = DefaultAzureCredential()
+        _token_provider = get_bearer_token_provider(
+            _default_credential, "https://cognitiveservices.azure.com/.default"
+        )
+        azure_openai_embed = AzureOpenAIEmbed(
+            model=_model,
+            deployment_name=_deployment_name,
+            azure_endpoint=_aoai_endpoint,
+            token_provider=_token_provider,
+            api_version=_api_version,
+        )
+    logger.info("Using Azure OpenAI embeddings: endpoint=%s", _aoai_endpoint)
 else:
-    amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
-        container_name=container_name,
-        account_url=account_url,
-        credentials=DefaultAzureCredential()
+    if not env_config.env_openai_api_key:
+        raise ValueError(
+            "Either AZURE_OPENAI_ENDPOINT+AZURE_OPENAI_DEPLOYMENT_NAME or "
+            "OPENAI_API_KEY must be set for embeddings."
+        )
+    from byoeb_integrations.embeddings.llama_index.openai import OpenAIEmbed
+    azure_openai_embed = OpenAIEmbed(
+        model="text-embedding-3-small",
+        api_key=env_config.env_openai_api_key,
     )
+    logger.info("Azure OpenAI not configured — using standard OpenAI embeddings (text-embedding-3-small)")
 
-# Secondary client for monthly analysis
-# Use environment variable if set, otherwise optional (no fallback to prevent production access)
-analysis_container = env_config.env_azure_storage_analysis_container_name
-if analysis_container:
+if env_config.env_storage_backend == "local":
+    from byoeb_integrations.media_storage.local.local_file_storage import LocalFileStorage
+    amedia_storage: BaseMediaStorage = LocalFileStorage(
+        storage_dir=env_config.env_local_storage_path
+    )
+    logger.info("Using local file storage at %s", env_config.env_local_storage_path)
+else:
+    if not env_config.env_azure_storage_blob_account_url:
+        raise ValueError("AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set.")
+    if not env_config.env_azure_storage_container_name:
+        raise ValueError("AZURE_STORAGE_CONTAINER_NAME environment variable must be set.")
+
+    account_url = env_config.env_azure_storage_blob_account_url
+    container_name = env_config.env_azure_storage_container_name
+
     if env_config.env_azure_storage_connection_string:
-        amedia_storage_analysis = AsyncAzureBlobStorage(
-            container_name=analysis_container,
+        amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
+            container_name=container_name,
             account_url=None,
             credentials=None,
             connection_string=env_config.env_azure_storage_connection_string
         )
+        logger.info("Azure Storage API key set. Enabling Azure Blob Storage.")
     else:
-        amedia_storage_analysis = AsyncAzureBlobStorage(
-            container_name=analysis_container,
+        amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
+            container_name=container_name,
             account_url=account_url,
             credentials=DefaultAzureCredential()
         )
-    logger.info("Azure Blob Storage (analysis) enabled for container: %s", analysis_container)
+
+    # Secondary client for monthly analysis
+    # Use environment variable if set, otherwise optional (no fallback to prevent production access)
+    analysis_container = env_config.env_azure_storage_analysis_container_name
+    if analysis_container:
+        if env_config.env_azure_storage_connection_string:
+            amedia_storage_analysis = AsyncAzureBlobStorage(
+                container_name=analysis_container,
+                account_url=None,
+                credentials=None,
+                connection_string=env_config.env_azure_storage_connection_string
+            )
+        else:
+            amedia_storage_analysis = AsyncAzureBlobStorage(
+                container_name=analysis_container,
+                account_url=account_url,
+                credentials=DefaultAzureCredential()
+            )
+        logger.info("Azure Blob Storage (analysis) enabled for container: %s", analysis_container)
 
 # Vector Store Type Configuration - use environment variable if set, otherwise fallback to app_config.json
 # Default to "azure_vector_search" if not specified (for backward compatibility)
@@ -216,8 +227,25 @@ elif vector_store_type == "llama_index_chroma":
         collection_name,
     )
 
+elif vector_store_type == "qdrant":
+    from byoeb_integrations.vector_stores.qdrant.llama_index_qdrant_store import LlamaIndexQdrantStore
+    embedding_function = azure_openai_embed.get_embedding_function()
+    vector_store = LlamaIndexQdrantStore(
+        collection_name=env_config.env_qdrant_collection_name,
+        embedding_function=embedding_function,
+        location=env_config.env_qdrant_location,
+        host=env_config.env_qdrant_host,
+        port=env_config.env_qdrant_port,
+        url=env_config.env_qdrant_url,
+        api_key=env_config.env_qdrant_api_key,
+    )
+    logger.info(
+        "Initialized Qdrant Vector Store: collection=%s",
+        env_config.env_qdrant_collection_name,
+    )
+
 else:
     raise ValueError(
         f"Invalid vector_store type: {vector_store_type}. "
-        f"Supported types: 'azure_vector_search', 'chroma', 'llama_index_chroma'"
+        f"Supported types: 'azure_vector_search', 'chroma', 'llama_index_chroma', 'qdrant'"
     )

@@ -41,6 +41,16 @@ env_openai_org_id = os.getenv("OPENAI_ORG_ID")
 # Azure cosmos db
 env_mongo_db_connection_string = os.getenv("MONGO_DB_CONNECTION_STRING")
 
+# Admin seed (set by wizard on first-time setup)
+# ADMIN_PASSWORD_HASH is base64-encoded bcrypt to survive docker compose env_file $ interpolation
+import base64 as _b64
+env_admin_username = os.getenv("ADMIN_USERNAME")
+_admin_hash_b64 = os.getenv("ADMIN_PASSWORD_HASH", "")
+try:
+    env_admin_password_hash = _b64.b64decode(_admin_hash_b64).decode("utf-8") if _admin_hash_b64 else None
+except Exception:
+    env_admin_password_hash = None
+
 # Logger
 env_appinsights_connection_string = os.getenv("APPINSIGHTS_CONNECTION_STRING")
 env_app_logger_name = os.getenv("APP_LOGGER_NAME")
@@ -58,19 +68,37 @@ env_azure_queue_status = os.getenv("AZURE_QUEUE_STATUS")
 env_azure_queue_bot = os.getenv("AZURE_QUEUE_BOT")
 env_azure_queue_dead_letter = os.getenv("AZURE_QUEUE_DEAD_LETTER")
 
-# Validate that queue names are set (fail fast if not configured)
-if not env_azure_queue_status:
-    raise ValueError(
-        "AZURE_QUEUE_STATUS environment variable must be set in keys.env. "
-    )
-if not env_azure_queue_bot:
-    raise ValueError(
-        "AZURE_QUEUE_BOT environment variable must be set in keys.env. "
-    )
-if not env_azure_queue_dead_letter:
-    raise ValueError(
-        "AZURE_QUEUE_DEAD_LETTER environment variable must be set in keys.env. "
-    )
+# Queue / storage backend selection
+# QUEUE_PROVIDER: "kafka" (default local) | "azure_storage_queue" (production)
+env_queue_provider = os.getenv("QUEUE_PROVIDER", "kafka")
+env_storage_backend = os.getenv("STORAGE_BACKEND", "azure")
+
+# When true, WhatsApp send_requests returns synthetic responses without calling the Meta API.
+# Use for local dev/testing where a valid WhatsApp token is not available.
+env_whatsapp_api_bypass = os.getenv("WHATSAPP_API_BYPASS", "false").lower() == "true"
+env_local_storage_path = os.getenv("LOCAL_STORAGE_PATH", "./local_media_storage")
+
+# Kafka
+env_kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+env_kafka_consumer_group = os.getenv("KAFKA_CONSUMER_GROUP", "byoeb")
+env_kafka_topic_bot = os.getenv("KAFKA_TOPIC_BOT", "byoeb-bot")
+env_kafka_topic_status = os.getenv("KAFKA_TOPIC_STATUS", "byoeb-status")
+env_kafka_topic_dead_letter = os.getenv("KAFKA_TOPIC_DEAD_LETTER", "byoeb-dlq")
+
+# Azure queue names only required when using Azure queue provider
+if env_queue_provider == "azure_storage_queue":
+    if not env_azure_queue_status:
+        raise ValueError(
+            "AZURE_QUEUE_STATUS environment variable must be set in keys.env. "
+        )
+    if not env_azure_queue_bot:
+        raise ValueError(
+            "AZURE_QUEUE_BOT environment variable must be set in keys.env. "
+        )
+    if not env_azure_queue_dead_letter:
+        raise ValueError(
+            "AZURE_QUEUE_DEAD_LETTER environment variable must be set in keys.env. "
+        )
 
 # Azure Cognitive Services
 env_azure_cognitive_key = os.getenv("AZURE_COGNITIVE_KEY")

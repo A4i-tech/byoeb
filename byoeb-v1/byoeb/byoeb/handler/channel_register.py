@@ -22,5 +22,11 @@ class ChannelRegisterHandler:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Missing hub.verify_token"
             )
-        register = await self.__registrer_factory.get(channel_type="whatsapp", verify_token=verify_token)
+        try:
+            register = await self.__registrer_factory.get(channel_type="whatsapp", verify_token=verify_token)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=str(exc)
+            )
         return await register.register(request.query_params._dict)

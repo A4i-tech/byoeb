@@ -1,0 +1,35 @@
+# docker-compose.wizard.yml
+#
+# AshaBot Setup Wizard — no git clone required.
+#
+# Usage:
+#   docker compose -f docker-compose.wizard.yml up
+#   Open http://localhost:5001 in your browser.
+#
+# Requirements: Docker Desktop (https://docs.docker.com/get-docker/)
+
+services:
+  wizard:
+    image: ghcr.io/a4i-tech/byoeb-wizard:latest
+    pull_policy: always
+    ports:
+      - "5001:5001"
+    volumes:
+      # Docker socket: wizard can launch the app containers on your host
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Working directory: wizard writes .env.local + docker-compose.app.yml here
+      - .:/workspace
+    environment:
+      # HOST_PWD lets wizard pass your host path to Docker socket commands.
+      # Docker Compose always sets PWD in the environment when interpolating.
+      HOST_PWD: ${PWD}
+      RUNNING_IN_DOCKER: "1"
+    extra_hosts:
+      # Required on Linux — host.docker.internal is automatic on macOS/Windows only
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/')"]
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 5s

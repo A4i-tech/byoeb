@@ -97,22 +97,34 @@ message_producer_handler = QueueProducerHandler(
 
 # message consumer
 from byoeb.listener.message_consumer import QueueConsumer
-# Require environment variable for queue account URL to prevent accidental production access
-if not env_config.env_azure_storage_queue_account_url:
-    raise ValueError(
-        "AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable must be set. "
+_queue_provider = env_config.env_queue_provider
+
+if _queue_provider == "kafka":
+    message_consumer = QueueConsumer(
+        config=app_config,
+        queue_provider="kafka",
+        bootstrap_servers=env_config.env_kafka_bootstrap_servers,
+        consumer_group=env_config.env_kafka_consumer_group,
+        topic=env_config.env_kafka_topic_bot,
+        dlq_topic=env_config.env_kafka_topic_dead_letter,
+        user_db_service=user_db_service,
+        message_db_service=message_db_service,
+        channel_service=whatsapp_service,
     )
-# Environment variable is required (validated at startup in config.py)
-queue_name = env_config.env_azure_queue_bot
-message_consumer = QueueConsumer(
-    config=app_config,
-    account_url=env_config.env_azure_storage_queue_account_url,
-    queue_name=queue_name,
-    consuemr_type=app_config["app"]["queue_provider"],
-    user_db_service=user_db_service,
-    message_db_service=message_db_service,
-    channel_service=whatsapp_service
-)
+elif _queue_provider == "azure_storage_queue":
+    if not env_config.env_azure_storage_queue_account_url:
+        raise ValueError("AZURE_STORAGE_QUEUE_ACCOUNT_URL must be set for azure_storage_queue provider")
+    message_consumer = QueueConsumer(
+        config=app_config,
+        queue_provider="azure_storage_queue",
+        account_url=env_config.env_azure_storage_queue_account_url,
+        queue_name=env_config.env_azure_queue_bot,
+        user_db_service=user_db_service,
+        message_db_service=message_db_service,
+        channel_service=whatsapp_service,
+    )
+else:
+    raise ValueError(f"Unknown QUEUE_PROVIDER: {_queue_provider}")
 
 # user handler
 users_handler = UsersHandler(
@@ -120,74 +132,95 @@ users_handler = UsersHandler(
     mongo_db_facory=mongo_db_factory
 )
 
-# Text translator
-from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
-# TODO: factory implementation
-if not env_config.env_azure_cognitive_region: raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE environment variable must be set to use text-to-text service")
-if not env_config.env_azure_cognitive_text_to_text_resource: raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE environment variable must be set to use text-to-text service")
-if env_config.env_azure_cognitive_key:
-    _logger.info("Azure Cognitive Services key set. Enabling Azure text translator.")
-    text_translator = AsyncAzureTextTranslator(
-        key=env_config.env_azure_cognitive_key,
-        region=env_config.env_azure_cognitive_region,
-        resource_id=env_config.env_azure_cognitive_text_to_text_resource,
-    )
-else:
-    from azure.identity import get_bearer_token_provider, DefaultAzureCredential
-    _logger.warning("Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for Azure text translator")
-    text_translator = AsyncAzureTextTranslator(
-    credential=DefaultAzureCredential(),
-    region=env_config.env_azure_cognitive_region,
-    resource_id=env_config.env_azure_cognitive_text_to_text_resource,
+# Text + Speech translators — optional, requires AZURE_COGNITIVE_REGION
+_azure_cognitive_enabled = bool(
+    env_config.env_azure_cognitive_region
+    and env_config.env_azure_cognitive_text_to_text_resource
 )
 
-# Speech translator
-from byoeb.services.chat.translator import TranslatorAdapter
-speech_translator = TranslatorAdapter(app_config["translators"]["speech"], app_config["app"]["azure_cognitive_endpoint"])
+text_translator = None
+speech_translator = None
+
+if _azure_cognitive_enabled:
+    from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
+    if env_config.env_azure_cognitive_key:
+        _logger.info("Azure Cognitive Services key set. Enabling text + speech translators.")
+        text_translator = AsyncAzureTextTranslator(
+            key=env_config.env_azure_cognitive_key,
+            region=env_config.env_azure_cognitive_region,
+            resource_id=env_config.env_azure_cognitive_text_to_text_resource,
+        )
+    else:
+        from azure.identity import DefaultAzureCredential
+        _logger.warning("Azure Cognitive key not set. Using DefaultAzureCredential for text translator.")
+        text_translator = AsyncAzureTextTranslator(
+            credential=DefaultAzureCredential(),
+            region=env_config.env_azure_cognitive_region,
+            resource_id=env_config.env_azure_cognitive_text_to_text_resource,
+        )
+    from byoeb.services.chat.translator import TranslatorAdapter
+    speech_translator = TranslatorAdapter(
+        app_config["translators"]["speech"],
+        app_config["app"]["azure_cognitive_endpoint"]
+    )
+    _logger.info("Azure Cognitive Services enabled — speech and text translation active.")
+else:
+    _logger.warning(
+        "AZURE_COGNITIVE_REGION or AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE not set. "
+        "Running in text-only mode — voice messages and translation disabled."
+    )
 
 # vector store
 import os
-from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
 from byoeb_core.vector_stores.base import BaseVectorStore
 
-# Require environment variables for Azure OpenAI endpoint and deployment to prevent accidental production access
-if not env_config.env_azure_openai_endpoint:
-    raise ValueError(
-        "AZURE_OPENAI_ENDPOINT environment variable must be set. "
-    )
-if not env_config.env_azure_openai_deployment_name:
-    raise ValueError(
-        "AZURE_OPENAI_DEPLOYMENT_NAME environment variable must be set. "
-    )
-azure_openai_endpoint = env_config.env_azure_openai_endpoint
-azure_openai_deployment_name = env_config.env_azure_openai_deployment_name
+# Embeddings — Azure OpenAI if configured, else fall back to standard OpenAI
+_azure_openai_enabled = bool(
+    env_config.env_azure_openai_endpoint
+    and env_config.env_azure_openai_deployment_name
+)
 
-# Azure OpenAI Embed - try API key first, fallback to token provider
-if env_config.env_azure_openai_key:
-    _logger.info("Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
-    azure_openai_key = env_config.env_azure_openai_key
-    azure_openai_embed = AzureOpenAIEmbed(
-        model=app_config["embeddings"]["azure"]["model"],
-        deployment_name=azure_openai_deployment_name,
-        azure_endpoint=azure_openai_endpoint,
-        api_key=azure_openai_key,
-        api_version=app_config["embeddings"]["azure"]["api_version"]
-    )
+if _azure_openai_enabled:
+    from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
+    _aoai_endpoint = env_config.env_azure_openai_endpoint
+    _aoai_deployment = env_config.env_azure_openai_deployment_name
+    if env_config.env_azure_openai_key:
+        _logger.info("Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
+        azure_openai_embed = AzureOpenAIEmbed(
+            model=app_config["embeddings"]["azure"]["model"],
+            deployment_name=_aoai_deployment,
+            azure_endpoint=_aoai_endpoint,
+            api_key=env_config.env_azure_openai_key,
+            api_version=app_config["embeddings"]["azure"]["api_version"],
+        )
+    else:
+        from azure.identity import get_bearer_token_provider, DefaultAzureCredential
+        _logger.warning("Azure OpenAI key not set. Using DefaultAzureCredential for embeddings.")
+        _token_provider = get_bearer_token_provider(
+            DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
+        )
+        azure_openai_embed = AzureOpenAIEmbed(
+            model=app_config["embeddings"]["azure"]["model"],
+            deployment_name=_aoai_deployment,
+            azure_endpoint=_aoai_endpoint,
+            token_provider=_token_provider,
+            api_version=app_config["embeddings"]["azure"]["api_version"],
+        )
+    _logger.info("Using Azure OpenAI embeddings: endpoint=%s", _aoai_endpoint)
 else:
-    from azure.identity import get_bearer_token_provider, DefaultAzureCredential
-    _logger.warning("Azure OpenAI Embed key not set. Defaulting to DefaultAzureCredential for Azure OpenAI Embed")
-    token_provider = get_bearer_token_provider(
-        DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
+    if not env_config.env_openai_api_key:
+        raise ValueError(
+            "Either AZURE_OPENAI_ENDPOINT+AZURE_OPENAI_DEPLOYMENT_NAME or "
+            "OPENAI_API_KEY must be set for embeddings."
+        )
+    from byoeb_integrations.embeddings.llama_index.openai import OpenAIEmbed
+    azure_openai_embed = OpenAIEmbed(
+        model="text-embedding-3-small",
+        api_key=env_config.env_openai_api_key,
     )
-    azure_openai_embed = AzureOpenAIEmbed(
-        model=app_config["embeddings"]["azure"]["model"],
-        deployment_name=azure_openai_deployment_name,
-        azure_endpoint=azure_openai_endpoint,
-        token_provider=token_provider,
-        api_version=app_config["embeddings"]["azure"]["api_version"]
-    )
+    _logger.info("Azure OpenAI not configured — using standard OpenAI embeddings (text-embedding-3-small)")
 
 # Vector Store Type Configuration - use environment variable if set, otherwise fallback to app_config.json
 # Default to "azure_vector_search" if not specified (for backward compatibility)
@@ -343,38 +376,41 @@ byoeb_expert_generate_response = ByoebExpertGenerateResponse(successor=byoeb_exp
 byoeb_expert_process = ByoebExpertProcess(successor=byoeb_expert_generate_response)
 
 from byoeb_core.media_storage.base import BaseMediaStorage
-from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
-from azure.identity import DefaultAzureCredential
 
-# Require environment variables for storage URLs to prevent accidental production access
-if not env_config.env_azure_storage_blob_account_url:
-    raise ValueError(
-        "AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set. "
+if env_config.env_storage_backend == "local":
+    from byoeb_integrations.media_storage.local.local_file_storage import LocalFileStorage
+    media_storage: BaseMediaStorage = LocalFileStorage(
+        storage_dir=env_config.env_local_storage_path
     )
-if not env_config.env_azure_storage_container_name:
-    raise ValueError(
-        "AZURE_STORAGE_CONTAINER_NAME environment variable must be set. "
-    )
-
-container_name = env_config.env_azure_storage_container_name
-account_url = env_config.env_azure_storage_blob_account_url
-
-if env_config.env_azure_storage_connection_string:
-    media_storage: BaseMediaStorage = AsyncAzureBlobStorage(
-        container_name=container_name,
-        account_url=None,
-        credentials=None,
-        connection_string=env_config.env_azure_storage_connection_string
-    )
-elif account_url:
-    media_storage: BaseMediaStorage = AsyncAzureBlobStorage(
-        container_name=container_name,
-        account_url=account_url,
-        credentials=DefaultAzureCredential()
-    )
+    _logger.info("Using local file storage at %s", env_config.env_local_storage_path)
 else:
-    media_storage = None
-    _logger.warning("Azure Blob Storage not configured. Media storage disabled.")
+    from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
+    from azure.identity import DefaultAzureCredential
+
+    if not env_config.env_azure_storage_blob_account_url:
+        raise ValueError("AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set.")
+    if not env_config.env_azure_storage_container_name:
+        raise ValueError("AZURE_STORAGE_CONTAINER_NAME environment variable must be set.")
+
+    container_name = env_config.env_azure_storage_container_name
+    account_url = env_config.env_azure_storage_blob_account_url
+
+    if env_config.env_azure_storage_connection_string:
+        media_storage: BaseMediaStorage = AsyncAzureBlobStorage(
+            container_name=container_name,
+            account_url=None,
+            credentials=None,
+            connection_string=env_config.env_azure_storage_connection_string
+        )
+    elif account_url:
+        media_storage: BaseMediaStorage = AsyncAzureBlobStorage(
+            container_name=container_name,
+            account_url=account_url,
+            credentials=DefaultAzureCredential()
+        )
+    else:
+        media_storage = None
+        _logger.warning("Azure Blob Storage not configured. Media storage disabled.")
 
 # Scheduler configuration
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
