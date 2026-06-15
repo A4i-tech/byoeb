@@ -252,6 +252,16 @@ class ChatAppSettings(BaseSettings):
                 )
         return self
 
+    @model_validator(mode='after')
+    def validate_llm_credentials(self) -> 'ChatAppSettings':
+        azure_configured = self.azure_openai_endpoint and self.azure_openai_deployment_name
+        if not azure_configured and not self.openai_api_key:
+            raise ValueError(
+                "Either OPENAI_API_KEY or both AZURE_OPENAI_ENDPOINT + "
+                "AZURE_OPENAI_DEPLOYMENT_NAME must be set"
+            )
+        return self
+
 
 def _parse_feature_flags(raw: Optional[str]) -> set[FeatureFlag]:
     flags: set[FeatureFlag] = set()
