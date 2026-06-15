@@ -26,7 +26,7 @@ from byoeb.apis.chat import chat_apis_router, chat_mcps_router
 from byoeb.apis.user import user_apis_router, user_mcps_router
 from byoeb.apis.background_jobs import background_apis_router, background_apis_router_deprecated
 from byoeb.apis.admin import admin_apis_router, admin_public_router
-from byoeb.chat_app.configuration.config import env_app
+from byoeb.chat_app.configuration.config import env_app, settings, log_optional_env_status
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +159,7 @@ async def _seed_admin_user():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log_optional_env_status(settings)
     with tempfile.TemporaryDirectory(prefix="ashabot-") as tempdir:
         pid = os.getpid()
         logger.info("FastAPI app is running with PID: %s", pid)
