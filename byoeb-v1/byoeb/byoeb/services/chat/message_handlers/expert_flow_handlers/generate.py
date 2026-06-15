@@ -131,21 +131,23 @@ class ByoebExpertGenerateResponse(Handler):
             and byoeb_message.reply_context.additional_info[constants.VERIFICATION_STATUS] == constants.WAITING
         ):
             message_en_text = text_message
-            translated_text = await text_translator.atranslate_text(
-                input_text=text_message,
-                source_language="en",
-                target_language=user.user_language
-            )
-            text_message = self.USER_CORRECTED_ANSWER_MESSAGES.get(user.user_language).replace("<CORRECTED_ANSWER>", translated_text)
-            translated_audio_message = await speech_translator.atext_to_speech(
-                input_text=text_message,
-                source_language=user.user_language,
-                test_user=user.test_user
-            )
-            media_additiona_info = {
-                constants.DATA: base64.b64encode(translated_audio_message).decode("utf-8"),
-                constants.MIME_TYPE: "audio/wav"
-            }
+            if text_translator is not None:
+                translated_text = await text_translator.atranslate_text(
+                    input_text=text_message,
+                    source_language="en",
+                    target_language=user.user_language
+                )
+                text_message = self.USER_CORRECTED_ANSWER_MESSAGES.get(user.user_language).replace("<CORRECTED_ANSWER>", translated_text)
+            if speech_translator is not None:
+                translated_audio_message = await speech_translator.atext_to_speech(
+                    input_text=text_message,
+                    source_language=user.user_language,
+                    test_user=user.test_user
+                )
+                media_additiona_info = {
+                    constants.DATA: base64.b64encode(translated_audio_message).decode("utf-8"),
+                    constants.MIME_TYPE: "audio/wav"
+                }
             message_reaction_additional_info = {
                 constants.EMOJI: emoji,
                 constants.VERIFICATION_STATUS: status

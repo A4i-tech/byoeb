@@ -92,15 +92,21 @@ async def create_user_message(
     response: str,
 ) -> ByoebMessageContext:
     from byoeb.chat_app.configuration.dependency_setup import speech_translator
-    
+
     user_language = message.user.user_language
-    translated_audio_message = await speech_translator.atext_to_speech(
-        input_text=response,
-        source_language=user_language,
-        test_user=message.user.test_user
-    )
     related_questions = message.message_context.additional_info.get(constants.RELATED_QUESTIONS)
     description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
+    audio_info = {}
+    if speech_translator is not None:
+        translated_audio_message = await speech_translator.atext_to_speech(
+            input_text=response,
+            source_language=user_language,
+            test_user=message.user.test_user
+        )
+        audio_info = {
+            constants.DATA: base64.b64encode(translated_audio_message).decode("utf-8"),
+            constants.MIME_TYPE: "audio/ogg",
+        }
     return ByoebMessageContext(
         message_category=MessageCategory.BOT_TO_USER.value,
         user=message.user,
@@ -111,8 +117,7 @@ async def create_user_message(
             additional_info={
                 constants.DESCRIPTION: description,
                 constants.ROW_TEXTS: related_questions,
-                constants.DATA: base64.b64encode(translated_audio_message).decode("utf-8"),
-                constants.MIME_TYPE: "audio/ogg",
+                **audio_info,
             }
         ),
         reply_context=message.reply_context

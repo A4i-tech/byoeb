@@ -61,7 +61,6 @@ jobs:
 
       - name: Run integration tests
         id: run-tests
-        continue-on-error: true
         env:
           INTEGRATION_BASE_URL: ${{ inputs.service-url }}
           INTEGRATION_AUTH_TENANT_ID: ${{ vars.INTEGRATION_AUTH_TENANT_ID }}
@@ -114,11 +113,6 @@ jobs:
           path: ${{ runner.temp }}/benchmark/
           retention-days: 30
           if-no-files-found: ignore
-
-      - name: Log test outcome (do not fail pipeline)
-        if: ${{ steps.run-tests.outcome != 'success' }}
-        run: |
-          echo "Integration tests failed (pipeline not blocked — see plan)"
 
       # Fires when integration tests fail OR when any earlier step fails (run-tests would be skipped).
       # Benchmark failures are intentionally excluded — run-benchmark always succeeds (continue-on-error + || true).
