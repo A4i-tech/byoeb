@@ -8,9 +8,11 @@ from byoeb_core.llms.base import BaseLLM
 
 class AzureOpenAIParamsEnum(Enum):
     TEMPERATURE = "temperature"
+    SEED = "seed"
 
 class AsyncLLamaIndexAzureOpenAILLM(BaseLLM):
     __DEFAULT_TEMPERATURE = 0
+    __DEFAULT_SEED = 42
 
     def __init__(
         self,
@@ -27,6 +29,10 @@ class AsyncLLamaIndexAzureOpenAILLM(BaseLLM):
         temperature = kwargs.get(
             AzureOpenAIParamsEnum.TEMPERATURE.value,
             self.__DEFAULT_TEMPERATURE
+        )
+        seed = kwargs.get(
+            AzureOpenAIParamsEnum.SEED.value,
+            self.__DEFAULT_SEED
         )
         if model is None:
             raise ValueError("model must be provided")
@@ -50,6 +56,7 @@ class AsyncLLamaIndexAzureOpenAILLM(BaseLLM):
                 api_version=api_version,
                 reuse_client=reuse_client,
                 temperature=temperature,
+                seed=seed,
                 callback_manager=token_counter
             )
         elif api_key is not None:
@@ -63,6 +70,7 @@ class AsyncLLamaIndexAzureOpenAILLM(BaseLLM):
                 api_version=api_version,
                 reuse_client=reuse_client,
                 temperature=temperature,
+                seed=seed,
                 callback_manager=token_counter
             )
         else:
