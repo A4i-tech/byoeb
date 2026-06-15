@@ -56,8 +56,8 @@ class QueueProducerFactory:
         )
 
     def __resolve_azure_queue_name(self, message_type: str) -> str:
-        section = self._config["message_queue"]["azure"]
-        return section["queue_status"] if message_type == "status" else section["queue_bot"]
+        from byoeb.chat_app.configuration.config import env_azure_queue_bot, env_azure_queue_status
+        return env_azure_queue_status if message_type == "status" else env_azure_queue_bot
 
     async def __get_or_create_queue(self, provider: str, message_type: str) -> BaseQueue:
         key = f"{provider}:{message_type}"

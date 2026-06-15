@@ -72,6 +72,10 @@ env_azure_queue_dead_letter = os.getenv("AZURE_QUEUE_DEAD_LETTER")
 # QUEUE_PROVIDER: "kafka" (default local) | "azure_storage_queue" (production)
 env_queue_provider = os.getenv("QUEUE_PROVIDER", "kafka")
 env_storage_backend = os.getenv("STORAGE_BACKEND", "azure")
+
+# When true, WhatsApp send_requests returns synthetic responses without calling the Meta API.
+# Use for local dev/testing where a valid WhatsApp token is not available.
+env_whatsapp_api_bypass = os.getenv("WHATSAPP_API_BYPASS", "false").lower() == "true"
 env_local_storage_path = os.getenv("LOCAL_STORAGE_PATH", "./local_media_storage")
 
 # Kafka

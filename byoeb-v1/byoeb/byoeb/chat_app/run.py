@@ -177,7 +177,19 @@ async def lifespan(app: FastAPI):
 
         try:
             await message_consumer.initialize()
-            asyncio.create_task(message_consumer.listen())
+            _consumer_task = asyncio.create_task(message_consumer.listen(), name="message_consumer_listen")
+
+            def _on_consumer_done(task: asyncio.Task) -> None:
+                if task.cancelled():
+                    logger.warning("Message consumer task was cancelled")
+                elif task.exception() is not None:
+                    import traceback as _tb
+                    exc = task.exception()
+                    logger.error("Message consumer task failed with unhandled exception: %s\n%s", exc, "".join(_tb.format_exception(type(exc), exc, exc.__traceback__)))
+                else:
+                    logger.warning("Message consumer task completed (should run forever)")
+
+            _consumer_task.add_done_callback(_on_consumer_done)
         except Exception as e:
             logger.error(f"Failed to initialize message consumer: {e}")
             logger.warning("Application will continue without message queue consumer")
