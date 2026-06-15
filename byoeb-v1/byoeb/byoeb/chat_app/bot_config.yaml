@@ -5,6 +5,7 @@ regular:
 expert:
   asha_work_related: anm
   small_talk: anm
+  off_topic: anm
   incomprehensible: anm
 retrieval:
   similarity_thresholds:
@@ -157,7 +158,7 @@ llm_response:
     query_classify: |-
       4. Classify query_en_addcontext as <query_type>asha_work_related</query_type>, <query_type>small_talk</query_type>, or <query_type>incomprehensible</query_type>, following the below rules:
 
-      4a. query_en_addcontext is <query_type>asha_work_related</query_type> if it is an **INTELLIGIBLE** question related to ASHAs’ work in maternal health, child health, and rural health in general.
+      4a. query_en_addcontext is <query_type>asha_work_related</query_type> if it is an **INTELLIGIBLE** question related to ASHAs’ work in maternal health, child health, rural health, mental health, nutrition, or community wellbeing.
 
       <eg_asha_work_related>
 
@@ -166,6 +167,8 @@ llm_response:
       <eg2>What are the benefits of Ayushman card?</eg2>
 
       <eg3>How to fill the ASHA diary?</eg3>
+
+      <eg4>Which activities help in a child’s mental development?</eg4>
 
       </eg_asha_work_related>
 
@@ -187,7 +190,23 @@ llm_response:
 
       </eg_small_talk>
 
-      4c. query_en_addcontext is <query_type>incomprehensible</query_type> if it is neither <query_type>asha_work_related</query_type> nor <query_type>small_talk</query_type>.
+      4c. query_en_addcontext is <query_type>off_topic</query_type> if it is **INTELLIGIBLE** but clearly and completely unrelated to any aspect of health, wellness, maternal care, child development, mental health, nutrition, or community welfare.
+
+      <eg_off_topic>
+
+      <eg1>What is the capital of India?</eg1>
+
+      <eg2>How to make biryani?</eg2>
+
+      <eg3>Who won the IPL?</eg3>
+
+      <eg4>How to get a driving license?</eg4>
+
+      <eg5>What is the weather today?</eg5>
+
+      </eg_off_topic>
+
+      4d. query_en_addcontext is <query_type>incomprehensible</query_type> if it is gibberish, a phone number, or a URL that cannot be interpreted as a meaningful question.
 
       <eg_incomprehensible>
 
@@ -198,6 +217,8 @@ llm_response:
       <eg3>https://www.instagram.com/reel/dfy5wq7yen_/?igsh=zjfkyzmzmdqzzg==</eg3>
 
       </eg_incomprehensible>
+
+      **Decision rule**: Always default to <query_type>asha_work_related</query_type> if the query has any plausible connection to health, wellness, nutrition, mental health, maternal care, child development, or community welfare. Only use off_topic if the query is clearly and completely unrelated to health or ASHA's work. Missing a health query is far worse than answering an off-topic one.
     output: |-
       5. Output query_en, query_en_addcontext, and query_type in XML format. Do **NOT** generate any other opening or closing explanations or code. Sample output:
 
@@ -207,7 +228,7 @@ llm_response:
 
       <query_en_addcontext>Content of query_en_addcontext</query_en_addcontext>
 
-      <query_type>asha_work_related OR small_talk OR incomprehensible</query_type>
+      <query_type>asha_work_related OR small_talk OR off_topic OR incomprehensible</query_type>
 
       </output>
 
@@ -656,6 +677,11 @@ template_messages:
             మీరు అడిగారు: *<query>*
             ఇది నా ప్రస్తుత జ్ఞానం పరిధికి మించి ఉంది.
             మీరు నాకు గర్భధారణ, శిశు సంరక్షణ లేదా ఆరోగ్యం గురించి ఏ ప్రశ్నలు అడగవచ్చు.
+        off_topic:
+          en: I can only help with health and ASHA work-related questions. You can ask me about pregnancy, childcare, or health in general.
+          hi: मैं केवल स्वास्थ्य और ASHA कार्य से जुड़े सवालों में मदद कर सकती हूँ। आप मुझसे गर्भावस्था, शिशु देखभाल या सामान्य स्वास्थ्य से संबंधित सवाल पूछ सकते हैं।
+          mr: मी फक्त आरोग्य आणि ASHA कामाशी संबंधित प्रश्नांमध्ये मदत करू शकते. तुम्ही मला गर्भावस्था, बाळाची काळजी किंवा सामान्य आरोग्याबद्दल प्रश्न विचारू शकता.
+          te: నేను కేవలం ఆరోగ్యం మరియు ASHA పని సంబంధిత ప్రశ్నలలో మాత్రమే సహాయం చేయగలను. మీరు నాకు గర్భధారణ, శిశు సంరక్షణ లేదా ఆరోగ్యం గురించి ప్రశ్నలు అడగవచ్చు.
         incomprehensible:
           interactive:
             text:
@@ -751,6 +777,11 @@ template_messages:
             మీరు అడిగారు: *<query>*
             ఇది నా ప్రస్తుత జ్ఞానం పరిధికి మించి ఉంది.
             మీరు నాకు గర్భధారణ, శిశు సంరక్షణ లేదా ఆరోగ్యం గురించి ఏ ప్రశ్నలు అడగవచ్చు.
+        off_topic:
+          en: I can only help with health and ASHA work-related questions. You can ask me about pregnancy, childcare, or health in general.
+          hi: मैं केवल स्वास्थ्य और ASHA कार्य से जुड़े सवालों में मदद कर सकती हूँ। आप मुझसे गर्भावस्था, शिशु देखभाल या सामान्य स्वास्थ्य से संबंधित सवाल पूछ सकते हैं।
+          mr: मी फक्त आरोग्य आणि ASHA कामाशी संबंधित प्रश्नांमध्ये मदत करू शकते. तुम्ही मला गर्भावस्था, बाळाची काळजी किंवा सामान्य आरोग्याबद्दल प्रश्न विचारू शकता.
+          te: నేను కేవలం ఆరోగ్యం మరియు ASHA పని సంబంధిత ప్రశ్నలలో మాత్రమే సహాయం చేయగలను. మీరు నాకు గర్భధారణ, శిశు సంరక్షణ లేదా ఆరోగ్యం గురించి ప్రశ్నలు అడగవచ్చు.
         incomprehensible:
           en: I am sorry, I did not understand this question. Please rephrase or ask  again.
           hi: मुझे क्षमा करें, मैं इस सवाल को समझ नहीं पाई। कृपया इसे दोबारा पूछें या दूसरे शब्दों मे कहें।

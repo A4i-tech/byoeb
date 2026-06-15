@@ -1,9 +1,12 @@
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.models.message_category import MessageCategory
+from byoeb.chat_app.configuration.config import bot_config
 
 import pytest
 from fastmcp import Client
 from mcp.types import TextContent
+
+_OFF_TOPIC_RESPONSE_EN = bot_config["template_messages"]["user"]["text"]["idk"]["off_topic"]["en"]
 
 @pytest.mark.asyncio
 async def test_health(envs, auth_access_token):
@@ -23,6 +26,28 @@ async def test_chat(envs, auth_access_token, temp_user):
             assert "category" in result.structured_content
             assert result.structured_content["category"] == MessageCategory.BOT_TO_USER_RESPONSE.value
             assert "text" in result.structured_content
+
+
+@pytest.mark.asyncio
+async def test_off_topic_returns_guided_message(envs, auth_access_token, temp_user):
+    """True-positive: off_topic query returns fixed guided message, not a RAG answer."""
+    with temp_user():
+        async with Client(f"{envs.base_url}/mcp", auth=auth_access_token) as client:
+            result = await client.call_tool("asha_chat", {"message": "Who won the IPL?"})
+            assert result.structured_content is not None
+            assert result.structured_content["category"] == MessageCategory.BOT_TO_USER_RESPONSE.value
+            assert result.structured_content["text"] == _OFF_TOPIC_RESPONSE_EN
+
+
+@pytest.mark.asyncio
+async def test_health_query_not_affected_by_off_topic(envs, auth_access_token, temp_user):
+    """True-negative: health query still goes through RAG, does not return off_topic guided message."""
+    with temp_user():
+        async with Client(f"{envs.base_url}/mcp", auth=auth_access_token) as client:
+            result = await client.call_tool("asha_chat", {"message": "What is ANC?"})
+            assert result.structured_content is not None
+            assert result.structured_content["category"] == MessageCategory.BOT_TO_USER_RESPONSE.value
+            assert result.structured_content["text"] != _OFF_TOPIC_RESPONSE_EN
 
 
 @pytest.mark.asyncio
