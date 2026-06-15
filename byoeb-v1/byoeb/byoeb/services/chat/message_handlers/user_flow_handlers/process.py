@@ -114,6 +114,9 @@ class ByoebUserProcess(Handler):
             # dependency injection
             from byoeb.chat_app.configuration.dependency_setup import channel_client_factory, speech_translator
             from byoeb_core.convertor.audio_convertor import ogg_opus_to_wav_bytes
+            if speech_translator is None:
+                message.message_context.message_source_text = "[Voice message — speech-to-text not configured. Please send a text message.]"
+                return
 
             start_time = datetime.now(timezone.utc)
             if audio_message is None:
