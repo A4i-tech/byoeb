@@ -2,153 +2,371 @@ import asyncio
 import os
 import json
 import logging
+import base64
 import yaml
-from byoeb.constants.feature_enums import FeatureFlag
 from dotenv import load_dotenv
+from pydantic import Field, SecretStr, field_validator, model_validator, AliasChoices
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
+
+from byoeb.constants.feature_enums import FeatureFlag
 
 logger = logging.getLogger(__name__)
 
-# Get the directory of the current script
+# ── static config files (unchanged) ──────────────────────────────────────────
 current_dir = os.path.dirname(os.path.abspath(__file__))
-app_config_path = os.path.join(current_dir, '..', 'app_config.json')
-app_config_path = os.path.normpath(app_config_path)
+
+app_config_path = os.path.normpath(os.path.join(current_dir, '..', 'app_config.json'))
 app_config = None
 with open(app_config_path, 'r', encoding="utf-8") as file:
     app_config = json.load(file)
 
 app_tempdir: asyncio.Future[str] = asyncio.Future()
 
-bot_config_path = os.path.join(current_dir, '..', 'bot_config.yaml')
-bot_config_path = os.path.normpath(bot_config_path)
+bot_config_path = os.path.normpath(os.path.join(current_dir, '..', 'bot_config.yaml'))
 with open(bot_config_path, 'r', encoding="utf-8") as file:
     bot_config = yaml.safe_load(file)
 
-environment_path = os.path.join(current_dir, '../../..', 'keys.env')
-environment_path = os.path.normpath(environment_path)
+# ── env file loading — keep override=True semantics ───────────────────────────
+environment_path = os.path.normpath(os.path.join(current_dir, '../../..', 'keys.env'))
 if os.path.exists(environment_path):
-    # Use override=True to allow .env file values to override system environment variables
     load_dotenv(environment_path, override=True)
 else:
     logger.warning("Environment file not found at %s", environment_path)
 
-# Environment variables
-env_app = os.getenv("APP_ENV", "LOCAL")  # "PROD" in production
 
-# OpenAI
-env_openai_api_key = os.getenv("OPENAI_API_KEY")
-env_openai_org_id = os.getenv("OPENAI_ORG_ID")
+# ── Settings class ─────────────────────────────────────────────────────────────
+class ChatAppSettings(BaseSettings):
+    """Validated, typed environment configuration for the byoeb chat app.
 
-# Azure cosmos db
-env_mongo_db_connection_string = os.getenv("MONGO_DB_CONNECTION_STRING")
+    Required fields raise pydantic.ValidationError at startup with a clear message.
+    SecretStr fields are redacted in logs and tracebacks.
+    """
+    model_config = SettingsConfigDict(extra='ignore')
 
-# Admin seed (set by wizard on first-time setup)
-# ADMIN_PASSWORD_HASH is base64-encoded bcrypt to survive docker compose env_file $ interpolation
-import base64 as _b64
-env_admin_username = os.getenv("ADMIN_USERNAME")
-_admin_hash_b64 = os.getenv("ADMIN_PASSWORD_HASH", "")
-try:
-    env_admin_password_hash = _b64.b64decode(_admin_hash_b64).decode("utf-8") if _admin_hash_b64 else None
-except Exception:
-    env_admin_password_hash = None
+    # App
+    app_env: str = Field(default="LOCAL", description="Application environment: LOCAL or PROD")
 
-# Logger
-env_appinsights_connection_string = os.getenv("APPINSIGHTS_CONNECTION_STRING")
-env_app_logger_name = os.getenv("APP_LOGGER_NAME")
+    # OpenAI
+    openai_api_key: Optional[SecretStr] = Field(
+        default=None, description="OpenAI API key for embeddings and LLM"
+    )
+    openai_org_id: Optional[str] = Field(default=None, description="OpenAI organization ID")
 
-# Azure Storage
-env_azure_storage_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-env_azure_storage_blob_account_url = os.getenv("AZURE_STORAGE_BLOB_ACCOUNT_URL")
-env_azure_storage_queue_account_url = os.getenv("AZURE_STORAGE_QUEUE_ACCOUNT_URL")
-env_azure_storage_container_name = os.getenv("AZURE_STORAGE_CONTAINER_NAME")
+    # MongoDB — REQUIRED: app cannot function without a database
+    mongo_db_connection_string: SecretStr = Field(
+        description="MongoDB connection string including database name, e.g. mongodb://host:27017/mydb"
+    )
 
-# Azure Queue Names - REQUIRED (must be set to prevent accidental production access)
-# These MUST be set in keys.env to explicitly specify which queues to use
-# Queue names and storage URL together determine the environment (local/staging/production)
-env_azure_queue_status = os.getenv("AZURE_QUEUE_STATUS")
-env_azure_queue_bot = os.getenv("AZURE_QUEUE_BOT")
-env_azure_queue_dead_letter = os.getenv("AZURE_QUEUE_DEAD_LETTER")
+    # Admin seed (set by wizard on first-time setup)
+    # ADMIN_PASSWORD_HASH is base64-encoded bcrypt to survive docker compose env_file $ interpolation
+    admin_username: Optional[str] = Field(default=None, description="Initial admin username")
+    admin_password_hash: Optional[str] = Field(
+        default=None,
+        description="Base64-encoded bcrypt hash of admin password (encoded to survive docker-compose $ expansion)"
+    )
 
-# Queue / storage backend selection
-# QUEUE_PROVIDER: "kafka" (default local) | "azure_storage_queue" (production)
-env_queue_provider = os.getenv("QUEUE_PROVIDER", "kafka")
-env_storage_backend = os.getenv("STORAGE_BACKEND", "azure")
+    # Application Insights
+    appinsights_connection_string: Optional[SecretStr] = Field(
+        default=None, description="Azure Application Insights connection string"
+    )
+    app_logger_name: Optional[str] = Field(default=None, description="Custom Azure logger name")
 
-# When true, WhatsApp send_requests returns synthetic responses without calling the Meta API.
-# Use for local dev/testing where a valid WhatsApp token is not available.
-env_whatsapp_api_bypass = os.getenv("WHATSAPP_API_BYPASS", "false").lower() == "true"
-env_local_storage_path = os.getenv("LOCAL_STORAGE_PATH", "./local_media_storage")
+    # Azure Storage
+    azure_storage_connection_string: Optional[SecretStr] = Field(
+        default=None, description="Azure Storage account connection string"
+    )
+    azure_storage_blob_account_url: Optional[str] = Field(
+        default=None, description="Azure Blob Storage account URL"
+    )
+    azure_storage_queue_account_url: Optional[str] = Field(
+        default=None, description="Azure Queue Storage account URL"
+    )
+    azure_storage_container_name: Optional[str] = Field(
+        default=None, description="Azure Storage container name for media"
+    )
 
-# Kafka
-env_kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-env_kafka_consumer_group = os.getenv("KAFKA_CONSUMER_GROUP", "byoeb")
-env_kafka_topic_bot = os.getenv("KAFKA_TOPIC_BOT", "byoeb-bot")
-env_kafka_topic_status = os.getenv("KAFKA_TOPIC_STATUS", "byoeb-status")
-env_kafka_topic_dead_letter = os.getenv("KAFKA_TOPIC_DEAD_LETTER", "byoeb-dlq")
+    # Azure Queue Names (required when QUEUE_PROVIDER=azure_storage_queue)
+    azure_queue_status: Optional[str] = Field(
+        default=None, description="Azure queue name for status messages"
+    )
+    azure_queue_bot: Optional[str] = Field(
+        default=None, description="Azure queue name for bot messages"
+    )
+    azure_queue_dead_letter: Optional[str] = Field(
+        default=None, description="Azure queue name for dead-letter messages"
+    )
 
-# Azure queue names only required when using Azure queue provider
-if env_queue_provider == "azure_storage_queue":
-    if not env_azure_queue_status:
-        raise ValueError(
-            "AZURE_QUEUE_STATUS environment variable must be set in keys.env. "
-        )
-    if not env_azure_queue_bot:
-        raise ValueError(
-            "AZURE_QUEUE_BOT environment variable must be set in keys.env. "
-        )
-    if not env_azure_queue_dead_letter:
-        raise ValueError(
-            "AZURE_QUEUE_DEAD_LETTER environment variable must be set in keys.env. "
-        )
+    # Queue / storage backend
+    queue_provider: str = Field(
+        default="kafka",
+        description="Queue provider: 'kafka' (local/default) or 'azure_storage_queue' (production)"
+    )
+    storage_backend: str = Field(
+        default="azure",
+        description="Storage backend: 'azure' or 'local'"
+    )
 
-# Azure Cognitive Services
-env_azure_cognitive_key = os.getenv("AZURE_COGNITIVE_KEY")
-env_azure_cognitive_region = os.getenv("AZURE_COGNITIVE_REGION")
-env_azure_cognitive_text_to_speech_resource = os.getenv("AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE")
-env_azure_cognitive_text_to_text_resource = os.getenv("AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE")
+    # WhatsApp
+    whatsapp_api_bypass: bool = Field(
+        default=False,
+        description="When true, WhatsApp send_requests return synthetic responses without calling Meta API. Use for local dev."
+    )
+    local_storage_path: str = Field(
+        default="./local_media_storage",
+        description="Local file storage path (used when STORAGE_BACKEND=local)"
+    )
 
-#Azure Speech Key
-env_azure_speech_key= os.getenv("AZURE_SPEECH_KEY")
-env_azure_openai_speech_key = os.getenv("AZURE_OPENAI_SPEECH_KEY") or os.getenv("AZURE_OPENAI_WHISPER_KEY")
-env_azure_openai_speech_endpoint = os.getenv("AZURE_OPENAI_SPEECH_ENDPOINT")
+    # Kafka
+    kafka_bootstrap_servers: str = Field(
+        default="localhost:9092", description="Kafka broker address"
+    )
+    kafka_consumer_group: str = Field(
+        default="byoeb", description="Kafka consumer group ID"
+    )
+    kafka_topic_bot: str = Field(
+        default="byoeb-bot", description="Kafka topic for inbound bot messages"
+    )
+    kafka_topic_status: str = Field(
+        default="byoeb-status", description="Kafka topic for status messages"
+    )
+    kafka_topic_dead_letter: str = Field(
+        default="byoeb-dlq", description="Kafka dead-letter topic"
+    )
 
-# Azure Search
-env_azure_search_api_key = os.getenv("AZURE_SEARCH_API_KEY")
-env_azure_search_service_name = os.getenv("AZURE_SEARCH_SERVICE_NAME")
-env_azure_search_index_name = os.getenv("AZURE_SEARCH_INDEX_NAME")
+    # Azure Cognitive Services
+    azure_cognitive_key: Optional[SecretStr] = Field(
+        default=None, description="Azure Cognitive Services API key"
+    )
+    azure_cognitive_region: Optional[str] = Field(
+        default=None, description="Azure Cognitive Services region, e.g. swedencentral"
+    )
+    azure_cognitive_text_to_speech_resource: Optional[str] = Field(
+        default=None, description="Azure Cognitive text-to-speech resource ID"
+    )
+    azure_cognitive_text_to_text_resource: Optional[str] = Field(
+        default=None, description="Azure Cognitive text translation resource ID"
+    )
+    azure_speech_key: Optional[SecretStr] = Field(
+        default=None, description="Azure Speech Services API key"
+    )
+    azure_openai_speech_key: Optional[SecretStr] = Field(
+        default=None,
+        validation_alias=AliasChoices('AZURE_OPENAI_SPEECH_KEY', 'AZURE_OPENAI_WHISPER_KEY'),
+        description="Azure OpenAI Whisper/Speech API key (also reads AZURE_OPENAI_WHISPER_KEY)"
+    )
+    azure_openai_speech_endpoint: Optional[str] = Field(
+        default=None, description="Azure OpenAI Speech/Whisper endpoint URL"
+    )
 
-# Azure OpenAI Configuration (optional - for staging/production switching)
-env_azure_openai_key = os.getenv("AZURE_OPENAI_KEY") or os.getenv("AZURE_OPENAI_WHISPER_KEY")
-env_azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-env_azure_openai_deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
+    # Azure Search
+    azure_search_api_key: Optional[SecretStr] = Field(
+        default=None, description="Azure Cognitive Search API key"
+    )
+    azure_search_service_name: Optional[str] = Field(
+        default=None, description="Azure Cognitive Search service name"
+    )
+    azure_search_index_name: Optional[str] = Field(
+        default=None, description="Azure Cognitive Search index name"
+    )
 
-# Vector Store Type (optional - will fallback to app_config.json if not set)
-# Options: "azure_vector_search", "chroma", "llama_index_chroma"
-env_vector_store_type = os.getenv("VECTOR_STORE_TYPE")
-# ChromaDB persist directory (optional - for local ChromaDB stores)
-env_persist_directory = os.getenv("PERSIST_DIRECTORY")
+    # Azure OpenAI
+    azure_openai_key: Optional[SecretStr] = Field(
+        default=None,
+        validation_alias=AliasChoices('AZURE_OPENAI_KEY', 'AZURE_OPENAI_WHISPER_KEY'),
+        description="Azure OpenAI API key (also reads AZURE_OPENAI_WHISPER_KEY)"
+    )
+    azure_openai_endpoint: Optional[str] = Field(
+        default=None, description="Azure OpenAI endpoint URL"
+    )
+    azure_openai_deployment_name: Optional[str] = Field(
+        default=None, description="Azure OpenAI deployment name"
+    )
 
-# Others
-env_ashabot_message_cache_capacity = os.getenv("ASHABOT_MESSAGE_CACHE_CAPACITY")
+    # Vector Store
+    vector_store_type: Optional[str] = Field(
+        default=None,
+        description="Vector store type: 'azure_vector_search', 'chroma', or 'llama_index_chroma'"
+    )
+    persist_directory: Optional[str] = Field(
+        default=None, description="ChromaDB persist directory path"
+    )
 
-env_ashabot_feature_flags = os.getenv("ASHABOT_FEATURE_FLAGS")
-feature_flags: set[FeatureFlag] = set()
-for entry in (env_ashabot_feature_flags or "").split(","):
-    logger.debug("Feature flag entry: %s", entry)
-    entry = entry.strip()
-    if not entry:
-        continue
-    try:
-        feature_flags.add(FeatureFlag(entry))
-    except ValueError:
-        raise RuntimeError("Unexpected feature flag: " + entry)
+    # ASHABot
+    ashabot_message_cache_capacity: int = Field(
+        default=64, description="ASHABot embedding cache capacity (number of messages)"
+    )
+    ashabot_feature_flags: Optional[str] = Field(
+        default=None, description="Comma-separated feature flag names (see FeatureFlag enum)"
+    )
 
-# Auth
-env_auth_token_secret = os.getenv("AUTH_TOKEN_SECRET")
-env_auth_token_ttl_seconds = os.getenv("AUTH_TOKEN_TTL_SECONDS")
-env_auth_token_algorithm = os.getenv("AUTH_TOKEN_ALGORITHM")
-env_auth_token_issuer = os.getenv("AUTH_TOKEN_ISSUER")
-env_auth_token_audience = os.getenv("AUTH_TOKEN_AUDIENCE")
-env_auth_token_leeway_seconds = os.getenv("AUTH_TOKEN_LEEWAY_SECONDS")
+    # Auth
+    auth_token_secret: Optional[SecretStr] = Field(
+        default=None, description="JWT secret key — 36+ random chars recommended"
+    )
+    auth_token_ttl_seconds: Optional[int] = Field(
+        default=None, description="JWT token expiry in seconds"
+    )
+    auth_token_algorithm: Optional[str] = Field(
+        default=None, description="JWT algorithm, e.g. HS256"
+    )
+    auth_token_issuer: Optional[str] = Field(
+        default=None, description="JWT issuer claim"
+    )
+    auth_token_audience: Optional[str] = Field(
+        default=None, description="JWT audience claim"
+    )
+    auth_token_leeway_seconds: Optional[int] = Field(
+        default=None, description="JWT validation leeway in seconds"
+    )
 
-# Public base URL
-env_public_base_url = os.getenv("PUBLIC_BASE_URL")
+    # Public URL
+    public_base_url: Optional[str] = Field(
+        default=None, description="Public base URL for webhook and auth callbacks"
+    )
+
+    @field_validator('admin_password_hash', mode='before')
+    @classmethod
+    def decode_admin_password_hash(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return None
+        try:
+            return base64.b64decode(v).decode('utf-8')
+        except Exception:
+            return None
+
+    @model_validator(mode='after')
+    def validate_azure_queue_names(self) -> 'ChatAppSettings':
+        if self.queue_provider == "azure_storage_queue":
+            missing = [
+                name for name, val in [
+                    ("AZURE_QUEUE_STATUS", self.azure_queue_status),
+                    ("AZURE_QUEUE_BOT", self.azure_queue_bot),
+                    ("AZURE_QUEUE_DEAD_LETTER", self.azure_queue_dead_letter),
+                ]
+                if not val
+            ]
+            if missing:
+                raise ValueError(
+                    f"These env vars must be set when QUEUE_PROVIDER=azure_storage_queue: {', '.join(missing)}"
+                )
+        return self
+
+
+def _parse_feature_flags(raw: Optional[str]) -> set[FeatureFlag]:
+    flags: set[FeatureFlag] = set()
+    for entry in (raw or "").split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        logger.debug("Feature flag entry: %s", entry)
+        try:
+            flags.add(FeatureFlag(entry))
+        except ValueError:
+            raise RuntimeError("Unexpected feature flag: " + entry)
+    return flags
+
+
+def log_optional_env_status(s: ChatAppSettings) -> None:
+    """Log INFO for each optional field that is not configured. Helps operators diagnose missing config."""
+    optional_fields = {
+        "OPENAI_API_KEY": s.openai_api_key,
+        "OPENAI_ORG_ID": s.openai_org_id,
+        "APPINSIGHTS_CONNECTION_STRING": s.appinsights_connection_string,
+        "APP_LOGGER_NAME": s.app_logger_name,
+        "AZURE_STORAGE_CONNECTION_STRING": s.azure_storage_connection_string,
+        "AZURE_STORAGE_BLOB_ACCOUNT_URL": s.azure_storage_blob_account_url,
+        "AZURE_COGNITIVE_KEY": s.azure_cognitive_key,
+        "AZURE_COGNITIVE_REGION": s.azure_cognitive_region,
+        "AZURE_OPENAI_KEY": s.azure_openai_key,
+        "AZURE_OPENAI_ENDPOINT": s.azure_openai_endpoint,
+        "AZURE_SEARCH_API_KEY": s.azure_search_api_key,
+        "AUTH_TOKEN_SECRET": s.auth_token_secret,
+        "PUBLIC_BASE_URL": s.public_base_url,
+    }
+    not_set = [k for k, v in optional_fields.items() if v is None]
+    if not_set:
+        logger.info("Optional env vars not configured: %s", ", ".join(not_set))
+
+
+# ── instantiate settings (fail fast here if required vars are missing) ─────────
+settings = ChatAppSettings()
+
+# ── parse feature flags ────────────────────────────────────────────────────────
+feature_flags: set[FeatureFlag] = _parse_feature_flags(settings.ashabot_feature_flags)
+
+# ── backward-compat module-level aliases ──────────────────────────────────────
+# These preserve the existing `env_config.env_xyz` interface used by 33+ files.
+# New code should use `settings.field_name` directly.
+env_app = settings.app_env
+env_openai_api_key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else None
+env_openai_org_id = settings.openai_org_id
+env_mongo_db_connection_string = settings.mongo_db_connection_string.get_secret_value()
+env_admin_username = settings.admin_username
+env_admin_password_hash = settings.admin_password_hash
+env_appinsights_connection_string = (
+    settings.appinsights_connection_string.get_secret_value()
+    if settings.appinsights_connection_string else None
+)
+env_app_logger_name = settings.app_logger_name
+env_azure_storage_connection_string = (
+    settings.azure_storage_connection_string.get_secret_value()
+    if settings.azure_storage_connection_string else None
+)
+env_azure_storage_blob_account_url = settings.azure_storage_blob_account_url
+env_azure_storage_queue_account_url = settings.azure_storage_queue_account_url
+env_azure_storage_container_name = settings.azure_storage_container_name
+env_azure_queue_status = settings.azure_queue_status
+env_azure_queue_bot = settings.azure_queue_bot
+env_azure_queue_dead_letter = settings.azure_queue_dead_letter
+env_queue_provider = settings.queue_provider
+env_storage_backend = settings.storage_backend
+env_whatsapp_api_bypass = settings.whatsapp_api_bypass
+env_local_storage_path = settings.local_storage_path
+env_kafka_bootstrap_servers = settings.kafka_bootstrap_servers
+env_kafka_consumer_group = settings.kafka_consumer_group
+env_kafka_topic_bot = settings.kafka_topic_bot
+env_kafka_topic_status = settings.kafka_topic_status
+env_kafka_topic_dead_letter = settings.kafka_topic_dead_letter
+env_azure_cognitive_key = (
+    settings.azure_cognitive_key.get_secret_value()
+    if settings.azure_cognitive_key else None
+)
+env_azure_cognitive_region = settings.azure_cognitive_region
+env_azure_cognitive_text_to_speech_resource = settings.azure_cognitive_text_to_speech_resource
+env_azure_cognitive_text_to_text_resource = settings.azure_cognitive_text_to_text_resource
+env_azure_speech_key = (
+    settings.azure_speech_key.get_secret_value()
+    if settings.azure_speech_key else None
+)
+env_azure_openai_speech_key = (
+    settings.azure_openai_speech_key.get_secret_value()
+    if settings.azure_openai_speech_key else None
+)
+env_azure_openai_speech_endpoint = settings.azure_openai_speech_endpoint
+env_azure_search_api_key = (
+    settings.azure_search_api_key.get_secret_value()
+    if settings.azure_search_api_key else None
+)
+env_azure_search_service_name = settings.azure_search_service_name
+env_azure_search_index_name = settings.azure_search_index_name
+env_azure_openai_key = (
+    settings.azure_openai_key.get_secret_value()
+    if settings.azure_openai_key else None
+)
+env_azure_openai_endpoint = settings.azure_openai_endpoint
+env_azure_openai_deployment_name = settings.azure_openai_deployment_name
+env_vector_store_type = settings.vector_store_type
+env_persist_directory = settings.persist_directory
+env_ashabot_message_cache_capacity = settings.ashabot_message_cache_capacity
+env_ashabot_feature_flags = settings.ashabot_feature_flags
+env_auth_token_secret = (
+    settings.auth_token_secret.get_secret_value()
+    if settings.auth_token_secret else None
+)
+env_auth_token_ttl_seconds = settings.auth_token_ttl_seconds
+env_auth_token_algorithm = settings.auth_token_algorithm
+env_auth_token_issuer = settings.auth_token_issuer
+env_auth_token_audience = settings.auth_token_audience
+env_auth_token_leeway_seconds = settings.auth_token_leeway_seconds
+env_public_base_url = settings.public_base_url
