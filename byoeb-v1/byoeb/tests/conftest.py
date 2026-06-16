@@ -37,3 +37,9 @@ if "MONGO_DB_CONNECTION_STRING" not in os.environ:
     os.environ["MONGO_DB_CONNECTION_STRING"] = "mongodb://localhost:27017/test-db"
 
 os.environ["AUTH_TOKEN_SECRET"] = "x" * 36
+
+# Pre-import config so the module is cached before any test mutates env vars.
+# test_fails_without_mongo_connection_string deletes MONGO_DB_CONNECTION_STRING
+# then imports ChatAppSettings; without this pre-import the module would be loaded
+# fresh with the deleted var and settings = ChatAppSettings() would crash at import.
+import byoeb.chat_app.configuration.config  # noqa: F401, E402
