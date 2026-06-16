@@ -2,7 +2,7 @@ import logging
 from typing import Any, Optional
 from pydantic import TypeAdapter
 
-import byoeb.chat_app.configuration.config as env_config
+from byoeb.chat_app.configuration.config import settings as chat_settings, feature_flags
 from byoeb.constants.user_enums import LanguageCode
 from byoeb.constants.feature_enums import FeatureFlag
 from byoeb_core.translators.speech.base import BaseSpeechTranslator
@@ -26,7 +26,7 @@ class TranslatorAdapter(BaseSpeechTranslator):
         for entry in config:
             languages = TypeAdapter(list[LanguageCode]).validate_python(entry["languages"])
             attributes = TypeAdapter(dict[str, Any]).validate_python(entry["attributes"]) if "attributes" in entry else {}
-            gated = entry.get("gated", False) and FeatureFlag.STT_LATENCY_MITIGATION not in env_config.feature_flags
+            gated = entry.get("gated", False) and FeatureFlag.STT_LATENCY_MITIGATION not in feature_flags
 
             hash_key = hash_dict({k: entry[k] for k in ("service", "attributes") if k in entry})
             if hash_key in known_speech_services:
@@ -53,17 +53,17 @@ class TranslatorAdapter(BaseSpeechTranslator):
     def __instantiate(self, motive: str, service: str, attributes: dict[str, Any], azure_cognitive_endpoint: str) -> BaseSpeechTranslator:
         # TODO: factory implementation
         match motive, service:
-            case "speech_to_text", "azure_openai" if not env_config.env_azure_openai_speech_endpoint:
+            case "speech_to_text", "azure_openai" if not chat_settings.azure_openai_speech_endpoint:
                 raise RuntimeError("AZURE_OPENAI_SPEECH_ENDPOINT environment variable must be set to use " + service + " service")
-            case "speech_to_text", "azure_openai" if env_config.env_azure_openai_speech_key:
+            case "speech_to_text", "azure_openai" if chat_settings.azure_openai_speech_key:
                 logger.info(
                     "Azure OpenAI key set. Enabling Azure OpenAI translator for motive=%s, service=%s, model=%s.",
                     motive,
                     service,
                     attributes["model"],
                 )
-                attributes["api_key"] = env_config.env_azure_openai_speech_key
-                attributes["endpoint"] = env_config.env_azure_openai_speech_endpoint
+                attributes["api_key"] = chat_settings.azure_openai_speech_key.get_secret_value()
+                attributes["endpoint"] = chat_settings.azure_openai_speech_endpoint
                 return AsyncAzureOpenAISpeechTranslator(**attributes)
             case "speech_to_text", "azure_openai":
                 logger.warning(
@@ -74,22 +74,22 @@ class TranslatorAdapter(BaseSpeechTranslator):
                 )
                 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
                 attributes["token_provider"] = get_bearer_token_provider(DefaultAzureCredential(), azure_cognitive_endpoint)
-                attributes["endpoint"] = env_config.env_azure_openai_speech_endpoint
+                attributes["endpoint"] = chat_settings.azure_openai_speech_endpoint
                 return AsyncAzureOpenAISpeechTranslator(**attributes)
-            case "text_to_speech", "azure_cognitive" if not env_config.env_azure_cognitive_region:
+            case "text_to_speech", "azure_cognitive" if not chat_settings.azure_cognitive_region:
                 raise RuntimeError("AZURE_COGNITIVE_REGION environment variable must be set to use " + service + " service")
-            case "text_to_speech", "azure_cognitive" if not env_config.env_azure_cognitive_text_to_speech_resource:
+            case "text_to_speech", "azure_cognitive" if not chat_settings.azure_cognitive_text_to_speech_resource:
                 raise RuntimeError("AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE environment variable must be set to use " + service + " service")
-            case "text_to_speech", "azure_cognitive" if env_config.env_azure_speech_key:
+            case "text_to_speech", "azure_cognitive" if chat_settings.azure_speech_key:
                 logger.info(
                     "Azure Cognitive Services key set. Enabling Azure speech translator for motive=%s, service=%s.",
                     motive,
                     service,
                 )
                 return AsyncAzureSpeechTranslator(
-                    region=env_config.env_azure_cognitive_region,
-                    resource_id=env_config.env_azure_cognitive_text_to_speech_resource,
-                    key=env_config.env_azure_speech_key
+                    region=chat_settings.azure_cognitive_region,
+                    resource_id=chat_settings.azure_cognitive_text_to_speech_resource,
+                    key=chat_settings.azure_speech_key.get_secret_value()
                 )
             case "text_to_speech", "azure_cognitive":
                 logger.warning(
@@ -99,8 +99,8 @@ class TranslatorAdapter(BaseSpeechTranslator):
                 )
                 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
                 return AsyncAzureSpeechTranslator(
-                    region=env_config.env_azure_cognitive_region,
-                    resource_id=env_config.env_azure_cognitive_text_to_speech_resource,
+                    region=chat_settings.azure_cognitive_region,
+                    resource_id=chat_settings.azure_cognitive_text_to_speech_resource,
                     token_provider=get_bearer_token_provider(DefaultAzureCredential(), azure_cognitive_endpoint)
                 )
             case motive, service:

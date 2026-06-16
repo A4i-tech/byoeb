@@ -54,10 +54,11 @@ class QueueConsumer:
 
     async def __create_azure_storage_queue_client(self, queue_name: str) -> BaseQueue:
         from byoeb_integrations.message_queue.azure.async_azure_storage_queue import AsyncAzureStorageQueue
-        from byoeb.chat_app.configuration.config import env_azure_storage_connection_string
-        if env_azure_storage_connection_string:
+        from byoeb.chat_app.configuration.config import settings as chat_settings
+        _cs = chat_settings.azure_storage_connection_string.get_secret_value() if chat_settings.azure_storage_connection_string else None
+        if _cs:
             return await AsyncAzureStorageQueue.aget_or_create(
-                connection_string=env_azure_storage_connection_string,
+                connection_string=_cs,
                 queue_name=queue_name
             )
         from azure.identity import DefaultAzureCredential
@@ -80,8 +81,8 @@ class QueueConsumer:
                 consumer_group=self._consumer_group + "-dlq",
             )
         else:
-            from byoeb.chat_app.configuration.config import env_azure_queue_dead_letter
-            self._dlq_client = await self.__create_azure_storage_queue_client(env_azure_queue_dead_letter)
+            from byoeb.chat_app.configuration.config import settings as chat_settings
+            self._dlq_client = await self.__create_azure_storage_queue_client(chat_settings.azure_queue_dead_letter)
         return self._dlq_client
 
     async def initialize(self):

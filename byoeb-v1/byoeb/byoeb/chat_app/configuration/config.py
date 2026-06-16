@@ -6,6 +6,7 @@ import base64
 import yaml
 from dotenv import load_dotenv
 from pydantic import Field, SecretStr, field_validator, model_validator, AliasChoices
+from pydantic.networks import MongoDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
@@ -37,11 +38,6 @@ else:
 
 # ── Settings class ─────────────────────────────────────────────────────────────
 class ChatAppSettings(BaseSettings):
-    """Validated, typed environment configuration for the byoeb chat app.
-
-    Required fields raise pydantic.ValidationError at startup with a clear message.
-    SecretStr fields are redacted in logs and tracebacks.
-    """
     model_config = SettingsConfigDict(extra='ignore')
 
     # App
@@ -54,8 +50,8 @@ class ChatAppSettings(BaseSettings):
     openai_org_id: Optional[str] = Field(default=None, description="OpenAI organization ID")
 
     # MongoDB — REQUIRED: app cannot function without a database
-    mongo_db_connection_string: SecretStr = Field(
-        description="MongoDB connection string including database name, e.g. mongodb://host:27017/mydb"
+    mongo_db_connection_string: MongoDsn = Field(
+        description="MongoDB connection string, e.g. mongodb://host:27017/mydb"
     )
 
     # Admin seed (set by wizard on first-time setup)
@@ -296,78 +292,3 @@ settings = ChatAppSettings()
 # ── parse feature flags ────────────────────────────────────────────────────────
 feature_flags: set[FeatureFlag] = _parse_feature_flags(settings.ashabot_feature_flags)
 
-# ── backward-compat module-level aliases ──────────────────────────────────────
-# These preserve the existing `env_config.env_xyz` interface used by 33+ files.
-# New code should use `settings.field_name` directly.
-env_app = settings.app_env
-env_openai_api_key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else None
-env_openai_org_id = settings.openai_org_id
-env_mongo_db_connection_string = settings.mongo_db_connection_string.get_secret_value()
-env_admin_username = settings.admin_username
-env_admin_password_hash = settings.admin_password_hash
-env_appinsights_connection_string = (
-    settings.appinsights_connection_string.get_secret_value()
-    if settings.appinsights_connection_string else None
-)
-env_app_logger_name = settings.app_logger_name
-env_azure_storage_connection_string = (
-    settings.azure_storage_connection_string.get_secret_value()
-    if settings.azure_storage_connection_string else None
-)
-env_azure_storage_blob_account_url = settings.azure_storage_blob_account_url
-env_azure_storage_queue_account_url = settings.azure_storage_queue_account_url
-env_azure_storage_container_name = settings.azure_storage_container_name
-env_azure_queue_status = settings.azure_queue_status
-env_azure_queue_bot = settings.azure_queue_bot
-env_azure_queue_dead_letter = settings.azure_queue_dead_letter
-env_queue_provider = settings.queue_provider
-env_storage_backend = settings.storage_backend
-env_whatsapp_api_bypass = settings.whatsapp_api_bypass
-env_local_storage_path = settings.local_storage_path
-env_kafka_bootstrap_servers = settings.kafka_bootstrap_servers
-env_kafka_consumer_group = settings.kafka_consumer_group
-env_kafka_topic_bot = settings.kafka_topic_bot
-env_kafka_topic_status = settings.kafka_topic_status
-env_kafka_topic_dead_letter = settings.kafka_topic_dead_letter
-env_azure_cognitive_key = (
-    settings.azure_cognitive_key.get_secret_value()
-    if settings.azure_cognitive_key else None
-)
-env_azure_cognitive_region = settings.azure_cognitive_region
-env_azure_cognitive_text_to_speech_resource = settings.azure_cognitive_text_to_speech_resource
-env_azure_cognitive_text_to_text_resource = settings.azure_cognitive_text_to_text_resource
-env_azure_speech_key = (
-    settings.azure_speech_key.get_secret_value()
-    if settings.azure_speech_key else None
-)
-env_azure_openai_speech_key = (
-    settings.azure_openai_speech_key.get_secret_value()
-    if settings.azure_openai_speech_key else None
-)
-env_azure_openai_speech_endpoint = settings.azure_openai_speech_endpoint
-env_azure_search_api_key = (
-    settings.azure_search_api_key.get_secret_value()
-    if settings.azure_search_api_key else None
-)
-env_azure_search_service_name = settings.azure_search_service_name
-env_azure_search_index_name = settings.azure_search_index_name
-env_azure_openai_key = (
-    settings.azure_openai_key.get_secret_value()
-    if settings.azure_openai_key else None
-)
-env_azure_openai_endpoint = settings.azure_openai_endpoint
-env_azure_openai_deployment_name = settings.azure_openai_deployment_name
-env_vector_store_type = settings.vector_store_type
-env_persist_directory = settings.persist_directory
-env_ashabot_message_cache_capacity = settings.ashabot_message_cache_capacity
-env_ashabot_feature_flags = settings.ashabot_feature_flags
-env_auth_token_secret = (
-    settings.auth_token_secret.get_secret_value()
-    if settings.auth_token_secret else None
-)
-env_auth_token_ttl_seconds = settings.auth_token_ttl_seconds
-env_auth_token_algorithm = settings.auth_token_algorithm
-env_auth_token_issuer = settings.auth_token_issuer
-env_auth_token_audience = settings.auth_token_audience
-env_auth_token_leeway_seconds = settings.auth_token_leeway_seconds
-env_public_base_url = settings.public_base_url

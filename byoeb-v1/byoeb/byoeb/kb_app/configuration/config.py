@@ -31,10 +31,6 @@ else:
 
 # ── Settings class ─────────────────────────────────────────────────────────────
 class KbAppSettings(BaseSettings):
-    """Validated, typed environment configuration for the byoeb KB app.
-
-    SecretStr fields are redacted in logs and tracebacks.
-    """
     model_config = SettingsConfigDict(extra='ignore')
 
     # OpenAI
@@ -134,48 +130,3 @@ class KbAppSettings(BaseSettings):
 # ── instantiate settings ───────────────────────────────────────────────────────
 settings = KbAppSettings()
 
-# ── backward-compat module-level aliases ──────────────────────────────────────
-env_openai_api_key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else None
-env_openai_org_id = settings.openai_org_id
-env_azure_storage_connection_string = (
-    settings.azure_storage_connection_string.get_secret_value()
-    if settings.azure_storage_connection_string else None
-)
-env_azure_storage_blob_account_url = settings.azure_storage_blob_account_url
-env_azure_storage_container_name = settings.azure_storage_container_name
-env_azure_storage_analysis_container_name = settings.azure_storage_analysis_container_name
-env_azure_search_api_key = (
-    settings.azure_search_api_key.get_secret_value()
-    if settings.azure_search_api_key else None
-)
-env_azure_search_service_name = settings.azure_search_service_name
-env_azure_search_index_name = settings.azure_search_index_name
-env_azure_search_vectorizer_model_uri = settings.azure_search_vectorizer_model_uri
-env_azure_search_vectorizer_model_name = settings.azure_search_vectorizer_model_name
-env_azure_search_vectorizer_model_api_key = (
-    settings.azure_search_vectorizer_model_api_key.get_secret_value()
-    if settings.azure_search_vectorizer_model_api_key else None
-)
-env_azure_cognitive_key = (
-    settings.azure_cognitive_key.get_secret_value()
-    if settings.azure_cognitive_key else None
-)
-env_azure_openai_key = (
-    settings.azure_openai_key.get_secret_value()
-    if settings.azure_openai_key else None
-)
-env_azure_openai_endpoint = settings.azure_openai_endpoint
-env_azure_openai_deployment_name = settings.azure_openai_deployment_name
-env_vector_store_type = settings.vector_store_type
-env_persist_directory = settings.persist_directory
-env_qdrant_location = settings.qdrant_location
-env_qdrant_host = settings.qdrant_host
-env_qdrant_port = settings.qdrant_port
-env_qdrant_url = settings.qdrant_url
-env_qdrant_api_key = (
-    settings.qdrant_api_key.get_secret_value()
-    if settings.qdrant_api_key else None
-)
-env_qdrant_collection_name = settings.qdrant_collection_name
-env_storage_backend = settings.storage_backend
-env_local_storage_path = settings.local_storage_path

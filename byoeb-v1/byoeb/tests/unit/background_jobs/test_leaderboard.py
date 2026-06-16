@@ -1,6 +1,6 @@
 import pytest
 from mongomock_motor import AsyncMongoMockClient
-from byoeb.chat_app.configuration.config import app_config, env_mongo_db_connection_string
+from byoeb.chat_app.configuration.config import app_config, settings
 from byoeb.background_jobs.message_leaderboard import leaderboard
 from byoeb.repositories.repository_factory import RepositoryFactory
 from byoeb.repositories.mongodb_message_repository import MongoMessageRepository
@@ -14,11 +14,8 @@ async def use_mongomock(monkeypatch, docs_by_collection):
     """
     client = AsyncMongoMockClient()
     # Extract database name from MongoDB connection string
-    if not env_mongo_db_connection_string:
-        raise ValueError(
-            "MONGO_DB_CONNECTION_STRING environment variable must be set. "
-        )
-    db_name = parse_uri(env_mongo_db_connection_string)["database"]
+    mongo_conn_str = str(settings.mongo_db_connection_string)
+    db_name = parse_uri(mongo_conn_str)["database"]
     if db_name is None:
         raise RuntimeError("Database name must be specified in the mongodb connection string")
     db = client[db_name]

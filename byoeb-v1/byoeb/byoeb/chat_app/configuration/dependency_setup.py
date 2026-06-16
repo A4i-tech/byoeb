@@ -1,4 +1,4 @@
-import byoeb.chat_app.configuration.config as env_config
+from byoeb.chat_app.configuration.config import settings as chat_settings
 from byoeb.chat_app.configuration.config import app_config
 from langfuse import Langfuse
 
@@ -10,19 +10,20 @@ _logger = logging.getLogger("flow")
 # App logger (logger name is app identity, not environment-specific)
 AZURE_LOGGER_NAME = "khushi-baby-asha-logger"
 
-langfuse = Langfuse(environment=env_config.env_app, blocked_instrumentation_scopes=[
+langfuse = Langfuse(environment=chat_settings.app_env, blocked_instrumentation_scopes=[
     "azure.core.tracing.ext.opentelemetry_span",  # without this langfuse gets bombarded with 0-length azure queue poll responses
     "byoeb.listener.message_consumer",  # our custom queue consumer traces are not relevant in langfuse's context, generic OTEL sufficiently exposes these
     "opentelemetry.instrumentation.fastapi",  # incoming HTTP requests - just noise appearing in Langfuse when generic OTEL already logs these
     "opentelemetry.instrumentation.requests",  # outgoing HTTP requests - same reason as above
 ])
 
-if env_config.env_appinsights_connection_string:
+_appinsights_cs = chat_settings.appinsights_connection_string.get_secret_value() if chat_settings.appinsights_connection_string else None
+if _appinsights_cs:
     from azure.monitor.opentelemetry import configure_azure_monitor
     _logger.info("App Insights connection string set. Enabling Azure logging.")
     configure_azure_monitor(
-        logger_name=env_config.env_app_logger_name or AZURE_LOGGER_NAME,
-        connection_string=env_config.env_appinsights_connection_string,
+        logger_name=chat_settings.app_logger_name or AZURE_LOGGER_NAME,
+        connection_string=_appinsights_cs,
         instrumentations=["urllib3"]
     )
     # opentelemetry-instrumentation-fastapi 0.60b0 crashes on Starlette 1.x routes
@@ -106,28 +107,28 @@ message_producer_handler = QueueProducerHandler(
 
 # message consumer
 from byoeb.listener.message_consumer import QueueConsumer
-_queue_provider = env_config.env_queue_provider
+_queue_provider = chat_settings.queue_provider
 
 if _queue_provider == "kafka":
     message_consumer = QueueConsumer(
         config=app_config,
         queue_provider="kafka",
-        bootstrap_servers=env_config.env_kafka_bootstrap_servers,
-        consumer_group=env_config.env_kafka_consumer_group,
-        topic=env_config.env_kafka_topic_bot,
-        dlq_topic=env_config.env_kafka_topic_dead_letter,
+        bootstrap_servers=chat_settings.kafka_bootstrap_servers,
+        consumer_group=chat_settings.kafka_consumer_group,
+        topic=chat_settings.kafka_topic_bot,
+        dlq_topic=chat_settings.kafka_topic_dead_letter,
         user_db_service=user_db_service,
         message_db_service=message_db_service,
         channel_service=whatsapp_service,
     )
 elif _queue_provider == "azure_storage_queue":
-    if not env_config.env_azure_storage_queue_account_url:
+    if not chat_settings.azure_storage_queue_account_url:
         raise ValueError("AZURE_STORAGE_QUEUE_ACCOUNT_URL must be set for azure_storage_queue provider")
     message_consumer = QueueConsumer(
         config=app_config,
         queue_provider="azure_storage_queue",
-        account_url=env_config.env_azure_storage_queue_account_url,
-        queue_name=env_config.env_azure_queue_bot,
+        account_url=chat_settings.azure_storage_queue_account_url,
+        queue_name=chat_settings.azure_queue_bot,
         user_db_service=user_db_service,
         message_db_service=message_db_service,
         channel_service=whatsapp_service,
@@ -143,8 +144,8 @@ users_handler = UsersHandler(
 
 # Text + Speech translators — optional, requires AZURE_COGNITIVE_REGION
 _azure_cognitive_enabled = bool(
-    env_config.env_azure_cognitive_region
-    and env_config.env_azure_cognitive_text_to_text_resource
+    chat_settings.azure_cognitive_region
+    and chat_settings.azure_cognitive_text_to_text_resource
 )
 
 text_translator = None
@@ -152,20 +153,21 @@ speech_translator = None
 
 if _azure_cognitive_enabled:
     from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
-    if env_config.env_azure_cognitive_key:
+    _azure_cognitive_key = chat_settings.azure_cognitive_key.get_secret_value() if chat_settings.azure_cognitive_key else None
+    if _azure_cognitive_key:
         _logger.info("Azure Cognitive Services key set. Enabling text + speech translators.")
         text_translator = AsyncAzureTextTranslator(
-            key=env_config.env_azure_cognitive_key,
-            region=env_config.env_azure_cognitive_region,
-            resource_id=env_config.env_azure_cognitive_text_to_text_resource,
+            key=_azure_cognitive_key,
+            region=chat_settings.azure_cognitive_region,
+            resource_id=chat_settings.azure_cognitive_text_to_text_resource,
         )
     else:
         from azure.identity import DefaultAzureCredential
         _logger.warning("Azure Cognitive key not set. Using DefaultAzureCredential for text translator.")
         text_translator = AsyncAzureTextTranslator(
             credential=DefaultAzureCredential(),
-            region=env_config.env_azure_cognitive_region,
-            resource_id=env_config.env_azure_cognitive_text_to_text_resource,
+            region=chat_settings.azure_cognitive_region,
+            resource_id=chat_settings.azure_cognitive_text_to_text_resource,
         )
     from byoeb.services.chat.translator import TranslatorAdapter
     speech_translator = TranslatorAdapter(
@@ -187,21 +189,22 @@ from byoeb_core.vector_stores.base import BaseVectorStore
 
 # Embeddings — Azure OpenAI if configured, else fall back to standard OpenAI
 _azure_openai_enabled = bool(
-    env_config.env_azure_openai_endpoint
-    and env_config.env_azure_openai_deployment_name
+    chat_settings.azure_openai_endpoint
+    and chat_settings.azure_openai_deployment_name
 )
 
 if _azure_openai_enabled:
     from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
-    _aoai_endpoint = env_config.env_azure_openai_endpoint
-    _aoai_deployment = env_config.env_azure_openai_deployment_name
-    if env_config.env_azure_openai_key:
+    _aoai_endpoint = chat_settings.azure_openai_endpoint
+    _aoai_deployment = chat_settings.azure_openai_deployment_name
+    _azure_openai_key = chat_settings.azure_openai_key.get_secret_value() if chat_settings.azure_openai_key else None
+    if _azure_openai_key:
         _logger.info("Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
         azure_openai_embed = AzureOpenAIEmbed(
             model=app_config["embeddings"]["azure"]["model"],
             deployment_name=_aoai_deployment,
             azure_endpoint=_aoai_endpoint,
-            api_key=env_config.env_azure_openai_key,
+            api_key=_azure_openai_key,
             api_version=app_config["embeddings"]["azure"]["api_version"],
         )
     else:
@@ -219,7 +222,8 @@ if _azure_openai_enabled:
         )
     _logger.info("Using Azure OpenAI embeddings: endpoint=%s", _aoai_endpoint)
 else:
-    if not env_config.env_openai_api_key:
+    _openai_api_key = chat_settings.openai_api_key.get_secret_value() if chat_settings.openai_api_key else None
+    if not _openai_api_key:
         raise ValueError(
             "Either AZURE_OPENAI_ENDPOINT+AZURE_OPENAI_DEPLOYMENT_NAME or "
             "OPENAI_API_KEY must be set for embeddings."
@@ -227,37 +231,37 @@ else:
     from byoeb_integrations.embeddings.llama_index.openai import OpenAIEmbed
     azure_openai_embed = OpenAIEmbed(
         model="text-embedding-3-small",
-        api_key=env_config.env_openai_api_key,
+        api_key=_openai_api_key,
     )
     _logger.info("Azure OpenAI not configured — using standard OpenAI embeddings (text-embedding-3-small)")
 
 # Vector Store Type Configuration - use environment variable if set, otherwise fallback to app_config.json
 # Default to "azure_vector_search" if not specified (for backward compatibility)
-vector_store_type = env_config.env_vector_store_type or "azure_vector_search"
+vector_store_type = chat_settings.vector_store_type or "azure_vector_search"
 
 # Initialize vector store based on configuration
 vector_store: BaseVectorStore = None
 
 if vector_store_type == "azure_vector_search":
     # Require environment variables for Azure Search to prevent accidental production access
-    if not env_config.env_azure_search_service_name:
+    if not chat_settings.azure_search_service_name:
         raise ValueError(
             "AZURE_SEARCH_SERVICE_NAME environment variable must be set. "
         )
-    if not env_config.env_azure_search_index_name:
+    if not chat_settings.azure_search_index_name:
         raise ValueError(
             "AZURE_SEARCH_INDEX_NAME environment variable must be set. "
         )
-    azure_search_service_name = env_config.env_azure_search_service_name
-    azure_search_doc_index_name = env_config.env_azure_search_index_name
-    
-    if env_config.env_azure_search_api_key:
+    azure_search_service_name = chat_settings.azure_search_service_name
+    azure_search_doc_index_name = chat_settings.azure_search_index_name
+    _azure_search_api_key = chat_settings.azure_search_api_key.get_secret_value() if chat_settings.azure_search_api_key else None
+    if _azure_search_api_key:
         from azure.core.credentials import AzureKeyCredential
         _logger.info("Azure Search API key set. Enabling Azure vector store.")
-        credential = AzureKeyCredential(env_config.env_azure_search_api_key)
+        credential = AzureKeyCredential(_azure_search_api_key)
     else:
         from azure.identity import DefaultAzureCredential
-        credential = DefaultAzureCredential()   
+        credential = DefaultAzureCredential()
         _logger.warning("Azure Search API key not set. Defaulting to DefaultAzureCredential")
     
     # Azure Vector Store uses LlamaIndex embedding function
@@ -274,7 +278,7 @@ if vector_store_type == "azure_vector_search":
 elif vector_store_type == "chroma":
     # ChromaDB Vector Store - needs ChromaDB-compatible embedding function
     collection_name = app_config["vector_store"]["chroma"]["doc_index_name"]
-    persist_directory = env_config.env_persist_directory
+    persist_directory = chat_settings.persist_directory
     
     if not persist_directory:
         # Default persist directory if not specified
@@ -304,7 +308,7 @@ elif vector_store_type == "chroma":
 elif vector_store_type == "llama_index_chroma":
     # LlamaIndex ChromaDB Vector Store - uses LlamaIndex embedding function
     collection_name = app_config["vector_store"]["llama_index_chroma"]["doc_index_name"]
-    persist_directory = env_config.env_persist_directory
+    persist_directory = chat_settings.persist_directory
     
     if not persist_directory:
         # Default persist directory if not specified
@@ -341,19 +345,20 @@ else:
 #     api_version=app_config["llms"]["azure"]["api_version"]
 # )
 from byoeb_integrations.llms.llama_index.llama_index_openai import AsyncLLamaIndexOpenAILLM
+_llm_api_key = chat_settings.openai_api_key.get_secret_value() if chat_settings.openai_api_key else None
 llm_client = AsyncLLamaIndexOpenAILLM(
     model=app_config["llms"]["openai"]["model"],
-    api_key=env_config.env_openai_api_key,
+    api_key=_llm_api_key,
     api_version=app_config["llms"]["openai"]["api_version"],
-    organization=env_config.env_openai_org_id,
+    organization=chat_settings.openai_org_id,
     temperature=0.0  # Set to 0 for deterministic responses (same input → same output)
 )
 
 llm_translate_and_rewrite_client = AsyncLLamaIndexOpenAILLM(
     model=app_config["llms"]["openai"]["model"],
-    api_key=env_config.env_openai_api_key,
+    api_key=_llm_api_key,
     api_version=app_config["llms"]["openai"]["api_version"],
-    organization=env_config.env_openai_org_id,
+    organization=chat_settings.openai_org_id,
     temperature=0.0  # Set to 0 for deterministic query rewriting (same input → same output)
 )
 
@@ -386,30 +391,31 @@ byoeb_expert_process = ByoebExpertProcess(successor=byoeb_expert_generate_respon
 
 from byoeb_core.media_storage.base import BaseMediaStorage
 
-if env_config.env_storage_backend == "local":
+if chat_settings.storage_backend == "local":
     from byoeb_integrations.media_storage.local.local_file_storage import LocalFileStorage
     media_storage: BaseMediaStorage = LocalFileStorage(
-        storage_dir=env_config.env_local_storage_path
+        storage_dir=chat_settings.local_storage_path
     )
-    _logger.info("Using local file storage at %s", env_config.env_local_storage_path)
+    _logger.info("Using local file storage at %s", chat_settings.local_storage_path)
 else:
     from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
     from azure.identity import DefaultAzureCredential
 
-    if not env_config.env_azure_storage_blob_account_url:
+    if not chat_settings.azure_storage_blob_account_url:
         raise ValueError("AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set.")
-    if not env_config.env_azure_storage_container_name:
+    if not chat_settings.azure_storage_container_name:
         raise ValueError("AZURE_STORAGE_CONTAINER_NAME environment variable must be set.")
 
-    container_name = env_config.env_azure_storage_container_name
-    account_url = env_config.env_azure_storage_blob_account_url
+    container_name = chat_settings.azure_storage_container_name
+    account_url = chat_settings.azure_storage_blob_account_url
+    _azure_storage_cs = chat_settings.azure_storage_connection_string.get_secret_value() if chat_settings.azure_storage_connection_string else None
 
-    if env_config.env_azure_storage_connection_string:
+    if _azure_storage_cs:
         media_storage: BaseMediaStorage = AsyncAzureBlobStorage(
             container_name=container_name,
             account_url=None,
             credentials=None,
-            connection_string=env_config.env_azure_storage_connection_string
+            connection_string=_azure_storage_cs
         )
     elif account_url:
         media_storage: BaseMediaStorage = AsyncAzureBlobStorage(
@@ -429,10 +435,8 @@ from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 import pymongo
 from pymongo.uri_parser import parse_uri
-from byoeb.chat_app.configuration.config import env_mongo_db_connection_string
-
 # MongoDB connection configuration for scheduler job store
-MONGODB_URL = env_mongo_db_connection_string
+MONGODB_URL = str(chat_settings.mongo_db_connection_string)
 MONGODB_COLLECTION = app_config["databases"]["mongo_db"]["jobs_collection"]
 
 # Initialize MongoDB client and job store

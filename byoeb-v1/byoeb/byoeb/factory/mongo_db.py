@@ -31,13 +31,13 @@ class MongoDBFactory:
             raise Exception("Invalid db type")
         
     async def __get_or_create_client(self) -> AsyncDatabase:
-        import byoeb.chat_app.configuration.config as env_config
+        from byoeb.chat_app.configuration.config import settings as chat_settings
 
         async with self._lock:
             if self._db is not None and self._scope == Scope.SINGLETON.value:
                 return self._db
 
-            connection_string = env_config.env_mongo_db_connection_string
+            connection_string = str(chat_settings.mongo_db_connection_string)
             if not connection_string:
                 raise ValueError(
                     "MONGO_DB_CONNECTION_STRING environment variable must be set. "
