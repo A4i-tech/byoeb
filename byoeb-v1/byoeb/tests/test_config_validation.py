@@ -19,14 +19,6 @@ class TestChatAppSettingsValidation:
         assert s.ashabot_message_cache_capacity == 128
         assert isinstance(s.ashabot_message_cache_capacity, int)
 
-    def test_whatsapp_api_bypass_is_bool(self, monkeypatch):
-        monkeypatch.setenv("WHATSAPP_API_BYPASS", "true")
-        monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")
-        from byoeb.chat_app.configuration.config import ChatAppSettings
-        s = ChatAppSettings()
-        assert s.whatsapp_api_bypass is True
-        assert isinstance(s.whatsapp_api_bypass, bool)
-
     def test_openai_api_key_is_secretstr(self, monkeypatch):
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test-secret")
         monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")

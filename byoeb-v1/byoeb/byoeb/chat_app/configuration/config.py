@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from pydantic import Field, SecretStr, field_validator, model_validator, AliasChoices
 from pydantic.networks import MongoDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
+from typing import Literal, Optional
 
 from byoeb.constants.feature_enums import FeatureFlag
 
@@ -41,7 +41,7 @@ class ChatAppSettings(BaseSettings):
     model_config = SettingsConfigDict(extra='ignore')
 
     # App
-    app_env: str = Field(default="LOCAL", description="Application environment: LOCAL or PROD")
+    app_env: Literal["LOCAL", "PROD"] = Field(default="LOCAL")
 
     # OpenAI
     openai_api_key: Optional[SecretStr] = Field(
@@ -51,7 +51,7 @@ class ChatAppSettings(BaseSettings):
 
     # MongoDB — REQUIRED: app cannot function without a database
     mongo_db_connection_string: MongoDsn = Field(
-        description="MongoDB connection string, e.g. mongodb://host:27017/mydb"
+        examples=["mongodb://host:27017/mydb"]
     )
 
     # Admin seed (set by wizard on first-time setup)
@@ -104,10 +104,6 @@ class ChatAppSettings(BaseSettings):
     )
 
     # WhatsApp
-    whatsapp_api_bypass: bool = Field(
-        default=False,
-        description="When true, WhatsApp send_requests return synthetic responses without calling Meta API. Use for local dev."
-    )
     local_storage_path: str = Field(
         default="./local_media_storage",
         description="Local file storage path (used when STORAGE_BACKEND=local)"
