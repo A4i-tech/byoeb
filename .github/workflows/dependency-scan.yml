@@ -37,6 +37,10 @@ jobs:
         run: poetry check --lock && poetry install --no-interaction --no-root
 
       # CVE-2025-69872 (diskcache 5.6.3): no upstream fix available as of 2026-06-05 — revisit when a fix is released
+      # PYSEC-2025-194 (torch 2.11.0): no upstream fix available as of 2026-06-16
+      # PYSEC-2025-217 (transformers): no upstream fix available as of 2026-06-16
+      # CVE-2026-1839 (transformers): fix only in 5.0.0rc3 (pre-release) as of 2026-06-16
+      # CVE-2026-34444 (lupa 2.6): no upstream fix available as of 2026-06-16
       - name: Run pip-audit
         working-directory: ${{ inputs.directory }}
         run: >
@@ -47,6 +51,10 @@ jobs:
           --output pip-audit-report.md
           --vulnerability-service osv
           --ignore-vuln CVE-2025-69872
+          --ignore-vuln PYSEC-2025-194
+          --ignore-vuln PYSEC-2025-217
+          --ignore-vuln CVE-2026-1839
+          --ignore-vuln CVE-2026-34444
 
       - name: Annotate vulnerabilities (warn only)
         if: ${{ failure() }}

@@ -23,41 +23,36 @@ class QueueProducerFactory:
 
     async def __create_kafka_client(self, message_type: str) -> BaseQueue:
         from byoeb_integrations.message_queue.kafka.async_kafka_queue import AsyncKafkaQueue
-        from byoeb.chat_app.configuration.config import (
-            env_kafka_bootstrap_servers,
-            env_kafka_consumer_group,
-            env_kafka_topic_bot,
-            env_kafka_topic_status,
-        )
-        topic = env_kafka_topic_status if message_type == "status" else env_kafka_topic_bot
+        from byoeb.chat_app.configuration.config import settings as chat_settings
+        topic = chat_settings.kafka_topic_status if message_type == "status" else chat_settings.kafka_topic_bot
         return await AsyncKafkaQueue.aget_or_create(
             queue_name=topic,
-            bootstrap_servers=env_kafka_bootstrap_servers,
-            consumer_group=env_kafka_consumer_group,
+            bootstrap_servers=chat_settings.kafka_bootstrap_servers,
+            consumer_group=chat_settings.kafka_consumer_group,
         )
 
     async def __create_azure_storage_queue_client(self, queue_name: str) -> BaseQueue:
         from byoeb_integrations.message_queue.azure.async_azure_storage_queue import AsyncAzureStorageQueue
-        from byoeb.chat_app.configuration.config import env_azure_storage_connection_string
+        from byoeb.chat_app.configuration.config import settings as chat_settings
 
-        if env_azure_storage_connection_string:
+        _cs = chat_settings.azure_storage_connection_string.get_secret_value() if chat_settings.azure_storage_connection_string else None
+        if _cs:
             return await AsyncAzureStorageQueue.aget_or_create(
-                connection_string=env_azure_storage_connection_string,
+                connection_string=_cs,
                 queue_name=queue_name
             )
         from azure.identity import DefaultAzureCredential
-        from byoeb.chat_app.configuration.config import env_azure_storage_queue_account_url
-        if not env_azure_storage_queue_account_url:
+        if not chat_settings.azure_storage_queue_account_url:
             raise ValueError("AZURE_STORAGE_QUEUE_ACCOUNT_URL environment variable must be set.")
         return await AsyncAzureStorageQueue.aget_or_create(
-            account_url=env_azure_storage_queue_account_url,
+            account_url=chat_settings.azure_storage_queue_account_url,
             queue_name=queue_name,
             credentials=DefaultAzureCredential()
         )
 
     def __resolve_azure_queue_name(self, message_type: str) -> str:
-        from byoeb.chat_app.configuration.config import env_azure_queue_bot, env_azure_queue_status
-        return env_azure_queue_status if message_type == "status" else env_azure_queue_bot
+        from byoeb.chat_app.configuration.config import settings as chat_settings
+        return chat_settings.azure_queue_status if message_type == "status" else chat_settings.azure_queue_bot
 
     async def __get_or_create_queue(self, provider: str, message_type: str) -> BaseQueue:
         key = f"{provider}:{message_type}"
