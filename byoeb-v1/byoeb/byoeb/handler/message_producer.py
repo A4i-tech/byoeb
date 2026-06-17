@@ -17,7 +17,8 @@ class QueueProducerHandler:
     ):
         self._logger = logging.getLogger(self.__class__.__name__)
         self._config = config
-        self._queue_provider = config["app"]["queue_provider"]
+        from byoeb.chat_app.configuration.config import settings as chat_settings
+        self._queue_provider = chat_settings.queue_provider
         self.queue_producer_factory = queue_producer_factory
         self.message_db_service = message_db_service
 

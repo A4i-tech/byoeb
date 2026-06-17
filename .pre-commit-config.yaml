@@ -1,0 +1,34 @@
+# Pre-commit hooks for local SAST and secret scanning.
+# Mirrors the CI sast.yml configuration so issues are caught before push.
+#
+# Setup (one-time per developer):
+#   pip install pre-commit
+#   pre-commit install
+#
+# Run manually against all files:
+#   pre-commit run --all-files
+
+repos:
+  # Semgrep SAST — same rulesets and exclusions as CI
+  - repo: https://github.com/semgrep/semgrep
+    rev: v1.76.0
+    hooks:
+      - id: semgrep
+        name: Semgrep SAST
+        args:
+          - --config=p/python
+          - --config=p/fastapi
+          - --config=p/secrets
+          - --config=p/owasp-top-ten
+          - --error
+          - --exclude-rule=python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5
+          - --exclude-rule=python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
+        # Only scan Python and YAML — skip large data files
+        types_or: [python, yaml]
+
+  # Gitleaks secret scanning — uses same .gitleaks.toml allowlist as CI
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+        name: Gitleaks secret scan

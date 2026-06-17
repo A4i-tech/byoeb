@@ -11,7 +11,7 @@ from pydantic import StringConstraints
 
 from urllib.parse import urlparse
 
-from byoeb.chat_app.configuration import config as env_config
+from byoeb.chat_app.configuration.config import settings as chat_settings
 from byoeb.services.auth.auth_service import AuthService, get_auth_service
 from byoeb.services.auth.exceptions import (
     InvalidTenantClaimError,
@@ -24,7 +24,7 @@ from byoeb.services.auth.security import TOKEN_SERVICE
 
 cookie_scheme = APIKeyCookie(name="asha_auth_token", auto_error=False)
 bearer_scheme = HTTPBearer(auto_error=False)
-def get_public_base_url() -> str: return (env_config.env_public_base_url or "http://127.0.0.1:8000").rstrip("/")
+def get_public_base_url() -> str: return (chat_settings.public_base_url or "http://127.0.0.1:8000").rstrip("/")
 def is_public_base_url_secure() -> bool: return urlparse(get_public_base_url()).scheme == "https"
 
 def get_access_token_cookie(token: Annotated[str | None, Depends(cookie_scheme)] = None, bearer: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None) -> str | None:

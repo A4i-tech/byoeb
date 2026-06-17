@@ -1,5 +1,5 @@
 # Use an official Python runtime
-FROM python:3.11-slim-bullseye
+FROM python:3.11-slim-bookworm
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -38,6 +38,13 @@ RUN poetry lock --no-interaction --no-ansi && poetry install --no-root --no-inte
 WORKDIR /app
 COPY . .
 WORKDIR /app/byoeb
+
+# Create a non-root user for runtime — avoids running the app as root inside the container
+RUN groupadd --system appgroup \
+    && useradd --system --gid appgroup --no-create-home appuser \
+    && chown -R appuser:appgroup /app
+
+USER appuser
 
 # Expose the port (Render expects 10000 internally, but you can set 5000)
 EXPOSE 8000

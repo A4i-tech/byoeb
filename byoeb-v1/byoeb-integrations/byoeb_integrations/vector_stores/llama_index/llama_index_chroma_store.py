@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from typing import List
@@ -39,7 +40,11 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         if self.vector_store_index is not None:
             return self.vector_store_index
         self.collection = self.chromadb.get_or_create_collection()
-        os.chmod(self.__persist_directory, 0o777)
+        # 0o755 required: execute bit needed to enter/list directory (chroma persists here)
+        try:
+            os.chmod(self.__persist_directory, 0o755)  # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions
+        except PermissionError:
+            pass
         self.vector_store = ChromaVectorStore(chroma_collection=self.collection)
         self.vector_store_index = VectorStoreIndex.from_vector_store(
             vector_store=self.vector_store,
@@ -79,6 +84,64 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         """Async implementation using run_in_executor to avoid blocking the event loop."""
         import asyncio
         from functools import partial
+
+        # Generate related questions for each chunk if llm_client is provided
+        llm_client = kwargs.pop("llm_client", None)
+        languages_translation_prompts = kwargs.pop("languages_translation_prompts", {})
+        if llm_client:
+            from byoeb_integrations.vector_stores.related_questions import aget_related_questions
+            metadata = list(metadata)  # ensure mutable
+            for i, text in enumerate(data_chunks):
+                try:
+                    # Build system_prompt directly from chunk text instead of querying
+                    # the vector store. At index time the store is empty/partial so
+                    # retrieve_top_k_chunks returns nothing and related_questions come
+                    # back empty. Passing system_prompt bypasses the store lookup path.
+                    chunk_system_prompt = (
+                        "You generate three related questions that a user might want to ask next, "
+                        "based on retrieved knowledge base chunks.\n\n"
+                        "Rules:\n"
+                        "1. Each question MUST be answerable using ONLY the provided chunks.\n"
+                        "2. For each question, you MUST quote the exact span of text from the chunks that answers it.\n"
+                        "3. Each question MUST be DISTINCT — each should target a different piece of information from the chunks.\n"
+                        "4. Respond only in the XML format shown in the example.\n\n"
+                        "<example>\n"
+                        "<related_chunks>"
+                        "A pregnant woman should visit the Anganwadi centre at least 4 times during pregnancy "
+                        "for antenatal check-ups. She should take one IFA tablet daily for 180 days during "
+                        "pregnancy to prevent anaemia."
+                        "</related_chunks>\n"
+                        "<related_questions>\n"
+                        '<q id="eid_0">\n'
+                        "<source>visit the Anganwadi centre at least 4 times during pregnancy</source>\n"
+                        "<question>How many antenatal check-ups should a pregnant woman have?</question>\n"
+                        "</q>\n"
+                        '<q id="eid_1">\n'
+                        "<source>take one IFA tablet daily for 180 days during pregnancy</source>\n"
+                        "<question>How long should a pregnant woman take IFA tablets?</question>\n"
+                        "</q>\n"
+                        '<q id="eid_2">\n'
+                        "<source>to prevent anaemia</source>\n"
+                        "<question>Why should a pregnant woman take IFA tablets?</question>\n"
+                        "</q>\n"
+                        "</related_questions>\n"
+                        "</example>\n\n"
+                        "<related_chunks>\n"
+                        f"{text}\n"
+                        "</related_chunks>"
+                    )
+                    related_qs = await aget_related_questions(
+                        text=text,
+                        llm_client=llm_client,
+                        languages_translation_prompts=languages_translation_prompts,
+                        system_prompt=chunk_system_prompt,
+                    )
+                    metadata[i] = dict(metadata[i])
+                    metadata[i]["related_questions"] = json.dumps(related_qs)
+                    logger.info("Generated related questions for chunk %d: %s", i, related_qs)
+                except Exception as e:
+                    logger.warning("Failed to generate related questions for chunk: %s", e)
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -132,11 +195,18 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         nodes = retriever.retrieve(text)
         chunk_list: List[Chunk] = []
         for node in nodes:
+            raw_meta = dict(node.node.metadata or {})
+            related_qs_raw = raw_meta.pop("related_questions", None)
+            try:
+                related_qs = json.loads(related_qs_raw) if isinstance(related_qs_raw, str) else (related_qs_raw or {})
+            except Exception:
+                related_qs = {}
             chunk = Chunk(
                 chunk_id=node.node.node_id,
                 text=node.node.text,
-                metadata=node.node.metadata,
-                similarity=node.score
+                metadata=raw_meta,
+                similarity=node.score,
+                related_questions=related_qs,
             )
             chunk_list.append(chunk)
         return chunk_list
@@ -152,11 +222,18 @@ class LlamaIndexChromaDBStore(BaseVectorStore):
         nodes = await retriever.aretrieve(text)
         chunk_list: List[Chunk] = []
         for node in nodes:
+            raw_meta = dict(node.node.metadata or {})
+            related_qs_raw = raw_meta.pop("related_questions", None)
+            try:
+                related_qs = json.loads(related_qs_raw) if isinstance(related_qs_raw, str) else (related_qs_raw or {})
+            except Exception:
+                related_qs = {}
             chunk = Chunk(
                 chunk_id=node.node.node_id,
                 text=node.node.text,
-                metadata=node.node.metadata,
-                similarity=node.score
+                metadata=raw_meta,
+                similarity=node.score,
+                related_questions=related_qs,
             )
             chunk_list.append(chunk)
         return chunk_list

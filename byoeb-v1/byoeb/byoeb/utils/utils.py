@@ -64,9 +64,14 @@ def log_to_text_file(text):
         with open(file_path, "a", encoding="utf-8") as f:
             f.write(text + "\n")
     except FileNotFoundError:
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(text + "\n")
+        try:
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(text + "\n")
+        except PermissionError:
+            pass
+    except PermissionError:
+        pass
 
 def mcp_get_phone_number() -> PhoneNumberId:
     request = get_http_request()

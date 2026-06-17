@@ -6,6 +6,7 @@
 
 #poetry
 *.lock
+!poetry.lock
 
 # any mp3/oggclear
  audio files
@@ -18,8 +19,10 @@
 *.csv
 *.xlsx
 
-# But do not ignore requirements.txt
+# But do not ignore requirements.txt or sample KB documents
 !requirements.txt
+!sample_kb/*.txt
+!sample_kb/*.csv
 
 # os extensions
 *:Zone.Identifier
@@ -29,6 +32,9 @@ scratch/
 
 # the .env file
 *.env
+
+# local env overrides (contain real secrets, never commit)
+.env.local
 
 # the .env file in any subdirectory
 **/.env

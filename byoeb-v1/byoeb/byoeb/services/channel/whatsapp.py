@@ -16,7 +16,7 @@ from byoeb_core.models.byoeb.message_context import (
     MediaContext,
     MessageTypes
 )
-from byoeb_core.models.whatsapp.response.message_response import WhatsAppResponse
+from byoeb_core.models.whatsapp.response.message_response import WhatsAppResponse, Contact as WhatsAppContact, Message as WhatsAppMessage
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime, timezone
 

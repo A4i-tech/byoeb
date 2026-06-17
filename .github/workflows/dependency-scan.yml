@@ -1,0 +1,94 @@
+name: Dependency Scan
+# Scans Python deps for CVEs using pip-audit across all three Poetry packages
+on:
+  workflow_call:
+    inputs:
+      directory:
+        description: "Relative path to the Poetry project"
+        required: true
+        type: string
+
+jobs:
+  dependency-scan:
+    runs-on: ubuntu-latest
+
+    env:
+      POETRY_VIRTUALENVS_IN_PROJECT: "true"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "poetry"
+          cache-dependency-path: |
+            ${{ inputs.directory }}/pyproject.toml
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.directory }}
+        # poetry check --lock: fail if poetry.lock is out of sync with pyproject.toml (prevents silent drift)
+        # --no-root: skip installing the project itself as editable so pip-audit doesn't error on it
+        run: poetry check --lock && poetry install --no-interaction --no-root
+
+      # CVE-2025-69872 (diskcache 5.6.3): no upstream fix available as of 2026-06-05 — revisit when a fix is released
+      # PYSEC-2025-194 (torch 2.11.0): no upstream fix available as of 2026-06-16
+      # PYSEC-2025-217 (transformers): no upstream fix available as of 2026-06-16
+      # CVE-2026-1839 (transformers): fix only in 5.0.0rc3 (pre-release) as of 2026-06-16
+      # CVE-2026-34444 (lupa 2.6): no upstream fix available as of 2026-06-16
+      - name: Run pip-audit
+        working-directory: ${{ inputs.directory }}
+        run: >
+          poetry run pip-audit
+          --strict
+          --timeout 30
+          --format markdown
+          --output pip-audit-report.md
+          --vulnerability-service osv
+          --ignore-vuln CVE-2025-69872
+          --ignore-vuln PYSEC-2025-194
+          --ignore-vuln PYSEC-2025-217
+          --ignore-vuln CVE-2026-1839
+          --ignore-vuln CVE-2026-34444
+
+      - name: Annotate vulnerabilities (warn only)
+        if: ${{ failure() }}
+        working-directory: ${{ inputs.directory }}
+        run: |
+          if [ -f pip-audit-report.md ]; then
+            echo "::warning::pip-audit found vulnerabilities in ${{ inputs.directory }} — see artifact"
+          fi
+
+      - name: Set artifact name
+        if: always()
+        id: artifact-name
+        run: echo "name=pip-audit-report-$(basename '${{ inputs.directory }}')" >> $GITHUB_OUTPUT
+
+      - name: Upload pip-audit report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact-name.outputs.name }}
+          path: ${{ inputs.directory }}/pip-audit-report.md
+          if-no-files-found: ignore
+
+      - name: Notify Teams of dependency scan failure
+        if: ${{ failure() && github.event_name != 'pull_request' }}
+        uses: ./.github/actions/dispatch-teams-webhook
+        with:
+          summary: '❌ Pipeline Stage Failed'
+          activity-title: '❌ Pipeline Stage Failed'
+          theme-color: 'FF0000'
+          facts: |
+            [
+              {
+                "name": "Stage",
+                "value": "Dependency Scan (${{ inputs.directory }})"
+              }
+            ]
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}

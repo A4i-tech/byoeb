@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 from pydantic import BaseModel, ConfigDict, Field
 
 from byoeb.services.auth.exceptions import InvalidTokenError, TokenExpiredError
-from byoeb.chat_app.configuration import config as env_config
+from byoeb.chat_app.configuration.config import settings as chat_settings
 
 
 class TokenClaims(BaseModel):
@@ -72,7 +72,7 @@ class AuthTokenService:
         return TokenClaims.model_validate(dict(claims))
 
 
-secret = env_config.env_auth_token_secret or ""
+secret = (chat_settings.auth_token_secret.get_secret_value() if chat_settings.auth_token_secret else "") or ""
 if len(secret) < 32:
     raise RuntimeError(
         "AUTH_TOKEN_SECRET must be at least 32 characters. "
@@ -82,9 +82,9 @@ if len(secret) < 32:
 PASSWORD_CTX = CryptContext(schemes=["argon2"], deprecated="auto")
 TOKEN_SERVICE = AuthTokenService(
     secret=secret,
-    algorithm=env_config.env_auth_token_algorithm or "HS256",
-    ttl_seconds=int(env_config.env_auth_token_ttl_seconds or "3600"),
-    issuer=env_config.env_auth_token_issuer or None,
-    audience=env_config.env_auth_token_audience or None,
-    leeway_seconds=int(env_config.env_auth_token_leeway_seconds or "0"),
+    algorithm=chat_settings.auth_token_algorithm or "HS256",
+    ttl_seconds=int(chat_settings.auth_token_ttl_seconds or 3600),
+    issuer=chat_settings.auth_token_issuer or None,
+    audience=chat_settings.auth_token_audience or None,
+    leeway_seconds=int(chat_settings.auth_token_leeway_seconds or 0),
 )

@@ -60,17 +60,9 @@ jobs:
           cache-dependency-path: |
             ${{ inputs.directory }}/pyproject.toml
 
-      - name: Cache poetry.lock
-        uses: actions/cache@v4
-        with:
-          path: ${{ inputs.directory }}/poetry.lock
-          key: lock-${{ runner.os }}-${{ hashFiles(format('{0}/pyproject.toml', inputs.directory)) }}
-          restore-keys: |
-            lock-${{ runner.os }}-
-
       - name: Install dependencies
         working-directory: ${{ inputs.directory }}
-        run: poetry lock --no-interaction --no-ansi && poetry install --no-interaction
+        run: poetry install --no-interaction
 
       - name: Run tests
         if: ${{ inputs.tests-path != '' }}

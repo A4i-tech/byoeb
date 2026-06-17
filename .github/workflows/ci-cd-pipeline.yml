@@ -45,6 +45,38 @@ jobs:
       coverage-gist-id: ${{ github.event_name == 'push' && github.ref_name == 'a4i/main' && vars.COVERAGE_GIST_ID || '' }}
     secrets: inherit
 
+  # Step 1d: Dependency scan — byoeb-core
+  dependency-scan-byoeb-core:
+    name: byoeb-core (dep-scan)
+    uses: ./.github/workflows/dependency-scan.yml
+    with:
+      directory: ./byoeb-v1/byoeb-core
+    secrets: inherit
+
+  # Step 1e: Dependency scan — byoeb
+  dependency-scan-byoeb:
+    name: byoeb (dep-scan)
+    uses: ./.github/workflows/dependency-scan.yml
+    with:
+      directory: ./byoeb-v1/byoeb
+    secrets: inherit
+
+  # Step 1f: Dependency scan — byoeb-integrations
+  dependency-scan-byoeb-integrations:
+    name: byoeb-integrations (dep-scan)
+    uses: ./.github/workflows/dependency-scan.yml
+    with:
+      directory: ./byoeb-v1/byoeb-integrations
+    secrets: inherit
+
+  # Step 1g: SAST — Semgrep + Gitleaks (parallel with unit tests)
+  sast:
+    name: SAST & Secret Scanning
+    uses: ./.github/workflows/sast.yml
+    secrets:
+      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
   # Step 2: Build (validates Dockerfile - uses Docker layer caching for fast builds)
   build:
     name: Build Docker image
@@ -96,7 +128,7 @@ jobs:
   # Step 4: Publish Docker Image (only if tests passed)
   publish-image:
     name: Publish image
-    needs: [build, unit-test-byoeb-core, unit-test-byoeb, unit-test-byoeb-integrations]
+    needs: [build, unit-test-byoeb-core, unit-test-byoeb, unit-test-byoeb-integrations, dependency-scan-byoeb-core, dependency-scan-byoeb, dependency-scan-byoeb-integrations, sast]
     if: success() && github.event_name == 'push' && (github.ref_name == 'a4i/staging' || github.ref_name == 'a4i/main')
     runs-on: ubuntu-latest
     outputs:
@@ -153,6 +185,7 @@ jobs:
           tags: |
             type=raw,value=${{ steps.target.outputs.tag_prefix }}-{{sha}}
             type=raw,value=${{ steps.target.outputs.tag_prefix }}-latest
+            type=raw,value=latest,enable=${{ github.ref_name == 'a4i/main' }}
 
       - name: Capture image reference
         id: image-info
@@ -255,3 +288,21 @@ jobs:
       environment: production
       deployment-url: ${{ needs.deploy-production.outputs['service-url'] }}
     secrets: inherit
+
+  # PR-only: GitHub dependency review (flags new HIGH+ vulns introduced by this diff)
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: always

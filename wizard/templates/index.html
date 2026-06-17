@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AshaBot Setup Wizard</title>
+<style>
+  :root {
+    --wa-green:      #25D366;
+    --wa-dark-green: #128C7E;
+    --wa-darker:     #075E54;
+    --bg:            #f0f2f5;
+    --white:         #ffffff;
+    --border:        #e5e7eb;
+    --text:          #111827;
+    --muted:         #6b7280;
+    --muted2:        #9ca3af;
+    --danger:        #ef4444;
+    --radius:        12px;
+    --shadow:        0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 0 64px;
+  }
+
+  /* Top bar */
+  .topbar {
+    width: 100%;
+    background: var(--wa-darker);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .topbar-icon {
+    width: 38px; height: 38px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .topbar-icon svg { width: 20px; height: 20px; color: #fff; }
+  .topbar-title { color: #fff; font-size: 17px; font-weight: 600; }
+  .topbar-sub   { color: rgba(255,255,255,0.7); font-size: 12.5px; margin-top: 1px; }
+
+  /* Progress */
+  .progress-wrap {
+    width: 100%; max-width: 640px;
+    padding: 0 16px; margin-bottom: 20px;
+  }
+  .steps {
+    display: flex; justify-content: space-between; position: relative;
+  }
+  .steps::before {
+    content: '';
+    position: absolute; top: 18px; left: 18px; right: 18px;
+    height: 2px; background: var(--border); z-index: 0;
+  }
+  .step-dot {
+    display: flex; flex-direction: column; align-items: center; gap: 5px; z-index: 1;
+  }
+  .step-dot .dot {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--white); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    transition: all 0.25s;
+  }
+  .step-dot .dot svg { width: 15px; height: 15px; }
+  .step-dot .label   { font-size: 11px; color: var(--muted2); white-space: nowrap; font-weight: 500; }
+  .step-dot.active .dot   { background: var(--wa-green); border-color: var(--wa-green); color: #fff; box-shadow: 0 0 0 4px rgba(37,211,102,0.15); }
+  .step-dot.active .label { color: var(--wa-dark-green); font-weight: 600; }
+  .step-dot.done .dot     { background: var(--wa-darker); border-color: var(--wa-darker); color: #fff; }
+  .step-dot.done .label   { color: var(--wa-darker); }
+
+  /* Card */
+  .card {
+    background: var(--white); border-radius: var(--radius);
+    box-shadow: var(--shadow); width: 100%; max-width: 640px;
+    padding: 32px; margin: 0 16px;
+  }
+  .step-view { display: none; }
+  .step-view.active { display: block; }
+
+  .step-title {
+    font-size: 19px; font-weight: 700;
+    color: var(--wa-darker); margin-bottom: 4px;
+  }
+  .step-desc {
+    color: var(--muted); font-size: 13.5px;
+    margin-bottom: 26px; line-height: 1.5;
+  }
+
+  /* Form */
+  .field { margin-bottom: 18px; }
+  label.field-label {
+    display: block; font-size: 13px; font-weight: 600;
+    margin-bottom: 6px; color: var(--text);
+  }
+  .hint { font-weight: 400; color: var(--muted); margin-left: 4px; }
+
+  input[type=text], input[type=password], input[type=url] {
+    width: 100%; background: #fafafa;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    color: var(--text); padding: 10px 14px; font-size: 14px;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus {
+    border-color: var(--wa-green);
+    box-shadow: 0 0 0 3px rgba(37,211,102,0.12); background: #fff;
+  }
+  input::placeholder { color: var(--muted2); }
+
+  /* Radio cards */
+  .radio-group { display: flex; flex-direction: column; gap: 10px; }
+  .radio-card {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: #fafafa; border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  }
+  .radio-card:hover { border-color: var(--wa-green); background: #f6fef9; }
+  .radio-card.selected {
+    border-color: var(--wa-green); background: #f0fdf4;
+    box-shadow: 0 0 0 3px rgba(37,211,102,0.1);
+  }
+  .radio-card input[type=radio] { display: none; }
+  .radio-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid var(--border); flex-shrink: 0; margin-top: 2px;
+    transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+    background: #fff;
+  }
+  .radio-card.selected .radio-dot { border-color: var(--wa-dark-green); background: var(--wa-dark-green); }
+  .radio-card.selected .radio-dot::after {
+    content: ''; width: 8px; height: 8px; border-radius: 50%; background: #fff;
+  }
+  .radio-label { font-size: 14px; font-weight: 600; color: var(--text); }
+  .radio-desc  { font-size: 12.5px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  .badge {
+    display: inline-block; font-size: 10.5px; font-weight: 700;
+    padding: 2px 7px; border-radius: 99px; margin-left: 6px; vertical-align: middle;
+  }
+  .badge-green { background: #dcfce7; color: var(--wa-darker); }
+
+  .mode-card {
+    background: #fafafa;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  }
+  .mode-card:hover { border-color: var(--wa-green); background: #f6fef9; }
+  .mode-card.selected {
+    border-color: var(--wa-green); background: #f0fdf4;
+    box-shadow: 0 0 0 3px rgba(37,211,102,0.1);
+  }
+  .mode-card.selected .radio-dot { border-color: var(--wa-dark-green); background: var(--wa-dark-green); }
+  .mode-card.selected .radio-dot::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #fff; }
+
+  /* Sub-panels */
+  .sub-panel {
+    margin-top: 14px; padding: 16px;
+    background: #f8fffe; border: 1px solid #d1fae5;
+    border-radius: 8px; display: none;
+  }
+  .sub-panel.visible { display: block; }
+  .sub-panel .field:last-child { margin-bottom: 0; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 22px 0; }
+  .section-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--muted); margin-bottom: 14px;
+  }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 10px; margin-top: 28px; justify-content: flex-end; }
+  .btn {
+    padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; border: none; transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--wa-green); color: #fff; box-shadow: 0 2px 8px rgba(37,211,102,0.3); }
+  .btn-primary:hover { background: var(--wa-dark-green); }
+  .btn-ghost { background: transparent; border: 1.5px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+  .btn-success { background: var(--wa-darker); color: #fff; box-shadow: 0 2px 8px rgba(7,94,84,0.25); }
+  .btn-success:hover { opacity: 0.9; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Summary */
+  .summary-table { width: 100%; border-collapse: collapse; }
+  .summary-table tr { border-bottom: 1px solid var(--border); }
+  .summary-table tr:last-child { border-bottom: none; }
+  .summary-table td { padding: 11px 4px; font-size: 14px; }
+  .summary-key { color: var(--muted); width: 140px; font-weight: 500; }
+  .summary-val { font-weight: 600; color: var(--text); }
+
+  /* Log */
+  #log-box {
+    background: #1e2227; border-radius: 8px; padding: 14px 16px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+    font-size: 12px; line-height: 1.65; height: 240px;
+    overflow-y: auto; margin: 16px 0; color: #9ca3af; display: none;
+  }
+  .log-ok  { color: #4ade80; }
+  .log-err { color: #f87171; }
+  .log-dim { color: #4b5563; }
+
+  /* Banners */
+  .banner {
+    border-radius: 8px; padding: 14px 18px;
+    font-size: 13.5px; line-height: 1.6; margin: 14px 0;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .banner svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+  .banner-content { flex: 1; }
+  .banner.success { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+  .banner.error   { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+  .banner.warning { background: #fffbeb; border: 1px solid #f59e0b; color: #92400e; }
+  .url-link { color: var(--wa-dark-green); text-decoration: none; font-weight: 600; }
+  .url-link:hover { text-decoration: underline; }
+
+  .spinner { display: inline-block; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  code {
+    background: #f3f4f6; padding: 2px 6px; border-radius: 4px;
+    font-size: 12px; font-family: monospace; color: var(--wa-darker);
+  }
+
+  /* Validation */
+  input.invalid {
+    border-color: var(--danger) !important;
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.12) !important;
+  }
+  .field-error {
+    display: flex; align-items: center; gap: 5px;
+    color: var(--danger); font-size: 12px; margin-top: 5px; font-weight: 500;
+  }
+  .field-error svg { width: 13px; height: 13px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-icon">
+    <!-- message-circle icon -->
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  </div>
+  <div>
+    <div class="topbar-title">AshaBot Setup Wizard</div>
+    <div class="topbar-sub">Configure and launch your BYOEB WhatsApp bot</div>
+  </div>
+</div>
+
+<!-- Progress -->
+<div class="progress-wrap" id="progress-wrap" style="display:none">
+  <div class="steps">
+    <div class="step-dot active" id="sdot-1"><div class="dot">1</div><span class="label">Queue</span></div>
+    <div class="step-dot"        id="sdot-2"><div class="dot">2</div><span class="label">Vector Store</span></div>
+    <div class="step-dot"        id="sdot-3"><div class="dot">3</div><span class="label">Storage &amp; DB</span></div>
+    <div class="step-dot"        id="sdot-4"><div class="dot">4</div><span class="label">WhatsApp</span></div>
+    <div class="step-dot"        id="sdot-5"><div class="dot">5</div><span class="label">Admin</span></div>
+    <div class="step-dot"        id="sdot-6">
+      <div class="dot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <span class="label">Launch</span>
+    </div>
+  </div>
+</div>
+
+<!-- Card -->
+<div class="card">
+
+  <!-- Step 0: Mode selection -->
+  <div class="step-view active" id="step-0">
+    <div class="step-title" style="margin-bottom:6px">How would you like to set up?</div>
+    <div class="step-desc" style="margin-bottom:24px">Choose Quick Setup if you're new — takes under 2 minutes.</div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px">
+
+      <div class="mode-card" id="mode-card-basic" onclick="selectMode('basic')">
+        <div style="display:flex;align-items:flex-start;gap:14px">
+          <div class="radio-dot" id="mode-dot-basic"></div>
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:700;color:var(--wa-darker);display:flex;align-items:center;gap:7px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;color:var(--wa-dark-green)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Quick Setup <span class="badge badge-green">Recommended</span></div>
+            <div style="font-size:13px;color:var(--muted);margin-top:4px;line-height:1.5">Enter only your OpenAI key and WhatsApp credentials. Everything else is configured automatically with sensible defaults.</div>
+            <div style="margin-top:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin-bottom:8px">Defaults used</div>
+              <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+                <tr><td style="color:var(--muted);padding:3px 0;width:140px">Message queue</td><td style="font-weight:600">Kafka (built-in Docker)</td></tr>
+                <tr><td style="color:var(--muted);padding:3px 0">Vector store</td><td style="font-weight:600">ChromaDB (embedded)</td></tr>
+                <tr><td style="color:var(--muted);padding:3px 0">File storage</td><td style="font-weight:600">Local (inside Docker)</td></tr>
+                <tr><td style="color:var(--muted);padding:3px 0">Database</td><td style="font-weight:600">MongoDB (built-in Docker)</td></tr>
+                <tr><td style="color:var(--muted);padding:3px 0">Admin username</td><td style="font-weight:600">admin</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mode-card" id="mode-card-advanced" onclick="selectMode('advanced')">
+        <div style="display:flex;align-items:flex-start;gap:14px">
+          <div class="radio-dot" id="mode-dot-advanced"></div>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:var(--wa-darker);display:flex;align-items:center;gap:7px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;color:var(--muted)"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
+              Advanced Setup</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:4px;line-height:1.5">Configure every option — queue, vector store, storage, Azure Cognitive Services, and more. Best for production or custom deployments.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="mode-error" style="display:none;color:var(--danger);font-size:13px;font-weight:500;margin-bottom:12px">
+      &#9888; Please select a setup mode to continue.
+    </div>
+
+    <div class="btn-row" style="justify-content:flex-end">
+      <button class="btn btn-primary" onclick="startWizard()">
+        Continue
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step Basic: Quick Setup form -->
+  <div class="step-view" id="step-basic">
+    <div class="step-title">Quick Setup</div>
+    <div class="step-desc">Fill in your credentials — everything else is handled automatically.</div>
+
+    <div class="section-label">AI / LLM</div>
+    <div class="field">
+      <label class="field-label">OpenAI API key</label>
+      <input type="password" id="basic_openai_api_key" placeholder="sk-…">
+    </div>
+
+    <hr class="divider">
+    <div class="section-label">WhatsApp Credentials</div>
+    <div class="step-desc" style="margin-bottom:16px;margin-top:-10px">Find these in your <strong>Meta for Developers</strong> app &rarr; WhatsApp &rarr; API Setup.</div>
+    <div class="field">
+      <label class="field-label">WhatsApp token</label>
+      <input type="password" id="basic_whatsapp_token" placeholder="EAAxxxxxxxxxxxxxxx">
+    </div>
+    <div class="field">
+      <label class="field-label">Phone Number ID</label>
+      <input type="text" id="basic_whatsapp_phone_id" placeholder="1234567890">
+    </div>
+
+    <hr class="divider">
+    <div class="section-label">Admin Panel</div>
+    <div class="field">
+      <label class="field-label">Admin password <span class="hint">min 8 characters</span></label>
+      <input type="password" id="basic_admin_password" placeholder="Choose a strong password">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="document.getElementById('progress-wrap').style.display='none'; goToRaw(0)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" onclick="nextFromBasic()">
+        Review &amp; Launch
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 1: Queue -->
+  <div class="step-view" id="step-1">
+    <div class="step-title">Message Queue</div>
+    <div class="step-desc">Handles messages between WhatsApp and your bot workers.</div>
+
+    <div class="field">
+      <div class="radio-group">
+        <label class="radio-card selected" onclick="selectRadio('queue','kafka',this)">
+          <input type="radio" name="queue" value="kafka" checked>
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">Kafka<span class="badge badge-green">Recommended</span></div>
+            <div class="radio-desc">Included in Docker — no extra accounts or setup needed</div>
+          </div>
+        </label>
+        <label class="radio-card" onclick="selectRadio('queue','azure_storage_queue',this)">
+          <input type="radio" name="queue" value="azure_storage_queue">
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">Azure Storage Queue</div>
+            <div class="radio-desc">Use if you already have an Azure subscription</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="sub-panel visible" id="kafka-panel">
+      <div class="section-label">Kafka settings</div>
+      <div class="field">
+        <label class="field-label">Bootstrap servers <span class="hint">default: kafka:9092</span></label>
+        <input type="text" id="kafka_bootstrap_servers" value="kafka:9092">
+      </div>
+      <div class="field">
+        <label class="field-label">Consumer group <span class="hint">default: byoeb</span></label>
+        <input type="text" id="kafka_consumer_group" value="byoeb">
+      </div>
+      <div class="field">
+        <label class="field-label">Bot topic</label>
+        <input type="text" id="kafka_topic_bot" value="byoeb-bot">
+      </div>
+      <div class="field">
+        <label class="field-label">Status topic</label>
+        <input type="text" id="kafka_topic_status" value="byoeb-status">
+      </div>
+      <div class="field">
+        <label class="field-label">Dead-letter topic</label>
+        <input type="text" id="kafka_topic_dlq" value="byoeb-dlq">
+      </div>
+    </div>
+
+    <div class="sub-panel" id="azure-queue-panel">
+      <div class="section-label">Azure Queue settings</div>
+      <div class="field">
+        <label class="field-label">Storage queue account URL</label>
+        <input type="url" id="azure_storage_queue_account_url" placeholder="https://xxx.queue.core.windows.net">
+      </div>
+      <div class="field">
+        <label class="field-label">Bot queue name</label>
+        <input type="text" id="azure_queue_bot" placeholder="byoeb-bot">
+      </div>
+      <div class="field">
+        <label class="field-label">Status queue name</label>
+        <input type="text" id="azure_queue_status" placeholder="byoeb-status">
+      </div>
+      <div class="field">
+        <label class="field-label">Dead-letter queue name</label>
+        <input type="text" id="azure_queue_dead_letter" placeholder="byoeb-dlq">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="document.getElementById('progress-wrap').style.display='none'; goToRaw(0)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" onclick="next(2)">
+        Next
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 2: Vector Store -->
+  <div class="step-view" id="step-2">
+    <div class="step-title">Vector Store</div>
+    <div class="step-desc">Stores your knowledge base embeddings for RAG-based responses.</div>
+
+    <div class="field">
+      <div class="radio-group">
+        <label class="radio-card selected" onclick="selectRadio('vector_store','llama_index_chroma',this); showVsPanel('chroma')">
+          <input type="radio" name="vector_store" value="llama_index_chroma" checked>
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">ChromaDB<span class="badge badge-green">Easiest</span></div>
+            <div class="radio-desc">Runs embedded inside Python — no extra container or account</div>
+          </div>
+        </label>
+        <label class="radio-card" onclick="selectRadio('vector_store','qdrant',this); showVsPanel('qdrant')">
+          <input type="radio" name="vector_store" value="qdrant">
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">Qdrant</div>
+            <div class="radio-desc">High-performance vector search — in-memory, Docker, or Cloud</div>
+          </div>
+        </label>
+        <label class="radio-card" onclick="selectRadio('vector_store','azure_vector_search',this); showVsPanel('azure_search')">
+          <input type="radio" name="vector_store" value="azure_vector_search">
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">Azure AI Search</div>
+            <div class="radio-desc">Managed cloud service — requires Azure subscription</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="sub-panel" id="vs-qdrant-panel">
+      <div class="section-label">Qdrant mode</div>
+      <div class="radio-group" style="margin-bottom:16px">
+        <label class="radio-card selected" onclick="selectRadio('qdrant_mode','memory',this); showQdrantMode('memory')">
+          <input type="radio" name="qdrant_mode" value="memory" checked>
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">In-memory</div>
+            <div class="radio-desc">No extra container. Data is lost when bot restarts. Good for testing.</div>
+          </div>
+        </label>
+        <label class="radio-card" onclick="selectRadio('qdrant_mode','docker',this); showQdrantMode('docker')">
+          <input type="radio" name="qdrant_mode" value="docker">
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">Docker<span class="badge badge-green">Persistent</span></div>
+            <div class="radio-desc">Data saved to disk. Qdrant runs as a separate container.</div>
+          </div>
+        </label>
+        <label class="radio-card" onclick="selectRadio('qdrant_mode','cloud',this); showQdrantMode('cloud')">
+          <input type="radio" name="qdrant_mode" value="cloud">
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">Qdrant Cloud</div>
+            <div class="radio-desc">Fully managed — provide your cluster URL and API key.</div>
+          </div>
+        </label>
+      </div>
+      <div id="qdrant-cloud-fields" style="display:none">
+        <div class="field">
+          <label class="field-label">Qdrant Cloud URL</label>
+          <input type="url" id="qdrant_url" placeholder="https://xyz.qdrant.tech">
+        </div>
+        <div class="field">
+          <label class="field-label">Qdrant API key</label>
+          <input type="password" id="qdrant_api_key" placeholder="Enter API key">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Collection name <span class="hint">default: byoeb-kb</span></label>
+        <input type="text" id="qdrant_collection_name" value="byoeb-kb">
+      </div>
+    </div>
+
+    <div class="sub-panel" id="vs-azure_search-panel">
+      <div class="section-label">Azure AI Search settings</div>
+      <div class="field">
+        <label class="field-label">Search service name</label>
+        <input type="text" id="azure_search_service_name" placeholder="my-search-service">
+      </div>
+      <div class="field">
+        <label class="field-label">Index name</label>
+        <input type="text" id="azure_search_index_name" placeholder="byoeb-index">
+      </div>
+      <div class="field">
+        <label class="field-label">API key</label>
+        <input type="password" id="azure_search_api_key" placeholder="Enter API key">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" onclick="next(3)">
+        Next
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 3: Storage & DB -->
+  <div class="step-view" id="step-3">
+    <div class="step-title">Storage &amp; Database</div>
+    <div class="step-desc">Where to store media files, voice messages, and conversation data.</div>
+
+    <div class="section-label">File storage</div>
+    <div class="radio-group" style="margin-bottom:14px">
+      <label class="radio-card selected" onclick="selectRadio('storage_backend','local',this); showStoragePanel('local')">
+        <input type="radio" name="storage_backend" value="local" checked>
+        <div class="radio-dot"></div>
+        <div>
+          <div class="radio-label">Local (inside Docker)<span class="badge badge-green">Easiest</span></div>
+          <div class="radio-desc">Files stored on your machine. Perfect for local development.</div>
+        </div>
+      </label>
+      <label class="radio-card" onclick="selectRadio('storage_backend','azure',this); showStoragePanel('azure')">
+        <input type="radio" name="storage_backend" value="azure">
+        <div class="radio-dot"></div>
+        <div>
+          <div class="radio-label">Azure Blob Storage</div>
+          <div class="radio-desc">Cloud storage — requires Azure account.</div>
+        </div>
+      </label>
+    </div>
+
+    <div class="sub-panel visible" id="storage-local-panel">
+      <div class="field">
+        <label class="field-label">Storage path inside container</label>
+        <input type="text" id="local_storage_path" value="/app/local_media_storage">
+      </div>
+    </div>
+    <div class="sub-panel" id="storage-azure-panel">
+      <div class="field">
+        <label class="field-label">Blob account URL</label>
+        <input type="url" id="azure_storage_blob_account_url" placeholder="https://xxx.blob.core.windows.net">
+      </div>
+      <div class="field">
+        <label class="field-label">Container name</label>
+        <input type="text" id="azure_storage_container_name" placeholder="byoeb-media">
+      </div>
+    </div>
+
+    <hr class="divider">
+    <div class="section-label">Database</div>
+    <div class="field">
+      <label class="field-label">MongoDB URI <span class="hint">default for Docker</span></label>
+      <input type="text" id="mongo_uri" value="mongodb://mongodb:27017/byoeb">
+    </div>
+
+    <hr class="divider">
+    <div class="section-label">AI / LLM</div>
+    <div class="field">
+      <label class="field-label">OpenAI API key</label>
+      <input type="password" id="openai_api_key" placeholder="sk-…">
+    </div>
+    <div class="field">
+      <label class="field-label">OpenAI Org ID <span class="hint">optional</span></label>
+      <input type="text" id="openai_org_id" placeholder="org-…">
+    </div>
+
+    <hr class="divider">
+    <div class="section-label">Azure Cognitive Services <span class="hint">optional — enables speech &amp; multilingual translation; leave blank for text-only English mode</span></div>
+    <div class="field">
+      <label class="field-label">Azure region</label>
+      <input type="text" id="azure_cognitive_region" placeholder="e.g. eastus">
+    </div>
+    <div class="field">
+      <label class="field-label">Text translation resource name</label>
+      <input type="text" id="azure_cognitive_text_to_text_resource" placeholder="e.g. my-translator">
+    </div>
+    <div class="field">
+      <label class="field-label">Speech resource name <span class="hint">for voice messages</span></label>
+      <input type="text" id="azure_cognitive_text_to_speech_resource" placeholder="e.g. my-speech">
+    </div>
+    <div class="field">
+      <label class="field-label">API key <span class="hint">optional — leave blank to use managed identity</span></label>
+      <input type="password" id="azure_cognitive_key" placeholder="Azure Cognitive Services key">
+    </div>
+    <div class="field">
+      <label class="field-label">Cognitive endpoint <span class="hint">optional — base URL override</span></label>
+      <input type="text" id="azure_cognitive_endpoint" placeholder="https://&lt;region&gt;.api.cognitive.microsoft.com/">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(2)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" onclick="next(4)">
+        Next
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 4: WhatsApp -->
+  <div class="step-view" id="step-4">
+    <div class="step-title">WhatsApp Credentials</div>
+    <div class="step-desc">Find these in your <strong>Meta for Developers</strong> app &rarr; WhatsApp &rarr; API Setup.</div>
+
+    <div class="field">
+      <label class="field-label">WhatsApp token</label>
+      <input type="password" id="whatsapp_token" placeholder="EAAxxxxxxxxxxxxxxx">
+    </div>
+    <div class="field">
+      <label class="field-label">Phone Number ID</label>
+      <input type="text" id="whatsapp_phone_id" placeholder="1234567890">
+    </div>
+    <div class="field">
+      <label class="field-label">Webhook verify token <span class="hint">you choose this</span></label>
+      <input type="text" id="whatsapp_verify_token" value="byoeb-verify">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(3)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" onclick="next(5)">
+        Next
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 5: Admin -->
+  <div class="step-view" id="step-5">
+    <div class="step-title">Admin Panel</div>
+    <div class="step-desc">Set up your administrator login. Your password is stored as a <strong>bcrypt hash</strong> — never in plaintext.</div>
+
+    <div class="field">
+      <label class="field-label">Admin username</label>
+      <input type="text" id="admin_username" value="admin">
+    </div>
+    <div class="field">
+      <label class="field-label">Admin password <span class="hint">min 8 characters</span></label>
+      <input type="password" id="admin_password" placeholder="Choose a strong password">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(4)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" onclick="next(6)">
+        Review &amp; Launch
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 6: Launch -->
+  <div class="step-view" id="step-6">
+    <div class="step-title">Review &amp; Launch</div>
+    <div class="step-desc">Confirm your settings, generate <code>.env.local</code>, then start AshaBot.</div>
+
+    <table class="summary-table" id="summary-rows"></table>
+
+    <hr class="divider">
+
+    <div id="no-docker-warn" class="banner warning" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div class="banner-content">
+        Docker Desktop is not running. Please start it, then come back.<br>
+        <a class="url-link" href="https://docs.docker.com/get-docker/" target="_blank">Install Docker Desktop &rarr;</a>
+      </div>
+    </div>
+
+    <div id="log-box"></div>
+    <div id="launch-status"></div>
+
+    <!-- MCP connection panel — shown after successful launch -->
+    <div id="mcp-panel" style="display:none; margin-top:20px;">
+      <hr class="divider">
+      <div class="section-label">Connect via MCP Inspector</div>
+      <p style="font-size:13px;color:#555;margin:0 0 12px;">Use MCP Inspector to chat with AshaBot directly — no WhatsApp needed. A test user has been created for you.</p>
+      <div id="mcp-details" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;font-size:13px;">
+        <div style="color:#888;font-size:13px;">Setting up MCP user…</div>
+      </div>
+    </div>
+
+    <!-- Seed KB panel — shown after successful launch -->
+    <div id="seed-kb-panel" style="display:none; margin-top:20px;">
+      <hr class="divider">
+      <div class="section-label">Seed Knowledge Base <span class="hint">optional — give the bot instant domain knowledge</span></div>
+      <p style="font-size:13px;color:#555;margin:0 0 14px;">Select documents to upload and index. The bot will be able to answer questions from them immediately.</p>
+      <div id="sample-doc-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+        <div style="color:#888;font-size:13px;">Loading sample documents…</div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label class="field-label" style="margin-bottom:6px;display:block;">Upload your own files <span class="hint">.txt, .csv, .md, .json</span></label>
+        <input type="file" id="custom-kb-files" multiple accept=".txt,.csv,.md,.json" style="font-size:13px;">
+      </div>
+      <div id="seed-status" style="margin-bottom:12px;"></div>
+      <button class="btn btn-primary" onclick="doSeedKB()" id="seed-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload &amp; Index Selected
+      </button>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(5)" id="back-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" id="gen-btn" onclick="doGenerate()">Generate .env.local</button>
+      <button class="btn btn-success" id="launch-btn" style="display:none" onclick="doLaunch()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Start with Docker
+      </button>
+    </div>
+  </div>
+
+</div><!-- .card -->
+
+<script>
+let wizardMode = null; // 'basic' | 'advanced'
+
+const BASIC_DEFAULTS = {
+  queue: 'kafka',
+  kafka_bootstrap_servers: 'kafka:9092',
+  kafka_consumer_group: 'byoeb',
+  kafka_topic_bot: 'byoeb-bot',
+  kafka_topic_status: 'byoeb-status',
+  kafka_topic_dlq: 'byoeb-dlq',
+  vector_store: 'llama_index_chroma',
+  storage_backend: 'local',
+  local_storage_path: '/app/local_media_storage',
+  mongo_uri: 'mongodb://mongodb:27017/byoeb',
+  whatsapp_verify_token: 'byoeb-verify',
+  admin_username: 'admin',
+};
+
+let currentStep = 0;
+const answers = {};
+
+// ── Error icon SVG ─────────────────────────────────────────────
+const ERR_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+
+// ── Field validation helpers ────────────────────────────────────
+function fieldErr(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('invalid');
+  // remove existing error
+  const existing = el.parentNode.querySelector('.field-error');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.className = 'field-error';
+  div.innerHTML = ERR_ICON + msg;
+  el.parentNode.appendChild(div);
+  // auto-clear on input
+  el.addEventListener('input', () => clearErr(id), { once: true });
+}
+
+function clearErr(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('invalid');
+  const e = el.parentNode.querySelector('.field-error');
+  if (e) e.remove();
+}
+
+function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+function isUrl(s) { try { new URL(s); return true; } catch { return false; } }
+function isHostPort(s) { return /^[a-zA-Z0-9._-]+(:\d+)?(,[a-zA-Z0-9._-]+(:\d+)?)*$/.test(s.trim()); }
+function isNumeric(s) { return /^\d+$/.test(s.trim()); }
+
+// ── Per-step validation ─────────────────────────────────────────
+function validateStep(n) {
+  let ok = true;
+  function require(id, label) {
+    if (!val(id)) { fieldErr(id, `${label} is required`); ok = false; }
+  }
+  function requireUrl(id, label) {
+    const v = val(id);
+    if (!v) { fieldErr(id, `${label} is required`); ok = false; }
+    else if (!isUrl(v)) { fieldErr(id, `${label} must be a valid URL (https://…)`); ok = false; }
+  }
+
+  const queue = document.querySelector('input[name="queue"]:checked')?.value;
+  const vs    = document.querySelector('input[name="vector_store"]:checked')?.value;
+  const qmode = document.querySelector('input[name="qdrant_mode"]:checked')?.value;
+  const store = document.querySelector('input[name="storage_backend"]:checked')?.value;
+
+  if (n === 1) {
+    if (queue === 'kafka') {
+      const bs = val('kafka_bootstrap_servers');
+      if (!bs) { fieldErr('kafka_bootstrap_servers', 'Bootstrap servers is required'); ok = false; }
+      else if (!isHostPort(bs)) { fieldErr('kafka_bootstrap_servers', 'Must be host:port format (e.g. kafka:9092)'); ok = false; }
+      require('kafka_consumer_group', 'Consumer group');
+      require('kafka_topic_bot',      'Bot topic');
+      require('kafka_topic_status',   'Status topic');
+      require('kafka_topic_dlq',      'Dead-letter topic');
+    } else {
+      requireUrl('azure_storage_queue_account_url', 'Account URL');
+      require('azure_queue_bot',        'Bot queue name');
+      require('azure_queue_status',     'Status queue name');
+      require('azure_queue_dead_letter','Dead-letter queue name');
+    }
+  }
+
+  if (n === 2) {
+    if (vs === 'qdrant') {
+      if (qmode === 'cloud') {
+        requireUrl('qdrant_url',     'Qdrant Cloud URL');
+        require('qdrant_api_key',    'API key');
+      }
+      require('qdrant_collection_name', 'Collection name');
+    }
+    if (vs === 'azure_vector_search') {
+      require('azure_search_service_name', 'Search service name');
+      require('azure_search_index_name',   'Index name');
+      require('azure_search_api_key',      'API key');
+    }
+  }
+
+  if (n === 3) {
+    if (store === 'local') {
+      require('local_storage_path', 'Storage path');
+    } else {
+      requireUrl('azure_storage_blob_account_url', 'Blob account URL');
+      require('azure_storage_container_name',       'Container name');
+    }
+    const mongoUri = val('mongo_uri');
+    if (!mongoUri) { fieldErr('mongo_uri', 'MongoDB URI is required'); ok = false; }
+    else if (!mongoUri.startsWith('mongodb://') && !mongoUri.startsWith('mongodb+srv://')) {
+      fieldErr('mongo_uri', 'Must start with mongodb:// or mongodb+srv://'); ok = false;
+    }
+    const apiKey = val('openai_api_key');
+    if (!apiKey) { fieldErr('openai_api_key', 'OpenAI API key is required'); ok = false; }
+    else if (!apiKey.startsWith('sk-')) { fieldErr('openai_api_key', 'OpenAI API key must start with sk-'); ok = false; }
+    // Azure Cognitive optional — app degrades gracefully (text-only mode) without it
+  }
+
+  if (n === 4) {
+    require('whatsapp_token', 'WhatsApp token');
+    const phoneId = val('whatsapp_phone_id');
+    if (!phoneId) { fieldErr('whatsapp_phone_id', 'Phone Number ID is required'); ok = false; }
+    else if (!isNumeric(phoneId)) { fieldErr('whatsapp_phone_id', 'Phone Number ID must contain only digits'); ok = false; }
+    require('whatsapp_verify_token', 'Verify token');
+  }
+
+  if (n === 5) {
+    const username = val('admin_username');
+    if (!username) { fieldErr('admin_username', 'Username is required'); ok = false; }
+    else if (username.length < 3) { fieldErr('admin_username', 'Username must be at least 3 characters'); ok = false; }
+    const password = val('admin_password');
+    if (!password) { fieldErr('admin_password', 'Password is required'); ok = false; }
+    else if (password.length < 8) { fieldErr('admin_password', 'Password must be at least 8 characters'); ok = false; }
+  }
+
+  return ok;
+}
+
+// ── Navigation (with validation gate) ──────────────────────────
+function next(target) {
+  if (!validateStep(currentStep)) {
+    // scroll to first error
+    const first = document.querySelector('#step-' + currentStep + ' .invalid');
+    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  if (target === 6) buildSummary();
+  goTo(target);
+}
+
+function goToRaw(n) {
+  // hide all steps including basic and step-0
+  document.querySelectorAll('.step-view').forEach(el => el.classList.remove('active'));
+  currentStep = n;
+  document.getElementById('step-' + n).classList.add('active');
+  if (typeof n === 'number') {
+    for (let i = 1; i <= 6; i++) {
+      const dot = document.getElementById('sdot-' + i);
+      dot.classList.remove('active','done');
+      if (i < n) dot.classList.add('done');
+      if (i === n) dot.classList.add('active');
+    }
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goTo(n) {
+  goToRaw(n);
+}
+
+function selectMode(mode) {
+  wizardMode = mode;
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('mode-card-' + mode).classList.add('selected');
+}
+
+function startWizard() {
+  if (!wizardMode) {
+    document.getElementById('mode-error').style.display = 'block';
+    return;
+  }
+  document.getElementById('mode-error').style.display = 'none';
+  if (wizardMode === 'basic') {
+    document.getElementById('progress-wrap').style.display = 'none';
+    goToRaw('basic');
+  } else {
+    document.getElementById('progress-wrap').style.display = '';
+    goToRaw(1);
+  }
+}
+
+function validateBasic() {
+  let ok = true;
+  const apiKey = val('basic_openai_api_key');
+  if (!apiKey) { fieldErr('basic_openai_api_key', 'OpenAI API key is required'); ok = false; }
+  else if (!apiKey.startsWith('sk-')) { fieldErr('basic_openai_api_key', 'OpenAI API key must start with sk-'); ok = false; }
+  const token = val('basic_whatsapp_token');
+  if (!token) { fieldErr('basic_whatsapp_token', 'WhatsApp token is required'); ok = false; }
+  const phoneId = val('basic_whatsapp_phone_id');
+  if (!phoneId) { fieldErr('basic_whatsapp_phone_id', 'Phone Number ID is required'); ok = false; }
+  else if (!isNumeric(phoneId)) { fieldErr('basic_whatsapp_phone_id', 'Phone Number ID must contain only digits'); ok = false; }
+  const pw = val('basic_admin_password');
+  if (!pw) { fieldErr('basic_admin_password', 'Password is required'); ok = false; }
+  else if (pw.length < 8) { fieldErr('basic_admin_password', 'Password must be at least 8 characters'); ok = false; }
+  return ok;
+}
+
+function nextFromBasic() {
+  if (!validateBasic()) return;
+  // merge defaults + user inputs into answers
+  Object.assign(answers, BASIC_DEFAULTS);
+  answers.openai_api_key = val('basic_openai_api_key');
+  answers.whatsapp_token = val('basic_whatsapp_token');
+  answers.whatsapp_phone_id = val('basic_whatsapp_phone_id');
+  answers.whatsapp_verify_token = 'byoeb-verify';
+  answers.admin_username = 'admin';
+  answers.admin_password = val('basic_admin_password');
+  buildSummaryFromAnswers();
+  document.getElementById('progress-wrap').style.display = 'none';
+  goToRaw(6);
+}
+
+function selectRadio(name, value, el) {
+  el.closest('.radio-group').querySelectorAll('.radio-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  el.querySelector('input[type=radio]').checked = true;
+  answers[name] = value;
+  if (name === 'queue') {
+    toggle('kafka-panel', value === 'kafka');
+    toggle('azure-queue-panel', value === 'azure_storage_queue');
+  }
+}
+
+function toggle(id, show) {
+  const el = document.getElementById(id);
+  if (show) el.classList.add('visible'); else el.classList.remove('visible');
+}
+
+function showVsPanel(vs) {
+  ['chroma','qdrant','azure_search'].forEach(k => {
+    const el = document.getElementById('vs-' + k + '-panel');
+    if (el) el.classList.remove('visible');
+  });
+  const t = document.getElementById('vs-' + vs + '-panel');
+  if (t) t.classList.add('visible');
+}
+
+function showQdrantMode(mode) {
+  document.getElementById('qdrant-cloud-fields').style.display = mode === 'cloud' ? 'block' : 'none';
+}
+
+function showStoragePanel(b) {
+  toggle('storage-local-panel', b === 'local');
+  toggle('storage-azure-panel', b === 'azure');
+}
+
+function collectAnswers() {
+  ['kafka_bootstrap_servers','kafka_consumer_group','kafka_topic_bot','kafka_topic_status','kafka_topic_dlq',
+   'azure_storage_queue_account_url','azure_queue_bot','azure_queue_status','azure_queue_dead_letter',
+   'qdrant_url','qdrant_api_key','qdrant_collection_name',
+   'azure_search_service_name','azure_search_index_name','azure_search_api_key',
+   'local_storage_path','azure_storage_blob_account_url','azure_storage_container_name',
+   'mongo_uri','openai_api_key','openai_org_id',
+   'azure_cognitive_region','azure_cognitive_text_to_text_resource','azure_cognitive_text_to_speech_resource',
+   'azure_cognitive_key','azure_cognitive_endpoint',
+   'whatsapp_token','whatsapp_phone_id','whatsapp_verify_token',
+   'admin_username','admin_password',
+  ].forEach(id => { const el = document.getElementById(id); if (el) answers[id] = el.value; });
+  ['queue','vector_store','storage_backend','qdrant_mode'].forEach(name => {
+    const c = document.querySelector(`input[name="${name}"]:checked`);
+    if (c) answers[name] = c.value;
+  });
+}
+
+function buildSummaryFromAnswers() {
+  const vs = answers.vector_store + (answers.qdrant_mode ? ` (${answers.qdrant_mode})` : '');
+  const rows = [
+    ['Queue', answers.queue],
+    ['Vector store', vs],
+    ['Storage', answers.storage_backend],
+    ['MongoDB URI', answers.mongo_uri],
+    ['WhatsApp Phone ID', answers.whatsapp_phone_id || '—'],
+    ['Azure region', answers.azure_cognitive_region || '—'],
+    ['Admin user', answers.admin_username],
+  ];
+  document.getElementById('summary-rows').innerHTML = rows.map(([k,v]) =>
+    `<tr><td class="summary-key">${k}</td><td class="summary-val">${v}</td></tr>`
+  ).join('');
+  fetch('/api/docker-check').then(r => r.json()).then(d => {
+    document.getElementById('no-docker-warn').style.display = d.available ? 'none' : 'block';
+  }).catch(() => {});
+}
+
+function buildSummary() {
+  collectAnswers();
+  buildSummaryFromAnswers();
+}
+
+function doGenerate() {
+  if (wizardMode !== 'basic') collectAnswers();
+  const btn = document.getElementById('gen-btn');
+  btn.textContent = 'Generating…'; btn.disabled = true;
+  fetch('/api/generate', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(answers)
+  }).then(r => r.json()).then(d => {
+    if (!d.ok) {
+      showStatus('error', d.error);
+      btn.textContent = 'Generate .env.local'; btn.disabled = false;
+      return;
+    }
+    showStatus('success', `.env.local written to <code>${d.env_path}</code>`);
+    btn.style.display = 'none';
+    document.getElementById('back-btn').style.display = 'none';
+    if (d.docker_available) {
+      document.getElementById('launch-btn').style.display = 'inline-flex';
+    } else {
+      showStatus('warning', 'Docker is not running. Start Docker Desktop then refresh this page.');
+    }
+  });
+}
+
+function doLaunch() {
+  if (wizardMode !== 'basic') collectAnswers();
+  const btn = document.getElementById('launch-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner">&#8635;</span> Launching…';
+  document.getElementById('log-box').style.display = 'block';
+  document.getElementById('log-box').innerHTML = '';
+
+  const es = new EventSource('/api/stream');
+  es.onmessage = e => {
+    const data = JSON.parse(e.data);
+    if (typeof data !== 'string') return;
+    if (data === '__DONE_OK__') {
+      es.close();
+      showStatus('success',
+        '<strong>AshaBot is up and running.</strong><br><br>' +
+        'Admin panel: <a class="url-link" href="http://localhost:8000/login" target="_blank">localhost:8000/login</a><br>' +
+        'KB API docs: <a class="url-link" href="http://localhost:8001/docs" target="_blank">localhost:8001/docs</a><br><br>' +
+        '<strong>WhatsApp webhook:</strong> run <code>ngrok http 8000</code> and paste the URL in Meta developer console.'
+      );
+      btn.style.display = 'none';
+      setupMcpUser();
+      loadSampleDocs();
+    } else if (data === '__DONE_ERR__') {
+      es.close();
+      showStatus('error', 'Docker Compose failed — see log above for details.');
+      btn.disabled = false;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><polygon points="5 3 19 12 5 21 5 3"/></svg> Retry';
+    } else {
+      appendLog(data);
+    }
+  };
+
+  fetch('/api/launch', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(answers)
+  });
+}
+
+async function setupMcpUser() {
+  document.getElementById('mcp-panel').style.display = 'block';
+  const panel = document.getElementById('mcp-details');
+
+  // Poll until chat app is reachable before attempting MCP user creation.
+  // docker compose up -d exits before containers finish starting, so we
+  // must wait here rather than relying on backend retries alone.
+  await new Promise(resolve => {
+    (function pollChat() {
+      fetch('/api/chat-health', { signal: AbortSignal.timeout(4000) })
+        .then(r => r.json()).then(d => {
+          if (d.available) { resolve(); }
+          else {
+            panel.innerHTML = '<div style="color:#888;font-size:13px;"><span class="spinner">&#8635;</span> Chat app is starting — please wait…</div>';
+            setTimeout(pollChat, 3000);
+          }
+        })
+        .catch(() => {
+          panel.innerHTML = '<div style="color:#888;font-size:13px;"><span class="spinner">&#8635;</span> Chat app is starting — please wait…</div>';
+          setTimeout(pollChat, 3000);
+        });
+    })();
+  });
+
+  panel.innerHTML = '<div style="color:#888;font-size:13px;"><span class="spinner">&#8635;</span> Creating MCP user… (may take up to 2 minutes on first run)</div>';
+
+  try {
+    const r = await fetch('/api/setup-mcp-user', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        admin_username: answers.admin_username || 'admin',
+        admin_password: answers.admin_password || '',
+      })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      panel.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <tr><td style="color:#555;padding:4px 0;width:120px">MCP URL</td><td><div style="display:flex;align-items:center;gap:8px"><code style="user-select:all;word-break:break-all">${esc(d.mcp_url)}</code><button data-copy="${esc(d.mcp_url)}" onclick="navigator.clipboard.writeText(this.dataset.copy);this.textContent='Copied';setTimeout(()=>this.textContent='Copy',1500)" style="font-size:11px;padding:2px 10px;border:1px solid #d1fae5;border-radius:4px;cursor:pointer;background:#fff;color:#065f46;white-space:nowrap;flex-shrink:0">Copy</button></div></td></tr>
+          <tr><td style="color:#555;padding:4px 0">Username</td><td><code style="user-select:all">${esc(d.mcp_username)}</code></td></tr>
+          <tr><td style="color:#555;padding:4px 0">Password</td><td><code style="user-select:all">${esc(d.mcp_password)}</code></td></tr>
+        </table>
+        <div style="margin-top:10px;font-size:12px;color:#666">
+          Start MCP Inspector: <code>npx @modelcontextprotocol/inspector</code> → connect to above URL → login with above credentials.
+        </div>`;
+    } else {
+      panel.innerHTML = `<div style="color:#c00">Could not auto-create MCP user: ${esc(d.error || 'unknown error')}. Create manually via Admin panel.</div>`;
+    }
+  } catch(e) {
+    document.getElementById('mcp-details').innerHTML = `<div style="color:#c00">MCP user setup failed: ${esc(String(e))}</div>`;
+  }
+}
+
+function loadSampleDocs() {
+  document.getElementById('seed-kb-panel').style.display = 'block';
+  // Disable seed button and poll until KB service is ready
+  const seedBtn = document.getElementById('seed-btn');
+  const seedStatus = document.getElementById('seed-status');
+  seedBtn.disabled = true;
+  seedStatus.innerHTML = '<div class="banner warning"><div class="banner-content"><span class="spinner">&#8635;</span> KB app is starting — upload will be available once it\'s ready…</div></div>';
+  (function pollKB() {
+    fetch('/api/kb-health', { signal: AbortSignal.timeout(4000) })
+      .then(r => r.json()).then(d => {
+        if (d.available) { seedBtn.disabled = false; seedStatus.innerHTML = ''; }
+        else { setTimeout(pollKB, 3000); }
+      })
+      .catch(() => setTimeout(pollKB, 3000));
+  })();
+  fetch('/api/sample-docs').then(r => r.json()).then(docs => {
+    const list = document.getElementById('sample-doc-list');
+    if (!docs.length) { list.innerHTML = '<div style="color:#888;font-size:13px;">No sample documents found.</div>'; return; }
+    list.innerHTML = docs.map(d => `
+      <label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;cursor:pointer;background:#fff;">
+        <input type="checkbox" class="sample-doc-cb" value="${esc(d.name)}" checked style="margin-top:2px;accent-color:var(--wa-dark-green);">
+        <div>
+          <div style="font-weight:500;font-size:13px;">${esc(d.name)}</div>
+          <div style="font-size:12px;color:#777;margin-top:2px;">${esc(d.description)} &nbsp;·&nbsp; ${(d.size/1024).toFixed(1)} KB</div>
+        </div>
+      </label>`).join('');
+  }).catch(() => {
+    document.getElementById('sample-doc-list').innerHTML = '<div style="color:#e53935;font-size:13px;">Could not load sample documents.</div>';
+  });
+}
+
+async function doSeedKB() {
+  const btn = document.getElementById('seed-btn');
+  const statusEl = document.getElementById('seed-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner">&#8635;</span> Uploading…';
+  statusEl.innerHTML = '';
+
+  const selected = [...document.querySelectorAll('.sample-doc-cb:checked')].map(cb => cb.value);
+  const customFiles = document.getElementById('custom-kb-files').files;
+
+  // Upload custom files first via KB service directly
+  const customUploaded = [];
+  for (const file of customFiles) {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    try {
+      const r = await fetch('http://localhost:8001/storage/file', { method: 'POST', body: fd });
+      if (r.ok) customUploaded.push(file.name);
+    } catch(e) { /* KB not reachable — handled below */ }
+  }
+
+  // Seed sample docs via wizard backend
+  let results = [], indexed = 0;
+  try {
+    const r = await fetch('/api/seed-kb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: selected, kb_url: 'http://localhost:8001' })
+    });
+    const data = await r.json();
+    results = data.results || [];
+    indexed = data.indexed || 0;
+  } catch(e) {
+    statusEl.innerHTML = '<div class="banner error"><div class="banner-content">Could not reach wizard backend: ' + esc(String(e)) + '</div></div>';
+    btn.disabled = false; btn.innerHTML = 'Upload &amp; Index Selected'; return;
+  }
+
+  // Index custom-uploaded files too
+  if (customUploaded.length) {
+    try {
+      const params = customUploaded.map(f => 'files=' + encodeURIComponent(f)).join('&');
+      await fetch('http://localhost:8001/vector/index?' + params);
+      indexed += customUploaded.length;
+    } catch(e) {}
+  }
+
+  const ok = results.filter(r => r.ok).length + customUploaded.length;
+  const fail = results.filter(r => !r.ok).length;
+  const failMsgs = results.filter(r => !r.ok).map(r => `<li>${esc(r.file)}: ${esc(r.error)}</li>`).join('');
+
+  if (ok > 0 && fail === 0) {
+    statusEl.innerHTML = `<div class="banner success"><div class="banner-content"><strong>${indexed} document${indexed!==1?'s':''} indexed</strong> — the bot can answer questions from them now.</div></div>`;
+  } else if (ok > 0) {
+    statusEl.innerHTML = `<div class="banner warning"><div class="banner-content">${indexed} indexed, ${fail} failed:<ul style="margin:4px 0 0 16px">${failMsgs}</ul></div></div>`;
+  } else {
+    statusEl.innerHTML = `<div class="banner error"><div class="banner-content">All uploads failed:<ul style="margin:4px 0 0 16px">${failMsgs}</ul></div></div>`;
+  }
+  btn.disabled = false; btn.innerHTML = 'Upload &amp; Index Selected';
+}
+
+// Track real Docker pull layer states
+const _layers = {}; // hash → state: 'waiting'|'downloading'|'done'
+
+function _updatePullBanner() {
+  const total = Object.keys(_layers).length;
+  const done  = Object.values(_layers).filter(s => s === 'done').length;
+  const dl    = Object.values(_layers).filter(s => s === 'downloading').length;
+
+  let banner = document.getElementById('pull-progress-banner');
+  if (!banner) {
+    const box = document.getElementById('log-box');
+    banner = document.createElement('div');
+    banner.id = 'pull-progress-banner';
+    banner.style.cssText = 'padding:10px 0 8px;';
+    banner.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:12px;color:#9ca3af">
+          <span class="spinner" style="display:inline-block;margin-right:5px">&#8635;</span>
+          <span id="pull-status-text">Pulling Docker images…</span>
+        </div>
+        <div style="font-size:12px;color:#4ade80;font-weight:600" id="pull-count-text"></div>
+      </div>
+      <div style="background:#374151;border-radius:3px;height:5px;overflow:hidden">
+        <div id="pull-progress-bar" style="height:100%;background:var(--wa-green);border-radius:3px;transition:width 0.4s ease;width:0%"></div>
+      </div>
+      <div style="font-size:11px;color:#4b5563;margin-top:5px">First run downloads ~1.5 GB — takes 5–10 minutes on average connection</div>`;
+    box.appendChild(banner);
+  }
+
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const bar = document.getElementById('pull-progress-bar');
+  const countEl = document.getElementById('pull-count-text');
+  const statusEl = document.getElementById('pull-status-text');
+  if (bar) bar.style.width = pct + '%';
+  if (countEl) countEl.textContent = total > 0 ? `${done} / ${total} layers` : '';
+  if (statusEl) statusEl.textContent = dl > 0
+    ? `Downloading ${dl} layer${dl > 1 ? 's' : ''}…`
+    : done === total && total > 0 ? 'Starting containers…' : 'Pulling Docker images…';
+}
+
+function _hidePullProgress() {
+  const banner = document.getElementById('pull-progress-banner');
+  if (banner) banner.remove();
+}
+
+function appendLog(line) {
+  const m = line.match(/^\s*([0-9a-f]+)\s+(Downloading|Waiting|Verifying Checksum|Extracting|Pull complete|Already exists)/);
+  if (m) {
+    const [, hash, state] = m;
+    const prev = _layers[hash];
+    _layers[hash] = (state === 'Pull complete' || state === 'Already exists') ? 'done'
+                  : state === 'Downloading' ? 'downloading' : 'waiting';
+    _updatePullBanner();
+    return;
+  }
+  // Real line — hide pull progress
+  _hidePullProgress();
+  const box = document.getElementById('log-box');
+  const cls = (line.includes('error')||line.includes('Error')) ? 'log-err'
+             : (line.includes('Started')||line.includes('Healthy')||line.includes('done')||line.includes('Pull complete')) ? 'log-ok'
+             : line.startsWith('  ') ? 'log-dim' : '';
+  box.innerHTML += `<div class="${cls}">${esc(line)}</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+function showStatus(type, html) {
+  const icons = {
+    success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    error:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  };
+  document.getElementById('launch-status').innerHTML =
+    `<div class="banner ${type}">${icons[type]}<div class="banner-content">${html}</div></div>`;
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>

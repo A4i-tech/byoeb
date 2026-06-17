@@ -26,7 +26,7 @@ from byoeb.apis.chat import chat_apis_router, chat_mcps_router
 from byoeb.apis.user import user_apis_router, user_mcps_router
 from byoeb.apis.background_jobs import background_apis_router, background_apis_router_deprecated
 from byoeb.apis.admin import admin_apis_router, admin_public_router
-from byoeb.chat_app.configuration.config import env_app
+from byoeb.chat_app.configuration.config import settings, log_optional_env_status
 
 logger = logging.getLogger(__name__)
 
@@ -117,8 +117,48 @@ def create_apps(is_prod: bool):
     app.mount("/", mcp_app)
     return app, mcp_app
 
+async def _seed_admin_user():
+    """Create default tenant + admin user on first boot if ADMIN_USERNAME/ADMIN_PASSWORD_HASH are set."""
+    if not settings.admin_username or not settings.admin_password_hash:
+        return
+    try:
+        import uuid
+        from byoeb.services.auth.auth_service import get_auth_service
+
+        auth = await get_auth_service()
+
+        # Find or create the default tenant
+        existing_tenant = await auth._repo._tenant_collection.find_one({})
+        if existing_tenant:
+            tenant_id = existing_tenant["_id"]
+            logger.info("Admin seed: using existing tenant %s", tenant_id)
+        else:
+            t = await auth.create_tenant("default")
+            tenant_id = t.id
+            logger.info("Admin seed: created default tenant %s", tenant_id)
+
+        # Skip if admin user already exists
+        if await auth._repo.find_user_by_username(settings.admin_username):
+            logger.info("Admin seed: user '%s' already exists — skipping", settings.admin_username)
+            return
+
+        # Insert pre-hashed password directly — plaintext never held in memory from env
+        user_id = uuid.uuid4()
+        await auth._repo.insert_one({
+            "_id": user_id,
+            "username": settings.admin_username,
+            "tenants": [{"tenant_id": tenant_id, "roles": ["admin"]}],
+            "phone_number_id": None,
+            "password_hash": settings.admin_password_hash,
+        })
+        logger.info("Admin seed: created user '%s' in tenant %s", settings.admin_username, tenant_id)
+    except Exception as exc:
+        logger.warning("Admin seed failed (non-fatal): %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log_optional_env_status(settings)
     with tempfile.TemporaryDirectory(prefix="ashabot-") as tempdir:
         pid = os.getpid()
         logger.info("FastAPI app is running with PID: %s", pid)
@@ -137,12 +177,26 @@ async def lifespan(app: FastAPI):
 
         try:
             await message_consumer.initialize()
-            asyncio.create_task(message_consumer.listen())
+            _consumer_task = asyncio.create_task(message_consumer.listen(), name="message_consumer_listen")
+
+            def _on_consumer_done(task: asyncio.Task) -> None:
+                if task.cancelled():
+                    logger.warning("Message consumer task was cancelled")
+                elif task.exception() is not None:
+                    import traceback as _tb
+                    exc = task.exception()
+                    logger.error("Message consumer task failed with unhandled exception: %s\n%s", exc, "".join(_tb.format_exception(type(exc), exc, exc.__traceback__)))
+                else:
+                    logger.warning("Message consumer task completed (should run forever)")
+
+            _consumer_task.add_done_callback(_on_consumer_done)
         except Exception as e:
             logger.error(f"Failed to initialize message consumer: {e}")
             logger.warning("Application will continue without message queue consumer")
             import traceback
             logger.error(traceback.format_exc())
+
+        await _seed_admin_user()
 
         setup_scheduled_jobs()
         start_scheduler()
@@ -157,10 +211,11 @@ async def lifespan(app: FastAPI):
         await channel_client_factory.close()
         await message_consumer.close()
         await queue_producer_factory.close()
-        await text_translator._close()
+        if text_translator is not None:
+            await text_translator._close()
         logger.info("FastAPI app is shutting down. Closing all clients")
 
-app, mcp_app = create_apps(env_app == "PROD")
+app, mcp_app = create_apps(settings.app_env == "PROD")
 
 # Issue with multiple workers in FastAPI
 # https://github.com/encode/uvicorn/discussions/2450

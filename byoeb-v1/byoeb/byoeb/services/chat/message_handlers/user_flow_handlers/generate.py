@@ -14,7 +14,7 @@ from rapidfuzz.fuzz import ratio
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 from typing import Iterable, List, Dict, Any, Optional
 from byoeb.chat_app.configuration.config import bot_config, app_config
-import byoeb.chat_app.configuration.config as env_config
+from byoeb.chat_app.configuration.config import settings as chat_settings
 from byoeb.models.message_category import MessageCategory
 from byoeb_core.models.vector_stores.chunk import Chunk, Chunk_metadata
 from byoeb_core.models.byoeb.message_context import (
@@ -28,7 +28,7 @@ from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search im
 from byoeb_core.models.byoeb.user import User
 from byoeb.services.chat.message_handlers.base import Handler
 from byoeb.chat_app.configuration.dependency_setup import langfuse, llm_client
-from byoeb.chat_app.configuration.config import env_ashabot_message_cache_capacity, feature_flags
+from byoeb.chat_app.configuration.config import feature_flags
 from byoeb.application_logger.azure_app_insights import AppInsightsLogHandler
 from langfuse.media import LangfuseMedia
 from langfuse.api import MediaContentType
@@ -36,10 +36,11 @@ from langfuse.api import MediaContentType
 
 logger = logging.getLogger(__name__)
 
-embedding_cap = int(env_ashabot_message_cache_capacity or 64)
+_openai_api_key = chat_settings.openai_api_key.get_secret_value() if chat_settings.openai_api_key else None
+embedding_cap = int(chat_settings.ashabot_message_cache_capacity or 64)
 embedding_fn = (
-    OpenAIEmbed(model="text-embedding-3-small", dimensions=768, api_key=env_config.env_openai_api_key).get_embedding_function()
-    if env_config.env_openai_api_key and embedding_cap > 0 else None
+    OpenAIEmbed(model="text-embedding-3-small", dimensions=768, api_key=_openai_api_key).get_embedding_function()
+    if _openai_api_key and embedding_cap > 0 else None
 )
 
 class ByoebUserGenerateResponse(Handler):
@@ -315,6 +316,8 @@ class ByoebUserGenerateResponse(Handler):
         user: User
     ):
         from byoeb.chat_app.configuration.dependency_setup import speech_translator
+        if speech_translator is None:
+            return None
         with langfuse.start_as_current_observation(as_type="span", name="text-to-speech", input=message_source_text) as span:
             translated_audio_message = await speech_translator.atext_to_speech(
                 input_text=message_source_text,
@@ -340,6 +343,9 @@ class ByoebUserGenerateResponse(Handler):
                 response_text=response_text,
                 query_type=query_type,
             )
+
+        if text_translator is None:
+            return response_text, None, True
 
         with langfuse.start_as_current_observation(as_type="span", name="translation", input=response_text) as span:
             source_text = await text_translator.atranslate_text(
@@ -426,6 +432,7 @@ class ByoebUserGenerateResponse(Handler):
                 except Exception as e:
                     logger.warning("Embedding cache update failed: %s. Continuing without cache update.", e)
 
+        media_info = media_info or {}  # guard: speech_translator absent returns None
         utils.log_to_text_file(f"Created audio response message in {end_time - start_time} seconds")
         description = bot_config["template_messages"]["user"]["follow_up_questions_description"][user_language]
         message_type = None
@@ -840,6 +847,8 @@ class ByoebUserGenerateResponse(Handler):
             # If translation fails, use a simple fallback
             try:
                 from byoeb.chat_app.configuration.dependency_setup import text_translator
+                if text_translator is None:
+                    raise RuntimeError("text_translator not configured")
                 response_en = await text_translator.atranslate_text(
                     input_text=response_text,
                     source_language=user_language,

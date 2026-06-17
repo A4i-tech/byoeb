@@ -1,0 +1,17 @@
+title = "Gitleaks config for byoeb"
+
+[allowlist]
+  description = "Allow test-fixture credential patterns and known-safe constants"
+  # Paths: everything under any tests/ directory, data/, or migrations/
+  paths = [
+    '''byoeb-v1/.+/tests/.+''',
+    '''data/.+''',
+    '''migrations/.+''',
+  ]
+  # Regexes: fake phone numbers and placeholder API keys used in unit test factories
+  regexes = [
+    # Phone numbers used in test User fixtures (e.g. "918765432109")
+    '''9187654321\d{2}''',
+    # Generic placeholder keys like "fake-api-key", "test-secret", "dummy-token"
+    '''(fake|test|dummy|placeholder)[-_]?(api[-_]?key|secret|token)''',
+  ]
