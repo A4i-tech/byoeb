@@ -2,9 +2,11 @@
 Unit tests for MessageConsmerService routing (byoeb.services.chat.message_consumer).
 
 These tests cover proactive return / onboarding routing: users with incomplete
-profile (user_type=None, user_language=None) or replying to an onboarding-step
-bot message (USER_TYPE / LANGUAGE_SELECTION / CONSENT) must be routed to
-onboarding (onboard_convs), not to the "already registered" flow (conversations).
+profile (user_type=None, user_language=None) go to onboarding (onboard_convs).
+Users who already have user_type and user_language set go to regular flow
+(conversations)—even when replying to an old onboarding-step message (USER_TYPE /
+LANGUAGE_SELECTION / CONSENT); that fix prevents already-onboarded users from
+seeing language selection again.
 
 Scenarios 1–3 from PR_PROACTIVE_RETURN_SCENARIO_VALIDATION.md. The existing
 test_onboarding.py in this package tests the onboarding flow module
@@ -214,13 +216,13 @@ def test_user_with_user_language_none_and_onboarding_message_with_user_id_goes_t
     asyncio.run(run())
 
 
-# ---------- Scenario 3: Reply to CONSENT / USER_TYPE / LANGUAGE_SELECTION -> onboarding ----------
+# ---------- Scenario 3: Complete user replying to onboarding-step -> regular flow (conversations) ----------
 
 
-def test_user_with_complete_info_replying_to_consent_goes_to_onboarding(
+def test_user_with_complete_info_replying_to_consent_goes_to_conversations(
     service, mock_user_db, mock_message_db
 ):
-    """Scenario 3: User has user_type and user_language set but replies to CONSENT bot message -> onboarding."""
+    """Scenario 3: User has user_type and user_language set and replies to CONSENT -> regular flow (conversations), not onboarding."""
     async def run():
         user = make_user(
             phone_number_id="919555555555", user_id="u5", user_type="asha", user_language="en"
@@ -233,15 +235,15 @@ def test_user_with_complete_info_replying_to_consent_goes_to_onboarding(
         )
         msg.user = user
         conversations, onboard_convs = await _create_conversations(service, [msg])
-        assert len(onboard_convs) == 1, "Reply to CONSENT step -> must go to onboarding"
-        assert len(conversations) == 0
+        assert len(conversations) == 1, "Already onboarded user replying to CONSENT -> regular flow"
+        assert len(onboard_convs) == 0
     asyncio.run(run())
 
 
-def test_user_with_complete_info_replying_to_user_type_goes_to_onboarding(
+def test_user_with_complete_info_replying_to_user_type_goes_to_conversations(
     service, mock_user_db, mock_message_db
 ):
-    """Scenario 3: User replies to USER_TYPE bot message -> onboarding."""
+    """Scenario 3: User has complete info and replies to USER_TYPE -> regular flow (conversations), not onboarding."""
     async def run():
         user = make_user(
             phone_number_id="919666666666", user_id="u6", user_type="asha", user_language="en"
@@ -252,15 +254,15 @@ def test_user_with_complete_info_replying_to_user_type_goes_to_onboarding(
         msg = make_message(user, message_source_text="Asha", message_id="m6", reply_id="bot-ut")
         msg.user = user
         conversations, onboard_convs = await _create_conversations(service, [msg])
-        assert len(onboard_convs) == 1
-        assert len(conversations) == 0
+        assert len(conversations) == 1
+        assert len(onboard_convs) == 0
     asyncio.run(run())
 
 
-def test_user_with_complete_info_replying_to_language_selection_goes_to_onboarding(
+def test_user_with_complete_info_replying_to_language_selection_goes_to_conversations(
     service, mock_user_db, mock_message_db
 ):
-    """Scenario 3: User replies to LANGUAGE_SELECTION bot message -> onboarding."""
+    """Scenario 3: User has complete info and replies to LANGUAGE_SELECTION -> regular flow (conversations), not onboarding."""
     async def run():
         user = make_user(
             phone_number_id="919777777777", user_id="u7", user_type="asha", user_language="en"
@@ -273,8 +275,8 @@ def test_user_with_complete_info_replying_to_language_selection_goes_to_onboardi
         msg = make_message(user, message_source_text="English", message_id="m7", reply_id="bot-lang")
         msg.user = user
         conversations, onboard_convs = await _create_conversations(service, [msg])
-        assert len(onboard_convs) == 1
-        assert len(conversations) == 0
+        assert len(conversations) == 1
+        assert len(onboard_convs) == 0
     asyncio.run(run())
 
 
