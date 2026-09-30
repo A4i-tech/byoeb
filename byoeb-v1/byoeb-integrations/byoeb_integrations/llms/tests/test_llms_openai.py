@@ -8,7 +8,6 @@ from _test_llama_index_generic import *
 load_dotenv(test_environment_path)
 
 API_KEY = "sk-dummy-key-00000000000000000000000000000000"
-API_VERSION = "2024-06-01"
 ORGANIZATION = "org_dummy_123"
 MODEL = "gpt-4.1-mini"
 
@@ -27,15 +26,14 @@ def llm_llama(mocker):
     return AsyncLLamaIndexOpenAILLM(
         model=MODEL,
         api_key=API_KEY,
-        api_version=API_VERSION,
         organization=ORGANIZATION,
     )
 
 @pytest.mark.parametrize("kwargs,error_msg", [
-    ({"model": None,  "api_key": API_KEY,  "api_version": API_VERSION}, "model must be provided"),
-    ({"model": MODEL, "api_key": API_KEY}, "api_version must be provided"),
+    ({"model": None,  "api_key": API_KEY}, "model must be provided"),
+    ({"model": MODEL, "api_key": None}, "api_key must be provided when base_url is not set"),
 ])
-def test_azure_openai_instantiation(kwargs, error_msg):
+def test_openai_instantiation(kwargs, error_msg):
     with pytest.raises(ValueError, match=error_msg):
         AsyncLLamaIndexOpenAILLM(organization=ORGANIZATION, **kwargs)
 

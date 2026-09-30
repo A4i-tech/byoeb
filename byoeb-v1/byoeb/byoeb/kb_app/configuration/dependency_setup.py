@@ -2,11 +2,10 @@ import os
 import logging
 from byoeb.kb_app.configuration.config import settings as kb_settings
 from byoeb.kb_app.configuration.config import app_config
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from azure.identity import DefaultAzureCredential
 from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 from byoeb_integrations.llms.llama_index.llama_index_openai import AsyncLLamaIndexOpenAILLM
-from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
 from byoeb_core.media_storage.base import BaseMediaStorage
 from byoeb_core.vector_stores.base import BaseVectorStore
 
@@ -16,68 +15,58 @@ logger = logging.getLogger(__name__)
 amedia_storage_analysis: BaseMediaStorage = None
 
 _openai_api_key = kb_settings.openai_api_key.get_secret_value() if kb_settings.openai_api_key else None
-llm_client = AsyncLLamaIndexOpenAILLM(
-    model=app_config["llms"]["openai"]["model"],
-    api_key=_openai_api_key,
-    api_version=app_config["llms"]["openai"]["api_version"],
-    organization=kb_settings.openai_org_id
-)
 
-# Embeddings — Azure OpenAI if configured, else fall back to standard OpenAI
-_azure_openai_enabled = bool(
-    kb_settings.azure_openai_endpoint
-    and kb_settings.azure_openai_deployment_name
-)
 
-if _azure_openai_enabled:
-    from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
-    _model = app_config["embeddings"]["azure"]["model"]
-    _deployment_name = kb_settings.azure_openai_deployment_name
-    _aoai_endpoint = kb_settings.azure_openai_endpoint
-    _api_version = app_config["embeddings"]["azure"]["api_version"]
-    _azure_openai_key = kb_settings.azure_openai_key.get_secret_value() if kb_settings.azure_openai_key else None
-    _azure_cognitive_key = kb_settings.azure_cognitive_key.get_secret_value() if kb_settings.azure_cognitive_key else None
-    if _azure_openai_key:
-        azure_openai_embed = AzureOpenAIEmbed(
-            model=_model,
-            deployment_name=_deployment_name,
-            azure_endpoint=_aoai_endpoint,
-            api_key=_azure_openai_key,
-            api_version=_api_version,
+def _azure_openai_auth() -> dict:
+    _key = kb_settings.azure_openai_key or kb_settings.azure_cognitive_key
+    if _key:
+        return {"api_key": _key.get_secret_value()}
+    from azure.identity import get_bearer_token_provider
+    return {
+        "token_provider": get_bearer_token_provider(
+            DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
         )
-    elif _azure_cognitive_key:
-        azure_openai_embed = AzureOpenAIEmbed(
-            model=_model,
-            deployment_name=_deployment_name,
-            azure_endpoint=_aoai_endpoint,
-            api_key=_azure_cognitive_key,
-            api_version=_api_version,
-        )
-    else:
-        _default_credential = DefaultAzureCredential()
-        _token_provider = get_bearer_token_provider(
-            _default_credential, "https://cognitiveservices.azure.com/.default"
-        )
-        azure_openai_embed = AzureOpenAIEmbed(
-            model=_model,
-            deployment_name=_deployment_name,
-            azure_endpoint=_aoai_endpoint,
-            token_provider=_token_provider,
-            api_version=_api_version,
-        )
-    logger.info("Using Azure OpenAI embeddings: endpoint=%s", _aoai_endpoint)
-else:
-    if not _openai_api_key:
-        raise ValueError(
-            "Either AZURE_OPENAI_ENDPOINT+AZURE_OPENAI_DEPLOYMENT_NAME or "
-            "OPENAI_API_KEY must be set for embeddings."
-        )
-    from byoeb_integrations.embeddings.llama_index.openai import OpenAIEmbed
-    azure_openai_embed = OpenAIEmbed(
-        model="text-embedding-3-small",
-        api_key=_openai_api_key,
+    }
+
+
+# LLM — CHAT_PROVIDER selects Azure OpenAI or OpenAI (public or self-hosted via base URL)
+if kb_settings.chat_provider == "azure":
+    from byoeb_integrations.llms.llama_index.llama_index_azure_openai import AsyncLLamaIndexAzureOpenAILLM
+    llm_client = AsyncLLamaIndexAzureOpenAILLM(
+        model=app_config["llms"]["azure"]["model"],
+        deployment_name=app_config["llms"]["azure"]["deployment_name"],
+        azure_endpoint=kb_settings.azure_openai_endpoint,
+        api_version=app_config["llms"]["azure"]["api_version"],
+        **_azure_openai_auth(),
     )
-    logger.info("Azure OpenAI not configured — using standard OpenAI embeddings (text-embedding-3-small)")
+else:
+    llm_client = AsyncLLamaIndexOpenAILLM(
+        model=kb_settings.chat_model or app_config["llms"]["openai"]["model"],
+        api_key=_openai_api_key,
+        base_url=kb_settings.chat_base_url,
+        organization=kb_settings.openai_org_id
+    )
+
+# Embeddings — EMBEDDING_PROVIDER selects Azure OpenAI or OpenAI (public or self-hosted via base URL)
+if kb_settings.embedding_provider == "azure":
+    from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
+    azure_openai_embed = AzureOpenAIEmbed(
+        model=app_config["embeddings"]["azure"]["model"],
+        deployment_name=kb_settings.azure_openai_deployment_name,
+        azure_endpoint=kb_settings.azure_openai_endpoint,
+        api_version=app_config["embeddings"]["azure"]["api_version"],
+        **_azure_openai_auth(),
+    )
+    logger.info("Using Azure OpenAI embeddings: endpoint=%s", kb_settings.azure_openai_endpoint)
+else:
+    from byoeb_integrations.embeddings.llama_index.openai import OpenAIEmbed
+    _embedding_model = kb_settings.embedding_model or app_config["embeddings"]["openai"]["model"]
+    azure_openai_embed = OpenAIEmbed(
+        model=_embedding_model,
+        api_key=_openai_api_key,
+        base_url=kb_settings.embedding_base_url,
+    )
+    logger.info("Using OpenAI embeddings: model=%s, base_url=%s", _embedding_model, kb_settings.embedding_base_url)
 
 _azure_storage_cs = kb_settings.azure_storage_connection_string.get_secret_value() if kb_settings.azure_storage_connection_string else None
 if kb_settings.storage_backend == "local":
@@ -194,9 +183,18 @@ elif vector_store_type == "chroma":
     llama_index_embedding = azure_openai_embed.get_embedding_function()
     
     # Use the reusable ChromaDB embedding function wrapper from byoeb_integrations
-    chroma_embedding_function = AzureOpenAIEmbeddingFunction(
-        embedding_instance=llama_index_embedding
-    )
+    if kb_settings.embedding_provider == "azure":
+        from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
+        chroma_embedding_function = AzureOpenAIEmbeddingFunction(
+            embedding_instance=llama_index_embedding
+        )
+    else:
+        from byoeb_integrations.embeddings.chroma.llama_index_openai import OpenAIEmbeddingFunction
+        chroma_embedding_function = OpenAIEmbeddingFunction(
+            model=_embedding_model,
+            api_key=_openai_api_key,
+            base_url=kb_settings.embedding_base_url,
+        )
     
     from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
     vector_store = ChromaDBVectorStore(

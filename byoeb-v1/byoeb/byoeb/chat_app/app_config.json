@@ -54,6 +54,9 @@
             "model": "text-embedding-3-large",
             "deployment_name": "text-embedding-3-large",
             "api_version": "2023-03-15-preview"
+        },
+        "openai": {
+            "model": "text-embedding-3-small"
         }
     },
     "llms": {
@@ -63,8 +66,7 @@
             "api_version": "2023-03-15-preview"
         },
         "openai": {
-            "model": "gpt-4.1-mini",
-            "api_version": "2023-03-15-preview"
+            "model": "gpt-4.1-mini"
         }
     },
     "media_storage": {
@@ -92,20 +94,20 @@
                 "motive": "speech_to_text",
                 "service": "azure_openai",
                 "languages": ["en", "hi", "mr", "te"],
-                "attributes": {"model": "whisper", "api_version": "2024-10-21"}
+                "attributes": {"model": "whisper", "openai_model": "whisper-1", "api_version": "2024-10-21"}
             },
             {
                 "motive": "speech_to_text",
                 "service": "azure_openai",
                 "languages": ["en", "hi", "te"],
-                "attributes": {"model": "gpt-4o-transcribe", "api_version": "2024-10-21"},
+                "attributes": {"model": "gpt-4o-transcribe", "openai_model": "gpt-4o-transcribe", "api_version": "2024-10-21"},
                 "gated": true
             },
             {
                 "motive": "speech_to_text",
                 "service": "azure_openai",
                 "languages": ["mr"],
-                "attributes": {"model": "whisper", "api_version": "2024-10-21"},
+                "attributes": {"model": "whisper", "openai_model": "whisper-1", "api_version": "2024-10-21"},
                 "gated": true
             }
         ],

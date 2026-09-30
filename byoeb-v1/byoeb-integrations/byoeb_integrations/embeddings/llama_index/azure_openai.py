@@ -1,5 +1,4 @@
 from typing import Any
-from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 from byoeb_core.embeddings.base import BaseEmbedding
 
 class AzureOpenAIEmbed(BaseEmbedding):
@@ -13,6 +12,13 @@ class AzureOpenAIEmbed(BaseEmbedding):
         api_key: str = None,
         **kwargs
     ) -> None:
+        try:
+            from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+        except ImportError as e:
+            raise ImportError(
+                "EMBEDDING_PROVIDER=azure needs the llama-index Azure OpenAI package. "
+                "Run poetry install --extras azure or set EMBEDDING_PROVIDER=openai."
+            ) from e
         embedding_fn = None
         if model is None:
             raise ValueError("model must be provided")

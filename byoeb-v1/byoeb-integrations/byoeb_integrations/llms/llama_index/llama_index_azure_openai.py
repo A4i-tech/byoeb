@@ -2,7 +2,6 @@ import tiktoken
 from typing import Any, List, Dict
 from enum import Enum
 from llama_index.core.llms import ChatMessage
-from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.core.callbacks import TokenCountingHandler
 from byoeb_core.llms.base import BaseLLM
 
@@ -23,6 +22,13 @@ class AsyncLLamaIndexAzureOpenAILLM(BaseLLM):
         reuse_client: bool = True,
         **kwargs
     ):
+        try:
+            from llama_index.llms.azure_openai import AzureOpenAI
+        except ImportError as e:
+            raise ImportError(
+                "CHAT_PROVIDER=azure needs the llama-index Azure OpenAI package. "
+                "Run poetry install --extras azure or set CHAT_PROVIDER=openai."
+            ) from e
         client = None
         temperature = kwargs.get(
             AzureOpenAIParamsEnum.TEMPERATURE.value,

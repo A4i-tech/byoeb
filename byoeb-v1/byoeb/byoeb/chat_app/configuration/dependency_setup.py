@@ -184,56 +184,44 @@ else:
 # vector store
 import os
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
-from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
 from byoeb_core.vector_stores.base import BaseVectorStore
 
-# Embeddings — Azure OpenAI if configured, else fall back to standard OpenAI
-_azure_openai_enabled = bool(
-    chat_settings.azure_openai_endpoint
-    and chat_settings.azure_openai_deployment_name
-)
+_openai_api_key = chat_settings.openai_api_key.get_secret_value() if chat_settings.openai_api_key else None
 
-if _azure_openai_enabled:
-    from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
-    _aoai_endpoint = chat_settings.azure_openai_endpoint
-    _aoai_deployment = chat_settings.azure_openai_deployment_name
-    _azure_openai_key = chat_settings.azure_openai_key.get_secret_value() if chat_settings.azure_openai_key else None
-    if _azure_openai_key:
-        _logger.info("Azure OpenAI Embed key set. Enabling Azure OpenAI Embed.")
-        azure_openai_embed = AzureOpenAIEmbed(
-            model=app_config["embeddings"]["azure"]["model"],
-            deployment_name=_aoai_deployment,
-            azure_endpoint=_aoai_endpoint,
-            api_key=_azure_openai_key,
-            api_version=app_config["embeddings"]["azure"]["api_version"],
-        )
-    else:
-        from azure.identity import get_bearer_token_provider, DefaultAzureCredential
-        _logger.warning("Azure OpenAI key not set. Using DefaultAzureCredential for embeddings.")
-        _token_provider = get_bearer_token_provider(
+
+def _azure_openai_auth() -> dict:
+    _key = chat_settings.azure_openai_key.get_secret_value() if chat_settings.azure_openai_key else None
+    if _key:
+        return {"api_key": _key}
+    from azure.identity import get_bearer_token_provider, DefaultAzureCredential
+    _logger.warning("Azure OpenAI key not set. Using DefaultAzureCredential.")
+    return {
+        "token_provider": get_bearer_token_provider(
             DefaultAzureCredential(), app_config["app"]["azure_cognitive_endpoint"]
         )
-        azure_openai_embed = AzureOpenAIEmbed(
-            model=app_config["embeddings"]["azure"]["model"],
-            deployment_name=_aoai_deployment,
-            azure_endpoint=_aoai_endpoint,
-            token_provider=_token_provider,
-            api_version=app_config["embeddings"]["azure"]["api_version"],
-        )
-    _logger.info("Using Azure OpenAI embeddings: endpoint=%s", _aoai_endpoint)
-else:
-    _openai_api_key = chat_settings.openai_api_key.get_secret_value() if chat_settings.openai_api_key else None
-    if not _openai_api_key:
-        raise ValueError(
-            "Either AZURE_OPENAI_ENDPOINT+AZURE_OPENAI_DEPLOYMENT_NAME or "
-            "OPENAI_API_KEY must be set for embeddings."
-        )
-    from byoeb_integrations.embeddings.llama_index.openai import OpenAIEmbed
-    azure_openai_embed = OpenAIEmbed(
-        model="text-embedding-3-small",
-        api_key=_openai_api_key,
+    }
+
+
+# Embeddings — EMBEDDING_PROVIDER selects Azure OpenAI or OpenAI (public or self-hosted via base URL)
+if chat_settings.embedding_provider == "azure":
+    from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
+    azure_openai_embed = AzureOpenAIEmbed(
+        model=app_config["embeddings"]["azure"]["model"],
+        deployment_name=chat_settings.azure_openai_deployment_name,
+        azure_endpoint=chat_settings.azure_openai_endpoint,
+        api_version=app_config["embeddings"]["azure"]["api_version"],
+        **_azure_openai_auth(),
     )
-    _logger.info("Azure OpenAI not configured — using standard OpenAI embeddings (text-embedding-3-small)")
+    _logger.info("Using Azure OpenAI embeddings: endpoint=%s", chat_settings.azure_openai_endpoint)
+else:
+    from byoeb_integrations.embeddings.llama_index.openai import OpenAIEmbed
+    _embedding_model = chat_settings.embedding_model or app_config["embeddings"]["openai"]["model"]
+    azure_openai_embed = OpenAIEmbed(
+        model=_embedding_model,
+        api_key=_openai_api_key,
+        base_url=chat_settings.embedding_base_url,
+    )
+    _logger.info("Using OpenAI embeddings: model=%s, base_url=%s", _embedding_model, chat_settings.embedding_base_url)
 
 # Vector Store Type Configuration - use environment variable if set, otherwise fallback to app_config.json
 # Default to "azure_vector_search" if not specified (for backward compatibility)
@@ -293,9 +281,18 @@ elif vector_store_type == "chroma":
     llama_index_embedding = azure_openai_embed.get_embedding_function()
     
     # Use the reusable ChromaDB embedding function wrapper from byoeb_integrations
-    chroma_embedding_function = AzureOpenAIEmbeddingFunction(
-        embedding_instance=llama_index_embedding
-    )
+    if chat_settings.embedding_provider == "azure":
+        from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
+        chroma_embedding_function = AzureOpenAIEmbeddingFunction(
+            embedding_instance=llama_index_embedding
+        )
+    else:
+        from byoeb_integrations.embeddings.chroma.llama_index_openai import OpenAIEmbeddingFunction
+        chroma_embedding_function = OpenAIEmbeddingFunction(
+            model=_embedding_model,
+            api_key=_openai_api_key,
+            base_url=chat_settings.embedding_base_url,
+        )
     
     from byoeb_integrations.vector_stores.chroma.base import ChromaDBVectorStore
     vector_store = ChromaDBVectorStore(
@@ -335,32 +332,30 @@ else:
         f"Supported types: 'azure_vector_search', 'chroma', 'llama_index_chroma'"
     )
 
-# llm
-# from byoeb_integrations.llms.llama_index.llama_index_azure_openai import AsyncLLamaIndexAzureOpenAILLM
-# llm_client = AsyncLLamaIndexAzureOpenAILLM(
-#     model=app_config["llms"]["azure"]["model"],
-#     deployment_name=app_config["llms"]["azure"]["deployment_name"],
-#     azure_endpoint=app_config["llms"]["azure"]["endpoint"],
-#     token_provider=token_provider,
-#     api_version=app_config["llms"]["azure"]["api_version"]
-# )
+# llm — CHAT_PROVIDER selects Azure OpenAI or OpenAI (public or self-hosted via base URL)
 from byoeb_integrations.llms.llama_index.llama_index_openai import AsyncLLamaIndexOpenAILLM
-_llm_api_key = chat_settings.openai_api_key.get_secret_value() if chat_settings.openai_api_key else None
-llm_client = AsyncLLamaIndexOpenAILLM(
-    model=app_config["llms"]["openai"]["model"],
-    api_key=_llm_api_key,
-    api_version=app_config["llms"]["openai"]["api_version"],
-    organization=chat_settings.openai_org_id,
-    temperature=0.0  # Set to 0 for deterministic responses (same input → same output)
-)
 
-llm_translate_and_rewrite_client = AsyncLLamaIndexOpenAILLM(
-    model=app_config["llms"]["openai"]["model"],
-    api_key=_llm_api_key,
-    api_version=app_config["llms"]["openai"]["api_version"],
-    organization=chat_settings.openai_org_id,
-    temperature=0.0  # Set to 0 for deterministic query rewriting (same input → same output)
-)
+def _create_llm_client():
+    if chat_settings.chat_provider == "azure":
+        from byoeb_integrations.llms.llama_index.llama_index_azure_openai import AsyncLLamaIndexAzureOpenAILLM
+        return AsyncLLamaIndexAzureOpenAILLM(
+            model=app_config["llms"]["azure"]["model"],
+            deployment_name=app_config["llms"]["azure"]["deployment_name"],
+            azure_endpoint=chat_settings.azure_openai_endpoint,
+            api_version=app_config["llms"]["azure"]["api_version"],
+            temperature=0.0,  # Set to 0 for deterministic responses (same input → same output)
+            **_azure_openai_auth(),
+        )
+    return AsyncLLamaIndexOpenAILLM(
+        model=chat_settings.chat_model or app_config["llms"]["openai"]["model"],
+        api_key=_openai_api_key,
+        base_url=chat_settings.chat_base_url,
+        organization=chat_settings.openai_org_id,
+        temperature=0.0  # Set to 0 for deterministic responses (same input → same output)
+    )
+
+llm_client = _create_llm_client()
+llm_translate_and_rewrite_client = _create_llm_client()
 
 
 # Process user message Chain of Responsibility

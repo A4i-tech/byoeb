@@ -10,7 +10,9 @@ exclude = ["**/tests/**", "**/tests"]
 python = ">=3.11,<3.14"
 openai = "2.32.0"
 chromadb = "0.5.23"
-llama-index-embeddings-azure-openai = "0.5.2"
+azure-identity = "^1.15.0"
+llama-index-embeddings-azure-openai = {version = "0.5.2", optional = true}
+llama-index-llms-azure-openai = {version = "0.5.5", optional = true}
 azure-storage-queue = "12.12.0"
 azure-storage-blob = "12.24.0"
 azure-cognitiveservices-speech = "^1.48.2"
@@ -34,6 +36,7 @@ pypdf = ">=6.12.0"
 
 [tool.poetry.extras]
 qdrant = ["qdrant-client", "llama-index-vector-stores-qdrant"]
+azure = ["llama-index-embeddings-azure-openai", "llama-index-llms-azure-openai"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.3"

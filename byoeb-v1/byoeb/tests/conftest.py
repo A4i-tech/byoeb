@@ -12,6 +12,7 @@ import os
 # Set required environment variables for tests to prevent import errors
 # These are dummy/test values and should never be used to access production resources
 os.environ["AZURE_OPENAI_API_KEY"] = "sk-xxxx"
+os.environ["OPENAI_API_KEY"] = "sk-xxxx"
 os.environ["AZURE_OPENAI_SPEECH_ENDPOINT"] = "http://localhost:8000"
 os.environ["AZURE_COGNITIVE_REGION"] = "swedencentral"
 os.environ["AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE"] = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/dummy_resource_group/providers/Microsoft.CognitiveServices/accounts/dummy-speech-to-text-account"

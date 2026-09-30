@@ -38,9 +38,13 @@ logger = logging.getLogger(__name__)
 
 _openai_api_key = chat_settings.openai_api_key.get_secret_value() if chat_settings.openai_api_key else None
 embedding_cap = int(chat_settings.ashabot_message_cache_capacity or 64)
+# The message cache always embeds with OpenAI. Model and base URL follow EMBEDDING_PROVIDER=openai.
+_cache_openai = chat_settings.embedding_provider == "openai"
+_cache_base_url = chat_settings.embedding_base_url if _cache_openai else None
+_cache_model = (chat_settings.embedding_model if _cache_openai else None) or app_config["embeddings"]["openai"]["model"]
 embedding_fn = (
-    OpenAIEmbed(model="text-embedding-3-small", dimensions=768, api_key=_openai_api_key).get_embedding_function()
-    if _openai_api_key and embedding_cap > 0 else None
+    OpenAIEmbed(model=_cache_model, dimensions=768, api_key=_openai_api_key, base_url=_cache_base_url).get_embedding_function()
+    if (_openai_api_key or _cache_base_url) and embedding_cap > 0 else None
 )
 
 class ByoebUserGenerateResponse(Handler):
