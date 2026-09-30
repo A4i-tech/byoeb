@@ -8,6 +8,7 @@ except ModuleNotFoundError:
     pass  # use default sqlite3
 
 import os
+import tempfile
 
 # Set required environment variables for tests to prevent import errors
 # These are dummy/test values and should never be used to access production resources
@@ -22,6 +23,8 @@ os.environ["AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE"] = "/subscriptions/00000000-0
 os.environ["AZURE_STORAGE_BLOB_ACCOUNT_URL"] = "https://test-storage.blob.core.windows.net"
 os.environ["AZURE_STORAGE_QUEUE_ACCOUNT_URL"] = "https://test-storage.queue.core.windows.net"
 os.environ["AZURE_STORAGE_CONTAINER_NAME"] = "test-container"
+# STORAGE_BACKEND defaults to local; keep its media folder out of the repo
+os.environ["LOCAL_STORAGE_PATH"] = tempfile.mkdtemp(prefix="byoeb-test-media-")
 # Required queue names (must be set to prevent accidental production access)
 os.environ["AZURE_QUEUE_STATUS"] = "test-statusmessages"
 os.environ["AZURE_QUEUE_BOT"] = "test-botmessages"
