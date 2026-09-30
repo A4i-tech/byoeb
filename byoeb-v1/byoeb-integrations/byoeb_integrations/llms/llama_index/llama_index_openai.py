@@ -14,8 +14,8 @@ class AsyncLLamaIndexOpenAILLM(BaseLLM):
         self,
         model: str,
         api_key: str,
-        organization: str,
-        api_version: str = None,
+        organization: str = None,
+        base_url: str = None,
         reuse_client: bool = True,
         **kwargs
     ):
@@ -26,10 +26,10 @@ class AsyncLLamaIndexOpenAILLM(BaseLLM):
         )
         if model is None:
             raise ValueError("model must be provided")
-        if api_version is None:
-            raise ValueError("api_version must be provided")
+        if api_key is None and base_url is None:
+            raise ValueError("api_key must be provided when base_url is not set")
 
-        # Register model if not known to this llama_index version (e.g. gpt-4.1-mini)
+        # Register model if not known to this llama_index version (e.g. gpt-4.1-mini or a self-hosted model)
         from llama_index.llms.openai.utils import ALL_AVAILABLE_MODELS, CHAT_MODELS
         if model not in ALL_AVAILABLE_MODELS:
             ALL_AVAILABLE_MODELS[model] = 128000
@@ -38,7 +38,7 @@ class AsyncLLamaIndexOpenAILLM(BaseLLM):
         client = OpenAI(
             model=model,
             api_key=api_key,
-            api_version=api_version,
+            api_base=base_url,
             reuse_client=reuse_client,
             temperature=temperature,
             organization=organization,

@@ -1,4 +1,7 @@
 import pytest
+
+pytest.importorskip("llama_index.embeddings.azure_openai", reason="needs the azure extra: poetry install --extras azure")
+
 from azure.identity import get_bearer_token_provider, AzureCliCredential
 from byoeb_integrations import test_environment_path
 from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed

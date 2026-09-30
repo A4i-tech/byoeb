@@ -15,6 +15,7 @@ from typing import Literal, Optional
 _mongo_dsn_adapter = TypeAdapter(MongoDsn)
 
 from byoeb.constants.feature_enums import FeatureFlag
+from byoeb.utils.provider import validate_provider, check_provider_settings
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,20 @@ class ChatAppSettings(BaseSettings):
         default=None, description="OpenAI API key for embeddings and LLM"
     )
     openai_org_id: Optional[str] = Field(default=None, description="OpenAI organization ID")
+    openai_base_url: Optional[str] = Field(
+        default=None, description="Shared base URL for the openai provider. Empty means public OpenAI"
+    )
+
+    # Provider per kind: 'azure' or 'openai'. A base URL on 'openai' selects a self-hosted server.
+    chat_provider: str = Field(default="openai", description="Chat provider: 'azure' or 'openai'")
+    embedding_provider: str = Field(default="openai", description="Embedding provider: 'azure' or 'openai'")
+    transcription_provider: str = Field(default="openai", description="Transcription provider: 'azure' or 'openai'")
+    chat_base_url: Optional[str] = Field(default=None, description="Chat base URL. Falls back to OPENAI_BASE_URL")
+    embedding_base_url: Optional[str] = Field(default=None, description="Embedding base URL. Falls back to OPENAI_BASE_URL")
+    transcription_base_url: Optional[str] = Field(default=None, description="Transcription base URL. Falls back to OPENAI_BASE_URL")
+    chat_model: Optional[str] = Field(default=None, description="Chat model for the openai provider. Overrides app_config.json")
+    embedding_model: Optional[str] = Field(default=None, description="Embedding model for the openai provider. Overrides app_config.json")
+    transcription_model: Optional[str] = Field(default=None, description="Transcription model for the openai provider. Overrides app_config.json")
 
     # MongoDB — REQUIRED: app cannot function without a database
     mongo_db_connection_string: str = Field(
@@ -254,14 +269,32 @@ class ChatAppSettings(BaseSettings):
                 )
         return self
 
+    @field_validator('chat_provider', 'embedding_provider', 'transcription_provider')
+    @classmethod
+    def validate_provider_name(cls, v: str, info) -> str:
+        return validate_provider(info.field_name.upper(), v)
+
     @model_validator(mode='after')
     def validate_llm_credentials(self) -> 'ChatAppSettings':
-        azure_configured = self.azure_openai_endpoint and self.azure_openai_deployment_name
-        if not azure_configured and not self.openai_api_key:
-            raise ValueError(
-                "Either OPENAI_API_KEY or both AZURE_OPENAI_ENDPOINT + "
-                "AZURE_OPENAI_DEPLOYMENT_NAME must be set"
-            )
+        self.chat_base_url = self.chat_base_url or self.openai_base_url or None
+        self.embedding_base_url = self.embedding_base_url or self.openai_base_url or None
+        self.transcription_base_url = self.transcription_base_url or self.openai_base_url or None
+        has_key = bool(self.openai_api_key)
+        check_provider_settings(
+            "CHAT_PROVIDER", self.chat_provider, has_key, self.chat_base_url,
+            {"AZURE_OPENAI_ENDPOINT": self.azure_openai_endpoint},
+        )
+        check_provider_settings(
+            "EMBEDDING_PROVIDER", self.embedding_provider, has_key, self.embedding_base_url,
+            {
+                "AZURE_OPENAI_ENDPOINT": self.azure_openai_endpoint,
+                "AZURE_OPENAI_DEPLOYMENT_NAME": self.azure_openai_deployment_name,
+            },
+        )
+        check_provider_settings(
+            "TRANSCRIPTION_PROVIDER", self.transcription_provider, has_key, self.transcription_base_url,
+            {"AZURE_OPENAI_SPEECH_ENDPOINT": self.azure_openai_speech_endpoint},
+        )
         return self
 
 
