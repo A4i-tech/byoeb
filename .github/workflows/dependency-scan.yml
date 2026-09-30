@@ -7,6 +7,11 @@ on:
         description: "Relative path to the Poetry project"
         required: true
         type: string
+      extras:
+        description: "Poetry extra to install, e.g. azure. Leave empty for none."
+        required: false
+        default: ""
+        type: string
 
 jobs:
   dependency-scan:
@@ -34,7 +39,7 @@ jobs:
         working-directory: ${{ inputs.directory }}
         # poetry check --lock: fail if poetry.lock is out of sync with pyproject.toml (prevents silent drift)
         # --no-root: skip installing the project itself as editable so pip-audit doesn't error on it
-        run: poetry check --lock && poetry install --no-interaction --no-root
+        run: poetry check --lock && poetry install --no-interaction --no-root ${{ inputs.extras && format('--extras {0}', inputs.extras) }}
 
       # CVE-2025-69872 (diskcache 5.6.3): no upstream fix available as of 2026-06-05 — revisit when a fix is released
       # PYSEC-2025-194 (torch 2.11.0): no upstream fix available as of 2026-06-16

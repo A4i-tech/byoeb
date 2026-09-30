@@ -1,6 +1,9 @@
 import tempfile
 import pytest
 import asyncio
+
+pytest.importorskip("azure.storage.blob")
+
 from pydub.generators import Sine
 from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
 from byoeb_core.media_storage.base import BaseMediaStorage

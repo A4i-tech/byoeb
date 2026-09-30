@@ -2,28 +2,27 @@ import logging
 import os
 import asyncio
 from tqdm.asyncio import tqdm
-from azure.identity import DefaultAzureCredential
-from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
+from byoeb_core.media_storage.base import BaseMediaStorage
 from glob import glob
 from byoeb.kb_app.configuration.dependency_setup import amedia_storage
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def upload_file_to_blob(media_storage: AsyncAzureBlobStorage, file_path, folder_name="raw_documents"):
+async def upload_file_to_blob(media_storage: BaseMediaStorage, file_path, folder_name="raw_documents"):
     blob_file_name = f"{folder_name}/{os.path.basename(file_path)}"
     await media_storage.aupload_file(  # Ensure this method exists
         file_path=file_path,
         file_name=blob_file_name
     )
     
-async def upload_folder_to_blob(media_storage: AsyncAzureBlobStorage, folder_path):
+async def upload_folder_to_blob(media_storage: BaseMediaStorage, folder_path):
     txt_file_paths = glob(os.path.join(folder_path, "*.txt"))
 
     # Run uploads concurrently for better performance
     await asyncio.gather(*(upload_file(media_storage, file) for file in tqdm(txt_file_paths, desc="Uploading files")))
 
-async def get_files_in_blob(media_storage: AsyncAzureBlobStorage):
+async def get_files_in_blob(media_storage: BaseMediaStorage):
     files = await media_storage.aget_all_files_properties()
     logger.info("Sample files in blob: %s", files[:5])
     

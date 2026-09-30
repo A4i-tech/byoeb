@@ -12,7 +12,8 @@ openai = "2.32.0"
 chromadb = "0.5.23"
 llama-index-embeddings-azure-openai = "0.5.2"
 azure-storage-queue = "12.12.0"
-azure-storage-blob = "12.24.0"
+azure-storage-blob = {version = "12.24.0", optional = true}
+aioboto3 = "^15.5.0"
 azure-cognitiveservices-speech = "^1.48.2"
 azure-ai-translation-text = "1.0.1"
 pymongo = "^4.15.2"
@@ -34,6 +35,7 @@ pypdf = ">=6.12.0"
 
 [tool.poetry.extras]
 qdrant = ["qdrant-client", "llama-index-vector-stores-qdrant"]
+azure = ["azure-storage-blob"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.3"
