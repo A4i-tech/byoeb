@@ -43,6 +43,46 @@ class TestChatAppSettingsValidation:
             _parse_feature_flags("NOT_A_VALID_FLAG")
 
 
+class TestTtsProviderValidation:
+
+    @pytest.fixture(autouse=True)
+    def base_env(self, monkeypatch):
+        monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")
+        monkeypatch.setenv("TTS_MODEL", "tts-1")
+        monkeypatch.setenv("TTS_VOICE", "alloy")
+
+    def test_default_provider_is_openai(self, monkeypatch):
+        monkeypatch.delenv("TTS_PROVIDER", raising=False)
+        from byoeb.chat_app.configuration.config import ChatAppSettings
+        assert ChatAppSettings().tts_provider == "openai"
+
+    def test_unknown_provider_names_allowed_values(self, monkeypatch):
+        monkeypatch.setenv("TTS_PROVIDER", "polly")
+        from byoeb.chat_app.configuration.config import ChatAppSettings
+        with pytest.raises(ValidationError, match="'azure' or 'openai'"):
+            ChatAppSettings()
+
+    @pytest.mark.parametrize("name", ["TTS_MODEL", "TTS_VOICE"])
+    def test_openai_requires_model_and_voice(self, monkeypatch, name):
+        monkeypatch.setenv("TTS_PROVIDER", "openai")
+        monkeypatch.delenv(name)
+        from byoeb.chat_app.configuration.config import ChatAppSettings
+        with pytest.raises(ValidationError, match=name):
+            ChatAppSettings()
+
+    def test_azure_requires_azure_settings(self, monkeypatch):
+        monkeypatch.setenv("TTS_PROVIDER", "azure")
+        monkeypatch.delenv("AZURE_COGNITIVE_REGION")
+        from byoeb.chat_app.configuration.config import ChatAppSettings
+        with pytest.raises(ValidationError, match="AZURE_COGNITIVE_REGION"):
+            ChatAppSettings()
+
+    def test_azure_does_not_require_tts_model(self, monkeypatch):
+        monkeypatch.setenv("TTS_PROVIDER", "azure")
+        monkeypatch.delenv("TTS_MODEL")
+        from byoeb.chat_app.configuration.config import ChatAppSettings
+        assert ChatAppSettings().tts_provider == "azure"
+
 class TestKbAppSettingsValidation:
 
     def test_qdrant_port_is_int(self, monkeypatch):

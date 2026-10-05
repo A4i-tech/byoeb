@@ -161,6 +161,22 @@ class ChatAppSettings(BaseSettings):
         default=None, description="Azure OpenAI Speech/Whisper endpoint URL"
     )
 
+    tts_provider: str = Field(
+        default="openai", description="Text-to-speech provider: azure or openai"
+    )
+    tts_base_url: Optional[str] = Field(
+        default=None, description="Base URL of an OpenAI-compatible text-to-speech server"
+    )
+    tts_api_key: Optional[SecretStr] = Field(
+        default=None, description="Text-to-speech API key (falls back to OPENAI_API_KEY)"
+    )
+    tts_model: Optional[str] = Field(
+        default=None, description="Text-to-speech model name, required when TTS_PROVIDER=openai"
+    )
+    tts_voice: Optional[str] = Field(
+        default=None, description="Text-to-speech voice name, required when TTS_PROVIDER=openai"
+    )
+
     # Azure Search
     azure_search_api_key: Optional[SecretStr] = Field(
         default=None, description="Azure Cognitive Search API key"
@@ -252,6 +268,29 @@ class ChatAppSettings(BaseSettings):
                 raise ValueError(
                     f"These env vars must be set when QUEUE_PROVIDER=azure_storage_queue: {', '.join(missing)}"
                 )
+        return self
+
+    @field_validator('tts_provider')
+    @classmethod
+    def validate_tts_provider(cls, v: str) -> str:
+        if v not in ("azure", "openai"):
+            raise ValueError(f"TTS_PROVIDER must be 'azure' or 'openai', got '{v}'. Set TTS_PROVIDER to one of these values.")
+        return v
+
+    @model_validator(mode='after')
+    def validate_tts_settings(self) -> 'ChatAppSettings':
+        if self.tts_provider == "openai":
+            required = [("TTS_MODEL", self.tts_model), ("TTS_VOICE", self.tts_voice)]
+            hint = "when TTS_PROVIDER=openai. Set them, or set TTS_PROVIDER=azure"
+        else:
+            required = [
+                ("AZURE_COGNITIVE_REGION", self.azure_cognitive_region),
+                ("AZURE_COGNITIVE_TEXT_TO_SPEECH_RESOURCE", self.azure_cognitive_text_to_speech_resource),
+            ]
+            hint = "when TTS_PROVIDER=azure. Set them, or set TTS_PROVIDER=openai"
+        missing = [name for name, val in required if not val]
+        if missing:
+            raise ValueError(f"These env vars must be set {hint}: {', '.join(missing)}")
         return self
 
     @model_validator(mode='after')
