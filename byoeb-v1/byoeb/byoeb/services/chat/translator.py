@@ -8,7 +8,7 @@ from byoeb.constants.feature_enums import FeatureFlag
 from byoeb_core.translators.speech.base import BaseSpeechTranslator
 from byoeb.utils.utils import hash_dict
 from byoeb_integrations.translators.speech.azure.async_azure_openai_translator import AsyncAzureOpenAISpeechTranslator
-from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
+from byoeb_integrations.translators.speech.openai.async_openai_speech_translator import AsyncOpenAITextToSpeech
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +76,15 @@ class TranslatorAdapter(BaseSpeechTranslator):
                 attributes["token_provider"] = get_bearer_token_provider(DefaultAzureCredential(), azure_cognitive_endpoint)
                 attributes["endpoint"] = chat_settings.azure_openai_speech_endpoint
                 return AsyncAzureOpenAISpeechTranslator(**attributes)
+            case "text_to_speech", _ if chat_settings.tts_provider == "openai":
+                logger.info("TTS_PROVIDER=openai. Enabling OpenAI text-to-speech for motive=%s, model=%s.", motive, chat_settings.tts_model)
+                tts_key = chat_settings.tts_api_key or chat_settings.openai_api_key
+                return AsyncOpenAITextToSpeech(
+                    model=chat_settings.tts_model,
+                    voice=chat_settings.tts_voice,
+                    api_key=tts_key.get_secret_value() if tts_key else None,
+                    base_url=chat_settings.tts_base_url,
+                )
             case "text_to_speech", "azure_cognitive" if not chat_settings.azure_cognitive_region:
                 raise RuntimeError("AZURE_COGNITIVE_REGION environment variable must be set to use " + service + " service")
             case "text_to_speech", "azure_cognitive" if not chat_settings.azure_cognitive_text_to_speech_resource:
@@ -86,6 +95,7 @@ class TranslatorAdapter(BaseSpeechTranslator):
                     motive,
                     service,
                 )
+                from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
                 return AsyncAzureSpeechTranslator(
                     region=chat_settings.azure_cognitive_region,
                     resource_id=chat_settings.azure_cognitive_text_to_speech_resource,
@@ -98,6 +108,7 @@ class TranslatorAdapter(BaseSpeechTranslator):
                     service,
                 )
                 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+                from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
                 return AsyncAzureSpeechTranslator(
                     region=chat_settings.azure_cognitive_region,
                     resource_id=chat_settings.azure_cognitive_text_to_speech_resource,

@@ -169,16 +169,18 @@ if _azure_cognitive_enabled:
             region=chat_settings.azure_cognitive_region,
             resource_id=chat_settings.azure_cognitive_text_to_text_resource,
         )
-    from byoeb.services.chat.translator import TranslatorAdapter
-    speech_translator = TranslatorAdapter(
-        app_config["translators"]["speech"],
-        app_config["app"]["azure_cognitive_endpoint"]
-    )
     _logger.info("Azure Cognitive Services enabled — speech and text translation active.")
 else:
     _logger.warning(
         "AZURE_COGNITIVE_REGION or AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE not set. "
         "Running in text-only mode — voice messages and translation disabled."
+    )
+
+if _azure_cognitive_enabled or chat_settings.tts_provider == "openai":
+    from byoeb.services.chat.translator import TranslatorAdapter
+    speech_translator = TranslatorAdapter(
+        app_config["translators"]["speech"],
+        app_config["app"]["azure_cognitive_endpoint"]
     )
 
 # vector store
