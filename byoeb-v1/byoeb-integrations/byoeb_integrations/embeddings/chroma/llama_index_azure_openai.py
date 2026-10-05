@@ -1,6 +1,5 @@
 from typing import Any, Optional
 from byoeb_integrations.embeddings.llama_index.azure_openai import AzureOpenAIEmbed
-from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 from chromadb import Documents, EmbeddingFunction, Embeddings
 
 class AzureOpenAIEmbeddingFunction(EmbeddingFunction):

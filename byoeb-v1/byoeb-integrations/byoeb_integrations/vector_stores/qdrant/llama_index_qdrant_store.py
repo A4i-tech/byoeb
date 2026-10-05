@@ -59,6 +59,21 @@ class LlamaIndexQdrantStore(BaseVectorStore):
     def delete_nodes(self, ids: List[str]):
         self.__index.delete_nodes(ids)
 
+    def __raise_if_vector_size_differs(self, error: Exception):
+        client = self.__qdrant_store.client
+        if not client.collection_exists(self.__collection_name):
+            return
+        vectors = client.get_collection(self.__collection_name).config.params.vectors
+        stored = (vectors if hasattr(vectors, "size") else next(iter(vectors.values()))).size
+        current = len(self.__embedding_function.get_text_embedding("vector size check"))
+        if stored != current:
+            raise ValueError(
+                f"The embedding model makes vectors of size {current}, but collection "
+                f"'{self.__collection_name}' stores vectors of size {stored}. "
+                "Rebuild the knowledge base with the create_kb script, "
+                "or set EMBEDDING_PROVIDER and EMBEDDING_MODEL back to the model that built it."
+            ) from error
+
     def _add_chunks_sync(self, data_chunks: list, metadata: list, ids: list, **kwargs):
         if len(data_chunks) != len(metadata):
             raise ValueError("data_chunks and metadata must be same length")
@@ -66,7 +81,11 @@ class LlamaIndexQdrantStore(BaseVectorStore):
             TextNode(id_=node_id, text=text, metadata=meta)
             for node_id, text, meta in zip(ids, data_chunks, metadata)
         ]
-        self.__index.insert_nodes(nodes)
+        try:
+            self.__index.insert_nodes(nodes)
+        except Exception as e:
+            self.__raise_if_vector_size_differs(e)
+            raise
         return [n.node_id for n in nodes]
 
     async def add_chunks(self, data_chunks, metadata, ids, batch_size: int = 100, **kwargs):
@@ -95,7 +114,11 @@ class LlamaIndexQdrantStore(BaseVectorStore):
 
     def _retrieve_top_k_chunks_sync(self, text: str, k: int, **kwargs) -> List[Chunk]:
         retriever = self.__index.as_retriever(similarity_top_k=k)
-        nodes = retriever.retrieve(text)
+        try:
+            nodes = retriever.retrieve(text)
+        except Exception as e:
+            self.__raise_if_vector_size_differs(e)
+            raise
         return [
             Chunk(
                 chunk_id=n.node.node_id,

@@ -7,12 +7,14 @@ class OpenAIEmbeddingFunction(EmbeddingFunction):
             self,
             model: str,
             api_key: str = None,
+            base_url: str = None,
             **kwargs
         ) -> None:
-            
+
             open_ai_embed = OpenAIEmbed(
                 model=model,
                 api_key=api_key,
+                base_url=base_url,
                 reuse_client=False
             )
             self.__embedding_fn = open_ai_embed.get_embedding_function()

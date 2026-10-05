@@ -10,6 +10,9 @@
             "model": "text-embedding-3-large",
             "deployment_name": "text-embedding-3-large",
             "api_version": "2023-03-15-preview"
+        },
+        "openai": {
+            "model": "text-embedding-3-small"
         }
     },
     "llms": {
@@ -19,8 +22,7 @@
             "api_version": "2023-03-15-preview"
         },
         "openai": {
-            "model": "gpt-4o-2024-08-06",
-            "api_version": "2023-03-15-preview"
+            "model": "gpt-4o-2024-08-06"
         }
     },
     "vector_store": {

@@ -1,4 +1,5 @@
 import asyncio
+import importlib.util
 import queue
 import threading
 import time
@@ -13,6 +14,9 @@ from openai.resources.chat.completions import AsyncCompletions
 from _test_llama_index_generic import *
 
 load_dotenv(test_environment_path)
+
+AZURE_LLAMA_MISSING = importlib.util.find_spec("llama_index.llms.azure_openai") is None
+needs_azure_extra = pytest.mark.skipif(AZURE_LLAMA_MISSING, reason="needs the azure extra: poetry install --extras azure")
 
 # For get_bearer_token_provider you pass a scope, not the endpoint.
 AZURE_COGNITIVE_ENDPOINT = "https://cognitiveservices.azure.com/.default"  # scope
@@ -51,6 +55,8 @@ def llm_simple(mocker):
 
 @pytest.fixture
 def llm_llama(mocker):
+    if AZURE_LLAMA_MISSING:
+        pytest.skip("needs the azure extra: poetry install --extras azure")
     tokenizer = mocker.Mock()
     tokenizer.encode = lambda s: [0]
     mocker.patch("tiktoken.encoding_for_model", return_value=tokenizer)
@@ -65,7 +71,7 @@ def llm_llama(mocker):
     client = mocker.Mock()
     client.achat = mocker.AsyncMock(return_value=resp)
 
-    mocker.patch("byoeb_integrations.llms.llama_index.llama_index_azure_openai.AzureOpenAI", return_value=client)
+    mocker.patch("llama_index.llms.azure_openai.AzureOpenAI", return_value=client)
 
     return AsyncLLamaIndexAzureOpenAILLM(
         model=LLM_MODEL,
@@ -96,6 +102,7 @@ def test_azure_openai_instantiation(kwargs, error_msg):
     ({"model": LLM_MODEL, "deployment_name": LLM_MODEL, "azure_endpoint": None,         "api_key": OPENAI_API_KEY,  "api_version": OPENAI_API_VERSION}, "azure_endpoint must be provided"),
     ({"model": LLM_MODEL, "deployment_name": LLM_MODEL, "azure_endpoint": LLM_ENDPOINT, "api_key": None,  "api_version": OPENAI_API_VERSION}, "Either token_provider or api_key must be provided"),
 ])
+@needs_azure_extra
 def test_llama_index_azure_openai_instantiation(kwargs, error_msg):
     with pytest.raises(ValueError, match=error_msg):
         AsyncLLamaIndexAzureOpenAILLM(**kwargs)
@@ -117,6 +124,7 @@ def test_valid_llm_simple_client(kwargs):
     {"token_provider": token_provider},
     {"api_key": OPENAI_API_KEY},
 ])
+@needs_azure_extra
 def test_valid_llm_llama_indexed_client(kwargs):
     llm = AsyncLLamaIndexAzureOpenAILLM(
         model=LLM_MODEL,

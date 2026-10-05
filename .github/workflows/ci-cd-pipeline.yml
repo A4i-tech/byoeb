@@ -40,6 +40,7 @@ jobs:
     with:
       directory: ./byoeb-v1/byoeb-integrations
       tests-path: .
+      extras: azure
       coverage-artifact-name: coverage-html-byoeb-integrations
       upload-html-coverage: true
       coverage-gist-id: ${{ github.event_name == 'push' && github.ref_name == 'a4i/main' && vars.COVERAGE_GIST_ID || '' }}
@@ -67,6 +68,7 @@ jobs:
     uses: ./.github/workflows/dependency-scan.yml
     with:
       directory: ./byoeb-v1/byoeb-integrations
+      extras: azure
     secrets: inherit
 
   # Step 1g: SAST — Semgrep + Gitleaks (parallel with unit tests)

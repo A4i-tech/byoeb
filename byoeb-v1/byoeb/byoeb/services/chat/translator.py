@@ -9,6 +9,7 @@ from byoeb_core.translators.speech.base import BaseSpeechTranslator
 from byoeb.utils.utils import hash_dict
 from byoeb_integrations.translators.speech.azure.async_azure_openai_translator import AsyncAzureOpenAISpeechTranslator
 from byoeb_integrations.translators.speech.azure.async_azure_speech_translator import AsyncAzureSpeechTranslator
+from byoeb_integrations.translators.speech.openai.async_openai_translator import AsyncOpenAISpeechTranslator
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,19 @@ class TranslatorAdapter(BaseSpeechTranslator):
     def __instantiate(self, motive: str, service: str, attributes: dict[str, Any], azure_cognitive_endpoint: str) -> BaseSpeechTranslator:
         # TODO: factory implementation
         match motive, service:
+            case "speech_to_text", "azure_openai" if chat_settings.transcription_provider == "openai":
+                model = chat_settings.transcription_model or attributes["openai_model"]
+                logger.info(
+                    "OpenAI transcription enabled for motive=%s, model=%s, base_url=%s.",
+                    motive,
+                    model,
+                    chat_settings.transcription_base_url,
+                )
+                return AsyncOpenAISpeechTranslator(
+                    model=model,
+                    api_key=chat_settings.openai_api_key.get_secret_value() if chat_settings.openai_api_key else None,
+                    base_url=chat_settings.transcription_base_url,
+                )
             case "speech_to_text", "azure_openai" if not chat_settings.azure_openai_speech_endpoint:
                 raise RuntimeError("AZURE_OPENAI_SPEECH_ENDPOINT environment variable must be set to use " + service + " service")
             case "speech_to_text", "azure_openai" if chat_settings.azure_openai_speech_key:

@@ -2,9 +2,11 @@ import os
 import json
 import logging
 from dotenv import load_dotenv
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
+
+from byoeb.utils.provider import validate_provider, check_provider_settings
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,17 @@ class KbAppSettings(BaseSettings):
         default=None, description="OpenAI API key for embeddings"
     )
     openai_org_id: Optional[str] = Field(default=None, description="OpenAI organization ID")
+    openai_base_url: Optional[str] = Field(
+        default=None, description="Shared base URL for the openai provider. Empty means public OpenAI"
+    )
+
+    # Provider per kind: 'azure' or 'openai'. A base URL on 'openai' selects a self-hosted server.
+    chat_provider: str = Field(default="openai", description="Chat provider: 'azure' or 'openai'")
+    embedding_provider: str = Field(default="openai", description="Embedding provider: 'azure' or 'openai'")
+    chat_base_url: Optional[str] = Field(default=None, description="Chat base URL. Falls back to OPENAI_BASE_URL")
+    embedding_base_url: Optional[str] = Field(default=None, description="Embedding base URL. Falls back to OPENAI_BASE_URL")
+    chat_model: Optional[str] = Field(default=None, description="Chat model for the openai provider. Overrides app_config.json")
+    embedding_model: Optional[str] = Field(default=None, description="Embedding model for the openai provider. Overrides app_config.json")
 
     # Azure Storage
     azure_storage_connection_string: Optional[SecretStr] = Field(
@@ -125,6 +138,29 @@ class KbAppSettings(BaseSettings):
     local_storage_path: str = Field(
         default="./local_media_storage", description="Local file storage path"
     )
+
+    @field_validator('chat_provider', 'embedding_provider')
+    @classmethod
+    def validate_provider_name(cls, v: str, info) -> str:
+        return validate_provider(info.field_name.upper(), v)
+
+    @model_validator(mode='after')
+    def validate_llm_credentials(self) -> 'KbAppSettings':
+        self.chat_base_url = self.chat_base_url or self.openai_base_url or None
+        self.embedding_base_url = self.embedding_base_url or self.openai_base_url or None
+        has_key = bool(self.openai_api_key)
+        check_provider_settings(
+            "CHAT_PROVIDER", self.chat_provider, has_key, self.chat_base_url,
+            {"AZURE_OPENAI_ENDPOINT": self.azure_openai_endpoint},
+        )
+        check_provider_settings(
+            "EMBEDDING_PROVIDER", self.embedding_provider, has_key, self.embedding_base_url,
+            {
+                "AZURE_OPENAI_ENDPOINT": self.azure_openai_endpoint,
+                "AZURE_OPENAI_DEPLOYMENT_NAME": self.azure_openai_deployment_name,
+            },
+        )
+        return self
 
 
 # ── instantiate settings ───────────────────────────────────────────────────────
