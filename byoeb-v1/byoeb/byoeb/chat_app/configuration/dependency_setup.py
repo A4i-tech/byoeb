@@ -142,7 +142,7 @@ users_handler = UsersHandler(
     mongo_db_facory=mongo_db_factory
 )
 
-# Text + Speech translators — optional, requires AZURE_COGNITIVE_REGION
+# Text translator — selected by TRANSLATION_PROVIDER. Speech translator — requires AZURE_COGNITIVE_REGION
 _azure_cognitive_enabled = bool(
     chat_settings.azure_cognitive_region
     and chat_settings.azure_cognitive_text_to_text_resource
@@ -151,11 +151,20 @@ _azure_cognitive_enabled = bool(
 text_translator = None
 speech_translator = None
 
-if _azure_cognitive_enabled:
+if chat_settings.translation_provider == "openai":
+    from byoeb_integrations.translators.text.openai.async_openai_text_translator import AsyncOpenAITextTranslator
+    _translation_key = chat_settings.translation_api_key or chat_settings.openai_api_key
+    text_translator = AsyncOpenAITextTranslator(
+        model=chat_settings.translation_model,
+        api_key=_translation_key.get_secret_value() if _translation_key else None,
+        base_url=chat_settings.translation_base_url or chat_settings.openai_base_url,
+    )
+    _logger.info("Text translation provider: openai (model %s).", chat_settings.translation_model)
+elif chat_settings.translation_provider == "azure":
     from byoeb_integrations.translators.text.azure.async_azure_text_translator import AsyncAzureTextTranslator
     _azure_cognitive_key = chat_settings.azure_cognitive_key.get_secret_value() if chat_settings.azure_cognitive_key else None
     if _azure_cognitive_key:
-        _logger.info("Azure Cognitive Services key set. Enabling text + speech translators.")
+        _logger.info("Azure Cognitive Services key set. Enabling Azure text translator.")
         text_translator = AsyncAzureTextTranslator(
             key=_azure_cognitive_key,
             region=chat_settings.azure_cognitive_region,
@@ -169,16 +178,18 @@ if _azure_cognitive_enabled:
             region=chat_settings.azure_cognitive_region,
             resource_id=chat_settings.azure_cognitive_text_to_text_resource,
         )
+
+if _azure_cognitive_enabled:
     from byoeb.services.chat.translator import TranslatorAdapter
     speech_translator = TranslatorAdapter(
         app_config["translators"]["speech"],
         app_config["app"]["azure_cognitive_endpoint"]
     )
-    _logger.info("Azure Cognitive Services enabled — speech and text translation active.")
+    _logger.info("Azure Cognitive Services enabled — speech translation active.")
 else:
     _logger.warning(
         "AZURE_COGNITIVE_REGION or AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE not set. "
-        "Running in text-only mode — voice messages and translation disabled."
+        "Voice messages disabled."
     )
 
 # vector store

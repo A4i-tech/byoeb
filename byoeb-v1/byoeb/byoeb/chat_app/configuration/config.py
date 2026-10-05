@@ -52,6 +52,9 @@ class ChatAppSettings(BaseSettings):
         default=None, description="OpenAI API key for embeddings and LLM"
     )
     openai_org_id: Optional[str] = Field(default=None, description="OpenAI organization ID")
+    openai_base_url: Optional[str] = Field(
+        default=None, description="Base URL of an OpenAI-compatible server"
+    )
 
     # MongoDB — REQUIRED: app cannot function without a database
     mongo_db_connection_string: str = Field(
@@ -161,6 +164,20 @@ class ChatAppSettings(BaseSettings):
         default=None, description="Azure OpenAI Speech/Whisper endpoint URL"
     )
 
+    # Text translation provider
+    translation_provider: Literal["azure", "openai"] = Field(
+        default="openai", description="Text translation provider: 'azure' or 'openai'"
+    )
+    translation_base_url: Optional[str] = Field(
+        default=None, description="OpenAI-compatible server URL for translation; falls back to OPENAI_BASE_URL"
+    )
+    translation_api_key: Optional[SecretStr] = Field(
+        default=None, description="API key for the translation server; falls back to OPENAI_API_KEY"
+    )
+    translation_model: Optional[str] = Field(
+        default=None, description="Model name for translation; required when TRANSLATION_PROVIDER=openai"
+    )
+
     # Azure Search
     azure_search_api_key: Optional[SecretStr] = Field(
         default=None, description="Azure Cognitive Search API key"
@@ -262,6 +279,39 @@ class ChatAppSettings(BaseSettings):
                 "Either OPENAI_API_KEY or both AZURE_OPENAI_ENDPOINT + "
                 "AZURE_OPENAI_DEPLOYMENT_NAME must be set"
             )
+        return self
+
+    @field_validator('translation_provider', mode='before')
+    @classmethod
+    def normalize_translation_provider(cls, v):
+        if isinstance(v, str):
+            v = v.strip().lower()
+            v = v or "openai"
+        if v not in ("azure", "openai"):
+            raise ValueError(
+                f"TRANSLATION_PROVIDER '{v}' is not supported. Set it to 'azure' or 'openai'."
+            )
+        return v
+
+    @model_validator(mode='after')
+    def validate_translation_provider(self) -> 'ChatAppSettings':
+        if self.translation_provider == "openai" and not self.translation_model:
+            raise ValueError(
+                "TRANSLATION_MODEL must be set when TRANSLATION_PROVIDER=openai. "
+                "Set it to a model name, or set TRANSLATION_PROVIDER=azure."
+            )
+        if self.translation_provider == "azure":
+            missing = [
+                name for name, val in [
+                    ("AZURE_COGNITIVE_REGION", self.azure_cognitive_region),
+                    ("AZURE_COGNITIVE_TEXT_TO_TEXT_RESOURCE", self.azure_cognitive_text_to_text_resource),
+                ]
+                if not val
+            ]
+            if missing:
+                raise ValueError(
+                    f"These env vars must be set when TRANSLATION_PROVIDER=azure: {', '.join(missing)}"
+                )
         return self
 
 
