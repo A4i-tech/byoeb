@@ -109,9 +109,20 @@ class ChatAppSettings(BaseSettings):
         description="Queue provider: 'kafka' (local/default) or 'azure_storage_queue' (production)"
     )
     storage_backend: str = Field(
-        default="azure",
-        description="Storage backend: 'azure' or 'local'"
+        default="local",
+        description="Storage backend: 'local' (default), 'azure' or 's3'"
     )
+
+    # S3-compatible storage (used when STORAGE_BACKEND=s3)
+    s3_endpoint_url: Optional[str] = Field(
+        default=None, description="S3-compatible endpoint URL; empty means the AWS default"
+    )
+    s3_access_key_id: Optional[str] = Field(default=None, description="S3 access key ID")
+    s3_secret_access_key: Optional[SecretStr] = Field(
+        default=None, description="S3 secret access key"
+    )
+    s3_region: str = Field(default="us-east-1", description="S3 region")
+    s3_bucket_name: Optional[str] = Field(default=None, description="S3 bucket name for media")
 
     # WhatsApp
     local_storage_path: str = Field(
@@ -251,6 +262,28 @@ class ChatAppSettings(BaseSettings):
             if missing:
                 raise ValueError(
                     f"These env vars must be set when QUEUE_PROVIDER=azure_storage_queue: {', '.join(missing)}"
+                )
+        return self
+
+    @model_validator(mode='after')
+    def validate_storage_backend(self) -> 'ChatAppSettings':
+        if self.storage_backend not in ("local", "azure", "s3"):
+            raise ValueError(
+                f"STORAGE_BACKEND={self.storage_backend} is not supported. Use local, azure or s3."
+            )
+        if self.storage_backend == "s3":
+            missing = [
+                name for name, val in [
+                    ("S3_BUCKET_NAME", self.s3_bucket_name),
+                    ("S3_ACCESS_KEY_ID", self.s3_access_key_id),
+                    ("S3_SECRET_ACCESS_KEY", self.s3_secret_access_key),
+                ]
+                if not val
+            ]
+            if missing:
+                raise ValueError(
+                    f"STORAGE_BACKEND=s3 needs {', '.join(missing)}. Set them in the environment "
+                    "or use STORAGE_BACKEND=local."
                 )
         return self
 

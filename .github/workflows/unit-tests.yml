@@ -27,6 +27,11 @@ on:
         required: false
         default: ""
         type: string
+      extras:
+        description: "Poetry extra to install, e.g. azure. Leave empty for none."
+        required: false
+        default: ""
+        type: string
     outputs:
       coverage-pct:
         description: "Rounded coverage percentage (when tests are executed)"
@@ -62,7 +67,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ inputs.directory }}
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction ${{ inputs.extras && format('--extras {0}', inputs.extras) }}
 
       - name: Run tests
         if: ${{ inputs.tests-path != '' }}

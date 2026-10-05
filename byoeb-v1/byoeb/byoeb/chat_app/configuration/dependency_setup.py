@@ -397,6 +397,16 @@ if chat_settings.storage_backend == "local":
         storage_dir=chat_settings.local_storage_path
     )
     _logger.info("Using local file storage at %s", chat_settings.local_storage_path)
+elif chat_settings.storage_backend == "s3":
+    from byoeb_integrations.media_storage.s3.s3_media_storage import S3MediaStorage
+    media_storage: BaseMediaStorage = S3MediaStorage(
+        bucket_name=chat_settings.s3_bucket_name,
+        access_key_id=chat_settings.s3_access_key_id,
+        secret_access_key=chat_settings.s3_secret_access_key.get_secret_value(),
+        endpoint_url=chat_settings.s3_endpoint_url,
+        region=chat_settings.s3_region,
+    )
+    _logger.info("Using S3 storage, bucket: %s", chat_settings.s3_bucket_name)
 else:
     from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
     from azure.identity import DefaultAzureCredential

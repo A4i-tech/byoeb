@@ -3,7 +3,6 @@ import logging
 from byoeb.kb_app.configuration.config import settings as kb_settings
 from byoeb.kb_app.configuration.config import app_config
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
 from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 from byoeb_integrations.llms.llama_index.llama_index_openai import AsyncLLamaIndexOpenAILLM
 from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
@@ -86,7 +85,25 @@ if kb_settings.storage_backend == "local":
         storage_dir=kb_settings.local_storage_path
     )
     logger.info("Using local file storage at %s", kb_settings.local_storage_path)
+elif kb_settings.storage_backend == "s3":
+    from byoeb_integrations.media_storage.s3.s3_media_storage import S3MediaStorage
+
+    def _s3_storage(bucket_name: str) -> BaseMediaStorage:
+        return S3MediaStorage(
+            bucket_name=bucket_name,
+            access_key_id=kb_settings.s3_access_key_id,
+            secret_access_key=kb_settings.s3_secret_access_key.get_secret_value(),
+            endpoint_url=kb_settings.s3_endpoint_url,
+            region=kb_settings.s3_region,
+        )
+
+    amedia_storage: BaseMediaStorage = _s3_storage(kb_settings.s3_bucket_name)
+    if kb_settings.s3_analysis_bucket_name:
+        amedia_storage_analysis = _s3_storage(kb_settings.s3_analysis_bucket_name)
+    logger.info("Using S3 storage, bucket: %s", kb_settings.s3_bucket_name)
 else:
+    from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
+
     if not kb_settings.azure_storage_blob_account_url:
         raise ValueError("AZURE_STORAGE_BLOB_ACCOUNT_URL environment variable must be set.")
     if not kb_settings.azure_storage_container_name:
