@@ -94,8 +94,8 @@ class KbAppSettings(BaseSettings):
         default="llama_index_chroma",
         description="Vector store type: 'llama_index_chroma' (default), 'chroma', 'qdrant', or 'azure_vector_search'"
     )
-    persist_directory: Optional[str] = Field(
-        default=None, description="ChromaDB persist directory path"
+    persist_directory: str = Field(
+        default="vector_db", description="ChromaDB persist directory path"
     )
 
     # Qdrant (required when VECTOR_STORE_TYPE=qdrant)

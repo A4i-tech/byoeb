@@ -72,7 +72,9 @@ class TestVectorStoreProvider:
     def test_kb_default_is_llama_index_chroma(self, monkeypatch):
         monkeypatch.delenv("VECTOR_STORE_TYPE", raising=False)
         from byoeb.kb_app.configuration.config import KbAppSettings
-        assert KbAppSettings().vector_store_type == "llama_index_chroma"
+        s = KbAppSettings()
+        assert s.vector_store_type == "llama_index_chroma"
+        assert s.persist_directory
 
     def test_unknown_vector_store_type_is_rejected(self, monkeypatch):
         monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")
