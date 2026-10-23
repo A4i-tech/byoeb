@@ -11,7 +11,7 @@ fastapi = ">=0.116.0,<2.0.0"
 aiocache = "0.12.3"
 authlib = "^1.6.6"
 passlib = {extras = ["argon2"], version = "^1.7.4"}
-byoeb-integrations = {path = "../byoeb-integrations", develop = true}
+byoeb-integrations = {path = "../byoeb-integrations", develop = true, extras = ["azure", "qdrant"]}
 azure-monitor-opentelemetry = {version = "1.8.3", allow-prereleases = true}
 langfuse = "3.14.5"
 azure-monitor-events-extension = "0.1.0"

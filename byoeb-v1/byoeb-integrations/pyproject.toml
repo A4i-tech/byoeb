@@ -17,7 +17,7 @@ azure-cognitiveservices-speech = "^1.48.2"
 azure-ai-translation-text = "1.0.1"
 pymongo = "^4.15.2"
 llama-index-vector-stores-chroma = "0.5.5"
-azure-search-documents = "11.5.2"
+azure-search-documents = {version = "11.5.2", optional = true}
 byoeb-core = {path = "../byoeb-core", develop = true}
 qdrant-client = {version = "^1.9.0", optional = true}
 llama-index-vector-stores-qdrant = {version = "^0.8.0", optional = true}
@@ -34,6 +34,7 @@ pypdf = ">=6.12.0"
 
 [tool.poetry.extras]
 qdrant = ["qdrant-client", "llama-index-vector-stores-qdrant"]
+azure = ["azure-search-documents"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.3"

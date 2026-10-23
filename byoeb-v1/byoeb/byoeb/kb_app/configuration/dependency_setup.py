@@ -4,7 +4,6 @@ from byoeb.kb_app.configuration.config import settings as kb_settings
 from byoeb.kb_app.configuration.config import app_config
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
-from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 from byoeb_integrations.llms.llama_index.llama_index_openai import AsyncLLamaIndexOpenAILLM
 from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
 from byoeb_core.media_storage.base import BaseMediaStorage
@@ -130,12 +129,12 @@ else:
         logger.info("Azure Blob Storage (analysis) enabled for container: %s", analysis_container)
 
 # Vector Store Type Configuration - use environment variable if set, otherwise fallback to app_config.json
-# Default to "azure_vector_search" if not specified (for backward compatibility)
-vector_store_type = kb_settings.vector_store_type or "azure_vector_search"
+vector_store_type = kb_settings.vector_store_type
 # Initialize vector store based on configuration
 vector_store: BaseVectorStore = None
 
 if vector_store_type == "azure_vector_search":
+    from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
     from azure.search.documents.indexes.models import AzureOpenAIVectorizerParameters
 
     # Require environment variables for Azure Search to prevent accidental production access

@@ -59,3 +59,33 @@ class TestKbAppSettingsValidation:
         assert s.qdrant_port == 6333
         assert s.qdrant_collection_name == "byoeb-kb"
         assert s.storage_backend == "azure"
+
+
+class TestVectorStoreProvider:
+
+    def test_chat_default_is_llama_index_chroma(self, monkeypatch):
+        monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")
+        monkeypatch.delenv("VECTOR_STORE_TYPE", raising=False)
+        from byoeb.chat_app.configuration.config import ChatAppSettings
+        assert ChatAppSettings().vector_store_type == "llama_index_chroma"
+
+    def test_kb_default_is_llama_index_chroma(self, monkeypatch):
+        monkeypatch.delenv("VECTOR_STORE_TYPE", raising=False)
+        from byoeb.kb_app.configuration.config import KbAppSettings
+        assert KbAppSettings().vector_store_type == "llama_index_chroma"
+
+    def test_unknown_vector_store_type_is_rejected(self, monkeypatch):
+        monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")
+        monkeypatch.setenv("VECTOR_STORE_TYPE", "qdrnt")
+        from byoeb.chat_app.configuration.config import ChatAppSettings
+        with pytest.raises(ValidationError, match="vector_store_type"):
+            ChatAppSettings()
+
+    def test_chat_reads_qdrant_settings(self, monkeypatch):
+        monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")
+        monkeypatch.setenv("VECTOR_STORE_TYPE", "qdrant")
+        monkeypatch.setenv("QDRANT_PORT", "6334")
+        from byoeb.chat_app.configuration.config import ChatAppSettings
+        s = ChatAppSettings()
+        assert s.vector_store_type == "qdrant"
+        assert s.qdrant_port == 6334

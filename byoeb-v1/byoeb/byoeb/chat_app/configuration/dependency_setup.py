@@ -183,7 +183,6 @@ else:
 
 # vector store
 import os
-from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
 from byoeb_integrations.embeddings.chroma.llama_index_azure_openai import AzureOpenAIEmbeddingFunction
 from byoeb_core.vector_stores.base import BaseVectorStore
 
@@ -236,13 +235,13 @@ else:
     _logger.info("Azure OpenAI not configured — using standard OpenAI embeddings (text-embedding-3-small)")
 
 # Vector Store Type Configuration - use environment variable if set, otherwise fallback to app_config.json
-# Default to "azure_vector_search" if not specified (for backward compatibility)
-vector_store_type = chat_settings.vector_store_type or "azure_vector_search"
+vector_store_type = chat_settings.vector_store_type
 
 # Initialize vector store based on configuration
 vector_store: BaseVectorStore = None
 
 if vector_store_type == "azure_vector_search":
+    from byoeb_integrations.vector_stores.azure_vector_search.azure_vector_search import AzureVectorStore
     # Require environment variables for Azure Search to prevent accidental production access
     if not chat_settings.azure_search_service_name:
         raise ValueError(
@@ -329,10 +328,23 @@ elif vector_store_type == "llama_index_chroma":
     )
     _logger.info("Initialized LlamaIndex ChromaDB Vector Store: %s/%s", persist_directory, collection_name)
 
+elif vector_store_type == "qdrant":
+    from byoeb_integrations.vector_stores.qdrant.llama_index_qdrant_store import LlamaIndexQdrantStore
+    vector_store = LlamaIndexQdrantStore(
+        collection_name=chat_settings.qdrant_collection_name,
+        embedding_function=azure_openai_embed.get_embedding_function(),
+        location=chat_settings.qdrant_location,
+        host=chat_settings.qdrant_host,
+        port=chat_settings.qdrant_port,
+        url=chat_settings.qdrant_url,
+        api_key=chat_settings.qdrant_api_key.get_secret_value() if chat_settings.qdrant_api_key else None,
+    )
+    _logger.info("Initialized Qdrant Vector Store: collection=%s", chat_settings.qdrant_collection_name)
+
 else:
     raise ValueError(
         f"Invalid vector_store type: {vector_store_type}. "
-        f"Supported types: 'azure_vector_search', 'chroma', 'llama_index_chroma'"
+        f"Supported types: 'azure_vector_search', 'chroma', 'llama_index_chroma', 'qdrant'"
     )
 
 # llm
