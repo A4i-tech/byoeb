@@ -186,12 +186,32 @@ class ChatAppSettings(BaseSettings):
     )
 
     # Vector Store
-    vector_store_type: Optional[str] = Field(
-        default=None,
-        description="Vector store type: 'azure_vector_search', 'chroma', or 'llama_index_chroma'"
+    vector_store_type: Literal["llama_index_chroma", "chroma", "qdrant", "azure_vector_search"] = Field(
+        default="llama_index_chroma",
+        description="Vector store type: 'llama_index_chroma' (default), 'chroma', 'qdrant', or 'azure_vector_search'"
     )
     persist_directory: Optional[str] = Field(
         default=None, description="ChromaDB persist directory path"
+    )
+
+    # Qdrant
+    qdrant_location: str = Field(
+        default=":memory:", description="Qdrant location: ':memory:' or path for local storage"
+    )
+    qdrant_host: Optional[str] = Field(
+        default=None, description="Qdrant Docker service hostname"
+    )
+    qdrant_port: int = Field(
+        default=6333, description="Qdrant service port"
+    )
+    qdrant_url: Optional[str] = Field(
+        default=None, description="Qdrant Cloud URL"
+    )
+    qdrant_api_key: Optional[SecretStr] = Field(
+        default=None, description="Qdrant Cloud API key"
+    )
+    qdrant_collection_name: str = Field(
+        default="byoeb-kb", description="Qdrant collection name"
     )
 
     # ASHABot

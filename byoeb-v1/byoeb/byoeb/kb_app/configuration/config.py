@@ -4,7 +4,7 @@ import logging
 from dotenv import load_dotenv
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
+from typing import Literal, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -90,12 +90,12 @@ class KbAppSettings(BaseSettings):
     )
 
     # Vector Store
-    vector_store_type: Optional[str] = Field(
-        default=None,
-        description="Vector store type: 'azure_vector_search', 'chroma', 'llama_index_chroma', or 'qdrant'"
+    vector_store_type: Literal["llama_index_chroma", "chroma", "qdrant", "azure_vector_search"] = Field(
+        default="llama_index_chroma",
+        description="Vector store type: 'llama_index_chroma' (default), 'chroma', 'qdrant', or 'azure_vector_search'"
     )
-    persist_directory: Optional[str] = Field(
-        default=None, description="ChromaDB persist directory path"
+    persist_directory: str = Field(
+        default="vector_db", description="ChromaDB persist directory path"
     )
 
     # Qdrant (required when VECTOR_STORE_TYPE=qdrant)
