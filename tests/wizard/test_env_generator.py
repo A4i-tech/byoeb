@@ -97,3 +97,18 @@ def test_azure_blob_storage():
 def test_no_redis_references():
     c = _gen()
     assert "redis" not in c.lower()
+
+
+def test_nats_queue():
+    c = _gen({
+        "queue": "nats",
+        "nats_url": "nats://nats:4222",
+        "nats_stream": "BYOEB",
+        "nats_subject_bot": "botq",
+        "nats_subject_status": "statusq",
+        "nats_subject_dlq": "dlq",
+    })
+    assert "QUEUE_PROVIDER=nats" in c
+    assert "NATS_URL=nats://nats:4222" in c
+    assert "NATS_SUBJECT_DEAD_LETTER=dlq" in c
+    assert "KAFKA_BOOTSTRAP_SERVERS" not in c

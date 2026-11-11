@@ -37,6 +37,23 @@ class TestChatAppSettingsValidation:
         with pytest.raises(ValidationError, match="AZURE_QUEUE_STATUS"):
             ChatAppSettings()
 
+    @pytest.mark.parametrize("provider", ["kafka", "nats", "azure_storage_queue"])
+    def test_queue_provider_accepts_allowed_values(self, monkeypatch, provider):
+        monkeypatch.setenv("QUEUE_PROVIDER", provider)
+        monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")
+        monkeypatch.setenv("AZURE_QUEUE_STATUS", "s")
+        monkeypatch.setenv("AZURE_QUEUE_BOT", "b")
+        monkeypatch.setenv("AZURE_QUEUE_DEAD_LETTER", "d")
+        from byoeb.chat_app.configuration.config import ChatAppSettings
+        assert ChatAppSettings().queue_provider == provider
+
+    def test_queue_provider_rejects_unknown_value(self, monkeypatch):
+        monkeypatch.setenv("QUEUE_PROVIDER", "rabbitmq")
+        monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")
+        from byoeb.chat_app.configuration.config import ChatAppSettings
+        with pytest.raises(ValidationError, match="queue_provider"):
+            ChatAppSettings()
+
     def test_invalid_feature_flag_raises_error(self):
         from byoeb.chat_app.configuration.config import _parse_feature_flags
         with pytest.raises(RuntimeError, match="Unexpected feature flag"):

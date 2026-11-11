@@ -85,3 +85,13 @@ def test_qdrant_volume_in_volumes_block(tmp_path):
     with open(path) as f:
         data = yaml.safe_load(f)
     assert "qdrant_data" in (data.get("volumes") or {})
+
+
+def test_nats_queue_replaces_kafka_dependency(tmp_path):
+    path, _ = generate_app_compose({**ANSWERS_KAFKA_CHROMA, "queue": "nats"}, output_dir=str(tmp_path))
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    assert data["services"]["nats"]["command"] == ["-js", "-sd", "/data"]
+    assert list(data["services"]["byoeb-chat"]["depends_on"]) == ["mongodb", "nats"]
+    assert "nats_data" in data["volumes"]
+    assert "kafka" not in data["services"]

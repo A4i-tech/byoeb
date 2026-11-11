@@ -16,6 +16,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      nats:
+        condition: service_started
     restart: on-failure
 
   byoeb-kb:
@@ -84,9 +86,18 @@ services:
       retries: 5
       start_period: 30s
 
+  nats:
+    image: nats:2.12
+    command: ["-js", "-sd", "/data"]
+    ports:
+      - "4222:4222"
+    volumes:
+      - nats_data:/data
+
 volumes:
   mongo_data:
   kafka_data:
+  nats_data:
   qdrant_data:
   local_media:
   vector_db:

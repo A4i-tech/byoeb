@@ -52,6 +52,18 @@ class QueueConsumer:
         self._account_url = account_url
         self._queue_name = queue_name
 
+    async def __create_nats_queue_client(self, subject: str) -> BaseQueue:
+        from byoeb_integrations.message_queue.nats.async_nats_queue import AsyncNatsQueue
+        from byoeb.chat_app.configuration.config import settings as chat_settings
+        return await AsyncNatsQueue.aget_or_create(
+            queue_name=subject,
+            subjects=chat_settings.nats_subjects,
+            url=chat_settings.nats_url,
+            stream=chat_settings.nats_stream,
+            ack_wait_seconds=chat_settings.nats_ack_wait_seconds,
+            creds_file=chat_settings.nats_creds_file,
+        )
+
     async def __create_azure_storage_queue_client(self, queue_name: str) -> BaseQueue:
         from byoeb_integrations.message_queue.azure.async_azure_storage_queue import AsyncAzureStorageQueue
         from byoeb.chat_app.configuration.config import settings as chat_settings
@@ -80,6 +92,9 @@ class QueueConsumer:
                 bootstrap_servers=self._bootstrap_servers,
                 consumer_group=self._consumer_group + "-dlq",
             )
+        elif self._queue_provider == "nats":
+            from byoeb.chat_app.configuration.config import settings as chat_settings
+            self._dlq_client = await self.__create_nats_queue_client(chat_settings.nats_subject_dead_letter)
         else:
             from byoeb.chat_app.configuration.config import settings as chat_settings
             self._dlq_client = await self.__create_azure_storage_queue_client(chat_settings.azure_queue_dead_letter)
@@ -97,17 +112,20 @@ class QueueConsumer:
                 consumer_group=self._consumer_group,
             )
             self._logger.info("Kafka consumer initialized: %s", self._topic)
-        elif self._queue_provider == "azure_storage_queue":
+        elif self._queue_provider == "nats":
+            self._queue = await self.__create_nats_queue_client(self._queue_name)
+            self._logger.info("NATS consumer initialized: %s", self._queue_name)
+        else:
             self._queue = await self.__create_azure_storage_queue_client(self._queue_name)
             self._logger.info("Azure queue consumer initialized: %s", self._queue_name)
-        else:
-            raise ValueError(f"Unknown queue_provider: {self._queue_provider}")
 
     async def __areceive(self) -> list:
         if not self._queue:
             return []
         if self._queue_provider == "kafka":
             return await self._queue.receive_message()
+        elif self._queue_provider == "nats":
+            return await self._queue.receive_message(max_messages=self._config["app"]["batch_size"])
         else:
             msgs = await self._queue.receive_message(
                 visibility_timeout=self._config["message_queue"]["azure"]["visibility_timeout"],
