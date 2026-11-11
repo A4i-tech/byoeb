@@ -3160,6 +3160,23 @@ files = [
 ]
 
 [[package]]
+name = "nats-py"
+version = "2.16.0"
+description = "NATS client for Python"
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "nats_py-2.16.0-py3-none-any.whl", hash = "sha256:aeb1ff123966c05833d26c7df7e1d54c1c6d32b612428b21677a2e921f1fecae"},
+    {file = "nats_py-2.16.0.tar.gz", hash = "sha256:1d137ed7afc9b59033b3199324c6237df2016a5091935871344a787eba6b72fc"},
+]
+
+[package.extras]
+aiohttp = ["aiohttp"]
+fast-parse = ["fast-mail-parser"]
+nkeys = ["nkeys"]
+
+[[package]]
 name = "nest-asyncio"
 version = "1.6.0"
 description = "Patch asyncio to allow nested event loops"
@@ -6073,4 +6090,4 @@ qdrant = ["llama-index-vector-stores-qdrant", "qdrant-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "60839174e75e2c0895c8e9b3a12d30b817393ee03c149e43fcb3058c8130046c"
+content-hash = "9b624417268d3a8354705784b775e2987a41ab20efc14f5d87b88466fb0e469f"

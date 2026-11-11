@@ -42,7 +42,7 @@ def index():
 # API
 # ---------------------------------------------------------------------------
 
-_VALID_QUEUES = {"kafka", "azure_storage_queue"}
+_VALID_QUEUES = {"kafka", "nats", "azure_storage_queue"}
 _VALID_VECTOR_STORES = {"llama_index_chroma", "qdrant", "azure_vector_search"}
 _VALID_STORAGE_BACKENDS = {"local", "azure"}
 _VALID_QDRANT_MODES = {"memory", "docker", "cloud"}

@@ -31,7 +31,9 @@ Asha Saheli Bot is an intelligent assistant that helps ASHAs with their daily wo
 
 ### Technology Stack Support
 - **Backend**: Python with FastAPI
-- **Message Queue**: Azure Storage Queue
+- **Message Queue**: Kafka, NATS JetStream or Azure Storage Queue (set `QUEUE_PROVIDER`)
+  - Dead-letter by retry count (`queue_retry_count`) works on `nats` and `azure_storage_queue`.
+  - `message_id` de-duplication works on `nats` only.
 - **Database**: Azure Cosmos DB (MongoDB API)
 - **AI/ML**: Azure OpenAI (GPT-4o)
 - **Speech Processing**: Azure Cognitive Services

@@ -133,8 +133,15 @@ elif _queue_provider == "azure_storage_queue":
         message_db_service=message_db_service,
         channel_service=whatsapp_service,
     )
-else:
-    raise ValueError(f"Unknown QUEUE_PROVIDER: {_queue_provider}")
+elif _queue_provider == "nats":
+    message_consumer = QueueConsumer(
+        config=app_config,
+        queue_provider="nats",
+        queue_name=chat_settings.nats_subject_bot,
+        user_db_service=user_db_service,
+        message_db_service=message_db_service,
+        channel_service=whatsapp_service,
+    )
 
 # user handler
 users_handler = UsersHandler(

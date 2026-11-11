@@ -64,9 +64,15 @@ jobs:
         working-directory: ${{ inputs.directory }}
         run: poetry install --no-interaction
 
+      - name: Start NATS
+        if: ${{ contains(inputs.directory, 'byoeb-integrations') }}
+        run: docker run -d --name nats -p 4222:4222 nats:2.12 -js
+
       - name: Run tests
         if: ${{ inputs.tests-path != '' }}
         working-directory: ${{ inputs.directory }}
+        env:
+          NATS_TEST_URL: nats://localhost:4222
         run: poetry run pytest ${{ inputs.tests-path }}
 
       - name: Generate coverage JSON

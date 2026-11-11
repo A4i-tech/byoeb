@@ -11,6 +11,7 @@ class Scope(Enum):
 class QueueProviderType(Enum):
     AZURE_STORAGE_QUEUE = "azure_storage_queue"
     KAFKA = "kafka"
+    NATS = "nats"
 
 
 class QueueProducerFactory:
@@ -29,6 +30,19 @@ class QueueProducerFactory:
             queue_name=topic,
             bootstrap_servers=chat_settings.kafka_bootstrap_servers,
             consumer_group=chat_settings.kafka_consumer_group,
+        )
+
+    async def __create_nats_client(self, message_type: str) -> BaseQueue:
+        from byoeb_integrations.message_queue.nats.async_nats_queue import AsyncNatsQueue
+        from byoeb.chat_app.configuration.config import settings as chat_settings
+        subject = chat_settings.nats_subject_status if message_type == "status" else chat_settings.nats_subject_bot
+        return await AsyncNatsQueue.aget_or_create(
+            queue_name=subject,
+            subjects=chat_settings.nats_subjects,
+            url=chat_settings.nats_url,
+            stream=chat_settings.nats_stream,
+            ack_wait_seconds=chat_settings.nats_ack_wait_seconds,
+            creds_file=chat_settings.nats_creds_file,
         )
 
     async def __create_azure_storage_queue_client(self, queue_name: str) -> BaseQueue:
@@ -63,11 +77,11 @@ class QueueProducerFactory:
                 return self._queues[key]
             if provider == QueueProviderType.KAFKA.value:
                 self._queues[key] = await self.__create_kafka_client(message_type)
-            elif provider == QueueProviderType.AZURE_STORAGE_QUEUE.value:
+            elif provider == QueueProviderType.NATS.value:
+                self._queues[key] = await self.__create_nats_client(message_type)
+            else:
                 queue_name = self.__resolve_azure_queue_name(message_type)
                 self._queues[key] = await self.__create_azure_storage_queue_client(queue_name)
-            else:
-                raise ValueError(f"Invalid queue provider: {provider}")
             return self._queues[key]
 
     async def get(self, queue_provider: str, message_type: str) -> BaseQueue:
