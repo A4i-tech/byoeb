@@ -13,9 +13,10 @@ services:
     image: ghcr.io/a4i-tech/byoeb-wizard:latest
     pull_policy: always
     ports:
-      - "5001:5001"
+      - "127.0.0.1:5001:5001"
     volumes:
-      # Docker socket: wizard can launch the app containers on your host
+      # Docker socket: wizard can launch the app containers on your host.
+      # This is host-root-equivalent access, run this only on a local dev machine.
       - /var/run/docker.sock:/var/run/docker.sock
       # Working directory: wizard writes .env.local + docker-compose.app.yml here
       - .:/workspace
