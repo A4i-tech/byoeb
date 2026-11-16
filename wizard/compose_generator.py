@@ -76,7 +76,7 @@ def generate_app_compose(answers: dict, output_dir: str = ".") -> tuple:
 services:
   byoeb-chat:
     image: {_APP_IMAGE}
-    command: poetry run python3 -m byoeb.chat_app.run --host 0.0.0.0 --port 8000
+    command: python3 -m byoeb.chat_app.run --host 0.0.0.0 --port 8000
     ports:
       - "{ports['chat']}:8000"
     env_file:
@@ -93,7 +93,7 @@ services:
 
   byoeb-kb:
     image: {_APP_IMAGE}
-    command: poetry run python3 -m byoeb.kb_app.run
+    command: python3 -m byoeb.kb_app.run
     ports:
       - "{ports['kb']}:5000"
     env_file:

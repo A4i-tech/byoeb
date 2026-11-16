@@ -12,6 +12,7 @@ RUN /usr/local/bin/python -m venv /opt/venv && /usr/local/bin/pip install --no-c
 
 WORKDIR /app
 COPY byoeb/pyproject.toml byoeb/poetry.lock ./byoeb/
+# full source, not just manifests: these are `develop = true` path deps, poetry needs the real code to install them
 COPY byoeb-integrations ./byoeb-integrations
 COPY byoeb-core ./byoeb-core
 
