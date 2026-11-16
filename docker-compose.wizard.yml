@@ -13,10 +13,12 @@ services:
     image: ghcr.io/a4i-tech/byoeb-wizard:latest
     pull_policy: always
     ports:
+      # Loopback-only on purpose: this is a local dev tool, not meant to be reachable remotely.
       - "127.0.0.1:5001:5001"
     volumes:
       # Docker socket: wizard can launch the app containers on your host.
       # This is host-root-equivalent access, run this only on a local dev machine.
+      # Wizard also runs as root: it writes to the bind-mounted workspace below, and a non-root user buys nothing given the socket mount above is already host-root-equivalent.
       - /var/run/docker.sock:/var/run/docker.sock
       # Working directory: wizard writes .env.local + docker-compose.app.yml here
       - .:/workspace
