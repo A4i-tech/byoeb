@@ -25,6 +25,7 @@ class AsyncAzureBlobStorage(BaseMediaStorage):
         account_url: str,
         credentials: None,
         connection_string: str = None,
+        blob_prefix: str = "",
         **kwargs
     ):
         self.__logger = logging.getLogger(self.__class__.__name__)
@@ -44,6 +45,7 @@ class AsyncAzureBlobStorage(BaseMediaStorage):
         else:
             raise ValueError("Either account url and credentials or connection_string must be provided")
         self.__container_name = container_name
+        self.__blob_prefix = blob_prefix
     
     async def aget_file_properties(
         self,
@@ -69,9 +71,8 @@ class AsyncAzureBlobStorage(BaseMediaStorage):
     ) -> List[FileMetadata]:
         container_name = self.__container_name
         container_client = self.__blob_service_client.get_container_client(container_name)
-        prefix = os.environ.get("AZURE_STORAGE_BLOB_PREFIX", "")
         files = []
-        async for blob in container_client.list_blobs(name_starts_with=prefix):
+        async for blob in container_client.list_blobs(name_starts_with=self.__blob_prefix):
             properties = await self.aget_file_properties(blob.name)
             if properties is not None:
                 files.append(properties)

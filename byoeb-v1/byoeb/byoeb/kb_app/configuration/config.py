@@ -49,6 +49,9 @@ class KbAppSettings(BaseSettings):
     azure_storage_container_name: Optional[str] = Field(
         default=None, description="Azure Storage container name"
     )
+    azure_storage_blob_prefix: str = Field(
+        default="", description="Only blobs under this prefix are listed"
+    )
     azure_storage_analysis_container_name: Optional[str] = Field(
         default=None, description="Azure Storage container name for analysis artifacts"
     )

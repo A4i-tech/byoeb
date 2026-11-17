@@ -100,14 +100,16 @@ else:
             container_name=container_name,
             account_url=None,
             credentials=None,
-            connection_string=_azure_storage_cs
+            connection_string=_azure_storage_cs,
+            blob_prefix=kb_settings.azure_storage_blob_prefix
         )
         logger.info("Azure Storage API key set. Enabling Azure Blob Storage.")
     else:
         amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
             container_name=container_name,
             account_url=account_url,
-            credentials=DefaultAzureCredential()
+            credentials=DefaultAzureCredential(),
+            blob_prefix=kb_settings.azure_storage_blob_prefix
         )
 
     # Secondary client for monthly analysis
