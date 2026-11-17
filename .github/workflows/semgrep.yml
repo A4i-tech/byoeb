@@ -37,7 +37,7 @@ jobs:
             --baseline-commit "$(git rev-parse HEAD^1)" \
             --severity ERROR \
             --error \
-            --sarif --output semgrep.sarif \
+            --sarif-output=semgrep.sarif \
             --metrics off \
             --oss-only
 
@@ -49,3 +49,49 @@ jobs:
         with:
           sarif_file: semgrep.sarif
           category: semgrep
+
+      - name: Semgrep full-repo scan (advisory, not gating)
+        if: always()
+        continue-on-error: true
+        run: |
+          semgrep scan \
+            --config p/security-audit \
+            --config p/owasp-top-ten \
+            --severity ERROR \
+            --severity WARNING \
+            --json --output semgrep-full.json \
+            --metrics off \
+            --oss-only
+
+          {
+            echo "## Semgrep full-repo findings (advisory, pre-existing code, does not gate this PR)"
+            echo
+            echo '```'
+            jq -r '
+              .results
+              | group_by(.check_id + "|" + .extra.severity)
+              | map({count: length, severity: .[0].extra.severity, rule: .[0].check_id})
+              | sort_by(-.count)
+              | (["COUNT","SEVERITY","RULE"], (.[] | [.count, .severity, .rule]))
+              | @tsv
+            ' semgrep-full.json | column -t -s $'\t'
+            echo '```'
+            echo
+            echo "### Detail (file:line)"
+            echo
+            echo '```'
+            jq -r '
+              .results
+              | sort_by(.extra.severity, .path, .start.line)
+              | (["SEVERITY","RULE","FILE","LINE"], (.[] | [.extra.severity, .check_id, .path, .start.line]))
+              | @tsv
+            ' semgrep-full.json | column -t -s $'\t'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload full-repo findings
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: semgrep-full-report
+          path: semgrep-full.json
