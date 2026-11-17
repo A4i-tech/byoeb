@@ -115,9 +115,11 @@ class QueueConsumer:
         elif self._queue_provider == "nats":
             self._queue = await self.__create_nats_queue_client(self._queue_name)
             self._logger.info("NATS consumer initialized: %s", self._queue_name)
-        else:
+        elif self._queue_provider == "azure_storage_queue":
             self._queue = await self.__create_azure_storage_queue_client(self._queue_name)
             self._logger.info("Azure queue consumer initialized: %s", self._queue_name)
+        else:
+            raise ValueError(f"Unknown queue_provider: {self._queue_provider}")
 
     async def __areceive(self) -> list:
         if not self._queue:

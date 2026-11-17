@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -5,10 +6,12 @@ from typing import Any
 import nats
 from nats.errors import TimeoutError as NatsTimeout
 from nats.js.api import ConsumerConfig, RetentionPolicy, StorageType, StreamConfig
+from nats.js.errors import NotFoundError
 
 from byoeb_core.message_queue.base import BaseQueue
 
 _FETCH_TIMEOUT_SECONDS = 1
+_STREAM_MAX_AGE_SECONDS = 30 * 24 * 3600
 
 
 @dataclass
@@ -38,6 +41,7 @@ class AsyncNatsQueue(BaseQueue):
         self.__nc = None
         self.__js = None
         self.__sub = None
+        self.__start_lock = asyncio.Lock()
 
     @classmethod
     async def aget_or_create(
@@ -59,29 +63,46 @@ class AsyncNatsQueue(BaseQueue):
         )
 
     async def _start(self):
-        self.__nc = await nats.connect(
-            self.__url,
-            user_credentials=self.__creds_file,
-            max_reconnect_attempts=-1,
-        )
-        self.__js = self.__nc.jetstream()
-        await self.__js.add_stream(
-            StreamConfig(
-                name=self.__stream,
-                subjects=self.__subjects,
-                retention=RetentionPolicy.WORK_QUEUE,
-                storage=StorageType.FILE,
-                allow_msg_ttl=True,
+        async with self.__start_lock:
+            if self.__js is not None:
+                return
+            nc = await nats.connect(
+                self.__url,
+                user_credentials=self.__creds_file,
+                max_reconnect_attempts=-1,
             )
-        )
+            js = nc.jetstream()
+            await self.__ensure_stream(js)
+            self.__nc, self.__js = nc, js
         self.__logger.info("NATS queue started - subject=%s stream=%s", self.__subject, self.__stream)
+
+    async def __ensure_stream(self, js):
+        try:
+            config = (await js.stream_info(self.__stream)).config
+        except NotFoundError:
+            await js.add_stream(
+                StreamConfig(
+                    name=self.__stream,
+                    subjects=self.__subjects,
+                    retention=RetentionPolicy.WORK_QUEUE,
+                    storage=StorageType.FILE,
+                    allow_msg_ttl=True,
+                    max_age=_STREAM_MAX_AGE_SECONDS,
+                )
+            )
+            return
+        missing = [s for s in self.__subjects if s not in (config.subjects or [])]
+        if missing or not config.max_age:
+            config.subjects = [*(config.subjects or []), *missing]
+            config.max_age = config.max_age or _STREAM_MAX_AGE_SECONDS
+            await js.update_stream(config)
 
     async def _start_consumer(self):
         if self.__js is None:
             await self._start()
         self.__sub = await self.__js.pull_subscribe(
             self.__subject,
-            durable=self.__subject,
+            durable=self.__subject.replace(".", "-"),
             stream=self.__stream,
             config=ConsumerConfig(
                 ack_wait=self.__ack_wait_seconds,

@@ -6,6 +6,7 @@ import subprocess
 import time
 import uuid
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -69,6 +70,21 @@ async def test_receive_honors_max_messages():
     queue = _queue()
     queue._AsyncNatsQueue__sub = FakeSub([FakeRaw(b"a", 1), FakeRaw(b"b", 1)])
     assert len(await queue.receive_message(max_messages=1)) == 1
+
+
+@pytest.mark.asyncio
+async def test_existing_stream_gets_missing_subjects_and_max_age():
+    queue = AsyncNatsQueue(
+        subject="bot", subjects=["bot", "status"], url="nats://x", stream="TEST", ack_wait_seconds=60
+    )
+    config = SimpleNamespace(subjects=["bot"], max_age=0)
+    js = SimpleNamespace(
+        stream_info=AsyncMock(return_value=SimpleNamespace(config=config)), update_stream=AsyncMock()
+    )
+    await queue._AsyncNatsQueue__ensure_stream(js)
+    js.update_stream.assert_awaited_once_with(config)
+    assert config.subjects == ["bot", "status"]
+    assert config.max_age > 0
 
 
 @pytest.mark.asyncio

@@ -90,7 +90,7 @@ services:
     image: nats:2.12
     command: ["-js", "-sd", "/data"]
     ports:
-      - "4222:4222"
+      - "127.0.0.1:4222:4222"
     volumes:
       - nats_data:/data
 

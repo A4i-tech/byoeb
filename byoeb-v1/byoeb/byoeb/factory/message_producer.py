@@ -79,9 +79,11 @@ class QueueProducerFactory:
                 self._queues[key] = await self.__create_kafka_client(message_type)
             elif provider == QueueProviderType.NATS.value:
                 self._queues[key] = await self.__create_nats_client(message_type)
-            else:
+            elif provider == QueueProviderType.AZURE_STORAGE_QUEUE.value:
                 queue_name = self.__resolve_azure_queue_name(message_type)
                 self._queues[key] = await self.__create_azure_storage_queue_client(queue_name)
+            else:
+                raise ValueError(f"Invalid queue provider: {provider}")
             return self._queues[key]
 
     async def get(self, queue_provider: str, message_type: str) -> BaseQueue:
