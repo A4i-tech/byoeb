@@ -254,7 +254,7 @@ def create_user(
     tenant_id: str = None,
 ) -> User:
     return User(
-        user_id=hashlib.md5(phone_number_id.encode()).hexdigest(),
+        user_id=hashlib.md5(phone_number_id.encode(), usedforsecurity=False).hexdigest(),
         phone_number_id=phone_number_id,
         tenant_id=tenant_id,
         user_language=language,

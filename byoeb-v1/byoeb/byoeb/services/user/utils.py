@@ -29,7 +29,7 @@ def get_user_ids_from_phone_number_ids(
 ) -> List[str]:
     user_ids = []
     for phone_number_id in phone_number_ids:
-        user_id = hashlib.md5(phone_number_id.encode()).hexdigest()
+        user_id = hashlib.md5(phone_number_id.encode(), usedforsecurity=False).hexdigest()
         user_ids.append(user_id)
     return user_ids
 
@@ -81,7 +81,7 @@ def get_delete_messages(
 ):
     messages = []
     for phone_number_id in phone_number_ids:
-        user_id = hashlib.md5(phone_number_id.encode()).hexdigest()
+        user_id = hashlib.md5(phone_number_id.encode(), usedforsecurity=False).hexdigest()
         if user_id in missing_ids:
             messages.append({
                 "phone_number_id": phone_number_id,

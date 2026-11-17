@@ -220,7 +220,7 @@ async def process_message(input: QueryInput) -> QueryOutput:
     embedding_type = input.embedding_type.lower()
     question = input.question
 
-    user_id = hashlib.md5(phone_number_id.encode()).hexdigest()
+    user_id = hashlib.md5(phone_number_id.encode(), usedforsecurity=False).hexdigest()
     conversation_history = get_conversation_history(user_id, history_length)
     logger.debug("conversation_history=%s", conversation_history)
     query_en, query_en_addcontext, query_type, tokens = await llm_translation_and_query_rewritting(translation_and_rewritting_prompt, question, conversation_history)
@@ -250,6 +250,6 @@ def clear_history(phone_number_id):
     Clear the conversation history for a user.
     """
     logger.info("Clearing history for phone number ID: %s", phone_number_id)
-    user_id = hashlib.md5(phone_number_id.encode()).hexdigest()
+    user_id = hashlib.md5(phone_number_id.encode(), usedforsecurity=False).hexdigest()
     if user_id in conversations:
         del conversations[user_id]

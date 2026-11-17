@@ -126,7 +126,7 @@ class ChromaDBVectorStore(BaseVectorStore):
         """Prepare data_chunks, metadata and ids lists from TextNode list."""
         data_chunks = [node.text for node in nodes]
         metadata = [node.metadata if node.metadata else {} for node in nodes]
-        ids = [node.node_id if hasattr(node, 'node_id') and node.node_id else hashlib.md5(node.text.encode()).hexdigest() for node in nodes]
+        ids = [node.node_id if hasattr(node, 'node_id') and node.node_id else hashlib.md5(node.text.encode(), usedforsecurity=False).hexdigest() for node in nodes]
         return data_chunks, metadata, ids
 
     async def update_chunks(

@@ -66,7 +66,7 @@ class TranslatorAdapter(BaseSpeechTranslator):
                 attributes["endpoint"] = chat_settings.azure_openai_speech_endpoint
                 return AsyncAzureOpenAISpeechTranslator(**attributes)
             case "speech_to_text", "azure_openai":
-                logger.warning(
+                logger.warning(  # nosemgrep: python-logger-credential-disclosure  message text only, no credential value logged
                     "Azure OpenAI key not set. Defaulting to DefaultAzureCredential for motive=%s, service=%s, model=%s.",
                     motive,
                     service,
@@ -92,7 +92,7 @@ class TranslatorAdapter(BaseSpeechTranslator):
                     key=chat_settings.azure_speech_key.get_secret_value()
                 )
             case "text_to_speech", "azure_cognitive":
-                logger.warning(
+                logger.warning(  # nosemgrep: python-logger-credential-disclosure  message text only, no credential value logged
                     "Azure Cognitive Services key not set. Defaulting to DefaultAzureCredential for motive=%s, service=%s.",
                     motive,
                     service,

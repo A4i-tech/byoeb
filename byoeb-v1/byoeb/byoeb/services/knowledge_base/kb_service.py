@@ -82,7 +82,7 @@ class KBService:
                 "update_timestamp": now_ts,
             }
 
-            cid = getattr(c, "chunk_id", None) or getattr(c, "node_id", None) or hashlib.md5(text.encode()).hexdigest()
+            cid = getattr(c, "chunk_id", None) or getattr(c, "node_id", None) or hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()
 
             data_chunks.append(text)
             metadata_list.append(md)

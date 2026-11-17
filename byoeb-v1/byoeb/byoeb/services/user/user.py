@@ -72,7 +72,7 @@ class UserService(BaseUserService):
         # gets missing numers
         missing_numbers = []
         for number in relation_numbers:
-            hex_id = hashlib.md5(number.encode()).hexdigest()
+            hex_id = hashlib.md5(number.encode(), usedforsecurity=False).hexdigest()
             if hex_id in missing_ids:
                 missing_numbers.append(number)
         update_user = User(**user.model_dump())
@@ -230,13 +230,13 @@ class UserService(BaseUserService):
         byoeb_messages = []
         ids = await self.__get_all_user_ids()
         for user in users:
-            user_id = hashlib.md5(user.phone_number_id.encode()).hexdigest()
+            user_id = hashlib.md5(user.phone_number_id.encode(), usedforsecurity=False).hexdigest()
             if user_id in ids:
                 message = "Already registered. Please use update or delete and add again"
                 byoeb_messages.append(user_utils.get_register_message(user, message))
                 continue
             new_user = User(
-                user_id=hashlib.md5(user.phone_number_id.encode()).hexdigest(),
+                user_id=hashlib.md5(user.phone_number_id.encode(), usedforsecurity=False).hexdigest(),
                 user_location=user.user_location,
                 user_name=user.user_name,
                 phone_number_id=user.phone_number_id,
