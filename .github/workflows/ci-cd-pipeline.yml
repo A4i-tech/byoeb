@@ -69,12 +69,11 @@ jobs:
       directory: ./byoeb-v1/byoeb-integrations
     secrets: inherit
 
-  # Step 1g: SAST — Semgrep + Gitleaks (parallel with unit tests)
+  # Step 1g: Secret scanning, Gitleaks (Semgrep runs as its own PR workflow, semgrep.yml)
   sast:
     name: SAST & Secret Scanning
     uses: ./.github/workflows/sast.yml
     secrets:
-      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
       TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
   # Step 2: Build (validates Dockerfile - uses Docker layer caching for fast builds)
