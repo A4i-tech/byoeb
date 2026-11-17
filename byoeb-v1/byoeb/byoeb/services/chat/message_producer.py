@@ -118,7 +118,8 @@ class MessageProducerService:
             self._logger.debug("[apublish_message] → queue.send_message(...)")
             result = await self.__queue_client.send_message(
                 byoeb_message.model_dump_json(),
-                time_to_live=self._config["message_queue"]["azure"]["time_to_live"]
+                time_to_live=self._config["message_queue"]["azure"]["time_to_live"],
+                message_id=mid
             )
             self._logger.info("[apublish_message] ← queue result id=%s", getattr(result, "id", None))
 

@@ -104,9 +104,9 @@ class ChatAppSettings(BaseSettings):
     )
 
     # Queue / storage backend
-    queue_provider: str = Field(
+    queue_provider: Literal["kafka", "nats", "azure_storage_queue"] = Field(
         default="kafka",
-        description="Queue provider: 'kafka' (local/default) or 'azure_storage_queue' (production)"
+        description="Queue provider: 'kafka' (local/default), 'nats' or 'azure_storage_queue' (production)"
     )
     storage_backend: str = Field(
         default="azure",
@@ -134,6 +134,30 @@ class ChatAppSettings(BaseSettings):
     )
     kafka_topic_dead_letter: str = Field(
         default="byoeb-dlq", description="Kafka dead-letter topic"
+    )
+
+    # NATS JetStream
+    nats_url: str = Field(
+        default="nats://localhost:4222", description="NATS server URL"
+    )
+    nats_stream: str = Field(
+        default="BYOEB", description="NATS JetStream stream name"
+    )
+    nats_ack_wait_seconds: int = Field(
+        default=180,
+        description="Seconds before NATS redelivers an unacknowledged message. Must exceed the worst-case time to process one batch, because the consumer acks after the whole batch."
+    )
+    nats_creds_file: Optional[str] = Field(
+        default=None, description="Path to NATS credentials file"
+    )
+    nats_subject_bot: str = Field(
+        min_length=1, default="byoeb-bot", description="NATS subject for inbound bot messages"
+    )
+    nats_subject_status: str = Field(
+        min_length=1, default="byoeb-status", description="NATS subject for status messages"
+    )
+    nats_subject_dead_letter: str = Field(
+        min_length=1, default="byoeb-dlq", description="NATS dead-letter subject"
     )
 
     # Azure Cognitive Services
@@ -236,6 +260,10 @@ class ChatAppSettings(BaseSettings):
             return base64.b64decode(v).decode('utf-8')
         except Exception:
             return None
+
+    @property
+    def nats_subjects(self) -> list[str]:
+        return [self.nats_subject_bot, self.nats_subject_status, self.nats_subject_dead_letter]
 
     @model_validator(mode='after')
     def validate_azure_queue_names(self) -> 'ChatAppSettings':

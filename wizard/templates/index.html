@@ -401,6 +401,14 @@
             <div class="radio-desc">Included in Docker — no extra accounts or setup needed</div>
           </div>
         </label>
+        <label class="radio-card" onclick="selectRadio('queue','nats',this)">
+          <input type="radio" name="queue" value="nats">
+          <div class="radio-dot"></div>
+          <div>
+            <div class="radio-label">NATS JetStream</div>
+            <div class="radio-desc">Runs in Docker</div>
+          </div>
+        </label>
         <label class="radio-card" onclick="selectRadio('queue','azure_storage_queue',this)">
           <input type="radio" name="queue" value="azure_storage_queue">
           <div class="radio-dot"></div>
@@ -433,6 +441,30 @@
       <div class="field">
         <label class="field-label">Dead-letter topic</label>
         <input type="text" id="kafka_topic_dlq" value="byoeb-dlq">
+      </div>
+    </div>
+
+    <div class="sub-panel" id="nats-panel">
+      <div class="section-label">NATS settings</div>
+      <div class="field">
+        <label class="field-label">Server URL <span class="hint">default: nats://nats:4222</span></label>
+        <input type="text" id="nats_url" value="nats://nats:4222">
+      </div>
+      <div class="field">
+        <label class="field-label">Stream name</label>
+        <input type="text" id="nats_stream" value="BYOEB">
+      </div>
+      <div class="field">
+        <label class="field-label">Bot subject</label>
+        <input type="text" id="nats_subject_bot" value="byoeb-bot">
+      </div>
+      <div class="field">
+        <label class="field-label">Status subject</label>
+        <input type="text" id="nats_subject_status" value="byoeb-status">
+      </div>
+      <div class="field">
+        <label class="field-label">Dead-letter subject</label>
+        <input type="text" id="nats_subject_dlq" value="byoeb-dlq">
       </div>
     </div>
 
@@ -799,6 +831,11 @@ const BASIC_DEFAULTS = {
   kafka_topic_bot: 'byoeb-bot',
   kafka_topic_status: 'byoeb-status',
   kafka_topic_dlq: 'byoeb-dlq',
+  nats_url: 'nats://nats:4222',
+  nats_stream: 'BYOEB',
+  nats_subject_bot: 'byoeb-bot',
+  nats_subject_status: 'byoeb-status',
+  nats_subject_dlq: 'byoeb-dlq',
   vector_store: 'llama_index_chroma',
   storage_backend: 'local',
   local_storage_path: '/app/local_media_storage',
@@ -869,6 +906,12 @@ function validateStep(n) {
       require('kafka_topic_bot',      'Bot topic');
       require('kafka_topic_status',   'Status topic');
       require('kafka_topic_dlq',      'Dead-letter topic');
+    } else if (queue === 'nats') {
+      require('nats_url',            'Server URL');
+      require('nats_stream',         'Stream name');
+      require('nats_subject_bot',    'Bot subject');
+      require('nats_subject_status', 'Status subject');
+      require('nats_subject_dlq',    'Dead-letter subject');
     } else {
       requireUrl('azure_storage_queue_account_url', 'Account URL');
       require('azure_queue_bot',        'Bot queue name');
@@ -1021,6 +1064,7 @@ function selectRadio(name, value, el) {
   answers[name] = value;
   if (name === 'queue') {
     toggle('kafka-panel', value === 'kafka');
+    toggle('nats-panel', value === 'nats');
     toggle('azure-queue-panel', value === 'azure_storage_queue');
   }
 }
@@ -1050,6 +1094,7 @@ function showStoragePanel(b) {
 
 function collectAnswers() {
   ['kafka_bootstrap_servers','kafka_consumer_group','kafka_topic_bot','kafka_topic_status','kafka_topic_dlq',
+   'nats_url','nats_stream','nats_subject_bot','nats_subject_status','nats_subject_dlq',
    'azure_storage_queue_account_url','azure_queue_bot','azure_queue_status','azure_queue_dead_letter',
    'qdrant_url','qdrant_api_key','qdrant_collection_name',
    'azure_search_service_name','azure_search_index_name','azure_search_api_key',

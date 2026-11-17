@@ -22,6 +22,7 @@ def ask_all() -> dict:
         "Which message queue should AshaBot use?",
         choices=[
             questionary.Choice("Kafka  (recommended — persistent, production-grade)", value="kafka"),
+            questionary.Choice("NATS JetStream  (runs in Docker)", value="nats"),
             questionary.Choice("Azure Storage Queue  (if you already have Azure)", value="azure_storage_queue"),
         ],
     ).ask()
@@ -38,6 +39,16 @@ def ask_all() -> dict:
         answers["kafka_topic_bot"] = questionary.text("Bot topic name:", default="byoeb-bot").ask()
         answers["kafka_topic_status"] = questionary.text("Status topic name:", default="byoeb-status").ask()
         answers["kafka_topic_dlq"] = questionary.text("Dead-letter topic:", default="byoeb-dlq").ask()
+    elif answers["queue"] == "nats":
+        answers["nats_url"] = questionary.text(
+            "NATS server URL:",
+            default="nats://nats:4222",
+            instruction="(use 'nats://nats:4222' for docker compose, 'nats://localhost:4222' for local NATS)",
+        ).ask()
+        answers["nats_stream"] = questionary.text("Stream name:", default="BYOEB").ask()
+        answers["nats_subject_bot"] = questionary.text("Bot subject:", default="byoeb-bot").ask()
+        answers["nats_subject_status"] = questionary.text("Status subject:", default="byoeb-status").ask()
+        answers["nats_subject_dlq"] = questionary.text("Dead-letter subject:", default="byoeb-dlq").ask()
     else:
         answers["azure_storage_queue_account_url"] = questionary.text(
             "Azure Storage Queue account URL:"

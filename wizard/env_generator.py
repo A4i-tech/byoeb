@@ -16,6 +16,15 @@ KAFKA_TOPIC_STATUS={a.get('kafka_topic_status', 'byoeb-status')}
 KAFKA_TOPIC_DEAD_LETTER={a.get('kafka_topic_dlq', 'byoeb-dlq')}"""
 
 
+def _nats_block(a: dict) -> str:
+    return f"""QUEUE_PROVIDER=nats
+NATS_URL={a['nats_url']}
+NATS_STREAM={a['nats_stream']}
+NATS_SUBJECT_BOT={a['nats_subject_bot']}
+NATS_SUBJECT_STATUS={a['nats_subject_status']}
+NATS_SUBJECT_DEAD_LETTER={a['nats_subject_dlq']}"""
+
+
 def _azure_queue_block(a: dict) -> str:
     return f"""\
 QUEUE_PROVIDER=azure_storage_queue
@@ -64,7 +73,11 @@ def _storage_block(a: dict) -> str:
 
 
 def generate_env(answers: dict, output_dir: str = ".") -> str:
-    queue_block = _kafka_block(answers) if answers["queue"] == "kafka" else _azure_queue_block(answers)
+    queue_block = {
+        "kafka": _kafka_block,
+        "nats": _nats_block,
+        "azure_storage_queue": _azure_queue_block,
+    }[answers["queue"]](answers)
 
     vs = answers["vector_store"]
     if vs == "llama_index_chroma":

@@ -33,15 +33,57 @@ def generate_app_compose(answers: dict, output_dir: str = ".") -> tuple:
         and answers.get("qdrant_mode") == "docker"
     )
 
+    is_nats = answers["queue"] == "nats"
+
     # Auto-detect free ports — avoids conflicts with existing local services
     ports = {
         "chat":    _find_free_port(8000),
         "kb":      _find_free_port(8001),
         "mongodb": _find_free_port(27017),
-        "kafka":   _find_free_port(9092),
     }
+    if not is_nats:
+        ports["kafka"] = _find_free_port(9092)
     if include_qdrant:
         ports["qdrant"] = _find_free_port(6333)
+
+    queue_service = "nats" if is_nats else "kafka"
+    queue_condition = "service_started" if is_nats else "service_healthy"
+    nats_service = ""
+    kafka_service = ""
+    if is_nats:
+        nats_service = """
+  nats:
+    image: nats:2.12
+    command: ["-js", "-sd", "/data"]
+    volumes:
+      - nats_data:/data
+"""
+    else:
+        kafka_service = f"""
+  kafka:
+    image: apache/kafka:3.7.0
+    ports:
+      - "{ports['kafka']}:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: "byoeb-local-cluster"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+"""
 
     qdrant_service = ""
     if include_qdrant:
@@ -60,6 +102,8 @@ def generate_app_compose(answers: dict, output_dir: str = ".") -> tuple:
       retries: 5
 """
 
+    nats_volume = "\n  nats_data:" if is_nats else ""
+    kafka_volume = "" if is_nats else "\n  kafka_data:"
     qdrant_volume = "\n  qdrant_data:" if include_qdrant else ""
 
     # Warn in compose comments if any port was remapped
@@ -87,8 +131,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-      kafka:
-        condition: service_healthy
+      {queue_service}:
+        condition: {queue_condition}
     restart: on-failure
 
   byoeb-kb:
@@ -117,36 +161,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  kafka:
-    image: apache/kafka:3.7.0
-    ports:
-      - "{ports['kafka']}:9092"
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      CLUSTER_ID: "byoeb-local-cluster"
-    volumes:
-      - kafka_data:/var/lib/kafka/data
-    healthcheck:
-      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-{qdrant_service}
+{kafka_service}{nats_service}{qdrant_service}
 volumes:
-  mongo_data:
-  kafka_data:
+  mongo_data:{kafka_volume}
   local_media:
-  vector_db:{qdrant_volume}
+  vector_db:{nats_volume}{qdrant_volume}
 """
     path = os.path.join(output_dir, "docker-compose.app.yml")
     os.makedirs(output_dir, exist_ok=True)
