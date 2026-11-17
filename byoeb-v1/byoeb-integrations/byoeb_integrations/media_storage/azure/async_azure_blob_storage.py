@@ -69,8 +69,9 @@ class AsyncAzureBlobStorage(BaseMediaStorage):
     ) -> List[FileMetadata]:
         container_name = self.__container_name
         container_client = self.__blob_service_client.get_container_client(container_name)
+        prefix = os.environ.get("AZURE_STORAGE_BLOB_PREFIX", "")
         files = []
-        async for blob in container_client.list_blobs():
+        async for blob in container_client.list_blobs(name_starts_with=prefix):
             properties = await self.aget_file_properties(blob.name)
             if properties is not None:
                 files.append(properties)
