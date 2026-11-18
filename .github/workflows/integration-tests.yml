@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       image-ref:
-        description: "Container image (tag) containing the integration tests"
+        description: "Container image (tag) of the deployed service under test"
         required: true
         type: string
       registry:
@@ -71,16 +71,10 @@ jobs:
           MONGO_DB_CONNECTION_STRING: ${{ secrets.MONGO_DB_CONNECTION_STRING }}
         run: |
           set -o pipefail
-          docker run --rm \
-            -e INTEGRATION_BASE_URL="$INTEGRATION_BASE_URL" \
-            -e INTEGRATION_AUTH_TENANT_ID="$INTEGRATION_AUTH_TENANT_ID" \
-            -e INTEGRATION_AUTH_USERNAME="$INTEGRATION_AUTH_USERNAME" \
-            -e INTEGRATION_AUTH_PASSWORD="$INTEGRATION_AUTH_PASSWORD" \
-            -e INTEGRATION_WHATSAPP_PHONE_NUMBER_ID="$INTEGRATION_WHATSAPP_PHONE_NUMBER_ID" \
-            -e INTEGRATION_WHATSAPP_APP_SECRET="$INTEGRATION_WHATSAPP_APP_SECRET" \
-            -e MONGO_DB_CONNECTION_STRING="$MONGO_DB_CONNECTION_STRING" \
-            "${{ inputs.image-ref }}" \
-            poetry run pytest tests/integration
+          cd byoeb-v1/byoeb
+          pip install poetry -q
+          poetry install --no-root --no-interaction -q
+          poetry run pytest tests/integration
 
       - name: Set up Python and run release QA benchmark (from repo)
         id: run-benchmark
