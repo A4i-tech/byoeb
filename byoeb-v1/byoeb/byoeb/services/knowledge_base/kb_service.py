@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import hashlib
 from datetime import datetime, timezone
 from byoeb.kb_app.configuration.dependency_setup import (
     amedia_storage,
@@ -82,7 +81,7 @@ class KBService:
                 "update_timestamp": now_ts,
             }
 
-            cid = getattr(c, "chunk_id", None) or getattr(c, "node_id", None) or hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()
+            cid = c.node_id
 
             data_chunks.append(text)
             metadata_list.append(md)

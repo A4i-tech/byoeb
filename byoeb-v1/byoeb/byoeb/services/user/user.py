@@ -236,7 +236,7 @@ class UserService(BaseUserService):
                 byoeb_messages.append(user_utils.get_register_message(user, message))
                 continue
             new_user = User(
-                user_id=hashlib.md5(user.phone_number_id.encode(), usedforsecurity=False).hexdigest(),
+                user_id=user_id,
                 user_location=user.user_location,
                 user_name=user.user_name,
                 phone_number_id=user.phone_number_id,
