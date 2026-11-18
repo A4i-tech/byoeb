@@ -85,3 +85,11 @@ def test_qdrant_volume_in_volumes_block(tmp_path):
     with open(path) as f:
         data = yaml.safe_load(f)
     assert "qdrant_data" in (data.get("volumes") or {})
+
+
+def test_app_commands_do_not_use_poetry(tmp_path):
+    path, _ = generate_app_compose(ANSWERS_KAFKA_CHROMA, output_dir=str(tmp_path))
+    with open(path) as f:
+        services = yaml.safe_load(f)["services"]
+    assert services["byoeb-chat"]["command"] == "python3 -m byoeb.chat_app.run --host 0.0.0.0 --port 8000"
+    assert services["byoeb-kb"]["command"] == "python3 -m byoeb.kb_app.run"
