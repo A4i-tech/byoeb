@@ -268,8 +268,6 @@ jobs:
     uses: ./.github/workflows/integration-tests.yml
     with:
       service-url: ${{ needs.deploy-staging.outputs['service-url'] }}
-      image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
-      registry: ${{ needs.publish-image.outputs.registry }}
       environment: ${{ needs.publish-image.outputs.environment }}
       deployment-url: ${{ needs.deploy-staging.outputs['service-url'] }}
     secrets: inherit
@@ -283,8 +281,6 @@ jobs:
     uses: ./.github/workflows/integration-tests.yml
     with:
       service-url: ${{ needs.deploy-production.outputs['service-url'] }}
-      image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
-      registry: ${{ needs.publish-image.outputs.registry }}
       environment: production
       deployment-url: ${{ needs.deploy-production.outputs['service-url'] }}
     secrets: inherit
