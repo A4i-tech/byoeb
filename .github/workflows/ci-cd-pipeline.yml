@@ -255,8 +255,6 @@ jobs:
     uses: ./.github/workflows/integration-tests.yml
     with:
       service-url: https://byoeb-dev.a4i-lab.in
-      image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
-      registry: ${{ needs.publish-image.outputs.registry }}
       environment: ${{ needs.publish-image.outputs.environment }}
       deployment-url: https://byoeb-dev.a4i-lab.in
     secrets: inherit
@@ -270,8 +268,6 @@ jobs:
     uses: ./.github/workflows/integration-tests.yml
     with:
       service-url: ${{ needs.deploy-production.outputs['service-url'] }}
-      image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
-      registry: ${{ needs.publish-image.outputs.registry }}
       environment: production
       deployment-url: ${{ needs.deploy-production.outputs['service-url'] }}
     secrets: inherit
