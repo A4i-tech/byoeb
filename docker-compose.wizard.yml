@@ -18,9 +18,9 @@ services:
     volumes:
       # Docker socket: wizard can launch the app containers on your host.
       # This is host-root-equivalent access, run this only on a local dev machine.
-      # Wizard also runs as root: it writes to the bind-mounted workspace below, and a non-root user buys nothing given the socket mount above is already host-root-equivalent.
       - /var/run/docker.sock:/var/run/docker.sock
       # Working directory: wizard writes .env.local + docker-compose.app.yml here
+      # Runs as root: it writes .env.local into this mount.
       - .:/workspace
     environment:
       # HOST_PWD lets wizard pass your host path to Docker socket commands.

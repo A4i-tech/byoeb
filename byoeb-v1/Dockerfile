@@ -5,7 +5,7 @@ ENV POETRY_VERSION=1.8.3 \
     VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:$PATH
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential git \
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 RUN /usr/local/bin/python -m venv /opt/venv && /usr/local/bin/pip install --no-cache-dir "poetry==$POETRY_VERSION"
@@ -17,19 +17,18 @@ COPY byoeb-integrations ./byoeb-integrations
 COPY byoeb-core ./byoeb-core
 
 WORKDIR /app/byoeb
-RUN poetry install --only main --no-root --no-interaction --no-ansi \
-    && rm -rf /root/.cache
+RUN poetry install --only main --no-root --no-interaction --no-ansi
 
 FROM python:3.11-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
-    VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:$PATH
 
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system appgroup \
-    && useradd --system --gid appgroup --no-create-home appuser
+    && useradd --system --gid appgroup --no-create-home appuser \
+    && mkdir -p /app && chown appuser:appgroup /app
 
 COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
