@@ -45,7 +45,8 @@ class AsyncAzureBlobStorage(BaseMediaStorage):
         else:
             raise ValueError("Either account url and credentials or connection_string must be provided")
         self.__container_name = container_name
-        self.__blob_prefix = blob_prefix
+        blob_prefix = blob_prefix.strip()
+        self.__blob_prefix = blob_prefix + "/" if blob_prefix and not blob_prefix.endswith("/") else blob_prefix
     
     async def aget_file_properties(
         self,

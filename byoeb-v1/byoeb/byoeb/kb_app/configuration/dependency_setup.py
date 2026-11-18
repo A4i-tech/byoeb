@@ -94,6 +94,7 @@ else:
 
     account_url = kb_settings.azure_storage_blob_account_url
     container_name = kb_settings.azure_storage_container_name
+    logger.info("KB blob listing: container=%s prefix=%r", container_name, kb_settings.azure_storage_blob_prefix)
 
     if _azure_storage_cs:
         amedia_storage: BaseMediaStorage = AsyncAzureBlobStorage(
