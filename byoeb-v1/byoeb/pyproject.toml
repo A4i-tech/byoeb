@@ -12,7 +12,7 @@ aiocache = "0.12.3"
 authlib = "^1.6.6"
 passlib = {extras = ["argon2"], version = "^1.7.4"}
 byoeb-integrations = {path = "../byoeb-integrations", develop = true}
-azure-monitor-opentelemetry = {version = "1.8.12", allow-prereleases = true}
+azure-monitor-opentelemetry = "1.8.12"
 langfuse = "3.14.5"
 azure-monitor-events-extension = "0.1.0"
 croniter = "6.0.0"
