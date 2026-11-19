@@ -5,7 +5,7 @@
 - **MongoDB Atlas** connection string for *staging* and *production*
 - **OpenAI** API keys and endpoints
 - **Azure** credentials (Blob, Storage Queue, App Insights, Cognitive Services, Web App)
-- **Render.com** account for deployment
+- Access to the kube-dev cluster (staging) and the Azure Web App (production)
 - **Microsoft Teams** webhook URL for notifications
 - Docker installed (for local testing)
 
@@ -16,12 +16,12 @@
 Our CI/CD pipeline automatically handles:
 - **Testing**: Runs comprehensive tests on every push/PR
 - **Building**: Creates Docker images with environment-specific tags
-- **Deploying**: Deploys to staging/production based on branch
+- **Deploying**: Pushes the image; staging is rolled out on kube-dev by ArgoCD Image Updater, production is deployed to the Azure Web App
 - **Monitoring**: Sends notifications to Teams for success/failure
 
 ### Pipeline Triggers:
 - **Push to `a4i/main`**: Deploys to production, runs unit tests
-- **Push to `a4i/staging`**: Deploys to staging, runs unit and integration tests
+- **Push to `a4i/staging`**: Publishes the staging image, runs unit and integration tests against kube-dev
 - **Pull to `a4i/main` or `a4i/staging`**: Runs unit tests
 - **Manual trigger**: Choose staging or production
 
@@ -33,8 +33,6 @@ Below are the required repository secrets:
 # Notifications
 TEAMS_WEBHOOK_URL             # Microsoft Teams webhook for notifications
 
-# Render.com (Staging)
-RENDER_API_KEY                # Render.com API key
 STAGING_ENVS                  # Raw contents of keys.env
 
 # Azure (Production)
@@ -43,38 +41,12 @@ AZURE_WEBAPP_PUBLISH_PROFILE  # Web App Publish Profile raw XML string
 
 Below are the required repository variables:
 ```sh
-# Render.com (Staging)
-RENDER_SERVICE_ID             # Render.com service ID
-
 # Azure (Production)
 AZURE_WEBAPP_NAME             # Name of the Azure Web App
 ```
 
-### Render.com Environment Variables:
-#### Staging Environment:
-```
-PORT=10000
-APP_ENV=PROD
-AZURE_SEARCH_API_KEY=your_staging_key
-AZURE_STORAGE_CONNECTION_STRING=your_staging_connection
-COSMOS_DB_CONNECTION_STRING=your_staging_mongo
-OPENAI_API_ENDPOINT=your_openai_endpoint
-OPENAI_API_KEY=your_openai_key
-OPENAI_API_KEY_EMBED=your_embed_key
-OPENAI_API_TYPE=azure
-OPENAI_API_VERSION=2024-02-15-preview
-WHATSAPP_TOKEN=your_whatsapp_token
-PHONE_NUMBER_ID=your_phone_number_id
-VERIFY_TOKEN=your_verify_token
-```
-
-#### Production Environment:
-```
-# Same as staging but with production values
-PORT=10000
-APP_ENV=PROD
-# ... production credentials
-```
+### Runtime Environment Variables:
+Staging runtime configuration lives in the `byoeb-chat-app-secret` ExternalSecret in `A4i-tech/infra-ops` (`partners/byoeb`), backed by Key Vault. Production uses the Azure Web App settings.
 
 ## 4) Docker Configuration
 
@@ -95,8 +67,8 @@ A Dockerfile is already present in `/byoeb-v1`. The CI/CD pipeline automatically
 1. **Push to `a4i/staging`**:
    - Builds Docker image with `staging-*` tags
    - Runs unit tests
-   - Deploys to staging environment
-   - Runs integration tests
+   - ArgoCD Image Updater rolls the new image out on kube-dev
+   - Runs integration tests against `https://byoeb-dev.a4i-lab.in`
    - Sends notification to Teams
 
 2. **Push to `a4i/main`**:
@@ -112,24 +84,14 @@ A Dockerfile is already present in `/byoeb-v1`. The CI/CD pipeline automatically
 4. Choose environment (staging/production)
 5. Optionally skip tests (use with caution)
 
-## 6) Render.com Setup
+## 6) Staging on kube-dev
 
-### Initial Setup:
-1. Log in to Render.com
-2. Create a new **Web Service**
-3. Connect your GitHub repository
-4. Select the `a4i/main` branch
-5. Set **Root Directory** to `byoeb-v1/byoeb`
-6. Choose **Docker** as the environment
-7. Configure environment variables (see section 3)
-8. Set **Health Check Path** to `/`
-9. Set **Health Check Timeout** to 60 seconds
+Staging runs in the `byoeb` namespace on kube-dev, managed by ArgoCD from `partners/byoeb` in `A4i-tech/infra-ops`.
 
-### Service Configuration:
-- **Build Command**: `docker build -t byoeb .`
-- **Start Command**: `python -m byoeb.chat_app.run`
+- **Image**: `ghcr.io/a4i-tech/byoeb:staging-latest`
+- **URL**: `https://byoeb-dev.a4i-lab.in`
 - **Health Check**: `GET /`
-- **Port**: 10000 (Render's default)
+- **Port**: 8000
 
 ## 7) Monitoring & Notifications
 
@@ -141,25 +103,25 @@ A Dockerfile is already present in `/byoeb-v1`. The CI/CD pipeline automatically
 ### Health Monitoring:
 - **Health Check**: `GET /` endpoint
 - **Status**: Returns "Chat bot is running" with 200 status
-- **Monitoring**: Render.com monitors this endpoint
+- **Monitoring**: kube-dev liveness and readiness probes use this endpoint
 
 ## 8) Testing Endpoints
 
 ### Health Check:
 ```bash
-curl https://your-app.onrender.com/
+curl https://byoeb-dev.a4i-lab.in/
 # Expected: "Chat bot is running"
 ```
 
 ### API Documentation:
 ```bash
-curl https://your-app.onrender.com/docs
+curl https://byoeb-dev.a4i-lab.in/docs
 # Expected: FastAPI Swagger UI
 ```
 
 ### Background Jobs Endpoint:
 ```bash
-curl -X GET https://your-app.onrender.com/jobs \
+curl -X GET https://byoeb-dev.a4i-lab.in/jobs \
 # Expected: {"jobs": [{...}, {...}, ...], "total": int, "scheduler_running": bool, "timestamp": str}
 ```
 
@@ -167,9 +129,9 @@ curl -X GET https://your-app.onrender.com/jobs \
 
 ### Common Issues:
 1. **500 Error on Startup**:
-   - Check environment variables in Render dashboard
+   - Check the `byoeb-chat-app-secret` ExternalSecret and pod logs on kube-dev
    - Verify MongoDB connection string
-   - Check health check timeout settings
+   - Check the pod readiness probe
 
 2. **Deployment Failures**:
    - Check Teams notifications for detailed error info
@@ -177,12 +139,12 @@ curl -X GET https://your-app.onrender.com/jobs \
    - Verify Docker image builds successfully
 
 3. **Health Check Failures**:
-   - Ensure app binds to correct port (10000)
+   - Ensure app binds to port 8000
    - Check if all services initialize properly
    - Verify database connectivity
 
 ### Debug Steps:
-1. Check Render.com logs for startup errors
+1. Check the `byoeb-chat-app` pod logs on kube-dev for startup errors
 2. Verify all environment variables are set
 3. Test health endpoint manually
 4. Check MongoDB Atlas IP whitelist

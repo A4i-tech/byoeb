@@ -233,19 +233,6 @@ jobs:
             ]
           teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
 
-  # Step 5a: Deploy staging via Render reusable workflow
-  deploy-staging:
-    name: Deploy (staging)
-    needs: publish-image
-    if: success() && needs.publish-image.outputs.environment == 'staging'
-    uses: ./.github/workflows/deploy-render.yml
-    with:
-      service-id: ${{ vars.RENDER_SERVICE_ID }}
-      api-base-url: ${{ vars.RENDER_API_URL || 'https://api.render.com' }}
-    secrets:
-      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-
   # Step 5b: Deploy production via reusable workflow
   deploy-production:
     name: Deploy (production)
@@ -263,15 +250,15 @@ jobs:
   # Integration test job never fails the pipeline (see integration-tests.yml)
   integration-tests-staging:
     name: Integration tests (staging)
-    needs: [deploy-staging, publish-image]
-    if: needs.deploy-staging.result == 'success'
+    needs: publish-image
+    if: success() && needs.publish-image.outputs.environment == 'staging'
     uses: ./.github/workflows/integration-tests.yml
     with:
-      service-url: ${{ needs.deploy-staging.outputs['service-url'] }}
+      service-url: https://byoeb-dev.a4i-lab.in
       image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
       registry: ${{ needs.publish-image.outputs.registry }}
       environment: ${{ needs.publish-image.outputs.environment }}
-      deployment-url: ${{ needs.deploy-staging.outputs['service-url'] }}
+      deployment-url: https://byoeb-dev.a4i-lab.in
     secrets: inherit
 
   # Step 5b: Run integration tests (production — on merge to a4i/main)
