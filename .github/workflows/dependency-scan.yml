@@ -41,6 +41,7 @@ jobs:
       # PYSEC-2025-217 (transformers): no upstream fix available as of 2026-06-16
       # CVE-2026-1839 (transformers): fix only in 5.0.0rc3 (pre-release) as of 2026-06-16
       # CVE-2026-34444 (lupa 2.6): no upstream fix available as of 2026-06-16
+      # PYSEC-2026-3813, PYSEC-2026-3814, PYSEC-2026-3815 (chromadb 0.5.23): no upstream fix available as of 2026-11-18
       - name: Run pip-audit
         working-directory: ${{ inputs.directory }}
         run: >
@@ -55,6 +56,9 @@ jobs:
           --ignore-vuln PYSEC-2025-217
           --ignore-vuln CVE-2026-1839
           --ignore-vuln CVE-2026-34444
+          --ignore-vuln PYSEC-2026-3813
+          --ignore-vuln PYSEC-2026-3814
+          --ignore-vuln PYSEC-2026-3815
 
       - name: Annotate vulnerabilities (warn only)
         if: ${{ failure() }}
