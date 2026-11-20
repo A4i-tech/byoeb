@@ -92,7 +92,7 @@ class AuthService:
                 raise InvalidTokenError("Invalid refresh token.")
         stored_client_id = user_doc.get("refresh_client_id")
         if client_id is not None and stored_client_id is not None and client_id != stored_client_id:
-            logger.warning(
+            logger.warning(  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
                 "refresh_token: client_id mismatch for user '%s' — provided '%s', stored '%s'",
                 username,
                 client_id,
@@ -124,7 +124,7 @@ class AuthService:
         try:
             access_token, ttl_seconds = self._token_service.create_access_token(username, tenant_id, permissions=permissions)
         except Exception:
-            logger.exception("Failed to generate access token for user '%s' in tenant '%s'.", username, tenant_id)
+            logger.exception("Failed to generate access token for user '%s' in tenant '%s'.", username, tenant_id)  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             raise
         refresh_token = secrets.token_urlsafe(48)
         await self._repo.update_user_refresh_token(username, refresh_token, client_id=client_id, scope=scope)
@@ -144,7 +144,7 @@ class AuthService:
         try:
             access_token, ttl_seconds = self._token_service.create_access_token(username, tenant_id, permissions=permissions)
         except Exception:
-            logger.exception("Failed to generate rotated access token for user '%s' in tenant '%s'.", username, tenant_id)
+            logger.exception("Failed to generate rotated access token for user '%s' in tenant '%s'.", username, tenant_id)  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             raise
 
         new_refresh_token = secrets.token_urlsafe(48)
@@ -185,7 +185,7 @@ class AuthService:
             if expires_at.tzinfo is None:
                 expires_at = expires_at.replace(tzinfo=timezone.utc)
             if datetime.now(timezone.utc) > expires_at:
-                logger.warning("refresh_token: token expired at %s (now %s)", expires_at, datetime.now(timezone.utc))
+                logger.warning("refresh_token: token expired at %s (now %s)", expires_at, datetime.now(timezone.utc))  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
                 raise InvalidTokenError("Refresh token expired.")
 
     async def register_user(self, tenant_id: UUID, payload) -> AuthUser:

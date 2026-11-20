@@ -34,7 +34,7 @@ async def create_kb_from_blob_store():
         }
         for chunk in chunks
     ]
-    chunk_ids = [hashlib.md5(chunk.text.encode()).hexdigest() for chunk in chunks]
+    chunk_ids = [hashlib.md5(chunk.text.encode(), usedforsecurity=False).hexdigest() for chunk in chunks]
     logger.info("Number of chunks: %s", len(chunks))
     async for _ in vector_store.add_chunks(
         ids=chunk_ids,

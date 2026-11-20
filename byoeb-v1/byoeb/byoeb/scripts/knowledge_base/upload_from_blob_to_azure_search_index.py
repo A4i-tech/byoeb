@@ -40,7 +40,7 @@ async def create_update_files_chunk(files: list):
         chunks_per_file[file_name] = len(sections)
         logger.info(f"  📄 {file_name}: {len(sections)} chunks")
         for section in sections:
-            chunk_id = hashlib.md5(section.encode()).hexdigest()
+            chunk_id = hashlib.md5(section.encode(), usedforsecurity=False).hexdigest()
             chunk_text = section
             chunk_metadata = {
                 "source": metadata["file_name"],
@@ -75,7 +75,7 @@ async def create_raw_files_chunks(files: list):
         }
         for chunk in chunks
     ]
-    chunk_ids = [hashlib.md5(chunk.text.encode()).hexdigest() for chunk in chunks]
+    chunk_ids = [hashlib.md5(chunk.text.encode(), usedforsecurity=False).hexdigest() for chunk in chunks]
     return chunk_ids, chunk_texts, chunk_metadatas
 
 async def create_kb_from_blob_store():

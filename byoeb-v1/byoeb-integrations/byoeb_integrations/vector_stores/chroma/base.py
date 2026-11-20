@@ -2,7 +2,6 @@ import logging
 import asyncio
 from typing import List
 import chromadb
-import hashlib
 from chromadb.config import Settings
 from byoeb_core.vector_stores.base import BaseVectorStore, VectorStoreMetadata
 from byoeb_core.models.vector_stores.chunk import Chunk
@@ -121,13 +120,6 @@ class ChromaDBVectorStore(BaseVectorStore):
         # Yield each ID asynchronously
         for chunk_id in inserted_ids:
             yield chunk_id
-
-    def prepare_data(self, nodes: List):
-        """Prepare data_chunks, metadata and ids lists from TextNode list."""
-        data_chunks = [node.text for node in nodes]
-        metadata = [node.metadata if node.metadata else {} for node in nodes]
-        ids = [node.node_id if hasattr(node, 'node_id') and node.node_id else hashlib.md5(node.text.encode()).hexdigest() for node in nodes]
-        return data_chunks, metadata, ids
 
     async def update_chunks(
         self,

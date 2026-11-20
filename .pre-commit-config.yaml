@@ -9,7 +9,7 @@
 #   pre-commit run --all-files
 
 repos:
-  # Semgrep SAST — same rulesets and exclusions as CI
+  # Semgrep SAST — same rulesets as CI
   - repo: https://github.com/semgrep/semgrep
     rev: v1.76.0
     hooks:
@@ -21,8 +21,6 @@ repos:
           - --config=p/secrets
           - --config=p/owasp-top-ten
           - --error
-          - --exclude-rule=python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5
-          - --exclude-rule=python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         # Only scan Python and YAML — skip large data files
         types_or: [python, yaml]
 

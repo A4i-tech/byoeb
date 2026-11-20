@@ -83,7 +83,7 @@ class MessageConsmerService:
         start_time = datetime.now(timezone.utc).timestamp()
 
         phone_numbers = list(set([m.user.phone_number_id for m in messages]))
-        user_ids = list(set([hashlib.md5(number.encode()).hexdigest() for number in phone_numbers]))
+        user_ids = list(set([hashlib.md5(number.encode(), usedforsecurity=False).hexdigest() for number in phone_numbers]))
         self._logger.debug("[__create_conversations] phone_numbers=%s user_ids_count=%s", phone_numbers, len(user_ids))
 
         try:
