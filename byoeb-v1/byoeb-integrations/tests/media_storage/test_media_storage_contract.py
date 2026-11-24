@@ -1,26 +1,53 @@
-import urllib.request
+import os
+import time
 import uuid
 from datetime import datetime
 
+import boto3
 import pytest
 import pytest_asyncio
+from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError
 
 from byoeb_core.models.media_storage.file_data import FileData, FileMetadata
 from byoeb_integrations.media_storage.local.local_file_storage import LocalFileStorage
-from byoeb_integrations.media_storage.s3.s3_media_storage import S3MediaStorage
+from byoeb_integrations.media_storage.object_store.object_store_media_storage import ObjectStoreMediaStorage
 
 pytestmark = pytest.mark.asyncio
 
-MINIO_URL = "http://localhost:9000"
-MINIO_BUCKET = "byoeb-media"
+ENDPOINT_URL = os.environ.get("OBJECT_STORE_ENDPOINT_URL", "http://localhost:9000")
+ACCESS_KEY_ID = os.environ.get("OBJECT_STORE_ACCESS_KEY_ID", "test-access-key")
+SECRET_ACCESS_KEY = os.environ.get("OBJECT_STORE_SECRET_ACCESS_KEY", "test-secret-key")
+BUCKET_NAME = os.environ.get("OBJECT_STORE_BUCKET_NAME", "byoeb-media")
 
 
-def _minio_ready() -> bool:
+def _ensure_bucket() -> None:
+    client = boto3.client(
+        "s3",
+        endpoint_url=ENDPOINT_URL,
+        aws_access_key_id=ACCESS_KEY_ID,
+        aws_secret_access_key=SECRET_ACCESS_KEY,
+        region_name="us-east-1",
+        config=Config(s3={"addressing_style": "path"}, retries={"max_attempts": 1}, connect_timeout=2),
+    )
     try:
-        with urllib.request.urlopen(f"{MINIO_URL}/minio/health/ready", timeout=2):
-            return True
-    except OSError:
-        return False
+        client.head_bucket(Bucket=BUCKET_NAME)
+        return
+    except ClientError as e:
+        # CubeFS returns InternalError when CreateBucket targets an existing bucket, so create only after a 404.
+        if e.response["Error"]["Code"] not in {"404", "NoSuchBucket", "NotFound"}:
+            raise
+    client.create_bucket(Bucket=BUCKET_NAME)
+    # CubeFS answers 404, then 403, for up to about 2 minutes after CreateBucket returns.
+    deadline = time.monotonic() + 120
+    while True:
+        try:
+            client.head_bucket(Bucket=BUCKET_NAME)
+            return
+        except ClientError:
+            if time.monotonic() > deadline:
+                raise
+            time.sleep(2)
 
 
 @pytest.fixture
@@ -28,24 +55,40 @@ def prefix():
     return f"contract-{uuid.uuid4().hex}"
 
 
-@pytest_asyncio.fixture(params=["local", "s3"])
-async def storage(request, tmp_path, prefix):
-    if request.param == "local":
-        yield LocalFileStorage(storage_dir=str(tmp_path / "store"))
-        return
-    if not _minio_ready():
-        pytest.skip(f"MinIO does not answer at {MINIO_URL}/minio/health/ready. Start MinIO to run the S3 tests.")
-    store = S3MediaStorage(
-        bucket_name=MINIO_BUCKET,
-        access_key_id="test-access-key",
-        secret_access_key="test-secret-key",
-        endpoint_url=MINIO_URL,
+async def _object_store(prefix):
+    try:
+        _ensure_bucket()
+    except BotoCoreError as e:
+        message = f"The object store does not answer at {ENDPOINT_URL}: {e}. Start the object store to run these tests."
+        if os.environ.get("CI"):
+            pytest.fail(message)
+        pytest.skip(message)
+    store = ObjectStoreMediaStorage(
+        bucket_name=BUCKET_NAME,
+        access_key_id=ACCESS_KEY_ID,
+        secret_access_key=SECRET_ACCESS_KEY,
+        endpoint_url=ENDPOINT_URL,
     )
     yield store
     for file in await store.aget_all_files_properties():
         if file.file_name.startswith(prefix):
             await store.adelete_file(file.file_name)
     await store._close()
+
+
+@pytest_asyncio.fixture
+async def object_store(prefix):
+    async for store in _object_store(prefix):
+        yield store
+
+
+@pytest_asyncio.fixture(params=["local", "object-store"])
+async def storage(request, tmp_path, prefix):
+    if request.param == "local":
+        yield LocalFileStorage(storage_dir=str(tmp_path / "store"))
+        return
+    async for store in _object_store(prefix):
+        yield store
 
 
 def _source(tmp_path, suffix: str, content: bytes) -> str:
@@ -89,14 +132,24 @@ async def test_get_all_files_properties_lists_uploaded_file(storage, tmp_path, p
     assert name in {file.file_name for file in files}
 
 
-async def test_upload_same_name_overwrites(storage, tmp_path, prefix):
+async def test_local_upload_same_name_overwrites(tmp_path, prefix):
+    store = LocalFileStorage(storage_dir=str(tmp_path / "store"))
     name = f"{prefix}-overwrite.txt"
-    await storage.aupload_file(name, _source(tmp_path, ".txt", b"first"))
-    await storage.aupload_file(name, _source(tmp_path, ".txt", b"second"))
+    await store.aupload_file(name, _source(tmp_path, ".txt", b"first"))
+    await store.aupload_file(name, _source(tmp_path, ".txt", b"second"))
 
-    result = await storage.adownload_file(name)
+    assert (await store.adownload_file(name)).data == b"second"
 
-    assert result.data == b"second"
+
+async def test_object_store_upload_same_name_returns_conflict_and_keeps_original(object_store, tmp_path, prefix):
+    name = f"{prefix}-conflict.txt"
+    await object_store.aupload_file(name, _source(tmp_path, ".txt", b"first"))
+
+    status, message = await object_store.aupload_file(name, _source(tmp_path, ".txt", b"second"))
+
+    assert status == 409
+    assert name in message
+    assert (await object_store.adownload_file(name)).data == b"first"
 
 
 async def test_non_ascii_file_name_round_trips(storage, tmp_path, prefix):

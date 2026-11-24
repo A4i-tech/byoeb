@@ -42,15 +42,15 @@ print(*(type(s).__name__ for s in (chat.media_storage, kb.amedia_storage, kb.ame
     [
         ("local", {}, "LocalFileStorage LocalFileStorage NoneType"),
         (
-            "s3",
+            "object-store",
             {
-                "S3_ENDPOINT_URL": "http://localhost:9000",
-                "S3_ACCESS_KEY_ID": "test-access-key",
-                "S3_SECRET_ACCESS_KEY": "test-secret-key",
-                "S3_BUCKET_NAME": "byoeb-media",
-                "S3_ANALYSIS_BUCKET_NAME": "test-bucket",
+                "OBJECT_STORE_ENDPOINT_URL": "http://localhost:9000",
+                "OBJECT_STORE_ACCESS_KEY_ID": "test-access-key",
+                "OBJECT_STORE_SECRET_ACCESS_KEY": "test-secret-key",
+                "OBJECT_STORE_BUCKET_NAME": "byoeb-media",
+                "OBJECT_STORE_ANALYSIS_BUCKET_NAME": "test-bucket",
             },
-            "S3MediaStorage S3MediaStorage S3MediaStorage",
+            "ObjectStoreMediaStorage ObjectStoreMediaStorage ObjectStoreMediaStorage",
         ),
     ],
 )

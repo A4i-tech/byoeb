@@ -30,6 +30,9 @@ else:
 
 
 # ── Settings class ─────────────────────────────────────────────────────────────
+_STORAGE_BACKEND_HELP = "STORAGE_BACKEND is {state}. Set it to local, azure or object-store in the environment."
+
+
 class KbAppSettings(BaseSettings):
     model_config = SettingsConfigDict(extra='ignore')
 
@@ -119,46 +122,49 @@ class KbAppSettings(BaseSettings):
     )
 
     # Storage backend
-    storage_backend: str = Field(
-        default="local", description="Storage backend: 'local' (default), 'azure' or 's3'"
-    )
+    storage_backend: str = Field(description="Storage backend: 'local', 'azure' or 'object-store'")
 
     local_storage_path: str = Field(
         default="./local_media_storage", description="Local file storage path"
     )
 
-    # S3-compatible storage (used when STORAGE_BACKEND=s3)
-    s3_endpoint_url: Optional[str] = Field(
-        default=None, description="S3-compatible endpoint URL; empty means the AWS default"
+    # Object store (used when STORAGE_BACKEND=object-store)
+    object_store_endpoint_url: Optional[str] = Field(
+        default=None, description="Object store endpoint URL; empty means the AWS default"
     )
-    s3_access_key_id: Optional[str] = Field(default=None, description="S3 access key ID")
-    s3_secret_access_key: Optional[SecretStr] = Field(
-        default=None, description="S3 secret access key"
+    object_store_access_key_id: Optional[str] = Field(default=None, description="Object store access key ID")
+    object_store_secret_access_key: Optional[SecretStr] = Field(
+        default=None, description="Object store secret access key"
     )
-    s3_region: str = Field(default="us-east-1", description="S3 region")
-    s3_bucket_name: Optional[str] = Field(default=None, description="S3 bucket name for the knowledge base files")
-    s3_analysis_bucket_name: Optional[str] = Field(
-        default=None, description="S3 bucket name for analysis artifacts"
+    object_store_region: str = Field(default="us-east-1", description="Object store region")
+    object_store_bucket_name: Optional[str] = Field(default=None, description="Object store bucket name for the knowledge base files")
+    object_store_analysis_bucket_name: Optional[str] = Field(
+        default=None, description="Object store bucket name for analysis artifacts"
     )
+
+    @model_validator(mode='before')
+    @classmethod
+    def require_storage_backend(cls, data):
+        if not data.get("storage_backend"):
+            raise ValueError(_STORAGE_BACKEND_HELP.format(state="not set"))
+        return data
 
     @model_validator(mode='after')
     def validate_storage_backend(self) -> 'KbAppSettings':
-        if self.storage_backend not in ("local", "azure", "s3"):
-            raise ValueError(
-                f"STORAGE_BACKEND={self.storage_backend} is not supported. Use local, azure or s3."
-            )
-        if self.storage_backend == "s3":
+        if self.storage_backend not in ("local", "azure", "object-store"):
+            raise ValueError(_STORAGE_BACKEND_HELP.format(state=f"not supported ({self.storage_backend})"))
+        if self.storage_backend == "object-store":
             missing = [
                 name for name, val in [
-                    ("S3_BUCKET_NAME", self.s3_bucket_name),
-                    ("S3_ACCESS_KEY_ID", self.s3_access_key_id),
-                    ("S3_SECRET_ACCESS_KEY", self.s3_secret_access_key),
+                    ("OBJECT_STORE_BUCKET_NAME", self.object_store_bucket_name),
+                    ("OBJECT_STORE_ACCESS_KEY_ID", self.object_store_access_key_id),
+                    ("OBJECT_STORE_SECRET_ACCESS_KEY", self.object_store_secret_access_key),
                 ]
                 if not val
             ]
             if missing:
                 raise ValueError(
-                    f"STORAGE_BACKEND=s3 needs {', '.join(missing)}. Set them in the environment "
+                    f"STORAGE_BACKEND=object-store needs {', '.join(missing)}. Set them in the environment "
                     "or use STORAGE_BACKEND=local."
                 )
         return self

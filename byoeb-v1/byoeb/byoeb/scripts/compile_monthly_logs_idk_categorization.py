@@ -346,7 +346,10 @@ async def upload_folder_to_azure(local_folder: Path, month_str: str, prefix: Opt
             if amedia_storage_analysis is None:
                 print("⚠️  Analysis storage client not configured. Skipping Azure upload.")
                 return
-            await amedia_storage_analysis.aupload_file(file_path=str(file_path), file_name=blob_name)
+            status, message = await amedia_storage_analysis.aupload_file(file_path=str(file_path), file_name=blob_name)
+            if status != 201:
+                print(f"  ⚠️  Failed to upload {blob_name}: {message}")
+                continue
             print(f"  ✅ {blob_name}")
         except Exception as e:
             print(f"  ⚠️  Failed to upload {blob_name}: {e}")

@@ -85,22 +85,22 @@ if kb_settings.storage_backend == "local":
         storage_dir=kb_settings.local_storage_path
     )
     logger.info("Using local file storage at %s", kb_settings.local_storage_path)
-elif kb_settings.storage_backend == "s3":
-    from byoeb_integrations.media_storage.s3.s3_media_storage import S3MediaStorage
+elif kb_settings.storage_backend == "object-store":
+    from byoeb_integrations.media_storage.object_store.object_store_media_storage import ObjectStoreMediaStorage
 
-    def _s3_storage(bucket_name: str) -> BaseMediaStorage:
-        return S3MediaStorage(
+    def _object_store_storage(bucket_name: str) -> BaseMediaStorage:
+        return ObjectStoreMediaStorage(
             bucket_name=bucket_name,
-            access_key_id=kb_settings.s3_access_key_id,
-            secret_access_key=kb_settings.s3_secret_access_key.get_secret_value(),
-            endpoint_url=kb_settings.s3_endpoint_url,
-            region=kb_settings.s3_region,
+            access_key_id=kb_settings.object_store_access_key_id,
+            secret_access_key=kb_settings.object_store_secret_access_key.get_secret_value(),
+            endpoint_url=kb_settings.object_store_endpoint_url,
+            region=kb_settings.object_store_region,
         )
 
-    amedia_storage: BaseMediaStorage = _s3_storage(kb_settings.s3_bucket_name)
-    if kb_settings.s3_analysis_bucket_name:
-        amedia_storage_analysis = _s3_storage(kb_settings.s3_analysis_bucket_name)
-    logger.info("Using S3 storage, bucket: %s", kb_settings.s3_bucket_name)
+    amedia_storage: BaseMediaStorage = _object_store_storage(kb_settings.object_store_bucket_name)
+    if kb_settings.object_store_analysis_bucket_name:
+        amedia_storage_analysis = _object_store_storage(kb_settings.object_store_analysis_bucket_name)
+    logger.info("Using object-store storage, bucket: %s", kb_settings.object_store_bucket_name)
 else:
     from byoeb_integrations.media_storage.azure.async_azure_blob_storage import AsyncAzureBlobStorage
 

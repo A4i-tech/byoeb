@@ -37,32 +37,39 @@ class TestChatAppSettingsValidation:
         with pytest.raises(ValidationError, match="AZURE_QUEUE_STATUS"):
             ChatAppSettings()
 
-    def test_s3_backend_requires_credentials_and_bucket(self, monkeypatch):
-        monkeypatch.setenv("STORAGE_BACKEND", "s3")
+    def test_object_store_backend_requires_credentials_and_bucket(self, monkeypatch):
+        monkeypatch.setenv("STORAGE_BACKEND", "object-store")
         monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")
-        monkeypatch.delenv("S3_BUCKET_NAME", raising=False)
-        monkeypatch.delenv("S3_ACCESS_KEY_ID", raising=False)
-        monkeypatch.delenv("S3_SECRET_ACCESS_KEY", raising=False)
+        monkeypatch.delenv("OBJECT_STORE_BUCKET_NAME", raising=False)
+        monkeypatch.delenv("OBJECT_STORE_ACCESS_KEY_ID", raising=False)
+        monkeypatch.delenv("OBJECT_STORE_SECRET_ACCESS_KEY", raising=False)
         from byoeb.chat_app.configuration.config import ChatAppSettings
-        with pytest.raises(ValidationError, match="S3_BUCKET_NAME, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY"):
+        with pytest.raises(ValidationError, match="OBJECT_STORE_BUCKET_NAME, OBJECT_STORE_ACCESS_KEY_ID, OBJECT_STORE_SECRET_ACCESS_KEY"):
             ChatAppSettings()
 
-    def test_s3_backend_needs_no_azure_settings(self, monkeypatch):
+    def test_object_store_backend_needs_no_azure_settings(self, monkeypatch):
         for name in ("AZURE_STORAGE_CONTAINER_NAME", "AZURE_STORAGE_BLOB_ACCOUNT_URL", "AZURE_STORAGE_CONNECTION_STRING"):
             monkeypatch.delenv(name, raising=False)
-        monkeypatch.setenv("STORAGE_BACKEND", "s3")
-        monkeypatch.setenv("S3_BUCKET_NAME", "byoeb-media")
-        monkeypatch.setenv("S3_ACCESS_KEY_ID", "key")
-        monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "secret")
+        monkeypatch.setenv("STORAGE_BACKEND", "object-store")
+        monkeypatch.setenv("OBJECT_STORE_BUCKET_NAME", "byoeb-media")
+        monkeypatch.setenv("OBJECT_STORE_ACCESS_KEY_ID", "key")
+        monkeypatch.setenv("OBJECT_STORE_SECRET_ACCESS_KEY", "secret")
         monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")
         from byoeb.chat_app.configuration.config import ChatAppSettings
-        assert ChatAppSettings().s3_bucket_name == "byoeb-media"
+        assert ChatAppSettings().object_store_bucket_name == "byoeb-media"
 
     def test_unknown_storage_backend_is_rejected(self, monkeypatch):
         monkeypatch.setenv("STORAGE_BACKEND", "gcs")
         monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")
         from byoeb.chat_app.configuration.config import ChatAppSettings
-        with pytest.raises(ValidationError, match="Use local, azure or s3"):
+        with pytest.raises(ValidationError, match="STORAGE_BACKEND is not supported \(gcs\)"):
+            ChatAppSettings()
+
+    def test_unset_storage_backend_is_rejected(self, monkeypatch):
+        monkeypatch.delenv("STORAGE_BACKEND", raising=False)
+        monkeypatch.setenv("MONGO_DB_CONNECTION_STRING", "mongodb://localhost:27017/test")
+        from byoeb.chat_app.configuration.config import ChatAppSettings
+        with pytest.raises(ValidationError, match="STORAGE_BACKEND is not set. Set it to local, azure or object-store"):
             ChatAppSettings()
 
     def test_invalid_feature_flag_raises_error(self):
@@ -88,23 +95,38 @@ class TestKbAppSettingsValidation:
         assert s.qdrant_collection_name == "byoeb-kb"
         assert s.storage_backend == "local"
 
-    def test_kb_s3_backend_requires_credentials(self, monkeypatch):
-        monkeypatch.setenv("STORAGE_BACKEND", "s3")
-        monkeypatch.setenv("S3_BUCKET_NAME", "byoeb-media")
-        monkeypatch.delenv("S3_ACCESS_KEY_ID", raising=False)
-        monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "secret")
+    def test_kb_object_store_backend_requires_credentials(self, monkeypatch):
+        monkeypatch.setenv("STORAGE_BACKEND", "object-store")
+        monkeypatch.setenv("OBJECT_STORE_BUCKET_NAME", "byoeb-media")
+        monkeypatch.delenv("OBJECT_STORE_ACCESS_KEY_ID", raising=False)
+        monkeypatch.setenv("OBJECT_STORE_SECRET_ACCESS_KEY", "secret")
         from byoeb.kb_app.configuration.config import KbAppSettings
-        with pytest.raises(ValidationError, match="S3_ACCESS_KEY_ID"):
+        with pytest.raises(ValidationError, match="OBJECT_STORE_ACCESS_KEY_ID"):
             KbAppSettings()
 
-    def test_kb_s3_backend_needs_no_azure_settings(self, monkeypatch):
+    def test_kb_object_store_backend_needs_no_azure_settings(self, monkeypatch):
         for name in ("AZURE_STORAGE_CONTAINER_NAME", "AZURE_STORAGE_ANALYSIS_CONTAINER_NAME", "AZURE_STORAGE_BLOB_ACCOUNT_URL", "AZURE_STORAGE_CONNECTION_STRING"):
             monkeypatch.delenv(name, raising=False)
-        monkeypatch.setenv("STORAGE_BACKEND", "s3")
-        monkeypatch.setenv("S3_BUCKET_NAME", "byoeb-media")
-        monkeypatch.setenv("S3_ANALYSIS_BUCKET_NAME", "test-bucket")
-        monkeypatch.setenv("S3_ACCESS_KEY_ID", "key")
-        monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "secret")
+        monkeypatch.setenv("STORAGE_BACKEND", "object-store")
+        monkeypatch.setenv("OBJECT_STORE_BUCKET_NAME", "byoeb-media")
+        monkeypatch.setenv("OBJECT_STORE_ANALYSIS_BUCKET_NAME", "test-bucket")
+        monkeypatch.setenv("OBJECT_STORE_ACCESS_KEY_ID", "key")
+        monkeypatch.setenv("OBJECT_STORE_SECRET_ACCESS_KEY", "secret")
         from byoeb.kb_app.configuration.config import KbAppSettings
         s = KbAppSettings()
-        assert (s.s3_bucket_name, s.s3_analysis_bucket_name) == ("byoeb-media", "test-bucket")
+        assert (s.object_store_bucket_name, s.object_store_analysis_bucket_name) == ("byoeb-media", "test-bucket")
+
+
+class TestKbStorageBackendRequired:
+
+    def test_kb_unset_storage_backend_is_rejected(self, monkeypatch):
+        monkeypatch.delenv("STORAGE_BACKEND", raising=False)
+        from byoeb.kb_app.configuration.config import KbAppSettings
+        with pytest.raises(ValidationError, match="STORAGE_BACKEND is not set. Set it to local, azure or object-store"):
+            KbAppSettings()
+
+    def test_kb_unknown_storage_backend_is_rejected(self, monkeypatch):
+        monkeypatch.setenv("STORAGE_BACKEND", "gcs")
+        from byoeb.kb_app.configuration.config import KbAppSettings
+        with pytest.raises(ValidationError, match=r"STORAGE_BACKEND is not supported \(gcs\)"):
+            KbAppSettings()

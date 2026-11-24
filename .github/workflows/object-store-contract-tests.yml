@@ -1,0 +1,97 @@
+name: Object Store Contract Tests
+
+on:
+  pull_request:
+    branches: [ "a4i/main", "a4i/staging" ]
+    paths:
+      - "byoeb-v1/byoeb-integrations/**"
+      - ".github/workflows/object-store-contract-tests.yml"
+      - ".github/cubefs/**"
+  workflow_dispatch:
+
+env:
+  CUBEFS_HELM_REF: 164b8284050c12c33d03212000a39710bb8fbc18
+  OBJECT_STORE_ENDPOINT_URL: http://localhost:1601
+  OBJECT_STORE_ACCESS_KEY_ID: ci0testaccesskey
+  OBJECT_STORE_SECRET_ACCESS_KEY: ci0testsecretkey0000000000000000
+  OBJECT_STORE_BUCKET_NAME: byoeb-contract
+
+jobs:
+  cubefs-contract:
+    name: CubeFS contract tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      POETRY_VIRTUALENVS_IN_PROJECT: "true"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1.12.0
+        with:
+          cluster_name: cubefs
+          node_image: kindest/node:v1.33.1
+          config: .github/cubefs/kind-cluster.yaml
+
+      - name: Label nodes and free the control-plane node
+        # The chart needs three datanodes and three metanodes. The control-plane node must run them too.
+        run: |
+          kubectl label nodes --all \
+            component.cubefs.io/master=enabled \
+            component.cubefs.io/metanode=enabled \
+            component.cubefs.io/datanode=enabled \
+            component.cubefs.io/objectnode=enabled
+          kubectl taint nodes -l node-role.kubernetes.io/control-plane node-role.kubernetes.io/control-plane-
+
+      - name: Install CubeFS
+        run: |
+          git clone https://github.com/cubefs/cubefs-helm.git "$RUNNER_TEMP/cubefs-helm"
+          git -C "$RUNNER_TEMP/cubefs-helm" checkout "$CUBEFS_HELM_REF"
+          # The chart template has a typo: .Value.master must be .Values.master.
+          sed -i 's/\.Value\.master/.Values.master/' "$RUNNER_TEMP/cubefs-helm/cubefs/templates/statefulset-master.yaml"
+          ! grep -q '\.Value\.master' "$RUNNER_TEMP/cubefs-helm/cubefs/templates/statefulset-master.yaml"
+          helm install cubefs "$RUNNER_TEMP/cubefs-helm/cubefs" -f .github/cubefs/values.yaml -n cubefs --create-namespace --wait --timeout 15m
+
+      - name: Create the test user
+        # The bucket comes from the test fixture. CubeFS needs a user with fixed-length keys first.
+        run: |
+          kubectl -n cubefs exec master-0 -c master-pod -- sh -c '
+            echo "{\"masterAddr\":[\"master-service:17010\"]}" > /root/.cfs-cli.json
+            /cfs/bin/cfs-cli user create byoebci \
+              --access-key "$0" --secret-key "$1" -y' \
+            "$OBJECT_STORE_ACCESS_KEY_ID" "$OBJECT_STORE_SECRET_ACCESS_KEY"
+
+      - name: Expose the object node
+        run: |
+          kubectl -n cubefs port-forward svc/objectnode-service 1601:1601 > port-forward.log 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -s -o /dev/null "$OBJECT_STORE_ENDPOINT_URL" && exit 0
+            sleep 2
+          done
+          cat port-forward.log
+          exit 1
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "poetry"
+          cache-dependency-path: byoeb-v1/byoeb-integrations/pyproject.toml
+
+      - name: Install dependencies
+        working-directory: byoeb-v1/byoeb-integrations
+        run: poetry install --no-interaction
+
+      - name: Run contract tests
+        working-directory: byoeb-v1/byoeb-integrations
+        run: poetry run pytest tests/media_storage/test_media_storage_contract.py -rs
+
+      - name: Show CubeFS pods on failure
+        if: ${{ failure() }}
+        run: kubectl -n cubefs get pods -o wide

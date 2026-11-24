@@ -39,7 +39,7 @@ jobs:
     uses: ./.github/workflows/unit-tests.yml
     with:
       directory: ./byoeb-v1/byoeb-integrations
-      tests-path: .
+      tests-path: . --ignore=tests/media_storage/test_media_storage_contract.py
       extras: azure
       coverage-artifact-name: coverage-html-byoeb-integrations
       upload-html-coverage: true

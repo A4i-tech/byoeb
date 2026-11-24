@@ -1,0 +1,9 @@
+component: {master: true, datanode: true, metanode: true, objectnode: true, client: false, csi: false, monitor: false, ingress: false}
+master: {replicas: 3, resources: {enabled: false}}
+metanode:
+  total_mem: "1073741824"
+  resources: {enabled: false}
+datanode:
+  disks: ["/data0:5368709120"]
+  resources: {enabled: false}
+objectnode: {replicas: 1, resources: {enabled: false}}
