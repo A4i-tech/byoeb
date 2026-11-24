@@ -35,6 +35,7 @@ if _azure_openai_enabled:
     _deployment_name = kb_settings.azure_openai_deployment_name
     _aoai_endpoint = kb_settings.azure_openai_endpoint
     _api_version = app_config["embeddings"]["azure"]["api_version"]
+    _dimensions = app_config["embeddings"]["azure"].get("dimensions")
     _azure_openai_key = kb_settings.azure_openai_key.get_secret_value() if kb_settings.azure_openai_key else None
     _azure_cognitive_key = kb_settings.azure_cognitive_key.get_secret_value() if kb_settings.azure_cognitive_key else None
     if _azure_openai_key:
@@ -44,6 +45,7 @@ if _azure_openai_enabled:
             azure_endpoint=_aoai_endpoint,
             api_key=_azure_openai_key,
             api_version=_api_version,
+            dimensions=_dimensions,
         )
     elif _azure_cognitive_key:
         azure_openai_embed = AzureOpenAIEmbed(
@@ -52,6 +54,7 @@ if _azure_openai_enabled:
             azure_endpoint=_aoai_endpoint,
             api_key=_azure_cognitive_key,
             api_version=_api_version,
+            dimensions=_dimensions,
         )
     else:
         _default_credential = DefaultAzureCredential()
@@ -64,6 +67,7 @@ if _azure_openai_enabled:
             azure_endpoint=_aoai_endpoint,
             token_provider=_token_provider,
             api_version=_api_version,
+            dimensions=_dimensions,
         )
     logger.info("Using Azure OpenAI embeddings: endpoint=%s", _aoai_endpoint)
 else:
@@ -167,6 +171,7 @@ if vector_store_type == "azure_vector_search":
         index_name=azure_search_doc_index_name,
         embedding_function=embedding_function,
         credential=credential,
+        vector_dimensions=_dimensions or 3072,
         vectorizer_params=AzureOpenAIVectorizerParameters(
             resource_url=kb_settings.azure_search_vectorizer_model_uri,
             deployment_id=kb_settings.azure_search_vectorizer_model_name,

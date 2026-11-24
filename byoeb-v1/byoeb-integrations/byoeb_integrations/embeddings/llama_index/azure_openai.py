@@ -11,6 +11,7 @@ class AzureOpenAIEmbed(BaseEmbedding):
         azure_endpoint: str,
         token_provider: Any = None,
         api_key: str = None,
+        dimensions: int = None,
         **kwargs
     ) -> None:
         embedding_fn = None
@@ -27,7 +28,8 @@ class AzureOpenAIEmbed(BaseEmbedding):
                 azure_endpoint=azure_endpoint,
                 azure_ad_token_provider=token_provider,
                 api_version=api_version,
-                reuse_client=False
+                reuse_client=False,
+                dimensions=dimensions
             )
         elif api_key is not None:
             embedding_fn = AzureOpenAIEmbedding(
@@ -36,7 +38,8 @@ class AzureOpenAIEmbed(BaseEmbedding):
                 azure_endpoint=azure_endpoint,
                 api_key=api_key,
                 api_version=api_version,
-                reuse_client=True
+                reuse_client=True,
+                dimensions=dimensions
             )
         else:
             raise ValueError("Either token_provider or api_key must be provided")

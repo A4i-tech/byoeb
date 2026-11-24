@@ -206,6 +206,7 @@ if _azure_openai_enabled:
             azure_endpoint=_aoai_endpoint,
             api_key=_azure_openai_key,
             api_version=app_config["embeddings"]["azure"]["api_version"],
+            dimensions=app_config["embeddings"]["azure"].get("dimensions"),
         )
     else:
         from azure.identity import get_bearer_token_provider, DefaultAzureCredential
@@ -219,6 +220,7 @@ if _azure_openai_enabled:
             azure_endpoint=_aoai_endpoint,
             token_provider=_token_provider,
             api_version=app_config["embeddings"]["azure"]["api_version"],
+            dimensions=app_config["embeddings"]["azure"].get("dimensions"),
         )
     _logger.info("Using Azure OpenAI embeddings: endpoint=%s", _aoai_endpoint)
 else:
@@ -271,7 +273,8 @@ if vector_store_type == "azure_vector_search":
         service_name=azure_search_service_name,
         index_name=azure_search_doc_index_name,
         embedding_function=embedding_function,
-        credential=credential
+        credential=credential,
+        vector_dimensions=app_config["embeddings"]["azure"].get("dimensions") or 3072
     )
     _logger.info("Initialized Azure Vector Store: %s/%s", azure_search_service_name, azure_search_doc_index_name)
 
