@@ -133,9 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.image-info.outputs.tag }}
-      image-ref: ${{ steps.image-info.outputs.ref }}
       image-digest: ${{ steps.build.outputs.digest }}
-      registry: ${{ env.REGISTRY }}
       environment: ${{ steps.target.outputs.environment }}
     permissions:
       contents: read
