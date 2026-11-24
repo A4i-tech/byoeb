@@ -29,11 +29,6 @@ jobs:
         # Single pass: --sarif + --output + --error together.
         # Semgrep writes the SARIF file before applying --error exit code,
         # so findings are captured even when the step exits non-zero.
-        # Excluded rules are false positives for this codebase:
-        #   insecure-hash-algorithms-md5 — MD5 used for non-crypto deterministic ID
-        #     generation from phone numbers, not as a cryptographic signature
-        #   python-logger-credential-disclosure — auth event log messages contain
-        #     format strings describing events, not actual credential values
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         run: |
@@ -44,10 +39,7 @@ jobs:
             --config p/owasp-top-ten \
             --sarif \
             --output semgrep.sarif \
-            --error \
-            --exclude-rule python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5 \
-            --exclude-rule python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure \
-            --exclude-rule python.lang.security.audit.insecure-file-permissions.insecure-file-permissions
+            --error
 
       - name: Restrict SARIF file permissions
         if: always()

@@ -530,7 +530,7 @@ async def send_leaderboard_template_messages(
     from byoeb.services.chat import constants
     
     # Get user information for all phone numbers
-    user_ids = [hashlib.md5(phone.encode()).hexdigest() for phone in phone_numbers]
+    user_ids = [hashlib.md5(phone.encode(), usedforsecurity=False).hexdigest() for phone in phone_numbers]
     users = await user_db_service.get_users(user_ids)
     user_map = {user.phone_number_id: user for user in users if user}
     
@@ -718,7 +718,7 @@ async def send_leaderboard_template_messages(
                 channel_type="whatsapp",
                 message_category="leaderboard",
                 user=User(
-                    user_id=user.user_id if user else hashlib.md5(phone.encode()).hexdigest(),
+                    user_id=user.user_id if user else hashlib.md5(phone.encode(), usedforsecurity=False).hexdigest(),
                     user_type=user.user_type if user else "asha",
                     user_language=user_language,
                     phone_number_id=phone,

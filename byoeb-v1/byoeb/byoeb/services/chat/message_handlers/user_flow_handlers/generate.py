@@ -549,7 +549,7 @@ class ByoebUserGenerateResponse(Handler):
         expert_phone_number_id , expert_type= self.__get_expert_number_and_type(message.user.experts, query_type)
         if expert_phone_number_id is None:
             return None
-        expert_user_id = hashlib.md5(expert_phone_number_id.encode()).hexdigest()
+        expert_user_id = hashlib.md5(expert_phone_number_id.encode(), usedforsecurity=False).hexdigest()
         verification_question_template = bot_config["template_messages"]["expert"]["verification"]["Question"]
         verification_bot_answer_template = bot_config["template_messages"]["expert"]["verification"]["Bot_Answer"]
         verification_question = verification_question_template.replace(

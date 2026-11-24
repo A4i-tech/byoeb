@@ -629,7 +629,7 @@ async def create_raw_files_chunks(files: list):
         }
         for chunk in tqdm(chunks, desc="Generating raw metadata")
     ]
-    chunk_ids = [hashlib.md5(chunk.text.encode()).hexdigest() for chunk in tqdm(chunks, desc="Hashing raw chunk texts")]
+    chunk_ids = [hashlib.md5(chunk.text.encode(), usedforsecurity=False).hexdigest() for chunk in tqdm(chunks, desc="Hashing raw chunk texts")]
     return chunk_ids, chunk_texts, chunk_metadatas
 
 async def create_update_files_chunk(files: list):
@@ -646,7 +646,7 @@ async def create_update_files_chunk(files: list):
     for text, metadata in tqdm(zip(texts, metadatas), total=len(texts), desc="preparing update files"):
         sections = [section.strip() for section in text.split(delimiter) if section.strip()]
         for section in sections:
-            chunk_id = hashlib.md5(section.encode()).hexdigest()
+            chunk_id = hashlib.md5(section.encode(), usedforsecurity=False).hexdigest()
             chunk_text = section
             chunk_metadata = {
                 "source": metadata["file_name"],
@@ -673,7 +673,7 @@ async def create_faq_files_chunk(files: list):
         chunks = process_file(text, metadata['file_name'])
         chunks = [replace_abbreviations(t, abbreviations) for t in chunks]
         for chunk in chunks:
-            chunk_id = hashlib.md5(chunk.encode()).hexdigest()
+            chunk_id = hashlib.md5(chunk.encode(), usedforsecurity=False).hexdigest()
             chunk_text = chunk
             chunk_metadata = {
                 "source": metadata["file_name"],
