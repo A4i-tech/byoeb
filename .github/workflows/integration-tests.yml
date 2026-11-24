@@ -56,7 +56,7 @@ jobs:
         run: |
           set -o pipefail
           cd byoeb-v1/byoeb
-          pip install poetry -q
+          pip install "poetry==1.8.3" -q
           poetry install --no-root --no-interaction -q
           poetry run pytest tests/integration
 
@@ -71,7 +71,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/benchmark"
           cd byoeb-v1/byoeb
-          pip install poetry -q
+          pip install "poetry==1.8.3" -q
           poetry install --no-root --no-interaction -q
           poetry run python byoeb/scripts/run_release_qa_benchmark.py \
             --base-url "$INTEGRATION_BASE_URL" \
