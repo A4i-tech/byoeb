@@ -27,7 +27,7 @@ from azure.search.documents.indexes.models import (
     VectorSearchProfile,
     BM25SimilarityAlgorithm,
 )
-from azure.search.documents.models import VectorizableTextQuery, IndexAction
+from azure.search.documents.models import VectorizableTextQuery, VectorizedQuery, IndexAction
 from azure.search.documents.indexes.models import AzureOpenAIVectorizer, AzureOpenAIVectorizerParameters
 from byoeb_core.models.vector_stores.azure.azure_search import AzureSearchNode, Metadata
 from byoeb_integrations.vector_stores.related_questions import aget_related_questions
@@ -48,7 +48,8 @@ class AzureVectorStore(BaseVectorStore):
         embedding_function,
         api_key: Optional[str] = None,
         credential = None,
-        vectorizer_params: Optional[AzureOpenAIVectorizerParameters] = None  # used when creating a new index
+        vectorizer_params: Optional[AzureOpenAIVectorizerParameters] = None,  # used when creating a new index
+        vector_dimensions: int = 3072
     ):
         if not service_name:
             raise ValueError("service_name is required")
@@ -78,6 +79,7 @@ class AzureVectorStore(BaseVectorStore):
             credential=credential
         )
         self.vectorizer_params = vectorizer_params
+        self.__vector_dimensions = vector_dimensions
 
     def index_definition(self):
         return SearchIndex(
@@ -91,10 +93,10 @@ class AzureVectorStore(BaseVectorStore):
                     searchable=True,
                     filterable=False,
                     retrievable=False,
-                    stored=True,
+                    stored=False,
                     sortable=False,
                     facetable=False,
-                    vector_search_dimensions=3072,
+                    vector_search_dimensions=self.__vector_dimensions,
                     vector_search_profile_name="default-vector-profile"
                 ),
                 ComplexField(name="metadata", fields=[
@@ -118,6 +120,12 @@ class AzureVectorStore(BaseVectorStore):
                 AzureOpenAIVectorizer(vectorizer_name="azure-openai-vectorizer", parameters=self.vectorizer_params)
             ])
         )
+
+    async def __vector_query(self, text: str, vector_field: str):
+        if self.__vector_dimensions == 3072:
+            return VectorizableTextQuery(text=text, k_nearest_neighbors=10, fields=vector_field)
+        vector = await self.__embedding_function.aget_text_embedding(text)
+        return VectorizedQuery(vector=vector, k_nearest_neighbors=10, fields=vector_field)
 
     def fails(self, error: IndexAction):
         logger.error("Failed to upload document: %s", error.additional_properties)
@@ -295,22 +303,14 @@ class AzureVectorStore(BaseVectorStore):
                 top=k
             )
         elif search_type == AzureVectorSearchType.DENSE.value:
-            vector_query = VectorizableTextQuery(
-                text=text,
-                k_nearest_neighbors=10,
-                fields=vector_field
-            )
+            vector_query = await self.__vector_query(text, vector_field)
             results = await self.search_client.search(
                 vector_queries=[vector_query],
                 select=select,
                 top=k
             )
         elif search_type == AzureVectorSearchType.HYBRID.value:
-            vector_query = VectorizableTextQuery(
-                text=text,
-                k_nearest_neighbors=10,
-                fields=vector_field
-            )
+            vector_query = await self.__vector_query(text, vector_field)
             results = await self.search_client.search(
                 search_text=text,
                 vector_queries=[vector_query],

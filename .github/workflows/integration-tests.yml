@@ -43,6 +43,11 @@ jobs:
           echo "Staging service failed to respond within expected time" >&2
           exit 1
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Run integration tests
         id: run-tests
         env:
@@ -57,7 +62,7 @@ jobs:
           set -o pipefail
           cd byoeb-v1/byoeb
           pip install "poetry==1.8.3" -q
-          poetry install --no-root --no-interaction -q
+          poetry install --no-root --no-interaction
           poetry run pytest tests/integration
 
       - name: Set up Python and run release QA benchmark (from repo)
@@ -72,7 +77,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/benchmark"
           cd byoeb-v1/byoeb
           pip install "poetry==1.8.3" -q
-          poetry install --no-root --no-interaction -q
+          poetry install --no-root --no-interaction
           poetry run python byoeb/scripts/run_release_qa_benchmark.py \
             --base-url "$INTEGRATION_BASE_URL" \
             --tenant-id "$INTEGRATION_AUTH_TENANT_ID" \

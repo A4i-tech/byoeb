@@ -205,3 +205,20 @@ def test_azure_vector_search_rebuild(embedding_fn_stub):
     )
     azure_vector_search.delete_store()
     azure_vector_search.create_store()
+
+
+@pytest.mark.asyncio
+async def test_azure_vector_search_custom_dimensions_uses_client_embedding(embedding_fn_stub, mock_search_clients):
+    _, search_client = mock_search_clients
+    store = AzureVectorStore(SERVICE_NAME, INDEX_NAME, embedding_fn_stub, credential=DefaultAzureCredential(), vector_dimensions=768)
+    await store.retrieve_top_k_chunks(
+        text="What is photosynthesis?",
+        k=3,
+        search_type=AzureVectorSearchType.DENSE.value,
+        select=["id"],
+        vector_field="text_vector_3072",
+    )
+    query = search_client.search.call_args.kwargs["vector_queries"][0]
+    assert type(query).__name__ == "VectorizedQuery"
+    field = next(f for f in store.index_definition().fields if f.name == "text_vector_3072")
+    assert field.vector_search_dimensions == 768
