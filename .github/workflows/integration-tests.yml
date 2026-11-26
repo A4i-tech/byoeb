@@ -7,14 +7,6 @@ on:
         description: "Base URL of the deployed staging service"
         required: true
         type: string
-      image-ref:
-        description: "Container image (tag) containing the integration tests"
-        required: true
-        type: string
-      registry:
-        description: "Registry hosting the container image"
-        required: true
-        type: string
       environment:
         description: "Target environment name"
         required: false
@@ -31,7 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -52,13 +43,6 @@ jobs:
           echo "Staging service failed to respond within expected time" >&2
           exit 1
 
-      - name: Log into registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ inputs.registry }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Run integration tests
         id: run-tests
         env:
@@ -71,16 +55,10 @@ jobs:
           MONGO_DB_CONNECTION_STRING: ${{ secrets.MONGO_DB_CONNECTION_STRING }}
         run: |
           set -o pipefail
-          docker run --rm \
-            -e INTEGRATION_BASE_URL="$INTEGRATION_BASE_URL" \
-            -e INTEGRATION_AUTH_TENANT_ID="$INTEGRATION_AUTH_TENANT_ID" \
-            -e INTEGRATION_AUTH_USERNAME="$INTEGRATION_AUTH_USERNAME" \
-            -e INTEGRATION_AUTH_PASSWORD="$INTEGRATION_AUTH_PASSWORD" \
-            -e INTEGRATION_WHATSAPP_PHONE_NUMBER_ID="$INTEGRATION_WHATSAPP_PHONE_NUMBER_ID" \
-            -e INTEGRATION_WHATSAPP_APP_SECRET="$INTEGRATION_WHATSAPP_APP_SECRET" \
-            -e MONGO_DB_CONNECTION_STRING="$MONGO_DB_CONNECTION_STRING" \
-            "${{ inputs.image-ref }}" \
-            poetry run pytest tests/integration
+          cd byoeb-v1/byoeb
+          pip install "poetry==1.8.3" -q
+          poetry install --no-root --no-interaction -q
+          poetry run pytest tests/integration
 
       - name: Set up Python and run release QA benchmark (from repo)
         id: run-benchmark
@@ -93,7 +71,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/benchmark"
           cd byoeb-v1/byoeb
-          pip install poetry -q
+          pip install "poetry==1.8.3" -q
           poetry install --no-root --no-interaction -q
           poetry run python byoeb/scripts/run_release_qa_benchmark.py \
             --base-url "$INTEGRATION_BASE_URL" \

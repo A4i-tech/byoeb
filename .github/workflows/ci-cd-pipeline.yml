@@ -133,9 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.image-info.outputs.tag }}
-      image-ref: ${{ steps.image-info.outputs.ref }}
       image-digest: ${{ steps.build.outputs.digest }}
-      registry: ${{ env.REGISTRY }}
       environment: ${{ steps.target.outputs.environment }}
     permissions:
       contents: read
@@ -255,8 +253,6 @@ jobs:
     uses: ./.github/workflows/integration-tests.yml
     with:
       service-url: https://byoeb-dev.a4i-lab.in
-      image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
-      registry: ${{ needs.publish-image.outputs.registry }}
       environment: ${{ needs.publish-image.outputs.environment }}
       deployment-url: https://byoeb-dev.a4i-lab.in
     secrets: inherit
@@ -270,8 +266,6 @@ jobs:
     uses: ./.github/workflows/integration-tests.yml
     with:
       service-url: ${{ needs.deploy-production.outputs['service-url'] }}
-      image-ref: ${{ needs.publish-image.outputs['image-ref'] }}
-      registry: ${{ needs.publish-image.outputs.registry }}
       environment: production
       deployment-url: ${{ needs.deploy-production.outputs['service-url'] }}
     secrets: inherit

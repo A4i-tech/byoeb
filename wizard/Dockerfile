@@ -20,8 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Python dependencies
 COPY wizard/requirements.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir pyyaml
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy wizard source and bundled KB documents
 COPY wizard/ wizard/

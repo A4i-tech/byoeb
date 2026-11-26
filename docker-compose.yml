@@ -3,7 +3,7 @@ services:
     build:
       context: ./byoeb-v1
       dockerfile: Dockerfile
-    command: poetry run python3 -m byoeb.chat_app.run --host 0.0.0.0 --port 8000
+    command: python3 -m byoeb.chat_app.run --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     env_file:
@@ -22,7 +22,7 @@ services:
     build:
       context: ./byoeb-v1
       dockerfile: Dockerfile
-    command: poetry run python3 -m byoeb.kb_app.run
+    command: python3 -m byoeb.kb_app.run
     ports:
       - "8001:5000"
     env_file:

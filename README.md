@@ -21,6 +21,8 @@ docker compose -f docker-compose.wizard.yml up
 
 The wizard walks you through all config, generates `.env.local`, pulls the app images, and starts AshaBot — all from the browser. No Python, no git, no source code.
 
+> **Security note:** the wizard container mounts your host's Docker socket to launch the app containers, which is host-root-equivalent access. Only run it on a trusted local dev machine, never on a shared or internet-facing host.
+
 > **Developers / Azure users:** See [Local installation](#local-installation) below for the full developer setup.
 
 ---
